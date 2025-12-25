@@ -1,0 +1,12 @@
+[functions]
+# Disable JWT verification for stripe-webhook to allow Stripe to call it
+[functions.stripe-webhook]
+verify_jwt = false
+
+# Disable JWT verification for OAuth callbacks (called by OAuth providers)
+[functions.connect-google-callback]
+verify_jwt = false
+
+[functions.connect-teams-callback]
+verify_jwt = false
+
