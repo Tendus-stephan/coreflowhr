@@ -148,10 +148,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return;
       }
 
-      // Only check onboarding when accessing dashboard for the first time
-      if (location.pathname !== '/dashboard') {
+      // Check onboarding for ALL protected routes, not just dashboard
+      // Users must complete onboarding before accessing any protected page
+      // Exception: allow access to onboarding page itself
+      if (location.pathname === '/onboarding') {
         setOnboardingChecked(true);
-        setOnboardingCompleted(true); // Don't block other pages
+        setOnboardingCompleted(true); // Allow access to onboarding page
         return;
       }
 
@@ -217,18 +219,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           : 0;
         const isNewlySubscribed = accountAge < (7 * 24 * 60 * 60 * 1000); // Within last 7 days
 
+        // Block access to ALL protected routes if onboarding not completed
         // Only show onboarding if:
         // 1. User hasn't completed onboarding
         // 2. User is subscribed
         // 3. User is newly subscribed (account created within 7 days)
-        // 4. User has no existing data (truly first time accessing dashboard)
-        // 5. User is accessing dashboard
+        // 4. User has no existing data (truly first time user)
+        // Note: This check applies to all protected routes, not just dashboard
         const shouldShowOnboarding = 
           !profile?.onboarding_completed &&
           isSubscribed &&
           isNewlySubscribed &&
-          !hasExistingData &&
-          location.pathname === '/dashboard';
+          !hasExistingData;
 
         setOnboardingCompleted(!shouldShowOnboarding);
       } catch (error) {

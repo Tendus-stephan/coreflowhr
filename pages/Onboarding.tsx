@@ -356,11 +356,11 @@ const Onboarding: React.FC = () => {
         const handleKeys = (e: KeyboardEvent) => {
             if (e.key === 'ArrowRight') handleNext();
             if (e.key === 'ArrowLeft') handleBack();
-            if (e.key === 'Escape') navigate('/dashboard');
+            // ESC key removed - users must complete onboarding
         };
         window.addEventListener('keydown', handleKeys);
         return () => window.removeEventListener('keydown', handleKeys);
-    }, [handleNext, handleBack, navigate]);
+    }, [handleNext, handleBack]);
 
     const slide = slides[currentIndex];
     const progress = ((currentIndex + 1) / slides.length) * 100;
@@ -485,12 +485,7 @@ const Onboarding: React.FC = () => {
                                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Tutorial Progress</span>
                             </div>
                         </div>
-                        <button 
-                            onClick={() => navigate('/dashboard')}
-                            className="p-3 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-all"
-                        >
-                            <X className="w-6 h-6" />
-                        </button>
+                        {/* Close button removed - users must complete onboarding */}
                             </div>
 
                     {/* Content Section */}
