@@ -348,20 +348,13 @@ const Onboarding: React.FC = () => {
         try {
             // Mark as completed first and wait for it to complete
             await markOnboardingCompleted();
-            // Set completed state to show the completion screen
-            setCompleted(true);
-            // Wait longer for the database update to fully propagate, then redirect
+            // Immediately redirect to dashboard - no completion screen
             // Using window.location to force a full page reload so ProtectedRoute gets fresh data
-            setTimeout(() => {
-                window.location.href = '/#/dashboard';
-            }, 2500);
+            window.location.href = '/#/dashboard';
         } catch (error) {
             console.error('Error completing onboarding:', error);
-            // Even if there's an error, show completion screen and redirect
-            setCompleted(true);
-            setTimeout(() => {
-                window.location.href = '/#/dashboard';
-            }, 2500);
+            // Even if there's an error, try to redirect to dashboard
+            window.location.href = '/#/dashboard';
         }
     };
 
