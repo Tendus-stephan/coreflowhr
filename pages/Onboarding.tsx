@@ -419,9 +419,10 @@ const Onboarding: React.FC = () => {
                                 className="object-contain"
                                 style={{
                                     display: 'block',
-                                    height: '80px',
+                                    height: '120px',
                                     width: 'auto',
-                                    maxWidth: '250px'
+                                    maxWidth: '350px',
+                                    filter: 'brightness(0) invert(1)' // Make logo white for dark background
                                 }}
                                 onError={(e) => {
                                     console.error('Logo failed to load');
