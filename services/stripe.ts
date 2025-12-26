@@ -8,7 +8,19 @@ if (!stripePublishableKey) {
   console.warn('Stripe publishable key must be set in VITE_STRIPE_PUBLISHABLE_KEY');
 }
 
-export const stripePromise = loadStripe(stripePublishableKey);
+// Load Stripe with error handling for network timeouts
+export const stripePromise = stripePublishableKey 
+  ? loadStripe(stripePublishableKey).catch((error) => {
+      // Handle network errors gracefully (timeouts, connection issues)
+      if (error.message?.includes('timeout') || error.message?.includes('Failed to fetch')) {
+        console.warn('Stripe.js failed to load due to network issues. Payment features may be unavailable.');
+      } else {
+        console.error('Error loading Stripe.js:', error);
+      }
+      // Return null to indicate Stripe is not available
+      return null;
+    })
+  : Promise.resolve(null);
 
 // Plan configurations
 export const PLANS = {
