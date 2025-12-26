@@ -147,7 +147,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       // Let the Onboarding component handle its own redirect logic
       if (location.pathname === '/onboarding') {
         setOnboardingChecked(true);
-        setOnboardingCompleted(true); // Allow access to onboarding page
+        // Don't set onboardingCompleted here - let it remain in its current state
+        // The onboarding page itself will handle redirects
         return;
       }
 
@@ -156,16 +157,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return;
       }
 
-      // Skip onboarding check if user is already on onboarding page
-      // (This is already handled by the early return above, so this check is redundant)
-
       try {
         // Check if user has completed onboarding
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('onboarding_completed, created_at')
           .eq('id', user.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle to handle case where profile doesn't exist
 
         // Simple check: Only check if onboarding_completed flag is set in database
         // If user hasn't completed onboarding, block access to protected routes
@@ -173,8 +171,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setOnboardingCompleted(profile?.onboarding_completed === true);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
-        // Default to allowing access if check fails (fail open)
-        setOnboardingCompleted(true);
+        // Default to blocking access if check fails (fail closed for security)
+        // User should complete onboarding before accessing protected routes
+        setOnboardingCompleted(false);
       } finally {
         setOnboardingChecked(true);
       }
