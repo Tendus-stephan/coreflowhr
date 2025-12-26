@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SourcingProvider } from './contexts/SourcingContext';
+import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import { CandidateSourcingNotification } from './components/CandidateSourcingNotification';
@@ -20,9 +21,12 @@ import Calendar from './pages/Calendar';
 import Offers from './pages/Offers';
 import OfferResponse from './pages/OfferResponse';
 import Onboarding from './pages/Onboarding';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 const Layout = () => {
   const location = useLocation();
+  const { isExpanded } = useSidebar();
   
   // Pages that don't show the sidebar
   const isStandalonePage = [
@@ -30,7 +34,9 @@ const Layout = () => {
     '/login', 
     '/signup', 
     '/forgot-password', 
-    '/verify-email'
+    '/verify-email',
+    '/terms',
+    '/privacy'
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond'));
@@ -39,10 +45,12 @@ const Layout = () => {
     return <Outlet />;
   }
 
+  const sidebarWidth = isExpanded ? '256px' : '80px';
+
   return (
-    <div className="flex min-h-screen bg-background text-gray-900 font-sans selection:bg-gray-100">
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
-      <main className="flex-1 overflow-x-hidden relative">
+      <main className="overflow-x-hidden relative transition-all duration-150 bg-white" style={{ paddingBottom: '80px', marginLeft: sidebarWidth }}>
         <Outlet />
       </main>
       {/* Always visible CoreFlow AI notification */}
@@ -111,6 +119,14 @@ const AppRoutes: React.FC = () => {
               <VerifyEmail />
             </PublicRoute>
           } 
+        />
+        <Route 
+          path="/terms" 
+          element={<TermsOfService />}
+        />
+        <Route 
+          path="/privacy" 
+          element={<PrivacyPolicy />}
         />
         <Route 
           path="/onboarding" 
@@ -203,7 +219,9 @@ const App: React.FC = () => {
     <Router>
       <AuthProvider>
         <SourcingProvider>
-          <AppRoutes />
+          <SidebarProvider>
+            <AppRoutes />
+          </SidebarProvider>
         </SourcingProvider>
       </AuthProvider>
     </Router>

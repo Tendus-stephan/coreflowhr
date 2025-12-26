@@ -619,7 +619,7 @@ const Jobs: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto min-h-screen flex flex-col bg-white">
+    <div className="p-8 max-w-[1600px] mx-auto flex flex-col bg-white">
       {/* Modal */}
       <JobManageModal job={selectedJob} isOpen={!!selectedJob} onClose={() => setSelectedJob(null)} navigate={navigate} />
       <JobSettingsModal job={settingsJob} isOpen={!!settingsJob} onClose={() => setSettingsJob(null)} />

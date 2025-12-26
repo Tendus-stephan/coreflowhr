@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
+import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 
@@ -247,10 +248,29 @@ const LandingPage: React.FC = () => {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          {/* Text Only Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <span className="text-xl font-bold tracking-tighter text-gray-900">CoreFlow</span>
-          </div>
+          {/* Logo - Full Logo with Symbol and Text */}
+          <Link to="/" className="cursor-pointer flex items-center flex-shrink-0">
+            <img 
+              src="/assets/images/coreflow-logo.png" 
+              alt="CoreFlow" 
+              className="object-contain"
+              style={{ 
+                display: 'block',
+                height: '150px',
+                width: 'auto',
+                maxWidth: '400px'
+              }}
+              onError={(e) => {
+                console.error('❌ Logo image FAILED to load');
+                const img = e.target as HTMLImageElement;
+                img.style.border = '3px solid red';
+                img.style.backgroundColor = '#fee';
+              }}
+              onLoad={() => {
+                console.log('✅ Logo image LOADED successfully');
+              }}
+            />
+          </Link>
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-500">
             <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
@@ -366,9 +386,8 @@ const LandingPage: React.FC = () => {
                     
                     {/* Sidebar Replica */}
                     <div className="w-60 bg-white border-r border-gray-200 hidden md:flex flex-col flex-shrink-0">
-                        <div className="p-6 flex items-center gap-2 mb-2">
-                            <div className="w-8 h-8 bg-black rounded-lg text-white flex items-center justify-center font-serif italic text-lg shadow-sm">C</div>
-                            <span className="font-bold text-gray-900 tracking-tight text-lg">CoreFlow</span>
+                        <div className="p-6 mb-2">
+                            <Logo size="lg" />
                         </div>
                         <div className="px-4 space-y-1">
                             <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-100 text-gray-900 rounded-lg text-sm font-medium">
@@ -959,8 +978,8 @@ const LandingPage: React.FC = () => {
                      © 2025 CoreFlow AI. All rights reserved.
                  </div>
                  <div className="flex gap-8 text-sm text-gray-500">
-                     <a href="#" className="hover:text-gray-900 transition-colors">Terms of Service</a>
-                     <a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a>
+                     <Link to="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link>
+                     <Link to="/privacy" className="hover:text-gray-900 transition-colors">Privacy Policy</Link>
                  </div>
              </div>
         </div>

@@ -74,8 +74,10 @@ const VerifyEmail: React.FC = () => {
       });
 
       if (error) {
-        setResendError(error.message || 'Failed to send email. Please check your Supabase email configuration.');
+        const errorMessage = error.message || 'Failed to send email. Please check your Supabase email configuration.';
+        setResendError(`Error: ${errorMessage}. Check Supabase SMTP settings and Resend domain verification.`);
         console.error('Error resending email:', error);
+        console.error('Full error details:', JSON.stringify(error, null, 2));
       } else {
         setResent(true);
       }

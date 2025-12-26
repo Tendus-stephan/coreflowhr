@@ -34,16 +34,22 @@ const ForgotPassword: React.FC = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="flex justify-center items-center gap-2 mb-8 text-gray-400 hover:text-gray-900 transition-colors group">
+        <Link to="/" className="flex justify-center items-center gap-2 mb-3 text-gray-400 hover:text-gray-900 transition-colors group">
             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-medium">Back to Home</span>
         </Link>
-        <div className="flex justify-center">
-            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white shadow-xl shadow-black/20">
-                 <span className="text-3xl font-bold font-serif italic">C</span>
-            </div>
+        <div className="flex justify-center mb-2">
+            <img 
+              src="/assets/images/coreflow-favicon-logo.png" 
+              alt="CoreFlow" 
+              className="object-contain"
+              style={{ 
+                width: '120px',
+                height: '120px'
+              }}
+            />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+        <h2 className="mt-3 text-center text-3xl font-bold tracking-tight text-gray-900">
           Reset your password
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">

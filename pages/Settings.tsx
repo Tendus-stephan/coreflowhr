@@ -1314,7 +1314,7 @@ const Settings: React.FC = () => {
     if (!user) return <div className="p-8">Loading...</div>;
 
     return (
-        <div className="p-8 max-w-6xl mx-auto min-h-screen">
+        <div className="p-8 max-w-6xl mx-auto">
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
             
             <div className="flex items-center justify-between mb-8">
@@ -1848,8 +1848,9 @@ const Settings: React.FC = () => {
                                     onClick={() => setIsPasswordModalOpen(true)}
                                     className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
                                 >
-                                    <div>
+                                    <div className="flex items-center gap-2">
                                         <p className="text-sm font-bold text-gray-900 group-hover:underline">Change Password</p>
+                                        <span className="text-gray-400">•</span>
                                         <p className="text-xs text-gray-500">Update your account password</p>
                                     </div>
                                     <Key size={16} className="text-gray-400 group-hover:text-gray-900" />
@@ -1870,13 +1871,13 @@ const Settings: React.FC = () => {
                                          sessions.map(session => (
                                              <div key={session.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-white hover:border-gray-300 transition-colors">
                                                  <div className="flex items-center gap-4 flex-1">
-                                                     <div className={`p-2 rounded-lg text-gray-600 ${session.current ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-gray-50 border border-gray-100'}`}>
+                                                     <div className="p-2 rounded-lg text-gray-600 bg-gray-50 border border-gray-100">
                                                          {session.icon === 'mobile' ? <Smartphone size={20} /> : <Monitor size={20} />}
                                                      </div>
                                                      <div className="flex-1">
                                                          <div className="flex items-center gap-2">
                                                             <p className="text-sm font-bold text-gray-900">{session.device}</p>
-                                                            {session.current && <span className="text-green-700 text-[10px] font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100 uppercase tracking-wide">Current</span>}
+                                                            {session.current && <span className="text-gray-700 text-[10px] font-bold bg-gray-50 px-2 py-0.5 rounded border border-gray-100 uppercase tracking-wide">Current</span>}
                                                          </div>
                                                          <p className="text-xs text-gray-500 mt-0.5">{session.location} • <span className="font-mono">{session.ip || '192.168.x.x'}</span></p>
                                                          <p className="text-[10px] text-gray-400 mt-1">Last active: {session.time}</p>
@@ -1888,7 +1889,7 @@ const Settings: React.FC = () => {
                                                          size="sm"
                                                          onClick={() => handleRevokeSession(session.id)}
                                                          disabled={isRevokingSession === session.id}
-                                                         className="ml-4 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                         className="ml-4 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                                                      >
                                                          {isRevokingSession === session.id ? (
                                                              <>
@@ -1913,7 +1914,7 @@ const Settings: React.FC = () => {
                                              variant="outline"
                                              size="sm"
                                              onClick={handleRevokeAllSessions}
-                                             className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                             className="w-full text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-gray-200"
                                          >
                                              <LogOut size={14} className="mr-2" />
                                              Revoke All Other Sessions

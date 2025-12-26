@@ -82,7 +82,7 @@ export const CandidateSourcingNotification: React.FC = () => {
                 // Collapsed: Small Button
                 <button
                     onClick={() => setIsExpanded(true)}
-                    className="relative w-14 h-14 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in blur-sm hover:blur-none"
+                    className="relative w-14 h-14 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in"
                 >
                     {isSourcing ? (
                         <Loader2 className="text-white animate-spin" size={24} />

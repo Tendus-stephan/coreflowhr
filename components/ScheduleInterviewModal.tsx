@@ -44,10 +44,10 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             const loadIntegrations = async () => {
                 try {
                     const allIntegrations = await api.settings.getIntegrations();
-                    // Filter to only show active 'meet' integrations (Teams temporarily disabled)
+                    // Filter to only show active Google Meet integrations (Teams temporarily disabled)
                     const availableIntegrations = allIntegrations.filter(
                         (int: Integration) => 
-                            int.id === 'meet' && int.active
+                            int.name === 'Google Meet' && int.active
                     );
                     setIntegrations(availableIntegrations);
                     
@@ -297,7 +297,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
             // Get interview email template
             const templates = await api.settings.getTemplates();
-            const interviewTemplate = templates.find(t => t.id === 'interview');
+            const interviewTemplate = templates.find(t => t.type === 'Interview');
             
             if (interviewTemplate) {
                 // Replace template variables

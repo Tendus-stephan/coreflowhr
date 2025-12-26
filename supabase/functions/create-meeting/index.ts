@@ -72,13 +72,11 @@ serve(async (req) => {
     }
 
     // Load integration config for Google Meet
-    const integrationId = 'meet';
-
     const { data: integration, error: integrationError } = await supabase
       .from('integrations')
       .select('id, config')
       .eq('user_id', user.id)
-      .eq('id', integrationId)
+      .eq('name', 'Google Meet')
       .eq('active', true)
       .maybeSingle();
 
@@ -101,7 +99,7 @@ serve(async (req) => {
     }
 
     const config = integration.config as any;
-    const result = await createGoogleMeetMeeting(config, user.id, integrationId, title, startIso, durationMinutes, supabaseUrl);
+    const result = await createGoogleMeetMeeting(config, user.id, integration.id, title, startIso, durationMinutes, supabaseUrl);
     
     if (result.error) {
       return new Response(

@@ -513,9 +513,15 @@ const Onboarding: React.FC = () => {
                 {/* Header */}
                 <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-                            <span className="text-black font-bold text-sm">CF</span>
-                        </div>
+                        <img 
+                          src="/assets/images/coreflow-favicon-logo.png" 
+                          alt="CoreFlow" 
+                          className="object-contain"
+                          style={{ 
+                            width: '32px',
+                            height: '32px'
+                          }}
+                        />
                         <h1 className="text-lg font-bold">CoreFlow Tutorial</h1>
                     </div>
                     <button

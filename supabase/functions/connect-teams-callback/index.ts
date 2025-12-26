@@ -191,12 +191,21 @@ serve(async (req) => {
       token_type: tokens.token_type || 'Bearer',
     };
 
+    // Map integration ID to name
+    const integrationNameMap: Record<string, string> = {
+      'teams': 'Microsoft Teams',
+      'meet': 'Google Meet',
+      'gcal': 'Google Calendar'
+    };
+    const integrationName = integrationNameMap[integrationId] || 'Integration';
+    const userSpecificId = `${userId}_${integrationId}`;
+
     // First check if integration exists
-    console.log('Checking if integration exists:', { integrationId, userId });
+    console.log('Checking if integration exists:', { integrationId, userId, userSpecificId });
     const { data: existingIntegration, error: checkError } = await supabase
       .from('integrations')
       .select('id, user_id, name')
-      .eq('id', integrationId)
+      .eq('id', userSpecificId)
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -212,9 +221,9 @@ serve(async (req) => {
       const { data: newIntegration, error: createError } = await supabase
         .from('integrations')
         .insert({
-          id: integrationId,
+          id: userSpecificId,
           user_id: userId,
-          name: integrationId === 'teams' ? 'Microsoft Teams' : integrationId === 'meet' ? 'Google Meet' : integrationId === 'gcal' ? 'Google Calendar' : 'Integration',
+          name: integrationName,
           desc: '',
           active: true,
           connected_date: new Date().toISOString(),
@@ -232,7 +241,7 @@ serve(async (req) => {
       return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_success=${integrationId}`, 302);
     }
 
-    console.log('Updating integration in database:', { integrationId, userId });
+    console.log('Updating integration in database:', { integrationId, userId, userSpecificId });
     const { data: updateData, error: updateError } = await supabase
       .from('integrations')
       .update({
@@ -240,7 +249,7 @@ serve(async (req) => {
         connected_date: new Date().toISOString(),
         config: config,
       })
-      .eq('id', integrationId)
+      .eq('id', userSpecificId)
       .eq('user_id', userId)
       .select();
 

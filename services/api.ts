@@ -480,7 +480,12 @@ export const api = {
             });
 
             if (updateError) {
-                return { error: updateError.message || 'Failed to update password' };
+                // Simplify verbose password validation errors
+                let errorMessage = updateError.message || 'Failed to update password';
+                if (errorMessage.includes('Password should contain at least one character')) {
+                    errorMessage = 'Password must contain uppercase, lowercase, numbers, and special characters';
+                }
+                return { error: errorMessage };
             }
 
             // Update password_changed_at timestamp
@@ -3876,25 +3881,11 @@ export const api = {
                 throw new Error(`Failed to send test email: ${emailError.message}`);
             }
 
-            // Create execution log for test with special marker
-            try {
-                const { error: logError } = await supabase
-                    .from('workflow_executions')
-                    .insert({
-                        workflow_id: workflowId,
-                        candidate_id: userId, // Use userId to mark as test execution
-                        status: 'sent',
-                        executed_at: new Date().toISOString(),
-                        error_message: '[TEST] Test execution - email sent to user with placeholders'
-                    });
-
-                if (logError) {
-                    console.error('Error creating test execution log:', logError);
-                }
-            } catch (logErr) {
-                console.error('Error logging test execution:', logErr);
-                // Don't fail the test if logging fails
-            }
+            // Skip creating execution log for test workflows
+            // Test workflows don't have a real candidate_id, and we don't want to pollute
+            // the execution history with test runs. Test emails are sent directly to the user.
+            // If a valid candidateId is provided, we could log it, but for now we skip logging tests.
+            // Note: The candidateId parameter is currently unused but kept for future use
         },
         getExecutions: async (workflowId: string): Promise<WorkflowExecution[]> => {
             const userId = await getUserId();

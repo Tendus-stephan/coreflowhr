@@ -7,9 +7,10 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, name?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; requiresMFA?: boolean }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  verifyMFA: (code: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -165,6 +166,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signUp = async (email: string, password: string, name?: string) => {
+    // Check if user already exists, is verified, and has MFA enabled using SQL function
+    // This prevents sending verification emails to existing verified users
+    try {
+      const { data: userCheck, error: checkError } = await supabase.rpc('check_user_exists_and_verified', {
+        user_email: email
+      });
+
+      if (checkError) {
+        // Log the error but don't block signup (fail open)
+        console.warn('[SignUp] Error checking if user exists:', checkError);
+        // If function doesn't exist, continue with signup
+        // This allows the app to work even if the function hasn't been created yet
+      } else if (userCheck && userCheck.length > 0) {
+        const { user_exists, is_verified, has_mfa } = userCheck[0];
+        
+        // Debug logging
+        console.log('[SignUp] User check result:', {
+          email,
+          user_exists,
+          is_verified,
+          has_mfa
+        });
+        
+        // If user exists and is verified, block signup
+        if (user_exists && is_verified) {
+          // If MFA is enabled, mention it in the error message
+          if (has_mfa) {
+            return { error: { message: 'An account with this email already exists with multi-factor authentication enabled. Please sign in instead.' } };
+          }
+          return { error: { message: 'An account with this email already exists. Please sign in instead.' } };
+        }
+        // If user exists but is NOT verified, allow signup to proceed (will resend verification email)
+      }
+    } catch (err) {
+      // If RPC call fails, log but continue with signup (fail open)
+      console.warn('[SignUp] Exception checking if user exists:', err);
+    }
+
+    // Proceed with signup
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -176,27 +216,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       },
     });
 
-    // If user was created successfully
-    if (data.user) {
-      // Check if email is confirmed
-      const isEmailConfirmed = data.user.email_confirmed_at !== null && data.user.email_confirmed_at !== undefined;
-      
-      // Only set user and session if email is confirmed
-      if (isEmailConfirmed && data.session) {
-        setUser(data.user);
-        setSession(data.session);
-      } else {
-        // Email not confirmed - don't set session, force email verification
-        // Still set user so we know account was created
-        setUser(data.user);
-        setSession(null);
+    // Check for explicit errors (like "user already registered" when confirmations are disabled)
+    if (error) {
+      const errorMessage = error.message?.toLowerCase() || '';
+      if (
+        errorMessage.includes('already registered') ||
+        errorMessage.includes('user already exists') ||
+        errorMessage.includes('already been registered')
+      ) {
+        return { error: { ...error, message: 'An account with this email already exists. Please sign in instead.' } };
       }
-      
+      return { error };
+    }
+
+    // If user was created successfully (or existing unverified user), proceed with verification flow
+    if (data.user) {
+      // Don't set session until email is confirmed
+      setUser(data.user);
+      setSession(null);
       return { error: null };
     }
 
-    // Return error only if user creation actually failed (no user object)
-    return { error };
+    // No user object returned - signup failed
+    return { error: error || { message: 'Failed to create account. Please try again.' } };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -207,6 +249,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     if (data.user) {
       setUser(data.user);
+      
+      // Check if MFA is required (user exists but no session)
+      const requiresMFA = !data.session && data.user;
+      
+      if (requiresMFA) {
+        // MFA is required - return special indicator
+        return { error: null, requiresMFA: true };
+      }
       
       // Only set session if email is confirmed
       if (data.user.email_confirmed_at && data.session) {
@@ -226,7 +276,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
 
-    return { error };
+    return { error, requiresMFA: false };
+  };
+
+  const verifyMFA = async (code: string) => {
+    try {
+      // Get MFA factors
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+
+      if (factorsError || !factors?.totp?.[0]) {
+        return { error: new Error('2FA not properly set up. Please try enabling it again.') };
+      }
+
+      const factor = factors.totp[0];
+
+      // Challenge the factor
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: factor.id,
+      });
+
+      if (challengeError) {
+        return { error: challengeError };
+      }
+
+      // Verify the code
+      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: factor.id,
+        challengeId: challenge.id,
+        code,
+      });
+
+      if (verifyError) {
+        return { error: verifyError };
+      }
+
+      // MFA verified - get the session
+      if (verifyData.session) {
+        setSession(verifyData.session);
+        
+        // Track session in database
+        try {
+          const { trackSession } = await import('../services/api');
+          await trackSession();
+        } catch (err) {
+          console.error('Failed to track session:', err);
+        }
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      return { error: error };
+    }
   };
 
   const signOut = async () => {
@@ -250,6 +350,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
     resetPassword,
+    verifyMFA,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

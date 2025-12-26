@@ -397,7 +397,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                         api.notifications.list(),
                                         api.dashboard.getActivity()
                                     ]);
-                                    setCandidates(updated);
+                                    setCandidates(updated.data || []);
                                     setNotifications(updatedNotifications);
                                     setActivityFeed(updatedActivity);
                                 } else if (type === 'move') {
@@ -419,7 +419,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                         api.notifications.list(),
                                         api.dashboard.getActivity()
                                     ]);
-                                    setCandidates(updated);
+                                    setCandidates(updated.data || []);
                                     setNotifications(updatedNotifications);
                                     setActivityFeed(updatedActivity);
                                 }
@@ -824,7 +824,7 @@ const Dashboard: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="p-8 space-y-6 max-w-[1600px] mx-auto bg-white min-h-screen font-sans text-gray-900 relative">
+    <div className="pt-8 px-8 pb-2 space-y-6 max-w-[1600px] mx-auto bg-white font-sans text-gray-900 relative">
       
       {/* Payment Success Message */}
       {showSuccessMessage && (
