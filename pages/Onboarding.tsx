@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { 
     ChevronRight, ChevronLeft, X, CheckCircle,
-    Info, HelpCircle, Sparkles, Lightbulb, Rocket
+    Info, HelpCircle, Sparkles, Lightbulb, Rocket,
+    Users, Briefcase, Mail, Calendar, FileText, BarChart3
 } from 'lucide-react';
 import VisualPreview from '../components/onboarding/VisualPreview';
 import { supabase } from '../services/supabase';
@@ -87,7 +88,7 @@ const slides: Slide[] = [
             "Right-click on a card for a quick actions menu",
             "Export candidate data using the download button"
         ],
-        icon: <Sparkles className="w-10 h-10" />
+        icon: <Users className="w-10 h-10" />
     },
     {
         id: 3,
@@ -118,7 +119,7 @@ const slides: Slide[] = [
             "Add detailed skills to improve AI matching accuracy",
             "Close jobs when filled to keep your dashboard clean"
         ],
-        icon: <Sparkles className="w-10 h-10" />
+        icon: <Briefcase className="w-10 h-10" />
     },
     {
         id: 4,
@@ -149,7 +150,7 @@ const slides: Slide[] = [
             "Use AI-generated content to save writing time",
             "Test with a dummy candidate before going live"
         ],
-        icon: <Sparkles className="w-10 h-10" />
+        icon: <Mail className="w-10 h-10" />
     },
     {
         id: 5,
@@ -180,7 +181,7 @@ const slides: Slide[] = [
             "Add interview feedback immediately while it's fresh",
             "Export your calendar to sync with external apps"
         ],
-        icon: <Sparkles className="w-10 h-10" />
+        icon: <Calendar className="w-10 h-10" />
     },
     {
         id: 6,
@@ -211,7 +212,7 @@ const slides: Slide[] = [
             "Set an expiration date to create a sense of urgency",
             "Track all communications in the negotiation history"
         ],
-        icon: <Sparkles className="w-10 h-10" />
+        icon: <FileText className="w-10 h-10" />
     },
     {
         id: 7,
@@ -423,26 +424,54 @@ const Onboarding: React.FC = () => {
                     </div>
 
                     {/* Gradient Background Blobs */}
-                    <div className={`absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 ${
-                        slide.accentColor === 'indigo' ? 'bg-indigo-600' :
-                        slide.accentColor === 'blue' ? 'bg-blue-600' :
-                        slide.accentColor === 'emerald' ? 'bg-emerald-600' :
-                        slide.accentColor === 'amber' ? 'bg-amber-600' :
-                        slide.accentColor === 'rose' ? 'bg-rose-600' :
-                        slide.accentColor === 'violet' ? 'bg-violet-600' :
-                        slide.accentColor === 'cyan' ? 'bg-cyan-600' :
-                        'bg-slate-600'
-                    }`}></div>
-                    <div className={`absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 ${
-                        slide.accentColor === 'indigo' ? 'bg-indigo-400' :
-                        slide.accentColor === 'blue' ? 'bg-blue-400' :
-                        slide.accentColor === 'emerald' ? 'bg-emerald-400' :
-                        slide.accentColor === 'amber' ? 'bg-amber-400' :
-                        slide.accentColor === 'rose' ? 'bg-rose-400' :
-                        slide.accentColor === 'violet' ? 'bg-violet-400' :
-                        slide.accentColor === 'cyan' ? 'bg-cyan-400' :
-                        'bg-slate-400'
-                    }`}></div>
+                    {slide.accentColor === 'indigo' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-indigo-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-indigo-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'blue' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-blue-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-blue-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'emerald' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-emerald-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-emerald-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'amber' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-amber-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-amber-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'rose' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-rose-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-rose-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'violet' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-violet-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-violet-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'cyan' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-cyan-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-cyan-400"></div>
+                        </>
+                    )}
+                    {slide.accentColor === 'slate' && (
+                        <>
+                            <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 bg-slate-600"></div>
+                            <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 bg-slate-400"></div>
+                        </>
+                    )}
                 </div>
 
                 {/* Right Side: Interactive Guide */}
