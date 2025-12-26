@@ -81,26 +81,21 @@ const LandingPage: React.FC = () => {
       }
 
       try {
-        // Add timeout to prevent long waits on network issues
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        );
-
-        const queryPromise = supabase
+        const { data: settings, error: queryError } = await supabase
           .from('user_settings')
           .select('subscription_status, subscription_stripe_id, billing_plan_name')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        const { data: settings, error: queryError } = await Promise.race([
-          queryPromise,
-          timeoutPromise
-        ]) as any;
-
-        // If no settings found or error (including timeout), user is not subscribed
+        // If no settings found or error, user is not subscribed
         if (queryError) {
-          // Only log non-timeout errors to reduce console noise
-          if (!queryError.message?.includes('timeout') && !queryError.message?.includes('Failed to fetch')) {
+          // Suppress verbose errors for network timeouts (expected in poor network conditions)
+          const isNetworkError = queryError.message?.includes('Failed to fetch') || 
+                                 queryError.message?.includes('timeout') ||
+                                 queryError.code === 'PGRST301' || // Supabase timeout error code
+                                 queryError.message?.toLowerCase().includes('network');
+          
+          if (!isNetworkError) {
             console.error('Error fetching user settings:', queryError);
           }
           setIsSubscribed(false);
