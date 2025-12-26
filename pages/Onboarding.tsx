@@ -345,13 +345,22 @@ const Onboarding: React.FC = () => {
     }, [currentIndex]);
 
     const handleComplete = async () => {
-        setCompleted(true);
         try {
+            // Mark as completed first and wait for it to complete
             await markOnboardingCompleted();
-            setTimeout(() => navigate('/dashboard', { replace: true }), 2500);
+            // Set completed state to show the completion screen
+            setCompleted(true);
+            // Wait a moment for the database update to propagate, then redirect
+            setTimeout(() => {
+                navigate('/dashboard', { replace: true });
+            }, 2000);
         } catch (error) {
             console.error('Error completing onboarding:', error);
-            setTimeout(() => navigate('/dashboard', { replace: true }), 2500);
+            // Even if there's an error, show completion screen and redirect
+            setCompleted(true);
+            setTimeout(() => {
+                navigate('/dashboard', { replace: true });
+            }, 2000);
         }
     };
 
@@ -359,16 +368,22 @@ const Onboarding: React.FC = () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                await supabase
+                const { error } = await supabase
                     .from('profiles')
                     .update({
                         onboarding_completed: true,
                         onboarding_completed_at: new Date().toISOString()
                     })
                     .eq('id', user.id);
+                
+                if (error) {
+                    console.error('Error updating onboarding status:', error);
+                    throw error;
+                }
             }
         } catch (error) {
             console.error('Error marking onboarding as completed:', error);
+            throw error; // Re-throw so handleComplete can handle it
         }
     };
 
@@ -390,17 +405,17 @@ const Onboarding: React.FC = () => {
             <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-700">
                 <div className="max-w-md w-full text-center space-y-10">
                     <div className="relative mx-auto w-32 h-32">
-                        <div className="absolute inset-0 bg-indigo-500 blur-3xl opacity-20 rounded-full animate-pulse"></div>
-                        <div className="relative bg-indigo-600 rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-indigo-100">
+                        <div className="absolute inset-0 bg-gray-900 blur-3xl opacity-10 rounded-full animate-pulse"></div>
+                        <div className="relative bg-black rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-gray-900/20">
                             <CheckCircle className="w-16 h-16 text-white" />
                         </div>
                     </div>
                     <div className="space-y-4">
-                        <h2 className="text-5xl font-black text-slate-900 tracking-tight">System Ready.</h2>
-                        <p className="text-xl text-slate-500 leading-relaxed">Hang tight! We're tailoring your CoreflowHR experience right now...</p>
+                        <h2 className="text-5xl font-black text-gray-900 tracking-tight">System Ready.</h2>
+                        <p className="text-xl text-gray-600 leading-relaxed">Hang tight! We're tailoring your CoreflowHR experience right now...</p>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-600 rounded-full animate-[loading_2.5s_ease-in-out_forwards]"></div>
+                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-black rounded-full animate-[loading_2.5s_ease-in-out_forwards]"></div>
                     </div>
                 </div>
                 <style>{`
