@@ -307,6 +307,12 @@ const Onboarding: React.FC = () => {
                         .eq('id', user.id)
                         .maybeSingle(); // Use maybeSingle to avoid errors if profile doesn't exist
                     
+                    // If there's an error, don't redirect - let user proceed with onboarding
+                    if (error) {
+                        console.warn('Error checking onboarding status in Onboarding component:', error);
+                        return;
+                    }
+                    
                     // Only redirect if onboarding is explicitly marked as completed
                     // This prevents redirect loops
                     if (isMounted && profile?.onboarding_completed === true) {
@@ -325,7 +331,7 @@ const Onboarding: React.FC = () => {
         return () => {
             isMounted = false; // Cleanup to prevent state updates after unmount
         };
-    }, []); // Empty dependency array - only check once on mount
+    }, [navigate]); // Added navigate to dependencies
 
     const handleNext = useCallback(() => {
         if (currentIndex < slides.length - 1) {

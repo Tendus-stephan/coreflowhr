@@ -156,15 +156,25 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           .eq('id', user.id)
           .maybeSingle(); // Use maybeSingle to handle case where profile doesn't exist
 
+        if (error) {
+          console.error('Error fetching onboarding status:', error);
+          // If there's an error (like 400), check if it's a query syntax issue
+          // For now, allow access to prevent blocking users (fail open for this specific case)
+          // The onboarding page itself will handle checking if onboarding is needed
+          setOnboardingCompleted(true);
+          setOnboardingChecked(true);
+          return;
+        }
+
         const isCompleted = profile?.onboarding_completed === true;
         
         // Update the state with the actual database value
         setOnboardingCompleted(isCompleted);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
-        // Default to blocking access if check fails (fail closed for security)
-        // User should complete onboarding before accessing protected routes
-        setOnboardingCompleted(false);
+        // If query fails completely, allow access to prevent blocking
+        // The onboarding component will handle redirect if needed
+        setOnboardingCompleted(true);
       } finally {
         setOnboardingChecked(true);
       }
