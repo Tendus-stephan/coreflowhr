@@ -36,7 +36,8 @@ const Layout = () => {
     '/forgot-password', 
     '/verify-email',
     '/terms',
-    '/privacy'
+    '/privacy',
+    '/onboarding'
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond'));
@@ -47,14 +48,17 @@ const Layout = () => {
 
   const sidebarWidth = isExpanded ? '256px' : '80px';
 
+  // Don't show AI button on onboarding page
+  const showAIButton = location.pathname !== '/onboarding';
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
       <main className="overflow-x-hidden relative transition-all duration-150 bg-white" style={{ paddingBottom: '80px', marginLeft: sidebarWidth }}>
         <Outlet />
       </main>
-      {/* Always visible CoreFlow AI notification */}
-      <CandidateSourcingNotification />
+      {/* CoreFlow AI notification - hidden on onboarding */}
+      {showAIButton && <CandidateSourcingNotification />}
     </div>
   );
 };

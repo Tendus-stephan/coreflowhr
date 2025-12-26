@@ -421,7 +421,7 @@ const Onboarding: React.FC = () => {
                         <p className="text-white/40 text-lg max-w-sm font-medium leading-relaxed">
                             Master the CoreFlow interface in minutes with our guided visual tours.
                         </p>
-                    </div>
+                </div>
 
                     {/* Gradient Background Blobs */}
                     {slide.accentColor === 'indigo' && (
@@ -491,10 +491,10 @@ const Onboarding: React.FC = () => {
                         >
                             <X className="w-6 h-6" />
                         </button>
-                    </div>
+                            </div>
 
                     {/* Content Section */}
-                    <div className="flex-1 overflow-y-auto px-10 pb-32">
+                    <div className="flex-1 overflow-y-auto px-10 pb-40">
                         <div className="max-w-2xl space-y-12">
                             <p className="text-2xl text-slate-500 font-medium leading-relaxed italic">
                                 "{slide.content}"
@@ -529,10 +529,10 @@ const Onboarding: React.FC = () => {
                                                         0{i + 1}
                                                     </div>
                                                     <p className="text-slate-700 font-bold pt-2 leading-relaxed text-lg">{step}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                    </div>
+                                        ))}
+                                </div>
+                            )}
 
                                     {tab === 'troubleshoot' && (
                                         <div className="space-y-6">
@@ -561,12 +561,12 @@ const Onboarding: React.FC = () => {
                                                     <p className="text-indigo-900 font-bold leading-relaxed pt-2 text-lg">
                                                         {tip}
                                                     </p>
-                                                </div>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                     )}
                                 </div>
-                            </div>
+                                </div>
                         </div>
                     </div>
 
@@ -574,37 +574,37 @@ const Onboarding: React.FC = () => {
                     <div className="absolute bottom-0 left-0 right-0 p-10 bg-white/80 backdrop-blur-xl border-t border-slate-50 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             {slides.map((_, i) => (
-                                <button 
+                            <button
                                     key={i}
                                     onClick={() => {
                                         setCurrentIndex(i);
                                         setTab('steps');
                                     }}
                                     className={`h-2 rounded-full transition-all duration-500 ${i === currentIndex ? 'w-12 bg-slate-900' : 'w-2 bg-slate-200 hover:bg-slate-300'}`}
-                                />
-                            ))}
-                        </div>
+                            />
+                        ))}
+                </div>
 
                         <div className="flex items-center gap-4">
-                            <Button 
-                                variant="outline" 
+                    <Button
+                        variant="outline"
                                 size="lg" 
                                 onClick={handleBack} 
                                 disabled={currentIndex === 0}
                                 className="px-6 rounded-[1.5rem] border-slate-200"
                             >
                                 <ChevronLeft className="w-6 h-6" />
-                            </Button>
-                            <Button 
-                                variant="black" 
+                    </Button>
+                    <Button
+                        variant="black"
                                 size="lg" 
-                                onClick={handleNext}
+                        onClick={handleNext}
                                 className="min-w-[200px] rounded-[1.5rem] gap-3"
                             >
                                 {currentIndex === slides.length - 1 ? 'Finish Setup' : 'Next Step'}
                                 <ChevronRight className="w-5 h-5" />
-                            </Button>
-                        </div>
+                    </Button>
+                </div>
                     </div>
                 </div>
             </div>
