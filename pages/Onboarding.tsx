@@ -380,6 +380,9 @@ const Onboarding: React.FC = () => {
                     console.error('Error updating onboarding status:', error);
                     throw error;
                 }
+                
+                // Wait a moment to ensure the database update has propagated
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
         } catch (error) {
             console.error('Error marking onboarding as completed:', error);
@@ -403,16 +406,16 @@ const Onboarding: React.FC = () => {
     if (completed) {
         return (
             <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-700">
-                <div className="max-w-md w-full text-center space-y-10">
-                    <div className="relative mx-auto w-32 h-32">
+                <div className="max-w-md w-full text-center space-y-6">
+                    <div className="relative mx-auto w-20 h-20">
                         <div className="absolute inset-0 bg-gray-900 blur-3xl opacity-10 rounded-full animate-pulse"></div>
                         <div className="relative bg-black rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-gray-900/20">
-                            <CheckCircle className="w-16 h-16 text-white" />
+                            <CheckCircle className="w-10 h-10 text-white" />
                         </div>
                     </div>
-                    <div className="space-y-4">
-                        <h2 className="text-5xl font-black text-gray-900 tracking-tight">System Ready.</h2>
-                        <p className="text-xl text-gray-600 leading-relaxed">Hang tight! We're tailoring your CoreflowHR experience right now...</p>
+                    <div className="space-y-3">
+                        <h2 className="text-3xl font-black text-gray-900 tracking-tight">System Ready.</h2>
+                        <p className="text-base text-gray-600 leading-relaxed">Hang tight! We're tailoring your CoreflowHR experience right now...</p>
                     </div>
                     <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-black rounded-full animate-[loading_2.5s_ease-in-out_forwards]"></div>
