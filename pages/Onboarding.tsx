@@ -411,7 +411,7 @@ const Onboarding: React.FC = () => {
                 
                 {/* Left Side: Dynamic Visual Showcase */}
                 <div className="hidden lg:flex lg:col-span-5 bg-slate-950 flex-col p-12 relative overflow-hidden">
-                    <div className="relative z-20 my-auto flex items-center justify-start pl-12">
+                    <div className="relative z-20 my-auto flex items-center justify-start -ml-4">
                         <div className="scale-100">
                             <VisualPreview label={slide.visualLabel} color={slide.accentColor} slideId={slide.id} />
                         </div>
@@ -497,8 +497,8 @@ const Onboarding: React.FC = () => {
                                 className="object-contain"
                                 style={{
                                     display: 'block',
-                                    width: '60px',
-                                    height: '60px'
+                                    width: '90px',
+                                    height: '90px'
                                 }}
                                 onError={(e) => {
                                     console.error('Logo failed to load');
