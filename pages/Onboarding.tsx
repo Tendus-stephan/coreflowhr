@@ -411,32 +411,7 @@ const Onboarding: React.FC = () => {
                 
                 {/* Left Side: Dynamic Visual Showcase */}
                 <div className="hidden lg:flex lg:col-span-5 bg-slate-950 flex-col p-12 relative overflow-hidden">
-                    <div className="relative z-20 mb-auto">
-                        <div className="flex items-center">
-                            <img 
-                                src="/assets/images/coreflow-logo.png" 
-                                alt="CoreflowHR" 
-                                className="object-contain"
-                                style={{
-                                    display: 'block',
-                                    height: '120px',
-                                    width: 'auto',
-                                    maxWidth: '350px',
-                                    filter: 'brightness(0) invert(1)' // Make logo white for dark background
-                                }}
-                                onError={(e) => {
-                                    console.error('Logo failed to load');
-                                    const img = e.target as HTMLImageElement;
-                                    img.style.border = '2px solid red';
-                                }}
-                                onLoad={() => {
-                                    console.log('Logo loaded successfully');
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="relative z-20 my-auto flex items-center justify-center">
+                    <div className="relative z-20 my-auto flex items-center justify-center -mt-16">
                         <div className="scale-100">
                             <VisualPreview label={slide.visualLabel} color={slide.accentColor} slideId={slide.id} />
                         </div>
@@ -515,7 +490,27 @@ const Onboarding: React.FC = () => {
                                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Tutorial Progress</span>
                             </div>
                         </div>
-                        {/* Close button removed - users must complete onboarding */}
+                        <div className="flex items-center">
+                            <img 
+                                src="/assets/images/coreflow-logo.png" 
+                                alt="CoreflowHR" 
+                                className="object-contain"
+                                style={{
+                                    display: 'block',
+                                    height: '80px',
+                                    width: 'auto',
+                                    maxWidth: '250px'
+                                }}
+                                onError={(e) => {
+                                    console.error('Logo failed to load');
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.border = '2px solid red';
+                                }}
+                                onLoad={() => {
+                                    console.log('Logo loaded successfully');
+                                }}
+                            />
+                        </div>
                             </div>
 
                     {/* Content Section */}
