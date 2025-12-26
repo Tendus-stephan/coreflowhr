@@ -285,6 +285,7 @@ const Onboarding: React.FC = () => {
     const [tab, setTab] = useState<'steps' | 'troubleshoot' | 'tips'>('steps');
 
     // Check if onboarding already completed
+    // Only redirect if truly completed to prevent loops
     useEffect(() => {
         const checkOnboardingStatus = async () => {
             try {
@@ -296,13 +297,16 @@ const Onboarding: React.FC = () => {
                         .eq('id', user.id)
                         .single();
                     
-                    if (profile?.onboarding_completed) {
-                        // Already completed, redirect to dashboard
-                        navigate('/dashboard');
+                    // Only redirect if onboarding is explicitly marked as completed
+                    // This prevents redirect loops
+                    if (profile?.onboarding_completed === true) {
+                        // Use replace to prevent back button issues
+                        navigate('/dashboard', { replace: true });
                     }
                 }
             } catch (error) {
                 console.error('Error checking onboarding status:', error);
+                // Don't redirect on error - let user stay on onboarding page
             }
         };
         checkOnboardingStatus();
