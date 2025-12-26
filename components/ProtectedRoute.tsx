@@ -159,64 +159,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           .eq('id', user.id)
           .single();
 
-        // If already completed onboarding, skip check
-        if (profile?.onboarding_completed) {
-          setOnboardingCompleted(true);
-          setOnboardingChecked(true);
-          return;
-        }
-
-        // Check if user has an active subscription
-        const { data: settings } = await supabase
-          .from('user_settings')
-          .select('subscription_status, subscription_stripe_id, billing_plan_name, created_at')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        // Check if user is subscribed
-        const isSubscribed = settings && (
-          settings.subscription_status === 'active' ||
-          (settings.billing_plan_name && settings.billing_plan_name !== 'Basic' && settings.billing_plan_name !== 'Free') ||
-          settings.subscription_stripe_id !== null
-        );
-
-        // If not subscribed, don't show onboarding (they need to subscribe first)
-        if (!isSubscribed) {
-          setOnboardingCompleted(true);
-          setOnboardingChecked(true);
-          return;
-        }
-
-        // Check if user has any existing data (jobs or candidates)
-        const [jobsResult, candidatesResult] = await Promise.all([
-          supabase
-            .from('jobs')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .limit(1),
-          supabase
-            .from('candidates')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .limit(1)
-        ]);
-
-        const hasJobs = (jobsResult.count || 0) > 0;
-        const hasCandidates = (candidatesResult.count || 0) > 0;
-        const hasExistingData = hasJobs || hasCandidates;
-
-        // Determine if user is newly subscribed (within last 7 days)
-        // Use profile created_at or settings created_at as proxy for subscription date
-        const accountCreatedDate = profile?.created_at || settings?.created_at || user.created_at;
-        const accountAge = accountCreatedDate 
-          ? Date.now() - new Date(accountCreatedDate).getTime()
-          : 0;
-        const isNewlySubscribed = accountAge < (7 * 24 * 60 * 60 * 1000); // Within last 7 days
-
-        // Simplified logic: Only check if onboarding_completed flag is set in database
+        // Simple check: Only check if onboarding_completed flag is set in database
         // If user hasn't completed onboarding, block access to protected routes
-        // The onboarding page itself will handle showing/hiding based on user needs
-        setOnboardingCompleted(profile?.onboarding_completed || false);
+        // Users must complete onboarding before accessing any protected route
+        setOnboardingCompleted(profile?.onboarding_completed === true);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
         // Default to allowing access if check fails (fail open)
