@@ -287,30 +287,38 @@ const Onboarding: React.FC = () => {
     // Check if onboarding already completed
     // Only redirect if truly completed to prevent loops
     useEffect(() => {
+        // Only check once on mount, don't re-check on every render
+        let isMounted = true;
+        
         const checkOnboardingStatus = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    const { data: profile } = await supabase
+                if (user && isMounted) {
+                    const { data: profile, error } = await supabase
                         .from('profiles')
                         .select('onboarding_completed')
                         .eq('id', user.id)
-                        .single();
+                        .maybeSingle(); // Use maybeSingle to avoid errors if profile doesn't exist
                     
                     // Only redirect if onboarding is explicitly marked as completed
                     // This prevents redirect loops
-                    if (profile?.onboarding_completed === true) {
+                    if (isMounted && profile?.onboarding_completed === true && !completed) {
                         // Use replace to prevent back button issues
                         navigate('/dashboard', { replace: true });
                     }
                 }
             } catch (error) {
-                console.error('Error checking onboarding status:', error);
-                // Don't redirect on error - let user stay on onboarding page
+                // Silently handle errors - don't redirect on error
+                console.warn('Error checking onboarding status:', error);
             }
         };
+        
         checkOnboardingStatus();
-    }, [navigate]);
+        
+        return () => {
+            isMounted = false; // Cleanup to prevent state updates after unmount
+        };
+    }, []); // Empty dependency array - only check once on mount
 
     const handleNext = useCallback(() => {
         if (currentIndex < slides.length - 1) {
