@@ -1,28 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { 
-    ChevronRight, ChevronLeft, X, Users, Briefcase, Mail, 
-    Calendar, FileText, Sparkles, BarChart3, CheckCircle,
-    AlertCircle, Info, ArrowRight, ExternalLink, HelpCircle
+    ChevronRight, ChevronLeft, X, CheckCircle,
+    Info, HelpCircle, Sparkles, Lightbulb, Rocket
 } from 'lucide-react';
-import { api } from '../services/api';
+import VisualPreview from '../components/onboarding/VisualPreview';
+import { supabase } from '../services/supabase';
+
+interface SlideIssue {
+    issue: string;
+    solution: string;
+}
 
 interface Slide {
     id: number;
     title: string;
+    subtitle: string;
     content: string;
-    detailedSteps?: string[];
-    commonIssues?: { issue: string; solution: string }[];
+    detailedSteps: string[];
+    commonIssues: SlideIssue[];
+    tips: string[];
     icon: React.ReactNode;
-    visual?: string;
-    tips?: string[];
+    accentColor: string;
+    visualLabel: string;
 }
 
 const slides: Slide[] = [
     {
         id: 1,
         title: "Welcome to CoreFlow!",
+        subtitle: "The Future of Recruitment",
+        accentColor: "indigo",
+        visualLabel: "DASHBOARD",
         content: "Your all-in-one recruitment management platform. Streamline your hiring process with AI-powered candidate matching, automated workflows, and comprehensive analytics.",
         detailedSteps: [
             "Navigate through the platform using the sidebar menu on the left",
@@ -34,15 +44,11 @@ const slides: Slide[] = [
         commonIssues: [
             {
                 issue: "Can't see the sidebar menu",
-                solution: "Check if you're on a public page (like login). The sidebar only appears on authenticated pages. Make sure you're logged in."
+                solution: "Check if you're on a public page. The sidebar only appears on authenticated pages. Make sure you're logged in."
             },
             {
                 issue: "Page is blank or not loading",
-                solution: "Refresh the page (Ctrl+R or Cmd+R). If the issue persists, check your internet connection and clear your browser cache."
-            },
-            {
-                issue: "Getting 'Not authenticated' errors",
-                solution: "Your session may have expired. Log out and log back in. If the problem continues, check that cookies are enabled in your browser."
+                solution: "Refresh the page (Ctrl+R). If the issue persists, check your connection and clear browser cache."
             }
         ],
         tips: [
@@ -50,341 +56,237 @@ const slides: Slide[] = [
             "Use keyboard shortcuts: Ctrl+K (or Cmd+K) to search",
             "Check the notification bell icon for important updates"
         ],
-        icon: <Sparkles className="w-12 h-12 text-black" />
+        icon: <Rocket className="w-10 h-10" />
     },
     {
         id: 2,
         title: "Manage Your Candidate Pipeline",
-        content: "Visualize your recruitment process with our Kanban board. Move candidates through stages: New → Screening → Interview → Offer → Hired. Each candidate shows an AI match score to help you prioritize.",
+        subtitle: "Visual Workflow",
+        accentColor: "blue",
+        visualLabel: "KANBAN",
+        content: "Visualize your recruitment process with our Kanban board. Move candidates through stages: New → Screening → Interview → Offer → Hired.",
         detailedSteps: [
             "Go to the Candidates page from the sidebar",
-            "View candidates organized in columns by stage: New, Screening, Interview, Offer, Hired, Rejected",
+            "View candidates organized in columns by stage",
             "Click and drag a candidate card to move them between stages",
-            "Click on a candidate card to view full details and take actions",
-            "Use the search bar to find specific candidates by name, email, or skills",
-            "Filter candidates by job, stage, or AI match score",
-            "The AI match score (0-100) appears on each candidate card - higher scores indicate better fit"
+            "Click on a card to view full details and take actions",
+            "Filter candidates by job, stage, or AI match score"
         ],
         commonIssues: [
             {
                 issue: "Can't move candidate to a stage",
-                solution: "You must create an email workflow for that stage first. Go to Settings > Email Workflows and create a workflow for the target stage. For 'Offer' stage, you also need to create an offer for the candidate first."
+                solution: "You must create an email workflow for that stage first. Go to Settings > Email Workflows."
             },
             {
                 issue: "AI match score not showing",
-                solution: "The candidate needs a CV uploaded and the job needs skills defined. Upload the candidate's CV and ensure the job has required skills listed. The score will calculate automatically."
-            },
-            {
-                issue: "Candidate stuck in 'New' stage",
-                solution: "Candidates in 'New' stage must upload their CV first. They cannot be manually moved. Once they upload a CV, they automatically move to 'Screening' stage."
-            },
-            {
-                issue: "Can't see all candidates",
-                solution: "Check your filters - you may have a job or stage filter active. Clear filters or select 'All' to see all candidates. Also check if candidates are from closed jobs (they're hidden by default)."
+                solution: "The candidate needs a CV uploaded and the job needs skills defined. Upload the CV and ensure job skills are listed."
             }
         ],
         tips: [
-            "Use the bulk actions feature to move multiple candidates at once",
-            "The color-coded AI scores help you quickly identify top candidates",
-            "Right-click on a candidate card for quick actions menu",
+            "Use bulk actions to move multiple candidates at once",
+            "Right-click on a card for a quick actions menu",
             "Export candidate data using the download button"
         ],
-        icon: <Users className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     },
     {
         id: 3,
         title: "Create and Manage Job Postings",
-        content: "Post jobs, track applicants, and manage job statuses (Draft, Active, Closed). Generate public application links that candidates can use to apply directly. All your jobs in one place.",
+        subtitle: "Hiring at Scale",
+        accentColor: "emerald",
+        visualLabel: "JOBS",
+        content: "Post jobs, track applicants, and manage job statuses. Generate public application links that candidates can use to apply directly.",
         detailedSteps: [
-            "Click 'New Job' button or go to Jobs page and click 'Create Job'",
-            "Fill in job details: Title, Department, Location, Type (Full-time/Contract/Part-time)",
-            "Add required skills - these are used for AI match scoring",
-            "Set job status: Draft (not visible), Active (accepting applications), or Closed",
-            "Save as Draft to work on it later, or set to Active to publish immediately",
-            "Once Active, copy the public application link to share with candidates",
-            "View all applicants for a job by clicking on the job card",
-            "Close a job when the position is filled or no longer needed"
+            "Click 'New Job' or go to Jobs page and click 'Create Job'",
+            "Fill in details: Title, Department, Location, Type",
+            "Add required skills - used for AI match scoring",
+            "Set status: Draft, Active, or Closed",
+            "Share the public link once the job is Active"
         ],
         commonIssues: [
             {
-                issue: "Can't create a new job",
-                solution: "Make sure all required fields are filled (Title, Location are mandatory). Check that you have an active subscription. If you see an error, refresh the page and try again."
-            },
-            {
-                issue: "Public application link not working",
-                solution: "The job must be set to 'Active' status. Draft jobs don't have working application links. Also ensure the link is copied completely - it should start with your domain URL."
-            },
-            {
-                issue: "Can't see applicants for a job",
-                solution: "Click on the job card to open the job details modal. Applicants are listed in the 'Candidates' tab. If you don't see any, no one has applied yet or the job is still in Draft status."
+                issue: "Public link not working",
+                solution: "The job must be set to 'Active' status. Draft jobs don't have working application links."
             },
             {
                 issue: "Job disappeared from the list",
-                solution: "Check your filter tabs - you might be viewing only 'Active' jobs. Switch to 'All' or 'Closed' tabs. Also, closed jobs are hidden from the Candidates page by default."
-            },
-            {
-                issue: "Can't change job status",
-                solution: "Make sure you're the owner of the job. Only the user who created the job can modify it. If you're getting an error, try refreshing the page."
+                solution: "Check your filters - you might be viewing only 'Active' jobs. Switch to 'All'."
             }
         ],
         tips: [
             "Use Draft status to prepare jobs before publishing",
             "Add detailed skills to improve AI matching accuracy",
-            "The application link can be shared on job boards, social media, or your website",
             "Close jobs when filled to keep your dashboard clean"
         ],
-        icon: <Briefcase className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     },
     {
         id: 4,
         title: "Automated Email Workflows",
-        content: "Set up stage-based email automation to keep candidates engaged. Customize templates, use AI to generate content, and track all email communications in one place.",
+        subtitle: "Seamless Communication",
+        accentColor: "amber",
+        visualLabel: "EMAILS",
+        content: "Set up stage-based email automation to keep candidates engaged. Customize templates, use AI for content, and track communications.",
         detailedSteps: [
             "Go to Settings > Email Workflows",
-            "Click 'Create Workflow' to set up automated emails",
-            "Select the trigger stage (when candidate moves to this stage, email is sent)",
-            "Choose or create an email template for this workflow",
-            "Set optional conditions: minimum AI match score, source filter",
-            "Enable the workflow and set delay (if you want to send after X minutes)",
-            "Test the workflow by moving a test candidate to the trigger stage",
-            "View email history in the candidate's profile to see all sent emails",
-            "Edit templates anytime - changes apply to future emails only"
+            "Select the trigger stage (e.g., when moved to 'Screening')",
+            "Choose or create an email template",
+            "Set optional conditions like minimum AI score",
+            "Enable the workflow and set optional delays"
         ],
         commonIssues: [
             {
-                issue: "Emails not being sent automatically",
-                solution: "Check that: 1) A workflow exists for the target stage, 2) The workflow is enabled, 3) An email template is assigned, 4) The candidate has a valid email address. Go to Settings > Email Workflows to verify."
+                issue: "Emails not being sent",
+                solution: "Check if the workflow is enabled and if an email template is correctly assigned."
             },
             {
-                issue: "Placeholders showing in emails (like {candidate_name})",
-                solution: "This means the template has placeholders that weren't replaced. Check that the candidate has all required data (name, email, etc.). Edit the template to use correct placeholder names or remove unused placeholders."
-            },
-            {
-                issue: "Duplicate emails being sent",
-                solution: "This can happen if a candidate is moved to a stage multiple times quickly. The system prevents duplicates within 5 minutes. If you see duplicates, check your workflow settings - you might have multiple workflows for the same stage."
-            },
-            {
-                issue: "Can't create a workflow",
-                solution: "You need to create an email template first. Go to Settings > Email Templates, create a template, then return to create the workflow. Also ensure you have an active subscription."
-            },
-            {
-                issue: "Email template not found",
-                solution: "The template might have been deleted. Go to Settings > Email Templates and check if it exists. If not, create a new one and update your workflow to use it."
+                issue: "Placeholders showing (e.g. {name})",
+                solution: "Ensure candidate profile has the required data. Verify placeholder names in Settings."
             }
         ],
         tips: [
-            "Create workflows for all stages to automate your entire process",
-            "Use AI-generated content to save time writing emails",
-            "Test workflows with a test candidate before using with real candidates",
-            "Review email logs regularly to ensure emails are being sent",
-            "Use placeholders like {candidate_name}, {job_title} to personalize emails"
+            "Create workflows for all stages to fully automate",
+            "Use AI-generated content to save writing time",
+            "Test with a dummy candidate before going live"
         ],
-        icon: <Mail className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     },
     {
         id: 5,
         title: "Schedule and Manage Interviews",
-        content: "Use the calendar view to schedule interviews (monthly, weekly, or daily). Reschedule by dragging and dropping. Integrate with Google Meet for video calls and collect interview feedback.",
+        subtitle: "Sync Your Team",
+        accentColor: "rose",
+        visualLabel: "CALENDAR",
+        content: "Use the calendar view to schedule interviews. Reschedule by dragging and dropping. Integrate with Google Meet for video calls.",
         detailedSteps: [
             "Go to the Calendar page from the sidebar",
-            "Switch between Monthly, Weekly, or Daily view using the view selector",
-            "Click on a date/time slot to schedule a new interview",
-            "Select the candidate from the dropdown (only candidates in 'Interview' stage appear)",
-            "Choose interview type: In-person, Video (Google Meet), or Phone",
-            "For video interviews, a Google Meet link is automatically generated",
-            "Add interview location/address for in-person interviews",
-            "Set interview duration and add notes/agenda",
-            "Drag and drop interviews on the calendar to reschedule",
-            "Click on an interview to view details, edit, or cancel",
-            "After the interview, add feedback and scorecard from the interview details"
+            "Switch between Monthly, Weekly, or Daily views",
+            "Click on a slot to schedule (only Interview-stage candidates appear)",
+            "Video interviews auto-generate Google Meet links",
+            "Drag and drop interviews on the calendar to reschedule"
         ],
         commonIssues: [
             {
-                issue: "Can't schedule an interview",
-                solution: "The candidate must be in 'Interview' stage first. Move them to Interview stage from the Candidates page. Also ensure you have an email workflow configured for the Interview stage."
-            },
-            {
                 issue: "Google Meet link not generating",
-                solution: "Check that Google Calendar integration is connected in Settings > Integrations. You may need to reconnect your Google account. Also ensure you have calendar permissions enabled."
+                solution: "Check that Google Calendar integration is connected in Settings > Integrations."
             },
             {
-                issue: "Can't see candidate in interview dropdown",
-                solution: "Only candidates in 'Interview' stage appear. Move the candidate to Interview stage first. Also check that the candidate belongs to an active job (not a closed job)."
-            },
-            {
-                issue: "Can't drag and drop to reschedule",
-                solution: "Make sure you're clicking and holding on the interview card, not just clicking. On mobile, use the edit button instead. Also check that you have permission to edit the interview."
-            },
-            {
-                issue: "Interview reminders not being sent",
-                solution: "Interview reminders are sent via email workflows. Ensure you have an email workflow configured for the Interview stage. Check Settings > Email Workflows."
+                issue: "Can't see candidate in dropdown",
+                solution: "Only candidates in the 'Interview' stage appear. Move them there first."
             }
         ],
         tips: [
             "Use the weekly view for detailed scheduling",
-            "Set up interview reminders in email workflows",
-            "Add interview feedback immediately after the interview while it's fresh",
-            "Use color coding or tags to organize different interview types",
-            "Export your calendar to sync with external calendar apps"
+            "Add interview feedback immediately while it's fresh",
+            "Export your calendar to sync with external apps"
         ],
-        icon: <Calendar className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     },
     {
         id: 6,
         title: "Send and Track Job Offers",
-        content: "Create professional offer letters, send them via email, and track candidate responses. Support counter offers and automatically update candidate stages when offers are accepted or declined.",
+        subtitle: "Close the Deal",
+        accentColor: "violet",
+        visualLabel: "OFFERS",
+        content: "Create professional offer letters, send them via email, and track candidate responses. Support counter-offers and automatic updates.",
         detailedSteps: [
-            "Go to the Offers page or create an offer from a candidate's profile",
-            "Click 'Create Offer' and select the candidate",
-            "Fill in offer details: Position, Salary, Start Date, Benefits, Notes",
-            "Choose an offer template or create a custom offer letter",
-            "Review the offer - placeholders like {salary_amount} will be replaced automatically",
-            "Click 'Send Offer' to email it to the candidate",
-            "The candidate receives an email with a secure link to view and respond",
-            "Track offer status: Draft, Sent, Viewed, Accepted, Declined, or Negotiating",
-            "If candidate counters, review their proposal and create a new offer",
-            "When accepted, candidate automatically moves to 'Hired' stage and receives hired email",
-            "When declined, candidate automatically moves to 'Rejected' stage"
+            "Create an offer from a candidate's profile",
+            "Fill in Position, Salary, Start Date, and Benefits",
+            "Review placeholders like {salary_amount} before sending",
+            "Track status: Sent, Viewed, Accepted, Declined",
+            "Accepted offers automatically move candidates to 'Hired'"
         ],
         commonIssues: [
             {
-                issue: "Can't create an offer",
-                solution: "The candidate must be in 'Interview' or 'Offer' stage. Move them to one of these stages first. Also ensure the candidate has a valid email address."
+                issue: "Can't move to Offer stage",
+                solution: "You must create an offer first. The system requires an active offer for this stage."
             },
             {
-                issue: "Offer email not being sent",
-                solution: "Check that: 1) Candidate has a valid email, 2) Email service is configured (check Settings), 3) No email errors in the email logs. Go to candidate profile > Email History to see sent emails."
-            },
-            {
-                issue: "Candidate can't access offer link",
-                solution: "Offer links expire after the expiration date set. Check if the offer has expired. Also ensure the link was copied completely. The candidate should click the link directly from their email."
-            },
-            {
-                issue: "Placeholders showing in offer email",
-                solution: "This means offer-specific placeholders weren't replaced. Ensure the offer has all required fields filled (salary, start date, etc.). Edit the offer template to use correct placeholder names."
-            },
-            {
-                issue: "Can't move candidate to Offer stage",
-                solution: "You must create an offer for the candidate first. The system requires an active offer before allowing movement to Offer stage. Create the offer, then move the candidate."
-            },
-            {
-                issue: "Counter offer not showing",
-                solution: "Counter offers appear in the offer's negotiation history. Open the offer details to see the full negotiation timeline. The candidate's proposed changes are listed there."
+                issue: "Offer link expired",
+                solution: "Links expire based on the date set. Extend the date in the offer details."
             }
         ],
         tips: [
-            "Always review offer details before sending",
-            "Set an expiration date to create urgency",
-            "Use offer templates to save time",
-            "Track all offer communications in the negotiation history",
-            "Create a new offer when responding to counter offers"
+            "Always review details before sending",
+            "Set an expiration date to create a sense of urgency",
+            "Track all communications in the negotiation history"
         ],
-        icon: <FileText className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     },
     {
         id: 7,
         title: "AI-Powered Candidate Matching",
-        content: "Our AI analyzes candidate CVs and calculates match scores based on job requirements. Get instant insights into candidate skills, experience, and fit for each role.",
+        subtitle: "Intelligence Built-in",
+        accentColor: "cyan",
+        visualLabel: "AI SCORES",
+        content: "Our AI analyzes candidate CVs and calculates match scores based on job requirements. Get instant insights into fit and experience.",
         detailedSteps: [
-            "Upload candidate CVs when they apply or manually add them",
-            "Ensure jobs have required skills defined (these are used for matching)",
-            "AI automatically parses CVs to extract: skills, experience, education, work history",
-            "Match score (0-100) is calculated by comparing candidate skills to job requirements",
-            "View AI match score on candidate cards (color-coded: Green 80+, Yellow 60-79, Orange 40-59, Red <40)",
-            "Click on a candidate to see detailed AI analysis and skill breakdown",
-            "Scores update automatically when job skills or candidate CVs change",
-            "Use the score to prioritize which candidates to interview first",
-            "Filter candidates by match score range to find top candidates quickly"
+            "Upload CVs (PDF, DOC, DOCX)",
+            "Ensure job has skills defined for comparison",
+            "AI parses skills, education, and work history",
+            "View scores (0-100) color-coded on candidate cards",
+            "Filter by score range to prioritize top talent"
         ],
         commonIssues: [
             {
-                issue: "AI match score not showing",
-                solution: "The candidate needs a CV uploaded AND the job needs skills defined. Upload the candidate's CV file and ensure the job has at least one required skill listed. The score calculates automatically after both are present."
-            },
-            {
-                issue: "Score seems incorrect",
-                solution: "Scores are based on skill matching. Ensure the job has accurate required skills listed. The candidate's CV must have been parsed correctly - check the candidate's skills list. Scores update when you modify job skills or re-upload CVs."
+                issue: "Score is 0 or null",
+                solution: "Check if the job has skills defined and if the CV was parsed correctly."
             },
             {
                 issue: "CV not being parsed",
-                solution: "Supported formats: PDF, DOC, DOCX. Ensure the file is not corrupted or password-protected. Large files (>10MB) may take longer. Check the candidate's profile to see if skills were extracted."
-            },
-            {
-                issue: "Skills not extracted from CV",
-                solution: "The CV might not have clear skill listings. Try a different CV format or manually add skills to the candidate profile. The AI looks for common technical skills and keywords."
-            },
-            {
-                issue: "Score is 0 or null",
-                solution: "This usually means: 1) No skills match between candidate and job, 2) Job has no skills defined, 3) Candidate CV wasn't parsed. Check both the job skills and candidate skills lists."
+                solution: "Ensure the file is not corrupted or password-protected. Max size is 10MB."
             }
         ],
         tips: [
-            "Define detailed job skills for more accurate matching",
-            "Review AI analysis to understand why a score was given",
-            "Use scores as a guide, not the only factor in hiring decisions",
-            "Scores update in real-time as you modify job requirements",
-            "Filter by score range to quickly find top candidates"
+            "Define detailed job skills for better accuracy",
+            "Use scores as a guide, not the only deciding factor",
+            "Scores update in real-time as you modify job requirements"
         ],
-        icon: <Sparkles className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     },
     {
         id: 8,
         title: "Track Your Recruitment Metrics",
-        content: "Monitor key metrics on your dashboard: active jobs, total candidates, average time to fill, and more. View your activity feed to see everything that's happening in real-time.",
+        subtitle: "Data-Driven Growth",
+        accentColor: "slate",
+        visualLabel: "METRICS",
+        content: "Monitor key metrics on your dashboard: active jobs, total candidates, average time to fill, and more.",
         detailedSteps: [
-            "Access the Dashboard from the sidebar (home icon)",
-            "View key metrics at the top: Active Jobs, Total Candidates, Qualified Candidates, Avg Time to Fill",
-            "Check the Activity Feed to see recent actions: candidate moves, job posts, emails sent, etc.",
+            "Access Dashboard from the top of the sidebar",
+            "View metrics: Active Jobs, Avg Time to Fill, Qualified Count",
+            "Check Activity Feed for real-time system changes",
             "View upcoming interviews in the calendar widget",
-            "See recent candidates and jobs in the quick access sections",
-            "Use bulk actions to move multiple candidates at once",
-            "Filter activity feed by date range or action type",
-            "Export metrics data for reporting (coming soon)",
-            "Metrics update in real-time as you perform actions"
+            "Filter activity feed by date range or action type"
         ],
         commonIssues: [
             {
-                issue: "Metrics showing zero or incorrect numbers",
-                solution: "Metrics only count active jobs (not closed). Closed jobs and their candidates are excluded. Also ensure you're viewing your own data - metrics are user-specific. Refresh the page if numbers seem stale."
+                issue: "Metrics showing zero",
+                solution: "Metrics only count Active jobs. Closed jobs are excluded by default."
             },
             {
-                issue: "Activity feed not showing recent actions",
-                solution: "Activity feed shows actions from the current user only. If you don't see an action, it might have been performed by another user. Refresh the page to load latest activities."
-            },
-            {
-                issue: "Avg Time to Fill seems wrong",
-                solution: "This metric calculates average time from when a candidate applies to when they're moved to 'Hired' stage. It only includes candidates who reached Hired stage. If you have no hired candidates yet, it will show 0 or N/A."
-            },
-            {
-                issue: "Can't see all candidates on dashboard",
-                solution: "The dashboard shows a summary view. Go to the Candidates page to see the full list. The dashboard only shows recent or highlighted candidates."
-            },
-            {
-                issue: "Notifications not appearing",
-                solution: "Check the notification bell icon in the top right. Ensure your browser allows notifications. Also check Settings > Notifications to ensure email notifications are enabled."
+                issue: "Activity feed seems empty",
+                solution: "The feed shows actions from the current user. Refresh to load the latest events."
             }
         ],
         tips: [
-            "Check the dashboard daily to stay on top of your recruitment pipeline",
-            "Use the activity feed to track all system changes",
-            "Monitor Avg Time to Fill to improve your hiring process",
-            "Set up email notifications for important events",
-            "Use bulk actions to efficiently manage multiple candidates"
+            "Check the dashboard daily for pipeline health",
+            "Monitor Time to Fill to improve operational efficiency",
+            "Use bulk actions to manage multiple candidates efficiently"
         ],
-        icon: <BarChart3 className="w-12 h-12 text-black" />
+        icon: <Sparkles className="w-10 h-10" />
     }
 ];
 
 const Onboarding: React.FC = () => {
     const navigate = useNavigate();
-    const [currentSlide, setCurrentSlide] = useState(0);
+    const [currentIndex, setCurrentIndex] = useState(0);
     const [completed, setCompleted] = useState(false);
+    const [tab, setTab] = useState<'steps' | 'troubleshoot' | 'tips'>('steps');
 
     // Check if onboarding already completed
     useEffect(() => {
         const checkOnboardingStatus = async () => {
             try {
-                const { supabase } = await import('../services/supabase');
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     const { data: profile } = await supabase
@@ -405,52 +307,35 @@ const Onboarding: React.FC = () => {
         checkOnboardingStatus();
     }, [navigate]);
 
-    const handleNext = () => {
-        if (currentSlide < slides.length - 1) {
-            setCurrentSlide(currentSlide + 1);
+    const handleNext = useCallback(() => {
+        if (currentIndex < slides.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+            setTab('steps');
         } else {
             handleComplete();
         }
-    };
+    }, [currentIndex]);
 
-    const handlePrevious = () => {
-        if (currentSlide > 0) {
-            setCurrentSlide(currentSlide - 1);
+    const handleBack = useCallback(() => {
+        if (currentIndex > 0) {
+            setCurrentIndex(prev => prev - 1);
+            setTab('steps');
         }
-    };
-
-    const handleSkip = async () => {
-        // Mark as completed even if skipped
-        try {
-            await markOnboardingCompleted();
-        } catch (error) {
-            console.error('Error marking onboarding as completed:', error);
-        }
-        // Redirect to dashboard immediately when skipped
-        navigate('/dashboard', { replace: true });
-    };
+    }, [currentIndex]);
 
     const handleComplete = async () => {
         setCompleted(true);
         try {
             await markOnboardingCompleted();
-            // Small delay to show completion state, then redirect to dashboard
-            setTimeout(() => {
-                navigate('/dashboard', { replace: true });
-            }, 1500);
+            setTimeout(() => navigate('/dashboard', { replace: true }), 2500);
         } catch (error) {
             console.error('Error completing onboarding:', error);
-            // Even if marking as completed fails, redirect to dashboard
-            setTimeout(() => {
-                navigate('/dashboard', { replace: true });
-            }, 1500);
+            setTimeout(() => navigate('/dashboard', { replace: true }), 2500);
         }
     };
 
     const markOnboardingCompleted = async () => {
         try {
-            // Update user profile to mark onboarding as completed
-            const { supabase } = await import('../services/supabase');
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 await supabase
@@ -463,216 +348,235 @@ const Onboarding: React.FC = () => {
             }
         } catch (error) {
             console.error('Error marking onboarding as completed:', error);
-            // Don't block navigation if update fails
         }
     };
 
-    // Keyboard navigation
     useEffect(() => {
-        const handleKeyPress = (e: KeyboardEvent) => {
-            if (e.key === 'ArrowRight') {
-                handleNext();
-            } else if (e.key === 'ArrowLeft') {
-                handlePrevious();
-            } else if (e.key === 'Escape') {
-                handleSkip();
-            }
+        const handleKeys = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowRight') handleNext();
+            if (e.key === 'ArrowLeft') handleBack();
+            if (e.key === 'Escape') navigate('/dashboard');
         };
+        window.addEventListener('keydown', handleKeys);
+        return () => window.removeEventListener('keydown', handleKeys);
+    }, [handleNext, handleBack, navigate]);
 
-        window.addEventListener('keydown', handleKeyPress);
-        return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [currentSlide]);
-
-    const slide = slides[currentSlide];
-    const progress = ((currentSlide + 1) / slides.length) * 100;
+    const slide = slides[currentIndex];
+    const progress = ((currentIndex + 1) / slides.length) * 100;
 
     if (completed) {
-        // Show completion message briefly, then redirect happens automatically
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-xl p-12 max-w-md w-full text-center">
-                    <div className="mb-6 flex justify-center">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                            <CheckCircle className="w-12 h-12 text-green-600" />
+            <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-700">
+                <div className="max-w-md w-full text-center space-y-10">
+                    <div className="relative mx-auto w-32 h-32">
+                        <div className="absolute inset-0 bg-indigo-500 blur-3xl opacity-20 rounded-full animate-pulse"></div>
+                        <div className="relative bg-indigo-600 rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-indigo-100">
+                            <CheckCircle className="w-16 h-16 text-white" />
                         </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-3">All Set!</h2>
-                    <p className="text-gray-600 mb-6">You're ready to start using CoreFlow. Redirecting to your dashboard...</p>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-black h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                    <div className="space-y-4">
+                        <h2 className="text-5xl font-black text-slate-900 tracking-tight">System Ready.</h2>
+                        <p className="text-xl text-slate-500 leading-relaxed">Hang tight! We're tailoring your CoreFlow experience right now...</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-4">If you're not redirected automatically, <button onClick={() => navigate('/dashboard', { replace: true })} className="text-black underline">click here</button></p>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-600 rounded-full animate-[loading_2.5s_ease-in-out_forwards]"></div>
+                    </div>
                 </div>
+                <style>{`
+                    @keyframes loading {
+                        from { width: 0%; }
+                        to { width: 100%; }
+                    }
+                `}</style>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full overflow-hidden">
-                {/* Header */}
-                <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <img 
-                          src="/assets/images/coreflow-favicon-logo.png" 
-                          alt="CoreFlow" 
-                          className="object-contain"
-                          style={{ 
-                            width: '32px',
-                            height: '32px'
-                          }}
-                        />
-                        <h1 className="text-lg font-bold">CoreFlow Tutorial</h1>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 lg:p-10 font-sans">
+            <div className="bg-white rounded-[3rem] shadow-2xl max-w-[1400px] w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[92vh] max-h-[1000px] border border-slate-100">
+                
+                {/* Left Side: Dynamic Visual Showcase */}
+                <div className="hidden lg:flex lg:col-span-5 bg-slate-950 flex-col p-16 relative overflow-hidden">
+                    <div className="relative z-20 mb-auto">
+                        <div className="flex items-center gap-3 text-white">
+                            <div className="w-10 h-10 bg-white text-black rounded-2xl flex items-center justify-center shadow-xl">
+                                <Rocket className="w-6 h-6" />
+                            </div>
+                            <span className="text-2xl font-black tracking-tight">CoreFlow</span>
+                        </div>
                     </div>
-                    <button
-                        onClick={handleSkip}
-                        className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
-                        title="Skip Tutorial (ESC)"
-                    >
-                        <X size={20} />
-                    </button>
+
+                    <div className="relative z-20 my-auto scale-110">
+                        <VisualPreview label={slide.visualLabel} color={slide.accentColor} slideId={slide.id} />
+                    </div>
+
+                    <div className="relative z-20 mt-auto space-y-6">
+                        <div className="flex gap-2">
+                             <span className="px-4 py-1.5 bg-white/10 text-white/80 rounded-full text-xs font-bold uppercase tracking-widest border border-white/10">Module {slide.id}</span>
+                             <span className="px-4 py-1.5 bg-white/10 text-white/80 rounded-full text-xs font-bold uppercase tracking-widest border border-white/10">Interactive</span>
+                        </div>
+                        <h3 className="text-5xl font-black text-white tracking-tighter leading-none italic">{slide.subtitle}</h3>
+                        <p className="text-white/40 text-lg max-w-sm font-medium leading-relaxed">
+                            Master the CoreFlow interface in minutes with our guided visual tours.
+                        </p>
+                    </div>
+
+                    {/* Gradient Background Blobs */}
+                    <div className={`absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-[150px] opacity-20 transition-all duration-1000 ${
+                        slide.accentColor === 'indigo' ? 'bg-indigo-600' :
+                        slide.accentColor === 'blue' ? 'bg-blue-600' :
+                        slide.accentColor === 'emerald' ? 'bg-emerald-600' :
+                        slide.accentColor === 'amber' ? 'bg-amber-600' :
+                        slide.accentColor === 'rose' ? 'bg-rose-600' :
+                        slide.accentColor === 'violet' ? 'bg-violet-600' :
+                        slide.accentColor === 'cyan' ? 'bg-cyan-600' :
+                        'bg-slate-600'
+                    }`}></div>
+                    <div className={`absolute -top-40 -right-40 w-80 h-80 rounded-full blur-[150px] opacity-10 transition-all duration-1000 ${
+                        slide.accentColor === 'indigo' ? 'bg-indigo-400' :
+                        slide.accentColor === 'blue' ? 'bg-blue-400' :
+                        slide.accentColor === 'emerald' ? 'bg-emerald-400' :
+                        slide.accentColor === 'amber' ? 'bg-amber-400' :
+                        slide.accentColor === 'rose' ? 'bg-rose-400' :
+                        slide.accentColor === 'violet' ? 'bg-violet-400' :
+                        slide.accentColor === 'cyan' ? 'bg-cyan-400' :
+                        'bg-slate-400'
+                    }`}></div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="h-1 bg-gray-200">
-                    <div 
-                        className="h-full bg-black transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                    />
-                </div>
-
-                {/* Slide Content */}
-                <div className="p-8 md:p-12 max-h-[70vh] overflow-y-auto">
-                    <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
-                        {/* Icon/Visual */}
-                        <div className="flex-shrink-0">
-                            <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center">
-                                {slide.icon}
+                {/* Right Side: Interactive Guide */}
+                <div className="lg:col-span-7 flex flex-col h-full bg-white relative">
+                    {/* Header */}
+                    <div className="px-10 py-10 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{slide.title}</h1>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Tutorial Progress</span>
                             </div>
                         </div>
+                        <button 
+                            onClick={() => navigate('/dashboard')}
+                            className="p-3 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-all"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
 
-                        {/* Text Content */}
-                        <div className="flex-1">
-                            <div className="mb-2 text-sm font-medium text-gray-500">
-                                Step {currentSlide + 1} of {slides.length}
-                            </div>
-                            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                                {slide.title}
-                            </h2>
-                            <p className="text-lg text-gray-600 leading-relaxed mb-6">
-                                {slide.content}
+                    {/* Content Section */}
+                    <div className="flex-1 overflow-y-auto px-10 pb-32">
+                        <div className="max-w-2xl space-y-12">
+                            <p className="text-2xl text-slate-500 font-medium leading-relaxed italic">
+                                "{slide.content}"
                             </p>
 
-                            {/* Detailed Steps */}
-                            {slide.detailedSteps && slide.detailedSteps.length > 0 && (
-                                <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Info className="w-5 h-5 text-blue-600" />
-                                        <h3 className="text-lg font-semibold text-gray-900">How to Use:</h3>
-                                    </div>
-                                    <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                                        {slide.detailedSteps.map((step, idx) => (
-                                            <li key={idx} className="pl-2">{step}</li>
-                                        ))}
-                                    </ol>
-                                </div>
-                            )}
+                            {/* Interaction Tabs */}
+                            <div className="space-y-8">
+                                <nav className="flex gap-1 bg-slate-100 p-1.5 rounded-[1.5rem] w-fit">
+                                    {[
+                                        { id: 'steps', label: 'How it Works', icon: Info },
+                                        { id: 'troubleshoot', label: 'Common Issues', icon: HelpCircle },
+                                        { id: 'tips', label: 'Pro Tips', icon: Sparkles }
+                                    ].map(item => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setTab(item.id as any)}
+                                            className={`px-6 py-3 rounded-2xl flex items-center gap-2 text-sm font-bold transition-all ${tab === item.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            <item.icon className="w-4 h-4" />
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </nav>
 
-                            {/* Common Issues & Solutions */}
-                            {slide.commonIssues && slide.commonIssues.length > 0 && (
-                                <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <AlertCircle className="w-5 h-5 text-orange-600" />
-                                        <h3 className="text-lg font-semibold text-gray-900">Common Issues & Solutions:</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {slide.commonIssues.map((item, idx) => (
-                                            <div key={idx} className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded">
-                                                <div className="font-semibold text-gray-900 mb-1 flex items-start gap-2">
-                                                    <HelpCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                                                    <span>{item.issue}</span>
+                                {/* Dynamic Tab Content */}
+                                <div className="min-h-[300px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    {tab === 'steps' && (
+                                        <div className="grid gap-4">
+                                            {slide.detailedSteps.map((step, i) => (
+                                                <div key={i} className="group flex items-start gap-6 p-6 rounded-[2rem] hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all">
+                                                    <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 font-black flex items-center justify-center text-sm">
+                                                        0{i + 1}
+                                                    </div>
+                                                    <p className="text-slate-700 font-bold pt-2 leading-relaxed text-lg">{step}</p>
                                                 </div>
-                                                <div className="text-gray-700 ml-6">
-                                                    <strong>Solution:</strong> {item.solution}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                            ))}
+                                        </div>
+                                    )}
 
-                            {/* Tips */}
-                            {slide.tips && slide.tips.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Sparkles className="w-5 h-5 text-purple-600" />
-                                        <h3 className="text-lg font-semibold text-gray-900">Pro Tips:</h3>
-                                    </div>
-                                    <ul className="list-disc list-inside space-y-2 text-gray-700">
-                                        {slide.tips.map((tip, idx) => (
-                                            <li key={idx} className="pl-2">{tip}</li>
-                                        ))}
-                                    </ul>
+                                    {tab === 'troubleshoot' && (
+                                        <div className="space-y-6">
+                                            {slide.commonIssues.map((issue, i) => (
+                                                <div key={i} className="bg-amber-50 rounded-[2rem] p-8 space-y-3 border border-amber-100/50">
+                                                    <h4 className="text-amber-900 font-black text-xl flex items-center gap-3">
+                                                        <HelpCircle className="w-6 h-6" />
+                                                        {issue.issue}
+                                                    </h4>
+                                                    <p className="text-amber-800/70 font-medium pl-9 leading-relaxed text-lg">
+                                                        <span className="font-black text-amber-900/40 mr-2 underline decoration-wavy underline-offset-4">Fix:</span>
+                                                        {issue.solution}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {tab === 'tips' && (
+                                        <div className="space-y-4">
+                                            {slide.tips.map((tip, i) => (
+                                                <div key={i} className="flex items-start gap-6 p-8 rounded-[2.5rem] bg-indigo-50/40 border border-indigo-100/50 group hover:scale-[1.02] transition-transform">
+                                                    <div className="w-14 h-14 bg-white rounded-3xl flex items-center justify-center shadow-sm flex-shrink-0 border border-indigo-50">
+                                                        <Lightbulb className="w-8 h-8 text-indigo-500 group-hover:text-indigo-600 transition-colors" />
+                                                    </div>
+                                                    <p className="text-indigo-900 font-bold leading-relaxed pt-2 text-lg">
+                                                        {tip}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Progress Dots */}
-                    <div className="flex justify-center gap-2 mb-8">
-                        {slides.map((_, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setCurrentSlide(index)}
-                                className={`w-2 h-2 rounded-full transition-all ${
-                                    index === currentSlide
-                                        ? 'bg-black w-8'
-                                        : 'bg-gray-300 hover:bg-gray-400'
-                                }`}
-                                aria-label={`Go to slide ${index + 1}`}
-                            />
-                        ))}
+                    {/* Control Footer */}
+                    <div className="absolute bottom-0 left-0 right-0 p-10 bg-white/80 backdrop-blur-xl border-t border-slate-50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            {slides.map((_, i) => (
+                                <button 
+                                    key={i}
+                                    onClick={() => {
+                                        setCurrentIndex(i);
+                                        setTab('steps');
+                                    }}
+                                    className={`h-2 rounded-full transition-all duration-500 ${i === currentIndex ? 'w-12 bg-slate-900' : 'w-2 bg-slate-200 hover:bg-slate-300'}`}
+                                />
+                            ))}
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <Button 
+                                variant="outline" 
+                                size="lg" 
+                                onClick={handleBack} 
+                                disabled={currentIndex === 0}
+                                className="px-6 rounded-[1.5rem] border-slate-200"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </Button>
+                            <Button 
+                                variant="black" 
+                                size="lg" 
+                                onClick={handleNext}
+                                className="min-w-[200px] rounded-[1.5rem] gap-3"
+                            >
+                                {currentIndex === slides.length - 1 ? 'Finish Setup' : 'Next Step'}
+                                <ChevronRight className="w-5 h-5" />
+                            </Button>
+                        </div>
                     </div>
-                </div>
-
-                {/* Navigation */}
-                <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-between bg-gray-50">
-                    <Button
-                        variant="outline"
-                        onClick={handlePrevious}
-                        disabled={currentSlide === 0}
-                        className="flex items-center gap-2"
-                    >
-                        <ChevronLeft size={18} />
-                        Previous
-                    </Button>
-
-                    <div className="text-sm text-gray-500">
-                        {currentSlide + 1} / {slides.length}
-                    </div>
-
-                    <Button
-                        variant="black"
-                        onClick={handleNext}
-                        className="flex items-center gap-2"
-                    >
-                        {currentSlide === slides.length - 1 ? (
-                            <>
-                                Complete
-                                <CheckCircle size={18} />
-                            </>
-                        ) : (
-                            <>
-                                Next
-                                <ChevronRight size={18} />
-                            </>
-                        )}
-                    </Button>
-                </div>
-
-                {/* Keyboard Hints */}
-                <div className="px-6 py-2 bg-gray-100 border-t border-gray-200 text-xs text-gray-500 text-center">
-                    Use ← → arrow keys to navigate • Press ESC to skip • Scroll down for detailed instructions
                 </div>
             </div>
         </div>
@@ -680,4 +584,3 @@ const Onboarding: React.FC = () => {
 };
 
 export default Onboarding;
-
