@@ -418,9 +418,18 @@ const Onboarding: React.FC = () => {
                                 alt="CoreflowHR" 
                                 className="object-contain"
                                 style={{
-                                    height: '60px',
+                                    display: 'block',
+                                    height: '80px',
                                     width: 'auto',
-                                    maxWidth: '200px'
+                                    maxWidth: '250px'
+                                }}
+                                onError={(e) => {
+                                    console.error('Logo failed to load');
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.border = '2px solid red';
+                                }}
+                                onLoad={() => {
+                                    console.log('Logo loaded successfully');
                                 }}
                             />
                         </div>
