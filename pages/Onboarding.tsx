@@ -30,7 +30,7 @@ interface Slide {
 const slides: Slide[] = [
     {
         id: 1,
-        title: "Welcome to CoreFlow!",
+        title: "Welcome to CoreflowHR!",
         subtitle: "The Future of Recruitment",
         accentColor: "indigo",
         visualLabel: "DASHBOARD",
@@ -389,7 +389,7 @@ const Onboarding: React.FC = () => {
                     </div>
                     <div className="space-y-4">
                         <h2 className="text-5xl font-black text-slate-900 tracking-tight">System Ready.</h2>
-                        <p className="text-xl text-slate-500 leading-relaxed">Hang tight! We're tailoring your CoreFlow experience right now...</p>
+                        <p className="text-xl text-slate-500 leading-relaxed">Hang tight! We're tailoring your CoreflowHR experience right now...</p>
                     </div>
                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div className="h-full bg-indigo-600 rounded-full animate-[loading_2.5s_ease-in-out_forwards]"></div>
@@ -412,11 +412,17 @@ const Onboarding: React.FC = () => {
                 {/* Left Side: Dynamic Visual Showcase */}
                 <div className="hidden lg:flex lg:col-span-5 bg-slate-950 flex-col p-12 relative overflow-hidden">
                     <div className="relative z-20 mb-auto">
-                        <div className="flex items-center gap-3 text-white">
-                            <div className="w-10 h-10 bg-white text-black rounded-2xl flex items-center justify-center shadow-xl">
-                                <Rocket className="w-6 h-6" />
-                            </div>
-                            <span className="text-2xl font-black tracking-tight">CoreFlow</span>
+                        <div className="flex items-center">
+                            <img 
+                                src="/assets/images/coreflow-logo.png" 
+                                alt="CoreflowHR" 
+                                className="object-contain"
+                                style={{
+                                    height: '60px',
+                                    width: 'auto',
+                                    maxWidth: '200px'
+                                }}
+                            />
                         </div>
                     </div>
 
@@ -433,7 +439,7 @@ const Onboarding: React.FC = () => {
                         </div>
                         <h3 className="text-5xl font-black text-white tracking-tighter leading-none italic">{slide.subtitle}</h3>
                         <p className="text-white/40 text-lg max-w-sm font-medium leading-relaxed">
-                            Master the CoreFlow interface in minutes with our guided visual tours.
+                            Master the CoreflowHR interface in minutes with our guided visual tours.
                         </p>
                 </div>
 
