@@ -381,7 +381,8 @@ const Onboarding: React.FC = () => {
                 }
                 
                 // Wait a moment to ensure the database update has propagated
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Increased delay to 1.5 seconds to ensure database consistency
+                await new Promise(resolve => setTimeout(resolve, 1500));
             }
         } catch (error) {
             console.error('Error marking onboarding as completed:', error);
