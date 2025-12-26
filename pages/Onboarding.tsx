@@ -289,7 +289,6 @@ const slides: Slide[] = [
 const Onboarding: React.FC = () => {
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [completed, setCompleted] = useState(false);
     const [tab, setTab] = useState<'steps' | 'troubleshoot' | 'tips'>('steps');
 
     // Check if onboarding already completed
@@ -310,7 +309,7 @@ const Onboarding: React.FC = () => {
                     
                     // Only redirect if onboarding is explicitly marked as completed
                     // This prevents redirect loops
-                    if (isMounted && profile?.onboarding_completed === true && !completed) {
+                    if (isMounted && profile?.onboarding_completed === true) {
                         // Use replace to prevent back button issues
                         navigate('/dashboard', { replace: true });
                     }
@@ -376,7 +375,7 @@ const Onboarding: React.FC = () => {
                 }
                 
                 // Wait a moment to ensure the database update has propagated
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
         } catch (error) {
             console.error('Error marking onboarding as completed:', error);
@@ -396,34 +395,6 @@ const Onboarding: React.FC = () => {
 
     const slide = slides[currentIndex];
     const progress = ((currentIndex + 1) / slides.length) * 100;
-
-    if (completed) {
-        return (
-            <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-700">
-                <div className="max-w-md w-full text-center space-y-6">
-                    <div className="relative mx-auto w-20 h-20">
-                        <div className="absolute inset-0 bg-gray-900 blur-3xl opacity-10 rounded-full animate-pulse"></div>
-                        <div className="relative bg-black rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-gray-900/20">
-                            <CheckCircle className="w-10 h-10 text-white" />
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        <h2 className="text-3xl font-black text-gray-900 tracking-tight">System Ready.</h2>
-                        <p className="text-base text-gray-600 leading-relaxed">Hang tight! We're tailoring your CoreflowHR experience right now...</p>
-                    </div>
-                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-black rounded-full animate-[loading_2.5s_ease-in-out_forwards]"></div>
-                    </div>
-                </div>
-                <style>{`
-                    @keyframes loading {
-                        from { width: 0%; }
-                        to { width: 100%; }
-                    }
-                `}</style>
-            </div>
-        );
-    }
 
     return (
         <div className="fixed inset-0 bg-slate-50 font-sans overflow-hidden">
