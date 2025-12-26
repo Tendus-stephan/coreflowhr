@@ -150,8 +150,14 @@ const LandingPage: React.FC = () => {
 
         setIsSubscribed(subscribed);
       } catch (error: any) {
-        console.error('Error checking subscription:', error);
-        setIsSubscribed(false);
+        // Handle timeout and network errors gracefully
+        if (error.message?.includes('timeout') || error.message?.includes('Failed to fetch')) {
+          // Network issue - silently fail and assume not subscribed
+          setIsSubscribed(false);
+        } else {
+          console.error('Error checking subscription:', error);
+          setIsSubscribed(false);
+        }
       } finally {
         setSubscriptionLoading(false);
       }
