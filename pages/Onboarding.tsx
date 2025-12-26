@@ -406,11 +406,11 @@ const Onboarding: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 lg:p-10 font-sans">
-            <div className="bg-white rounded-[3rem] shadow-2xl max-w-[1400px] w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[92vh] max-h-[1000px] border border-slate-100">
+        <div className="fixed inset-0 bg-slate-50 font-sans overflow-hidden">
+            <div className="h-full w-full grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
                 
                 {/* Left Side: Dynamic Visual Showcase */}
-                <div className="hidden lg:flex lg:col-span-5 bg-slate-950 flex-col p-16 relative overflow-hidden">
+                <div className="hidden lg:flex lg:col-span-5 bg-slate-950 flex-col p-12 relative overflow-hidden">
                     <div className="relative z-20 mb-auto">
                         <div className="flex items-center gap-3 text-white">
                             <div className="w-10 h-10 bg-white text-black rounded-2xl flex items-center justify-center shadow-xl">
@@ -420,8 +420,10 @@ const Onboarding: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="relative z-20 my-auto scale-110">
-                        <VisualPreview label={slide.visualLabel} color={slide.accentColor} slideId={slide.id} />
+                    <div className="relative z-20 my-auto flex items-center justify-center">
+                        <div className="scale-100">
+                            <VisualPreview label={slide.visualLabel} color={slide.accentColor} slideId={slide.id} />
+                        </div>
                     </div>
 
                     <div className="relative z-20 mt-auto space-y-6">
@@ -487,9 +489,9 @@ const Onboarding: React.FC = () => {
                 </div>
 
                 {/* Right Side: Interactive Guide */}
-                <div className="lg:col-span-7 flex flex-col h-full bg-white relative">
+                <div className="lg:col-span-7 flex flex-col h-full bg-white relative overflow-hidden">
                     {/* Header */}
-                    <div className="px-10 py-10 flex items-center justify-between">
+                    <div className="px-10 py-8 flex items-center justify-between flex-shrink-0 border-b border-slate-100">
                         <div className="space-y-1">
                             <h1 className="text-3xl font-black text-slate-900 tracking-tight">{slide.title}</h1>
                             <div className="flex items-center gap-2">
@@ -501,7 +503,7 @@ const Onboarding: React.FC = () => {
                             </div>
 
                     {/* Content Section */}
-                    <div className="flex-1 overflow-y-auto px-10 pb-40">
+                    <div className="flex-1 overflow-y-auto px-10 py-8">
                         <div className="max-w-2xl space-y-12">
                             <p className="text-2xl text-slate-500 font-medium leading-relaxed italic">
                                 "{slide.content}"
@@ -578,7 +580,7 @@ const Onboarding: React.FC = () => {
                     </div>
 
                     {/* Control Footer */}
-                    <div className="absolute bottom-0 left-0 right-0 p-10 bg-white/80 backdrop-blur-xl border-t border-slate-50 flex items-center justify-between">
+                    <div className="flex-shrink-0 p-10 bg-white border-t border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             {slides.map((_, i) => (
                             <button
