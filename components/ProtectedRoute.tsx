@@ -143,6 +143,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Check onboarding status - only for newly subscribed users on first dashboard access
   useEffect(() => {
     const checkOnboarding = async () => {
+      // Skip onboarding check entirely if user is on onboarding page
+      // Let the Onboarding component handle its own redirect logic
+      if (location.pathname === '/onboarding') {
+        setOnboardingChecked(true);
+        setOnboardingCompleted(true); // Allow access to onboarding page
+        return;
+      }
+
       if (!session || !user) {
         setOnboardingChecked(true);
         return;
