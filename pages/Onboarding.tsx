@@ -96,18 +96,24 @@ const slides: Slide[] = [
         subtitle: "Hiring at Scale",
         accentColor: "emerald",
         visualLabel: "JOBS",
-        content: "Post jobs, track applicants, and manage job statuses. Generate public application links that candidates can use to apply directly.",
+        content: "Post jobs and manage job statuses. It's crucial to carefully cross-check all job details and input core skills required for the position. Once a job is created and set to Active, candidates will be automatically sourced based on these skills.",
         detailedSteps: [
             "Click 'New Job' or go to Jobs page and click 'Create Job'",
             "Fill in details: Title, Department, Location, Type",
-            "Add required skills - used for AI match scoring",
+            "⚠️ IMPORTANT: Carefully cross-check all job information for accuracy",
+            "⚠️ CRITICAL: Input all core skills required for the job - this directly impacts AI candidate matching accuracy",
+            "Review and verify all details before proceeding",
             "Set status: Draft, Active, or Closed",
-            "Share the public link once the job is Active"
+            "Once Active, candidates will be automatically sourced for the job based on the skills you've defined"
         ],
         commonIssues: [
             {
-                issue: "Public link not working",
-                solution: "The job must be set to 'Active' status. Draft jobs don't have working application links."
+                issue: "Candidates not being sourced",
+                solution: "Make sure the job is set to 'Active' status. Only active jobs trigger candidate sourcing. Also verify that core skills have been properly inputted."
+            },
+            {
+                issue: "Poor AI match scores for candidates",
+                solution: "Ensure you've inputted all core/required skills for the job. The AI matching system relies heavily on these skills to find suitable candidates."
             },
             {
                 issue: "Job disappeared from the list",
@@ -115,8 +121,10 @@ const slides: Slide[] = [
             }
         ],
         tips: [
-            "Use Draft status to prepare jobs before publishing",
-            "Add detailed skills to improve AI matching accuracy",
+            "⚠️ Always cross-check job details before setting to Active - accuracy is crucial",
+            "⚠️ Input all core skills comprehensively - missing skills lead to poor candidate matches",
+            "Use Draft status to prepare and review jobs before publishing",
+            "The more specific and detailed your skills list, the better the AI matching will be",
             "Close jobs when filled to keep your dashboard clean"
         ],
         icon: <Briefcase className="w-10 h-10" />
@@ -148,7 +156,7 @@ const slides: Slide[] = [
         tips: [
             "Create workflows for all stages to fully automate",
             "Use AI-generated content to save writing time",
-            "Test with a dummy candidate before going live"
+            "Test the workflow with a dummy candidate before sending emails out to ensure everything works correctly"
         ],
         icon: <Mail className="w-10 h-10" />
     },
@@ -576,7 +584,7 @@ const Onboarding: React.FC = () => {
                                                 <div key={i} className="flex items-start gap-6 p-8 rounded-[2.5rem] bg-indigo-50/40 border border-indigo-100/50 group hover:scale-[1.02] transition-transform">
                                                     <div className="w-14 h-14 bg-white rounded-3xl flex items-center justify-center shadow-sm flex-shrink-0 border border-indigo-50">
                                                         <Lightbulb className="w-8 h-8 text-indigo-500 group-hover:text-indigo-600 transition-colors" />
-                                                    </div>
+                                                </div>
                                                     <p className="text-indigo-900 font-bold leading-relaxed pt-2 text-lg">
                                                         {tip}
                                                     </p>
