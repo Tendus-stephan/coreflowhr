@@ -358,12 +358,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/?pricing=true" replace />;
   }
 
-  // Check if onboarding is required (only for new users on first dashboard access)
+  // Block ALL protected routes if onboarding not completed
   // Don't redirect if user is already on onboarding page
   if (
     onboardingChecked && 
     !onboardingCompleted && 
-    location.pathname === '/dashboard'
+    location.pathname !== '/onboarding'
   ) {
     return <Navigate to="/onboarding" replace />;
   }
