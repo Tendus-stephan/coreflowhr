@@ -76,12 +76,10 @@ serve(async (req) => {
       );
     }
 
-    // Get the base URL from environment or construct it
-    // For production, you should set FRONTEND_URL environment variable in Supabase Edge Functions secrets
-    // For local testing, this defaults to port 3000 (matches vite.config.ts)
-    // IMPORTANT: Stripe cannot redirect to localhost from their servers
-    // For local testing, use ngrok or test in production/staging environment
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    // Get the base URL from environment or use production domain
+    // For production, set FRONTEND_URL environment variable in Supabase Edge Functions secrets
+    // Default to production domain for Stripe redirects
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
     // Using HashRouter, so need # before route
     const successUrl = `${frontendUrl}/#/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${frontendUrl}/#pricing`;
