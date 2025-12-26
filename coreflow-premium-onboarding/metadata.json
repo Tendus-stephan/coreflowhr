@@ -1,0 +1,9 @@
+
+{
+  "name": "CoreFlow Premium Onboarding",
+  "description": "A sophisticated, split-screen onboarding experience for the CoreFlow recruitment platform.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

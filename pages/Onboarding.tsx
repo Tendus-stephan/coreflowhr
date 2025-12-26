@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { 
-    ChevronRight, ChevronLeft, X, CheckCircle,
+    ChevronRight, ChevronLeft, X,
     Info, HelpCircle, Sparkles, Lightbulb, Rocket,
     Users, Briefcase, Mail, Calendar, FileText, BarChart3
 } from 'lucide-react';

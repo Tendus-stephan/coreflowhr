@@ -66,3 +66,4 @@ After setting up Supabase Storage, your emails will show the logo correctly!
 
 
 
+

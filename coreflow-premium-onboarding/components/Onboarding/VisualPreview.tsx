@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface VisualPreviewProps {
@@ -88,5 +89,3 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ label, color, slideId }) 
 };
 
 export default VisualPreview;
-
-

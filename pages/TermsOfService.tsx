@@ -49,14 +49,14 @@ const TermsOfService: React.FC = () => {
       
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const scrollPosition = window.scrollY + 200;
-          
-          for (let i = sections.length - 1; i >= 0; i--) {
-            const section = document.getElementById(sections[i].id);
-            if (section && section.offsetTop <= scrollPosition) {
-              setActiveId(sections[i].id);
-              break;
-            }
+      const scrollPosition = window.scrollY + 200;
+      
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = document.getElementById(sections[i].id);
+        if (section && section.offsetTop <= scrollPosition) {
+          setActiveId(sections[i].id);
+          break;
+        }
           }
           ticking = false;
         });
