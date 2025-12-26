@@ -348,12 +348,12 @@ const Onboarding: React.FC = () => {
             // Mark as completed first and wait for it to complete
             await markOnboardingCompleted();
             // Immediately redirect to dashboard - no completion screen
-            // Using window.location.replace to prevent back navigation issues
-            window.location.replace('/#/dashboard');
+            // Using window.location to force a full page reload so ProtectedRoute gets fresh data
+            window.location.href = window.location.origin + window.location.pathname + '#/dashboard';
         } catch (error) {
             console.error('Error completing onboarding:', error);
             // Even if there's an error, try to redirect to dashboard
-            window.location.replace('/#/dashboard');
+            window.location.href = window.location.origin + window.location.pathname + '#/dashboard';
         }
     };
 
