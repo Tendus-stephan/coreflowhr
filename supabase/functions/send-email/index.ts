@@ -6,13 +6,14 @@ const getAllowedOrigins = (): string[] => {
   if (allowedOrigins) {
     return allowedOrigins.split(',').map(origin => origin.trim());
   }
-  // Default to common production origins (should be overridden in production)
+  // Default to common production origins (should be overridden in production via ALLOWED_ORIGINS env var)
   return [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:3002', // Development port
     'https://coreflowhr.com', // Production domain
     'https://www.coreflowhr.com', // Production domain with www
+    // Note: Add your Vercel preview/production URLs via ALLOWED_ORIGINS environment variable in Supabase
   ];
 };
 
@@ -25,7 +26,13 @@ const getCorsHeaders = (origin: string | null) => {
   // For development, also allow localhost with any port
   const isLocalhost = origin && origin.startsWith('http://localhost:');
   
-  const allowOrigin = isAllowed || isLocalhost ? (origin || '*') : '';
+  // Allow Vercel preview URLs (vercel.app domains) - includes all Vercel deployments
+  const isVercelPreview = origin && (
+    origin.includes('.vercel.app') || 
+    origin.includes('vercel.app')
+  );
+  
+  const allowOrigin = (isAllowed || isLocalhost || isVercelPreview) ? (origin || '*') : '';
   
   return {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -64,7 +71,7 @@ function sanitizeHtml(html: string): string {
   return sanitized;
 }
 
-// Create branded email template wrapper
+// Create minimal branded email template wrapper (no logo, subtle branding)
 function createEmailTemplate(content: string, logoUrl: string, companyName: string, companyWebsite: string, recipientEmail?: string): string {
   return `
 <!DOCTYPE html>
@@ -73,76 +80,36 @@ function createEmailTemplate(content: string, logoUrl: string, companyName: stri
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>${companyName}</title>
+  <title>Email</title>
   <!--[if mso]>
   <style type="text/css">
     body, table, td {font-family: Arial, sans-serif !important;}
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb;">
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-          <!-- Header with Logo -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff;">
+          <!-- Content Area - No header/logo, starts directly with content -->
           <tr>
-            <td align="center" style="padding: 40px 30px 30px 30px; background-color: #ffffff; border-radius: 8px 8px 0 0;">
-              <a href="${companyWebsite}" style="text-decoration: none; display: inline-block;">
-                <!--[if mso]>
-                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${companyWebsite}" style="height:60px;v-text-anchor:middle;width:120px;" arcsize="0%" strokecolor="#ffffff" fillcolor="#ffffff">
-                  <w:anchorlock/>
-                  <center style="color:#1f2937;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">${companyName}</center>
-                </v:roundrect>
-                <![endif]-->
-                <!--[if !mso]><!-->
-                <img src="${logoUrl}" alt="${companyName}" width="120" style="max-width: 120px; width: 120px; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; font-family: Arial, sans-serif; font-size: 16px; color: #1f2937;" />
-                <!--<![endif]-->
-              </a>
-            </td>
-          </tr>
-          <!-- Content Area -->
-          <tr>
-            <td style="padding: 0 30px 30px 30px; background-color: #ffffff;">
-              <div style="color: #1f2937; font-size: 16px; line-height: 1.6;">
+            <td style="padding: 0;">
+              <div style="color: #1f2937; font-size: 16px; line-height: 1.75; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                 ${content}
               </div>
             </td>
           </tr>
-          <!-- Footer -->
+          <!-- Minimal Footer -->
           <tr>
-            <td style="padding: 30px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <td align="center" style="padding-bottom: 20px;">
-                    <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
-                      <strong style="color: #1f2937; font-size: 16px;">${companyName}</strong><br>
-                      <span style="color: #9ca3af; font-size: 13px;">Modern Recruitment OS</span>
-                    </p>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding-bottom: 20px;">
-                    <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 1.6;">
-                      <a href="${companyWebsite}" style="color: #4f46e5; text-decoration: none; margin: 0 8px;">Visit our website</a>
-                      <span style="color: #d1d5db;">|</span>
-                      <a href="mailto:support@coreflowhr.com" style="color: #4f46e5; text-decoration: none; margin: 0 8px;">Contact us</a>
-                    </p>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                    <p style="margin: 0 0 10px 0; color: #9ca3af; font-size: 11px; line-height: 1.6;">
-                      This email was sent by ${companyName}.<br>
-                      If you no longer wish to receive these emails, you can 
-                      <a href="${companyWebsite}/unsubscribe${recipientEmail ? `?email=${encodeURIComponent(recipientEmail)}` : ''}" style="color: #4f46e5; text-decoration: underline;">unsubscribe here</a>.
-                    </p>
-                    <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.6;">
-                      © ${new Date().getFullYear()} ${companyName}. All rights reserved.
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding-top: 40px; padding-bottom: 20px;">
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.5; text-align: center;">
+                  Sent via CoreflowHR
+                  <span style="color: #d1d5db; margin: 0 8px;">|</span>
+                  <a href="${companyWebsite}/unsubscribe${recipientEmail ? `?email=${encodeURIComponent(recipientEmail)}` : ''}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+                </p>
+              </div>
             </td>
           </tr>
         </table>

@@ -46,7 +46,7 @@ const getAiClient = (): GoogleGenAI => {
 
 export const generateCandidateAnalysis = async (candidate: Candidate, job: Job): Promise<{ score: number; summary: string; strengths: string[]; weaknesses: string[] }> => {
   
-  const modelId = "gemini-2.5-flash";
+  const modelId = "gemini-2.0-flash";
   
   // Build prompt with CV content if available (for direct applications)
   const cvContext = candidate.resumeSummary && candidate.source === 'direct_application'
@@ -133,7 +133,7 @@ export interface EmailDraft {
 }
 
 export const draftEmail = async (candidate: Candidate, type: 'Screening' | 'Offer' | 'Hired' | 'Rejection'): Promise<EmailDraft> => {
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-2.0-flash";
     
     // Build context about the candidate
     const candidateContext = [];
@@ -214,7 +214,7 @@ export interface EmailTemplateGeneration {
 }
 
 export const generateEmailTemplate = async (templateType: 'interview' | 'screening' | 'rejection' | 'offer' | 'hired' | 'reschedule'): Promise<EmailTemplateGeneration> => {
-    const modelId = "gemini-2.5-flash";
+    const modelId = "gemini-2.0-flash";
     
     const templateDescriptions: Record<string, { name: string; purpose: string; tone: string; variables: string }> = {
         interview: {
@@ -449,6 +449,15 @@ CONTENT REQUIREMENTS:
 - Make it feel ${randomWord} and authentic
 - Apply this variation technique: ${selectedVariation}
 
+STRUCTURE & FORMATTING REQUIREMENTS:
+- Use proper paragraph breaks (\\n\\n between paragraphs for clear separation)
+- Structure content with clear sections when appropriate (greeting, body, closing)
+- Use line breaks strategically to create visual hierarchy and readability
+- Keep paragraphs concise (2-4 sentences max per paragraph for better readability)
+- Use natural flow: greeting → body content → closing/signature
+- Ensure good readability with proper spacing between paragraphs
+- Format content in a clean, professional structure similar to well-designed email templates
+
 FORBIDDEN PHRASES (Do NOT use these - they are too common):
 - "Thank you for your interest"
 - "We are pleased to"
@@ -500,10 +509,10 @@ Format your response as JSON with "subject" and "content" fields. The content sh
                         },
                         required: ["subject", "content"]
                     },
-                    // Maximum creativity settings for variation
-                    temperature: 1.0, // Maximum temperature for maximum variation
-                    topP: 0.95, // Nucleus sampling for diversity
-                    topK: 50 // Consider top K tokens for variety
+                    // Maximum creativity settings for variation - ensures different content each time
+                    temperature: 1.0, // Maximum temperature for maximum variation (0-1 scale, 1.0 = most creative)
+                    topP: 0.95, // Nucleus sampling for diversity (0-1, higher = more diverse)
+                    topK: 50 // Consider top K tokens for variety (higher = more diverse word choices)
                 },
             });
 

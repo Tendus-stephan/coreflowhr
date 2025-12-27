@@ -52,7 +52,7 @@ const GenericListModal = ({ isOpen, onClose, title, children }: { isOpen: boolea
 
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed', width: '100vw', height: '100vh' }}>
+        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
                 <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -109,7 +109,7 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
     const fileSize = (Math.random() * (4.5 - 1.2) + 1.2).toFixed(1) + ' MB';
 
     return createPortal(
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed', width: '100vw', height: '100vh' }}>
+        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
                 <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -250,7 +250,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed', width: '100vw', height: '100vh' }}>
+        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
                 <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">

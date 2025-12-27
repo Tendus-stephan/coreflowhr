@@ -23,6 +23,18 @@ export const stripePromise = stripePublishableKey
   : Promise.resolve(null);
 
 // Plan configurations
+// Debug: Log environment variables to help troubleshoot
+if (typeof window !== 'undefined') {
+  console.log('[Stripe] Environment variables check:', {
+    hasBasicMonthly: !!import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_MONTHLY,
+    hasBasicYearly: !!import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_YEARLY,
+    hasProfessionalMonthly: !!import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY,
+    hasProfessionalYearly: !!import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_YEARLY,
+    basicMonthly: import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_MONTHLY?.substring(0, 20) + '...',
+    professionalMonthly: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY?.substring(0, 20) + '...',
+  });
+}
+
 export const PLANS = {
   basic: {
     name: 'Basic Plan',
@@ -78,7 +90,19 @@ export async function createCheckoutSession(
       : PLANS[planType].priceIdYearly;
 
     if (!priceId) {
-      return { sessionId: '', error: 'Price ID not configured for this plan' };
+      console.error('[Stripe] Missing price ID:', {
+        planType,
+        billingInterval,
+        priceIdMonthly: PLANS[planType].priceIdMonthly,
+        priceIdYearly: PLANS[planType].priceIdYearly,
+        envVarName: billingInterval === 'monthly' 
+          ? `VITE_STRIPE_PRICE_ID_${planType.toUpperCase()}_MONTHLY`
+          : `VITE_STRIPE_PRICE_ID_${planType.toUpperCase()}_YEARLY`,
+        envVarValue: billingInterval === 'monthly' 
+          ? import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_MONTHLY || import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY
+          : import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_YEARLY || import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_YEARLY
+      });
+      return { sessionId: '', error: 'Price ID not configured for this plan. Please restart your dev server after adding environment variables.' };
     }
 
     // Call Supabase Edge Function to create checkout session
