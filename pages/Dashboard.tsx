@@ -52,9 +52,8 @@ const GenericListModal = ({ isOpen, onClose, title, children }: { isOpen: boolea
 
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, right: 0, bottom: 0 }}>
-            <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-xl font-bold text-gray-900">{title}</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
@@ -67,7 +66,6 @@ const GenericListModal = ({ isOpen, onClose, title, children }: { isOpen: boolea
                 <div className="p-6 border-t border-gray-100 flex justify-end bg-gray-50/50">
                     <Button variant="outline" onClick={onClose}>Close</Button>
                 </div>
-            </div>
             </div>
         </div>,
         document.body
@@ -109,9 +107,8 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
     const fileSize = (Math.random() * (4.5 - 1.2) + 1.2).toFixed(1) + ' MB';
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, right: 0, bottom: 0 }}>
-            <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-lg font-bold text-gray-900">Generate Report</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
@@ -147,7 +144,6 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
                     }}>
                         Download Report
                     </Button>
-                </div>
                 </div>
             </div>
         </div>,
@@ -250,9 +246,8 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0, right: 0, bottom: 0 }}>
-            <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-lg font-bold text-gray-900">{titles[type]}</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
@@ -435,7 +430,6 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                          `Export ${selectedIds.length} Rows`}
                     </Button>
                 </div>
-            </div>
             </div>
         </div>,
         document.body
