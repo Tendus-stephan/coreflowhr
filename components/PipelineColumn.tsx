@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Candidate, CandidateStage } from '../types';
 import { Avatar } from './ui/Avatar';
-import { MoreHorizontal, Briefcase, MapPin, BrainCircuit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Briefcase, MapPin, BrainCircuit, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PipelineColumnProps {
     title: string;
@@ -12,7 +12,7 @@ interface PipelineColumnProps {
 
 export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const ITEMS_PER_PAGE = 4;
   
   const totalPages = Math.ceil(candidates.length / ITEMS_PER_PAGE);
   const paginatedCandidates = candidates.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -31,23 +31,20 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
   };
 
   return (
-    <div className="flex-shrink-0 w-[350px] snap-center flex flex-col h-full max-h-full bg-gray-50/50 rounded-xl border border-border min-h-0">
+    <div className="flex-shrink-0 w-[350px] snap-center flex flex-col bg-gray-50/50 rounded-xl border border-border" style={{ height: '100%' }}>
       <div className="p-4 flex items-center justify-between border-b border-border/50 bg-white rounded-t-xl sticky top-0 z-10">
         <div className="flex items-center gap-2">
             <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wide">{title}</h3>
             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">{candidates.length}</span>
         </div>
-        <button className="text-gray-400 hover:text-gray-600">
-          <MoreHorizontal size={16} />
-        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar" style={{ minHeight: '0' }}>
         {paginatedCandidates.map((candidate) => (
           <div 
             key={candidate.id}
             onClick={() => onSelectCandidate(candidate)}
-            className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group relative"
+            className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group relative mb-2"
           >
             <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-3">

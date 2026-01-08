@@ -27,7 +27,8 @@ const Login: React.FC = () => {
       if (error) {
         setError(error.message || 'Failed to sign in');
       } else if (mfaRequired) {
-        // MFA is required - show code input
+        // MFA is required - create challenge and show code input
+        // Note: TOTP codes come from authenticator app, not email/SMS
         setRequiresMFA(true);
       } else {
         // Regular login - proceed with normal flow
@@ -101,6 +102,8 @@ const Login: React.FC = () => {
       }
 
       // Email verified and subscribed - go to dashboard
+      // Set flag to show loader on dashboard entry
+      sessionStorage.setItem('showDashboardLoader', 'true');
       navigate('/dashboard');
     } catch (settingsError) {
       // If settings query fails, still allow login but redirect to pricing
@@ -215,7 +218,10 @@ const Login: React.FC = () => {
               <div className="text-center mb-4">
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Two-Factor Authentication</h3>
                 <p className="text-sm text-gray-600">
-                  Enter the 6-digit code from your authenticator app
+                  Enter the 6-digit code from your authenticator app (Google Authenticator, Authy, etc.)
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  The code refreshes every 30 seconds. Make sure you're using the latest code.
                 </p>
               </div>
 

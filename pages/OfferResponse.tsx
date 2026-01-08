@@ -86,12 +86,12 @@ const OfferResponse: React.FC = () => {
                     setCounterBenefits(offerData.benefits);
                 }
 
-                // Check if already responded
+                // Check if already responded (only show success screen for accepted/declined)
+                // For negotiating status, show the offer details so user can see recruiter's response
                 if (offerData.status === 'accepted' || offerData.status === 'declined') {
                     setSuccess(offerData.status === 'accepted' ? 'accepted' : 'declined');
-                } else if (offerData.status === 'negotiating') {
-                    setSuccess('counter_offered');
                 }
+                // Don't set success for 'negotiating' - let user see the updated offer
 
             } catch (err: any) {
                 setError(err.message || 'Failed to load offer');
@@ -375,6 +375,58 @@ const OfferResponse: React.FC = () => {
                         <div className="mx-8 mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
                             <AlertCircle className="w-5 h-5 inline-block mr-2" />
                             This offer has expired. Please contact the recruiter if you would still like to proceed.
+                        </div>
+                    )}
+
+                    {/* Negotiation History / Recruiter Response */}
+                    {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.length > 0 && (
+                        <div className="px-8 py-6 bg-orange-50 border-t border-orange-200">
+                            <h3 className="text-lg font-bold text-orange-900 mb-3">Negotiation Status</h3>
+                            <div className="space-y-3">
+                                {offer.negotiationHistory
+                                    .filter((item: any) => item.type === 'counter_offer_response' || item.type === 'counter_offer')
+                                    .slice(-3) // Show last 3 negotiation items
+                                    .map((item: any, index: number) => (
+                                        <div key={index} className="bg-white rounded-lg p-4 border border-orange-200">
+                                            <p className="text-xs text-orange-700 mb-2">
+                                                {format(new Date(item.timestamp), 'MMM d, yyyy h:mm a')}
+                                            </p>
+                                            {item.type === 'counter_offer_response' && item.updatedFields && (
+                                                <div className="space-y-2 text-sm text-gray-700">
+                                                    <p className="font-medium text-gray-900">Recruiter has proposed updated terms:</p>
+                                                    {item.updatedFields.salaryAmount && (
+                                                        <p>
+                                                            <span className="font-medium">Salary:</span> {item.updatedFields.salaryCurrency === 'USD' ? '$' : item.updatedFields.salaryCurrency}
+                                                            {item.updatedFields.salaryAmount.toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? 'per year' : item.updatedFields.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
+                                                        </p>
+                                                    )}
+                                                    {item.updatedFields.benefits && item.updatedFields.benefits.length > 0 && (
+                                                        <p>
+                                                            <span className="font-medium">Benefits:</span> {item.updatedFields.benefits.join(', ')}
+                                                        </p>
+                                                    )}
+                                                    {item.notes && (
+                                                        <p className="mt-2 italic text-gray-600">"{item.notes}"</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {item.type === 'counter_offer' && item.counterOffer && (
+                                                <div className="space-y-2 text-sm text-gray-700">
+                                                    <p className="font-medium text-gray-900">Your counter offer:</p>
+                                                    {item.counterOffer.salaryAmount && (
+                                                        <p>
+                                                            <span className="font-medium">Salary:</span> {item.counterOffer.salaryCurrency === 'USD' ? '$' : item.counterOffer.salaryCurrency}
+                                                            {item.counterOffer.salaryAmount.toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? 'per year' : item.counterOffer.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
+                                                        </p>
+                                                    )}
+                                                    {item.counterOffer.notes && (
+                                                        <p className="mt-2 italic text-gray-600">"{item.counterOffer.notes}"</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                            </div>
                         </div>
                     )}
 

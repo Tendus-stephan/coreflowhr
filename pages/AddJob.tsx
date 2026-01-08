@@ -43,7 +43,7 @@ const PreviewModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose: () 
                                 <div className="flex items-center gap-2 text-lg text-gray-600 font-medium">
                                     {data.company || 'Company Name'} 
                                     {data.remote && <span className="text-gray-400">•</span>}
-                                    {data.remote && <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-sm border border-green-100">Remote</span>}
+                                    {data.remote && <span className="text-gray-600 bg-gray-50 px-2 py-0.5 rounded text-sm border border-gray-200">Remote</span>}
                                 </div>
                             </div>
                         </div>

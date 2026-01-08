@@ -295,6 +295,18 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 }
             }
 
+            // Get job details to get company name
+            let companyName = 'Our Company';
+            if (selectedCandidate.jobId) {
+                try {
+                    const job = await api.jobs.get(selectedCandidate.jobId);
+                    companyName = job.company || companyName;
+                } catch (jobError) {
+                    console.error('Error fetching job for company name:', jobError);
+                    // Fallback to 'Our Company' if job fetch fails
+                }
+            }
+
             // Get interview email template
             const templates = await api.settings.getTemplates();
             const interviewTemplate = templates.find(t => t.type === 'Interview');
@@ -304,7 +316,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 const userName = user.name || 'Recruiter';
                 let subject = interviewTemplate.subject
                     .replace(/{job_title}/g, interviewData.jobTitle)
-                    .replace(/{company_name}/g, user.name || 'Our Company')
+                    .replace(/{company_name}/g, companyName)
                     .replace(/{candidate_name}/g, selectedCandidate.name)
                     .replace(/{your_name}/g, userName);
 
@@ -316,7 +328,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 let content = interviewTemplate.content
                     .replace(/{candidate_name}/g, selectedCandidate.name)
                     .replace(/{job_title}/g, interviewData.jobTitle)
-                    .replace(/{company_name}/g, user.name || 'Our Company')
+                    .replace(/{company_name}/g, companyName)
                     .replace(/{your_name}/g, userName)
                     .replace(/{interview_date}/g, new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
                     .replace(/{interview_time}/g, new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }))

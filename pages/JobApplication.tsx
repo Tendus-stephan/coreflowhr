@@ -41,7 +41,11 @@ const JobApplication: React.FC = () => {
 
         // Check for token in URL
         const searchParams = new URLSearchParams(window.location.search);
-        const token = searchParams.get('token');
+        let token = searchParams.get('token');
+        // Clean token - remove any trailing quotes or invalid characters that might have been URL encoded
+        if (token) {
+          token = token.replace(/["']+$/, '').trim();
+        }
 
         if (token) {
           // Validate token

@@ -46,7 +46,7 @@ serve(async (req) => {
 
     // Get Google OAuth credentials from environment
     const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
 
     if (!googleClientId) {
       return new Response(

@@ -5,7 +5,7 @@ import {
   Calendar, Mail, LayoutTemplate,
   BrainCircuit, ScanLine, BarChart3, Play, 
   MessageSquare, Video, Plus, Minus,
-  LayoutDashboard, Briefcase, Bell, Clock, ChevronDown, LogOut
+  LayoutDashboard, Briefcase, Bell, Clock, ChevronDown, LogOut, CheckCircle, FileText, Settings, TrendingUp, MoreHorizontal, Download, BarChart2, Search, Activity
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
@@ -65,7 +65,8 @@ const LandingPage: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await signOut();
+    // Don't await - signOut handles redirect immediately
+    signOut();
   };
 
   // Get user display name
@@ -391,7 +392,7 @@ const LandingPage: React.FC = () => {
                         <div className="w-3 h-3 rounded-full bg-green-400"></div>
                     </div>
                     <div className="ml-4 flex-1 max-w-lg h-6 bg-white border border-gray-200 rounded-md flex items-center px-3 text-[10px] text-gray-400 shadow-sm">
-                        <span className="text-gray-300 mr-2">🔒</span> coreflow.ai/dashboard
+                        <span className="text-gray-300 mr-2">🔒</span> coreflowhr.com/dashboard
                     </div>
                 </div>
 
@@ -400,8 +401,17 @@ const LandingPage: React.FC = () => {
                     
                     {/* Sidebar Replica */}
                     <div className="w-60 bg-white border-r border-gray-200 hidden md:flex flex-col flex-shrink-0">
-                        <div className="p-6 mb-2">
-                            <Logo size="lg" />
+                        <div className="px-6 py-4 mb-1 flex items-center justify-between">
+                            <img 
+                                src="/assets/images/coreflow-logo.png" 
+                                alt="CoreFlow" 
+                                className="object-contain flex-shrink-0"
+                                style={{ 
+                                    height: '130px',
+                                    width: 'auto',
+                                    maxWidth: '300px'
+                                }}
+                            />
                         </div>
                         <div className="px-4 space-y-1">
                             <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-100 text-gray-900 rounded-lg text-sm font-medium">
@@ -414,7 +424,13 @@ const LandingPage: React.FC = () => {
                                 <Users size={16} /> Candidates
                             </div>
                             <div className="flex items-center gap-3 px-3 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg text-sm font-medium">
-                                <Calendar size={16} /> Interviews
+                                <Calendar size={16} /> Calendar
+                            </div>
+                            <div className="flex items-center gap-3 px-3 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg text-sm font-medium">
+                                <FileText size={16} /> Offers
+                            </div>
+                            <div className="flex items-center gap-3 px-3 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg text-sm font-medium">
+                                <Settings size={16} /> Settings
                             </div>
                         </div>
                         <div className="mt-auto p-4 border-t border-gray-100">
@@ -450,23 +466,23 @@ const LandingPage: React.FC = () => {
                         <div className="grid grid-cols-4 gap-4">
                              {[
                                 { label: 'Active Jobs', val: '12', trend: '+2', icon: Briefcase },
-                                { label: 'Candidates', val: '842', trend: '+15%', icon: Users },
-                                { label: 'Interviews', val: '24', trend: '+4', icon: Calendar },
-                                { label: 'Time to Fill', val: '18d', trend: '-2d', icon: Clock }
+                                { label: 'Total Candidates', val: '842', trend: '+15%', icon: Users },
+                                { label: 'Qualified Candidates', val: '24', trend: '+4%', icon: CheckCircle },
+                                { label: 'Avg Time to Fill', val: '18d', trend: '-2d', icon: Clock }
                              ].map((stat, i) => (
-                                 <div key={i} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                                     <div className="flex justify-between items-start mb-2">
-                                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{stat.label}</span>
-                                         <div className="p-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-100">
-                                            <stat.icon size={16} />
-                                         </div>
-                                     </div>
+                                 <div key={i} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-start justify-between hover:shadow-md transition-shadow">
                                      <div>
+                                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">{stat.label}</span>
                                          <span className="text-2xl font-bold text-gray-900 block tracking-tight">{stat.val}</span>
                                          <div className="flex items-center gap-1 mt-1">
-                                             <span className="text-[10px] font-medium text-green-600">{stat.trend}</span>
-                                             <span className="text-[10px] text-gray-400">vs last month</span>
+                                             <TrendingUp size={12} className={stat.trend.startsWith('+') ? 'text-green-600' : 'text-gray-400'} />
+                                             <span className={`text-[10px] font-medium ${stat.trend.startsWith('+') ? 'text-green-600' : 'text-gray-500'}`}>
+                                                 {stat.trend} <span className="text-gray-400">{stat.label === 'Avg Time to Fill' ? 'improvement' : 'vs last month'}</span>
+                                             </span>
                                          </div>
+                                     </div>
+                                     <div className="p-2.5 rounded-lg bg-gray-50 text-gray-900 border border-gray-100">
+                                        <stat.icon size={18} />
                                      </div>
                                  </div>
                              ))}
@@ -475,73 +491,187 @@ const LandingPage: React.FC = () => {
                         {/* Charts Row */}
                         <div className="grid grid-cols-3 gap-6 flex-1 min-h-0">
                             {/* Recruitment Flow */}
-                            <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-6 flex flex-col shadow-sm">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="font-bold text-gray-900 text-base">Recruitment Flow</h3>
-                                    <div className="flex gap-1">
-                                        <span className="text-[10px] font-medium px-2 py-0.5 bg-black text-white rounded border border-black">12w</span>
-                                        <span className="text-[10px] font-medium px-2 py-0.5 bg-white text-gray-500 rounded border border-gray-200">4w</span>
+                            <div className="col-span-2 bg-white rounded-2xl border border-gray-200 p-6 flex flex-col shadow-sm">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                                    <h2 className="text-lg font-bold text-gray-900">Recruitment Flow</h2>
+                                    <div className="flex gap-1 mt-2 sm:mt-0">
+                                        <span className="text-[10px] font-medium px-2 py-0.5 bg-white border border-gray-200 text-gray-500 rounded">4w</span>
+                                        <span className="text-[10px] font-medium px-2 py-0.5 bg-white border border-gray-200 text-gray-500 rounded">8w</span>
+                                        <span className="text-[10px] font-medium px-2 py-0.5 bg-black text-white border border-black rounded">12w</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-6 border-b border-gray-100 mb-4">
-                                  <div className="pb-2 text-xs font-bold text-gray-900 border-b-2 border-black">New Candidates</div>
+                                  <div className="pb-2 text-xs font-medium text-gray-900 relative">
+                                    New Candidates
+                                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-black rounded-full"></span>
+                                  </div>
+                                  <div className="pb-2 text-xs font-medium text-gray-400">Weekly Avg</div>
+                                  <div className="pb-2 text-xs font-medium text-gray-400">Screening</div>
                                   <div className="pb-2 text-xs font-medium text-gray-400">Interviews</div>
                                   <div className="pb-2 text-xs font-medium text-gray-400">Offers</div>
+                                  <div className="pb-2 text-xs font-medium text-gray-400">Hired</div>
                                 </div>
-                                <div className="flex-1 w-full relative">
+                                <div className="h-[240px] w-full relative flex-1">
                                     {/* SVG Chart Replica */}
-                                    <svg viewBox="0 0 600 220" className="w-full h-full overflow-visible preserve-3d">
+                                    <svg viewBox="0 0 600 220" className="w-full h-full overflow-visible">
                                          <defs>
                                             <linearGradient id="chartGradient3" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.1" />
-                                                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity="0.1" />
+                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity="0" />
                                             </linearGradient>
                                         </defs>
+                                        {/* Grid Lines */}
+                                        <line x1="0" y1="50" x2="600" y2="50" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
+                                        <line x1="0" y1="110" x2="600" y2="110" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
+                                        <line x1="0" y1="170" x2="600" y2="170" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
                                         <path d="M0,180 C50,160 100,170 150,140 C200,110 250,130 300,90 C350,50 400,70 450,40 C500,10 550,30 600,60 V220 H0 Z" fill="url(#chartGradient3)" />
                                         <path d="M0,180 C50,160 100,170 150,140 C200,110 250,130 300,90 C350,50 400,70 450,40 C500,10 550,30 600,60" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
-                                        
-                                        {/* Grid Lines */}
-                                        <line x1="0" y1="50" x2="600" y2="50" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
-                                        <line x1="0" y1="110" x2="600" y2="110" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
-                                        <line x1="0" y1="170" x2="600" y2="170" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
                                     </svg>
                                 </div>
                             </div>
 
-                            {/* Quick Actions / Activity */}
-                            <div className="col-span-1 flex flex-col gap-4">
-                                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                                    <h3 className="font-bold text-gray-900 text-base mb-4">Quick Actions</h3>
-                                    <button className="w-full bg-black text-white rounded-lg py-3.5 px-4 flex items-center justify-center gap-3 text-sm font-bold mb-3 shadow-md hover:bg-gray-800 transition-colors">
+                            {/* Quick Actions */}
+                            <div className="col-span-1">
+                                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                                    <h3 className="font-bold text-gray-900 text-lg mb-4">Quick Actions</h3>
+                                    <button className="w-full bg-black text-white rounded-lg py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium mb-3 shadow-sm hover:bg-gray-800 transition-colors">
                                         <Calendar size={16} /> Schedule Interview
                                     </button>
-                                     <button className="w-full bg-white border border-gray-200 text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between text-sm font-medium hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-center gap-3"><Briefcase size={16} className="text-gray-500" /> Bulk Actions</div>
-                                        <ChevronDown size={16} />
+                                    <button className="w-full bg-white border border-gray-200 text-gray-700 rounded-lg py-2.5 px-4 flex items-center justify-between text-sm font-medium hover:bg-gray-50 transition-colors mb-3">
+                                        <div className="flex items-center gap-2"><Briefcase size={16} className="text-gray-500" /> Export</div>
+                                        <Download size={16} className="text-gray-400" />
+                                    </button>
+                                    <button className="w-full bg-white border border-gray-200 text-gray-700 rounded-lg py-2.5 px-4 flex items-center justify-between text-sm font-medium hover:bg-gray-50 transition-colors mb-3">
+                                        <div className="flex items-center gap-2"><Briefcase size={16} className="text-gray-500" /> Bulk Actions</div>
+                                        <ChevronDown size={16} className="text-gray-400" />
+                                    </button>
+                                    <button className="w-full bg-white border border-gray-200 text-gray-700 rounded-lg py-2.5 px-4 flex items-center justify-between text-sm font-medium hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-center gap-2"><BarChart2 size={16} className="text-gray-500" /> Generate Report</div>
+                                        <ChevronDown size={16} className="text-gray-400" />
                                     </button>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex-1 overflow-hidden">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-bold text-gray-900 text-base">Activity</h3>
-                                    </div>
-                                     <div className="space-y-4 relative">
-                                        <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-100"></div>
-                                        {[
-                                            {u: 'Alex', a: 'moved', t: 'Sarah Jenkins', time: '2h ago'},
-                                            {u: 'System', a: 'posted', t: 'Prod Designer', time: '4h ago'},
-                                            {u: 'Sarah', a: 'rejected', t: 'Mike Ross', time: '1d ago'}
-                                        ].map((act, i) => (
-                                            <div key={i} className="flex gap-3 relative pl-6">
-                                                <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-white border-2 border-gray-200 z-10"></div>
-                                                <div className="space-y-0.5">
-                                                    <p className="text-xs text-gray-900"><span className="font-bold">{act.u}</span> {act.a} <span className="font-medium underline decoration-gray-300">{act.t}</span></p>
-                                                    <p className="text-[10px] text-gray-400">{act.time}</p>
+                        {/* Row 3: Upcoming Interviews, Recent Candidates, Activity */}
+                        <div className="grid grid-cols-3 gap-6">
+                            {/* Upcoming Interviews */}
+                            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                                <div className="flex items-center justify-between mb-5">
+                                    <h3 className="font-bold text-gray-900 text-lg">Upcoming Interviews</h3>
+                                    <button className="h-8 w-8 p-0 hover:bg-gray-50 rounded-lg transition-colors">
+                                        <MoreHorizontal size={16} className="text-gray-400" />
+                                    </button>
+                                </div>
+                                <div className="space-y-3">
+                                    {[
+                                        {name: 'Sarah Jenkins', job: 'Prod Designer', time: '10:00 AM', date: 'Today'},
+                                        {name: 'Mike Ross', job: 'Backend Engineer', time: '2:00 PM', date: 'Today'},
+                                        {name: 'Emma Watson', job: 'Frontend Dev', time: '11:00 AM', date: 'Tomorrow'}
+                                    ].map((int, i) => (
+                                        <div key={i} className="flex gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex-shrink-0"></div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-gray-900 truncate">{int.name}</p>
+                                                <p className="text-[10px] text-gray-500 truncate">{int.job}</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">{int.date} • {int.time}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Jobs in Progress */}
+                            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                                <div className="flex items-center justify-between mb-5">
+                                    <h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3>
+                                    <button className="h-8 w-8 p-0 hover:bg-gray-50 rounded-lg transition-colors">
+                                        <Plus size={16} className="text-gray-400" />
+                                    </button>
+                                </div>
+                                <div className="space-y-3">
+                                    {[
+                                        {title: 'Prod Designer', dept: 'Design', count: '42'},
+                                        {title: 'Backend Engineer', dept: 'Engineering', count: '28'},
+                                        {title: 'Frontend Dev', dept: 'Engineering', count: '15'}
+                                    ].map((job, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 transition-all group bg-gray-50/30">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-sm shadow-sm">{job.title.charAt(0)}</div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-900 truncate w-32">{job.title}</p>
+                                                    <p className="text-xs text-gray-500">{job.dept}</p>
                                                 </div>
                                             </div>
-                                        ))}
-                                     </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-bold text-gray-900">{job.count}</p>
+                                                <p className="text-[9px] text-gray-500 uppercase tracking-wide">Applied</p>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
+                                <button className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View All Jobs</button>
+                            </div>
+
+                            {/* Activity Feed */}
+                            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="font-bold text-gray-900 flex items-center gap-2 text-lg">
+                                        <Activity size={18} /> Activity Feed
+                                    </h3>
+                                    <button className="h-8 w-8 p-0 hover:bg-gray-50 rounded-lg transition-colors">
+                                        <MoreHorizontal size={16} className="text-gray-400" />
+                                    </button>
+                                </div>
+                                <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 flex-1 overflow-y-auto max-h-[240px] pr-2">
+                                    {[
+                                        {u: 'Alex', a: 'moved', t: 'Sarah Jenkins', time: '2h ago'},
+                                        {u: 'System', a: 'posted', t: 'Prod Designer', time: '4h ago'},
+                                        {u: 'Sarah', a: 'rejected', t: 'Mike Ross', time: '1d ago'},
+                                        {u: 'Alex', a: 'scheduled', t: 'Emma Watson', time: '2d ago'}
+                                    ].map((act, i) => (
+                                        <div key={i} className="relative pl-8">
+                                            <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-white border-2 border-gray-200 z-10"></div>
+                                            <p className="text-xs text-gray-900 leading-relaxed"><span className="font-bold">{act.u}</span> {act.a} <span className="font-medium border-b border-gray-300">{act.t}</span></p>
+                                            <p className="text-[10px] text-gray-400 mt-0.5">{act.time}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Row 4: Recently Sourced */}
+                        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-5">
+                                <h3 className="font-bold text-gray-900 text-lg">Recently Sourced</h3>
+                                <div className="relative hidden sm:block">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search..." 
+                                        className="pl-9 pr-4 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:border-black transition-colors" 
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {[
+                                    {name: 'Sarah Jenkins', role: 'Prod Designer', stage: 'Screening'},
+                                    {name: 'Mike Ross', role: 'Backend Engineer', stage: 'Interview'},
+                                    {name: 'Emma Watson', role: 'Frontend Dev', stage: 'Offer'},
+                                    {name: 'John Doe', role: 'Product Manager', stage: 'Hired'}
+                                ].map((cand, i) => (
+                                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                                        <div className="relative">
+                                            <Avatar name={cand.name} className="w-10 h-10 border border-gray-200" />
+                                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-gray-900 truncate">{cand.name}</p>
+                                            <p className="text-xs text-gray-500 truncate">{cand.role}</p>
+                                        </div>
+                                        <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 font-medium">{cand.stage}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -989,7 +1119,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 mb-16">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
                  <div className="text-gray-400 text-sm">
-                     © 2025 CoreFlow AI. All rights reserved.
+                     © 2025 CoreFlow HR. All rights reserved.
                  </div>
                  <div className="flex gap-8 text-sm text-gray-500">
                      <Link to="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link>

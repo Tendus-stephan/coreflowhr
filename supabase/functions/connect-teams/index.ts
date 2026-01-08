@@ -48,7 +48,7 @@ serve(async (req) => {
 
     // Get Microsoft OAuth credentials from environment
     const microsoftClientId = Deno.env.get('MICROSOFT_CLIENT_ID');
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
 
     if (!microsoftClientId) {
       return new Response(

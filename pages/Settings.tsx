@@ -594,6 +594,159 @@ const NotificationToggle = ({ label, description, checked, onChange }: {
     );
 };
 
+// --- Test Workflow Modal ---
+const TestWorkflowModal: React.FC<{ 
+    workflow: EmailWorkflow | null, 
+    isOpen: boolean, 
+    onClose: () => void,
+    onTest: (workflowId: string, testPlaceholders: Record<string, string>) => Promise<void>,
+    isTesting: boolean
+}> = ({ workflow, isOpen, onClose, onTest, isTesting }) => {
+    const [testPlaceholders, setTestPlaceholders] = useState<Record<string, string>>({});
+
+    // Get required placeholders based on workflow trigger stage
+    const getRequiredPlaceholders = (): string[] => {
+        if (!workflow) return [];
+        
+        const stageMap: Record<string, string[]> = {
+            'Screening': ['candidate_name', 'job_title', 'company_name', 'your_name'],
+            'Interview': ['candidate_name', 'job_title', 'company_name', 'interview_date', 'interview_time', 'interview_duration', 'interview_type', 'interviewer_name', 'meeting_link', 'address', 'interview_details', 'your_name'],
+            'Reschedule': ['candidate_name', 'job_title', 'company_name', 'previous_interview_time', 'new_interview_time', 'interview_date', 'interview_time', 'interview_duration', 'interview_type', 'meeting_link', 'address', 'your_name'],
+            'Offer': ['candidate_name', 'position_title', 'job_title', 'company_name', 'salary', 'salary_amount', 'salary_currency', 'salary_period', 'start_date', 'expires_at', 'benefits', 'benefits_list', 'your_name'],
+            'Rejected': ['candidate_name', 'job_title', 'company_name', 'your_name'],
+            'Hired': ['candidate_name', 'job_title', 'company_name', 'your_name']
+        };
+        
+        return stageMap[workflow.triggerStage] || [];
+    };
+
+    const requiredPlaceholders = getRequiredPlaceholders();
+    
+    // Default values for placeholders
+    const getDefaultValue = (placeholder: string): string => {
+        const defaults: Record<string, string> = {
+            candidate_name: 'John Doe',
+            job_title: 'Software Engineer',
+            position_title: 'Software Engineer',
+            company_name: 'Our Company',
+            your_name: 'Recruiter',
+            interviewer_name: 'Interviewer',
+            interview_date: 'Monday, January 15, 2024',
+            interview_time: '10:00 AM',
+            interview_duration: '1 hour',
+            interview_type: 'Video Call',
+            interview_details: 'Date: Monday, January 15, 2024\nTime: 10:00 AM\nDuration: 1 hour\nType: Video Call',
+            meeting_link: 'https://meet.google.com/xxx-yyyy-zzz',
+            address: '123 Main St, City, State 12345',
+            previous_interview_time: 'Monday, January 8, 2024 at 2:00 PM',
+            new_interview_time: 'Monday, January 15, 2024 at 10:00 AM',
+            salary: '$100,000 per year',
+            salary_amount: '100000',
+            salary_currency: 'USD',
+            salary_period: 'per year',
+            start_date: 'February 1, 2024',
+            expires_at: 'January 31, 2024',
+            benefits: 'Health insurance, 401k, Paid time off',
+            benefits_list: '• Health insurance\n• 401k\n• Paid time off'
+        };
+        return defaults[placeholder] || '';
+    };
+
+    const handlePlaceholderChange = (placeholder: string, value: string) => {
+        setTestPlaceholders(prev => ({
+            ...prev,
+            [placeholder]: value
+        }));
+    };
+
+    const handleTest = async () => {
+        if (!workflow) return;
+        
+        // Merge user inputs with defaults (user inputs take precedence)
+        const mergedPlaceholders: Record<string, string> = {};
+        requiredPlaceholders.forEach(placeholder => {
+            mergedPlaceholders[placeholder] = testPlaceholders[placeholder] || getDefaultValue(placeholder);
+        });
+        
+        await onTest(workflow.id, mergedPlaceholders);
+    };
+
+    if (!isOpen || !workflow) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">Test Workflow</h2>
+                        <p className="text-sm text-gray-500 mt-1">Enter test values for placeholders</p>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100" disabled={isTesting}>
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="p-6 space-y-4 overflow-y-auto">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-sm text-blue-800">
+                            <strong>Workflow:</strong> {workflow.name} ({workflow.triggerStage})
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                            Fill in test values below. Empty fields will use default values. The test email will be sent to your email address.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        {requiredPlaceholders.map(placeholder => (
+                            <div key={placeholder}>
+                                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                                    {placeholder.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={testPlaceholders[placeholder] || ''}
+                                    onChange={(e) => handlePlaceholderChange(placeholder, e.target.value)}
+                                    placeholder={getDefaultValue(placeholder)}
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                    disabled={isTesting}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50">
+                    <Button
+                        variant="ghost"
+                        onClick={onClose}
+                        disabled={isTesting}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleTest}
+                        disabled={isTesting}
+                        className="flex items-center gap-2"
+                    >
+                        {isTesting ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin" />
+                                Sending Test Email...
+                            </>
+                        ) : (
+                            <>
+                                <Zap size={16} />
+                                Send Test Email
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
 const Settings: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [user, setUser] = useState<User | null>(null);
@@ -621,6 +774,7 @@ const Settings: React.FC = () => {
     const [twoFactorQR, setTwoFactorQR] = useState('');
     const [twoFactorSecret, setTwoFactorSecret] = useState('');
     const [twoFactorBackupCodes, setTwoFactorBackupCodes] = useState<string[]>([]);
+    const [twoFactorFactorId, setTwoFactorFactorId] = useState<string | null>(null);
     const [isVerifying2FA, setIsVerifying2FA] = useState(false);
     const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
     const [isEnabling2FA, setIsEnabling2FA] = useState(false);
@@ -645,6 +799,9 @@ const Settings: React.FC = () => {
     const [editingWorkflow, setEditingWorkflow] = useState<EmailWorkflow | null>(null);
     const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
     const [testingWorkflow, setTestingWorkflow] = useState<EmailWorkflow | null>(null);
+    const [isTestWorkflowModalOpen, setIsTestWorkflowModalOpen] = useState(false);
+    const [testPlaceholders, setTestPlaceholders] = useState<Record<string, string>>({});
+    const [isTestingWorkflow, setIsTestingWorkflow] = useState(false);
     const [viewingHistoryWorkflow, setViewingHistoryWorkflow] = useState<EmailWorkflow | null>(null);
     const [workflowListKey, setWorkflowListKey] = useState(0); // For refreshing the list
     
@@ -1090,6 +1247,7 @@ const Settings: React.FC = () => {
             setTwoFactorQR(result.qrCode);
             setTwoFactorSecret(result.secret);
             setTwoFactorBackupCodes(result.backupCodes);
+            setTwoFactorFactorId(result.factorId || null); // Store factor ID
             setIs2FASetupModalOpen(true);
         } catch (error: any) {
             setTwoFactorError(error.message || 'Failed to enable 2FA');
@@ -1105,7 +1263,8 @@ const Settings: React.FC = () => {
         setTwoFactorError(null);
 
         try {
-            const result = await api.auth.verifyTwoFactor(code);
+            // Pass factorId to verification if we have it
+            const result = await api.auth.verifyTwoFactor(code, twoFactorFactorId || undefined);
             
             if (result.error) {
                 setTwoFactorError(result.error);
@@ -1113,6 +1272,7 @@ const Settings: React.FC = () => {
             }
 
             setTwoFactorEnabled(true);
+            setTwoFactorFactorId(null); // Clear factor ID after successful verification
             setIs2FASetupModalOpen(false);
             setSaveMessage({ type: 'success', text: 'Two-factor authentication enabled successfully!' });
             setTimeout(() => setSaveMessage(null), 3000);
@@ -1311,10 +1471,17 @@ const Settings: React.FC = () => {
         { id: 'security', label: 'Security', icon: AlertCircle },
     ];
 
-    if (!user) return <div className="p-8">Loading...</div>;
+    if (!user) return (
+        <div className="min-h-screen bg-white">
+            <div className="p-8">
+                <div className="text-sm text-gray-500">Loading...</div>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="p-8 max-w-6xl mx-auto">
+        <div className="min-h-screen bg-white">
+            <div className="p-8 max-w-6xl mx-auto">
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
             
             <div className="flex items-center justify-between mb-8">
@@ -1732,25 +1899,11 @@ const Settings: React.FC = () => {
                                     setEditingWorkflow(workflow);
                                     setIsWorkflowModalOpen(true);
                                 }}
-                                onTest={async (workflow) => {
-                                    // For testing, we'll need a candidate ID
-                                    // Let's get the list of candidates and prompt user to select one
-                                    try {
-                                        const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1000 });
-                                        const candidates = candidatesResult.data || [];
-                                        if (candidates.length === 0) {
-                                            alert('No candidates found. Please create a candidate first.');
-                                            return;
-                                        }
-                                        // For now, let's just use the first candidate
-                                        // In a real implementation, you might want to show a modal to select a candidate
-                                        const testCandidateId = candidates[0].id;
-                                        await api.workflows.test(workflow.id, testCandidateId);
-                                        alert('Workflow test executed successfully! Check execution history for details.');
-                                        setWorkflowListKey(prev => prev + 1); // Refresh the list
-                                    } catch (err: any) {
-                                        alert(err.message || 'Failed to test workflow');
-                                    }
+                                onTest={(workflow) => {
+                                    // Open test workflow modal with placeholder inputs
+                                    setTestingWorkflow(workflow);
+                                    setTestPlaceholders({});
+                                    setIsTestWorkflowModalOpen(true);
                                 }}
                                 onViewHistory={(workflow) => setViewingHistoryWorkflow(workflow)}
                                 onCreate={() => {
@@ -1984,6 +2137,35 @@ const Settings: React.FC = () => {
                     onClose={() => setViewingHistoryWorkflow(null)}
                 />
             )}
+
+            {/* Test Workflow Modal */}
+            <TestWorkflowModal
+                workflow={testingWorkflow}
+                isOpen={isTestWorkflowModalOpen}
+                onClose={() => {
+                    setIsTestWorkflowModalOpen(false);
+                    setTestingWorkflow(null);
+                    setTestPlaceholders({});
+                }}
+                onTest={async (workflowId, placeholders) => {
+                    setIsTestingWorkflow(true);
+                    try {
+                        const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1 });
+                        const testCandidateId = candidatesResult.data?.[0]?.id || 'test';
+                        await api.workflows.test(workflowId, testCandidateId, placeholders);
+                        alert('Test email sent successfully! Check your email inbox.');
+                        setIsTestWorkflowModalOpen(false);
+                        setTestingWorkflow(null);
+                        setTestPlaceholders({});
+                    } catch (err: any) {
+                        alert(err.message || 'Failed to send test email');
+                    } finally {
+                        setIsTestingWorkflow(false);
+                    }
+                }}
+                isTesting={isTestingWorkflow}
+            />
+            </div>
         </div>
     );
 };

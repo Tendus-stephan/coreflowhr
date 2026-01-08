@@ -213,7 +213,7 @@ const CandidateBoard: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="h-[calc(100vh)] flex flex-col overflow-hidden bg-white">
+    <div className="flex flex-col bg-white min-h-full" style={{ height: '100%' }}>
       
       {/* Fixed Header Section */}
       <div className="px-8 pt-8 pb-4 space-y-6 flex-shrink-0">
@@ -246,7 +246,39 @@ const CandidateBoard: React.FC = () => {
                         />
                     )}
                 </div>
-                <Button variant="black" icon={<Download size={16} />}>Export</Button>
+                <Button 
+                    variant="black" 
+                    icon={<Download size={16} />}
+                    onClick={() => {
+                        // Export all filtered candidates to CSV
+                        const csvContent = [
+                            ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
+                            ...filteredCandidates.map(c => [
+                                `"${c.name}"`,
+                                `"${c.email || ''}"`,
+                                `"${c.role || ''}"`,
+                                `"${c.stage}"`,
+                                c.aiMatchScore || '',
+                                `"${(c.skills || []).join('; ')}"`,
+                                `"${c.location || ''}"`,
+                                c.experience || ''
+                            ].join(','))
+                        ].join('\n');
+                        
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute('href', url);
+                        link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }}
+                >
+                    Export
+                </Button>
             </div>
           </div>
 
@@ -327,28 +359,25 @@ const CandidateBoard: React.FC = () => {
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                       />
                   </div>
-                  <div className="flex gap-3">
-                      <div className="relative">
-                          <select 
-                            value={selectedJob}
-                            onChange={(e) => setSelectedJob(e.target.value)}
-                            className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black cursor-pointer hover:bg-gray-50 transition-colors min-w-[150px]"
-                          >
-                              <option value="all">All jobs</option>
-                              {jobs.map(job => (
-                                  <option key={job.id} value={job.id}>{job.title}</option>
-                              ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                      </div>
+                  <div className="relative">
+                      <select 
+                        value={selectedJob}
+                        onChange={(e) => setSelectedJob(e.target.value)}
+                        className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
+                          <option value="all">All jobs</option>
+                          {jobs.map(job => (
+                              <option key={job.id} value={job.id}>{job.title}</option>
+                          ))}
+                      </select>
                   </div>
               </div>
           </div>
       </div>
 
       {/* Flexible Board Area with Horizontal Scroll */}
-      <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden bg-white px-8 pb-4">
-          <div className="flex h-full gap-6 w-max snap-x snap-mandatory">
+      <div className="flex-1 bg-white px-8" style={{ overflowX: 'auto', overflowY: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
+          <div className="flex gap-6 w-max snap-x snap-mandatory pb-4" style={{ height: '100%' }}>
             <PipelineColumn 
                 title="Waitlist" 
                 stage={CandidateStage.NEW} 

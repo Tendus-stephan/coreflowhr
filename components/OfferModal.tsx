@@ -93,21 +93,34 @@ export const OfferModal: React.FC<OfferModalProps> = ({
 
     const loadJobs = async () => {
         try {
-            const data = await api.jobs.list();
-            setJobs(data);
+            const result = await api.jobs.list();
+            // Handle both array and { data: array } response formats
+            const jobsData = Array.isArray(result) ? result : (result?.data || []);
+            if (Array.isArray(jobsData)) {
+                setJobs(jobsData);
+            } else {
+                setJobs([]);
+            }
         } catch (err: any) {
             console.error('Error loading jobs:', err);
             setError(err.message || 'Failed to load jobs');
+            setJobs([]); // Set empty array on error to prevent map error
         }
     };
 
     const loadCandidates = async () => {
         try {
-            const data = await api.candidates.list();
-            setCandidates(data);
+            const result = await api.candidates.list();
+            // Handle both array and { data: array } response formats
+            const candidatesData = Array.isArray(result) ? result : (result?.data || []);
+            if (Array.isArray(candidatesData)) {
+                setCandidates(candidatesData);
+            } else {
+                setCandidates([]);
+            }
         } catch (err: any) {
             console.error('Error loading candidates:', err);
-            setError(err.message || 'Failed to load candidates');
+            setCandidates([]); // Set empty array on error to prevent map error
         }
     };
 

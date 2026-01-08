@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Candidate, Job } from "../types";
+import { ParsedCVData } from "./cvParser";
 
 // Initialize Gemini Client
 // IMPORTANT: The API key is injected by the environment.
@@ -42,6 +43,307 @@ const getAiClient = (): GoogleGenAI => {
     }
     
     return aiInstance;
+};
+
+/**
+ * Parse CV text using Gemini AI to extract structured candidate information
+ * This provides more accurate parsing than regex-based extraction
+ */
+export const parseCVWithAI = async (cvText: string, jobSkills?: string[]): Promise<Partial<ParsedCVData>> => {
+  const modelId = "gemini-2.0-flash";
+  
+  // Validate input text
+  if (!cvText || cvText.trim().length === 0) {
+    throw new Error("CV text is empty or invalid");
+  }
+  
+  // Log CV text preview for debugging (first 500 chars)
+  console.log("📄 CV Text Preview (first 500 chars):", cvText.substring(0, 500));
+  console.log("📊 CV Text Length:", cvText.length, "characters");
+  
+  // Truncate CV text to stay within token limits (keep first 6000 characters to avoid overwhelming model)
+  const truncatedText = cvText.substring(0, 6000);
+  
+  // Check if text looks corrupted (too many control characters or nonsense)
+  const controlCharCount = (truncatedText.match(/[\x00-\x1F\x7F]/g) || []).length;
+  const controlCharRatio = controlCharCount / truncatedText.length;
+  if (controlCharRatio > 0.1) { // More than 10% control characters is suspicious
+    console.warn("⚠️ CV text appears to contain many control characters. Text may be corrupted.");
+  }
+  
+  const jobSkillsText = jobSkills && jobSkills.length > 0 
+    ? `\n\nJob Requirements (for skill matching):\nRequired Skills: ${jobSkills.join(", ")}`
+    : '';
+  
+  const prompt = `Extract structured information from this CV/resume. Return ONLY valid JSON.
+
+CV Text:
+${truncatedText}${jobSkillsText}
+
+IMPORTANT RULES:
+- Return ONLY valid JSON, no additional text
+- For dates: Use simple format like "2022" or "2022-Present" (no parentheses, no repetition)
+- For descriptions: Keep concise (max 300 characters per field)
+- If information is missing, use null
+- Do NOT repeat date information or create patterns
+
+Extract:
+- name, email, phone, location (strings or null)
+- skills (array of strings)
+- experienceYears (number or null) 
+- workExperience (array with: role, company, startDate, endDate, period, description - all strings or null)
+- projects (array with: name, description, technologies - all strings/arrays or null)
+- portfolioUrls (object with: github, linkedin, portfolio, website - all strings or null)`;
+
+  try {
+    const ai = getAiClient();
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: modelId,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, nullable: true },
+            email: { type: Type.STRING, nullable: true },
+            phone: { type: Type.STRING, nullable: true },
+            location: { type: Type.STRING, nullable: true },
+            skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+            experienceYears: { type: Type.INTEGER, nullable: true },
+            workExperience: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  role: { type: Type.STRING },
+                  company: { type: Type.STRING },
+                  startDate: { type: Type.STRING, nullable: true },
+                  endDate: { type: Type.STRING, nullable: true },
+                  period: { type: Type.STRING, nullable: true },
+                  description: { type: Type.STRING, nullable: true }
+                },
+                required: ["role", "company"]
+              }
+            },
+            projects: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  description: { type: Type.STRING, nullable: true },
+                  technologies: { type: Type.ARRAY, items: { type: Type.STRING } }
+                },
+                required: ["name"]
+              }
+            },
+            portfolioUrls: {
+              type: Type.OBJECT,
+              properties: {
+                github: { type: Type.STRING, nullable: true },
+                linkedin: { type: Type.STRING, nullable: true },
+                portfolio: { type: Type.STRING, nullable: true },
+                website: { type: Type.STRING, nullable: true }
+              }
+            }
+          }
+        },
+        temperature: 0.1, // Low temperature for accurate extraction
+        maxOutputTokens: 8192, // Limit output to prevent huge/corrupted responses
+      }
+    });
+
+    const resultText = response.text;
+    if (!resultText) throw new Error("No response from AI");
+    
+    // FIRST: Aggressively clean control characters from the entire response
+    // JSON strings cannot contain unescaped control characters (0x00-0x1F)
+    // Clean the entire text first, then clean string values more carefully
+    let cleanedText = resultText;
+    
+    // Step 1: Remove control characters from the entire text (except in escape sequences)
+    // This is more aggressive and handles cases where strings are malformed
+    cleanedText = cleanedText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, (char) => {
+      const code = char.charCodeAt(0);
+      // Convert tab, newline, carriage return to spaces (these might be escaped)
+      if (code === 0x09 || code === 0x0A || code === 0x0D) {
+        return ' ';
+      }
+      // Remove all other control characters
+      return '';
+    });
+    
+    // Step 2: Clean string values more carefully - handle escaped quotes and malformed strings
+    // Use a more robust regex that handles escaped quotes
+    cleanedText = cleanedText.replace(/"((?:[^"\\]|\\.)*)"/g, (match, content) => {
+      // Clean control characters that weren't caught in step 1
+      let cleaned = content.replace(/[\x00-\x1F\x7F]/g, (char) => {
+        const code = char.charCodeAt(0);
+        if (code === 0x09 || code === 0x0A || code === 0x0D || code === 0x0C) {
+          return ' ';
+        }
+        return '';
+      });
+      // Collapse multiple consecutive spaces
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      // If the cleaned content is empty or just control characters, set to empty string
+      if (!cleaned || cleaned.length === 0) {
+        return '""';
+      }
+      // Escape any unescaped quotes that might cause issues
+      cleaned = cleaned.replace(/(?<!\\)"/g, '\\"');
+      return `"${cleaned}"`;
+    });
+    
+    // Try to parse JSON, with better error handling for malformed responses
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (parseError: any) {
+      // If JSON parsing still fails, try to fix other common JSON issues
+      // Common issues: unclosed strings, duplicate keys, malformed date values
+      
+      // Fix duplicate/malformed date entries - the AI sometimes generates corrupted date strings
+      // Pattern 1: "startDate": "2022', '2022–Present': 'Present'..." -> "startDate": "2022"
+      // Pattern 2: "startDate": "2022–Present (2022-Present) (2022-Present)..." -> "startDate": "2022-Present"
+      cleanedText = cleanedText.replace(/"startDate":\s*"([^"]+)"/g, (match, content) => {
+        // Extract just the first valid date part (before any parentheses, quotes, or repeated patterns)
+        let firstValidPart = content.split(/[\(\)'",]/)[0].trim();
+        // If it contains "Present" or date range, take just that part
+        if (firstValidPart.includes('Present') || firstValidPart.match(/^\d{4}[-–]\d{4}/)) {
+          firstValidPart = firstValidPart.split(/\s*\(/)[0].trim();
+        }
+        // Limit length to prevent huge corrupted strings
+        firstValidPart = firstValidPart.substring(0, 50);
+        return firstValidPart ? `"startDate": "${firstValidPart}"` : `"startDate": null`;
+      });
+      cleanedText = cleanedText.replace(/"endDate":\s*"([^"]+)"/g, (match, content) => {
+        let firstValidPart = content.split(/[\(\)'",]/)[0].trim();
+        if (firstValidPart.includes('Present') || firstValidPart.match(/^\d{4}[-–]\d{4}/)) {
+          firstValidPart = firstValidPart.split(/\s*\(/)[0].trim();
+        }
+        firstValidPart = firstValidPart.substring(0, 50);
+        return firstValidPart ? `"endDate": "${firstValidPart}"` : `"endDate": null`;
+      });
+      cleanedText = cleanedText.replace(/"period":\s*"([^"]+)"/g, (match, content) => {
+        let firstValidPart = content.split(/[\(\)'",]/)[0].trim();
+        if (firstValidPart.includes('Present') || firstValidPart.match(/^\d{4}[-–]\d{4}/)) {
+          firstValidPart = firstValidPart.split(/\s*\(/)[0].trim();
+        }
+        firstValidPart = firstValidPart.substring(0, 50);
+        return firstValidPart ? `"period": "${firstValidPart}"` : `"period": null`;
+      });
+      // Fix any description fields that might have similar corruption
+      cleanedText = cleanedText.replace(/"description":\s*"([^"]{0,2000})"/g, (match, content) => {
+        // For descriptions, truncate if too long and remove obvious corruption patterns
+        let fixed = content;
+        // Remove repeated patterns in parentheses
+        fixed = fixed.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+        // Limit length to prevent issues
+        fixed = fixed.substring(0, 500);
+        // Escape any quotes that might break JSON
+        fixed = fixed.replace(/"/g, '\\"');
+        return fixed ? `"description": "${fixed}"` : `"description": null`;
+      });
+      
+      // Try to extract JSON from the response if it's wrapped
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (retryError: any) {
+          // Last resort: try to fix unclosed strings by truncating at error position
+          console.error("Failed to parse JSON even after cleaning:", retryError);
+          console.error("Response text preview:", cleanedText.substring(0, 1000));
+          
+          // If error position is available, try truncating problematic fields
+          if (retryError.message?.includes('position')) {
+            const posMatch = retryError.message.match(/position (\d+)/);
+            if (posMatch) {
+              const errorPos = parseInt(posMatch[1]);
+              // Try parsing up to the error position (may produce partial data)
+              try {
+                const truncated = cleanedText.substring(0, errorPos - 10) + '"}';
+                const partialMatch = truncated.match(/\{[\s\S]*\}/);
+                if (partialMatch) {
+                  parsed = JSON.parse(partialMatch[0]);
+                  console.warn("Parsed partial JSON due to malformed response");
+                }
+              } catch (partialError) {
+                // Give up
+              }
+            }
+          }
+          
+          if (!parsed) {
+            throw new Error(`Invalid JSON response from AI. The CV content may be too complex. Error: ${retryError.message}. Please try uploading the CV again.`);
+          }
+        }
+      } else {
+        console.error("No JSON object found in response");
+        console.error("Response text (first 500 chars):", resultText.substring(0, 500));
+        throw new Error(`No valid JSON found in AI response: ${parseError.message}. Please try again.`);
+      }
+    }
+    
+    // Validate and clean parsed data
+    // Filter out corrupted work experience entries (containing only numbers, symbols, or very short garbage)
+    const cleanWorkExperience = (parsed.workExperience || []).filter((exp: any) => {
+      if (!exp || !exp.role || !exp.company) return false;
+      // Check if role or company looks like garbage (only numbers, symbols, or very short)
+      const roleStr = String(exp.role).trim();
+      const companyStr = String(exp.company).trim();
+      // Reject if it's mostly symbols/numbers or too short/nonsensical
+      if (roleStr.length < 2 || companyStr.length < 2) return false;
+      // Reject if it's mostly numbers and symbols (like "0 1 2" or "8 9 $ 7 !")
+      const roleSymbolRatio = (roleStr.match(/[^a-zA-Z0-9\s]/g) || []).length / roleStr.length;
+      const companySymbolRatio = (companyStr.match(/[^a-zA-Z0-9\s]/g) || []).length / companyStr.length;
+      if (roleSymbolRatio > 0.5 || companySymbolRatio > 0.5) return false;
+      // Reject if it's mostly single characters/numbers separated by spaces (like "0 1 2")
+      if (/^[\d\s!$"\\]*$/.test(roleStr) || /^[\d\s!$"\\]*$/.test(companyStr)) return false;
+      return true;
+    });
+    
+    // Validate skills array
+    const cleanSkills = (parsed.skills || []).filter((skill: any) => {
+      if (!skill || typeof skill !== 'string') return false;
+      const skillStr = skill.trim();
+      // Reject empty or too short skills
+      if (skillStr.length < 2) return false;
+      // Reject if it's mostly symbols
+      const symbolRatio = (skillStr.match(/[^a-zA-Z0-9\s+#-.]/g) || []).length / skillStr.length;
+      return symbolRatio < 0.5; // Keep if less than 50% symbols
+    });
+    
+    // Log parsed results for debugging
+    console.log("✅ Parsed CV Data:", {
+      name: parsed.name,
+      email: parsed.email,
+      phone: parsed.phone,
+      location: parsed.location,
+      skillsCount: cleanSkills.length,
+      workExpCount: cleanWorkExperience.length,
+      experienceYears: parsed.experienceYears
+    });
+    
+    // Return as Partial<ParsedCVData> format with cleaned data
+    return {
+      name: parsed.name || undefined,
+      email: parsed.email || undefined,
+      phone: parsed.phone || undefined,
+      location: parsed.location || undefined,
+      skills: cleanSkills,
+      experienceYears: parsed.experienceYears || undefined,
+      workExperience: cleanWorkExperience,
+      projects: (parsed.projects || []).filter((p: any) => p && p.name && typeof p.name === 'string' && p.name.trim().length > 0),
+      portfolioUrls: parsed.portfolioUrls || undefined
+    };
+  } catch (error: any) {
+    console.error("AI CV Parsing Failed:", error);
+    // Throw error - no fallback, AI parsing is required
+    throw new Error(`AI CV parsing failed: ${error.message || 'Unknown error'}. Please ensure your Gemini API key is configured correctly.`);
+  }
 };
 
 export const generateCandidateAnalysis = async (candidate: Candidate, job: Job): Promise<{ score: number; summary: string; strengths: string[]; weaknesses: string[] }> => {
@@ -486,7 +788,8 @@ Format your response as JSON with "subject" and "content" fields. The content sh
         console.log(`[Gemini] Random word: ${randomWord} | Context: ${randomContext} | Number: ${randomNumber}`);
         console.log(`[Gemini] Variation technique: ${selectedVariation}`);
         console.log(`[Gemini] Full prompt length: ${prompt.length} chars`);
-        console.log(`[Gemini] API key present: ${apiKey ? 'Yes (length: ' + apiKey.length + ')' : 'No'}`);
+        // Log API key status (NOT the key itself or its length to prevent leaks)
+        console.log(`[Gemini] API key configured: ${apiKey ? 'Yes' : 'No'}`);
         
         // Add a small delay to ensure different timestamps
         await new Promise(resolve => setTimeout(resolve, Math.random() * 200));
@@ -603,4 +906,164 @@ const getFallbackTemplate = (templateType: string): EmailTemplateGeneration => {
         subject: 'Email Template',
         content: 'Dear {candidate_name},\n\n[Email content here]\n\nBest regards,\n{company_name}'
     };
+};
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+/**
+ * Get AI chat response for general conversation
+ */
+export const getAIChatResponse = async (userPrompt: string, history: ChatMessage[] = []): Promise<string> => {
+  const modelId = "gemini-2.0-flash";
+  
+  const SYSTEM_PROMPT = `You are CoreFlow AI, a world-class HR assistant for the CoreFlowHR recruitment platform (www.coreflowhr.com).
+
+PLATFORM OVERVIEW:
+CoreFlowHR is a modern, AI-powered recruitment operating system that streamlines the entire hiring process from job posting to candidate onboarding.
+
+KEY PAGES: Dashboard, Candidate Board (Kanban pipeline), Jobs, Calendar, Offers, Settings, Onboarding
+
+CANDIDATE PIPELINE: 5 stages - New → Screening → Interview → Offer → Hired/Rejected
+- Drag-and-drop stage management
+- AI match scoring (0-100 scale)
+- Automated email workflows trigger on stage changes
+
+AI FEATURES:
+- AI candidate analysis (analyzes CV/resume, provides match score)
+- AI email generation (drafts professional emails)
+- AI chat assistant (you - provides recruitment advice)
+
+EMAIL SYSTEM:
+- 6 template types: Screening, Interview, Rejection, Offer, Hired, Reschedule
+- AI-powered generation with unique content
+- Email history tracking
+- Professional templates with minimal branding
+
+INTEGRATIONS: Google Calendar, Google Meet, Microsoft Teams, Resend
+
+KEY CAPABILITIES:
+- Candidate sourcing (AI-generated or direct applications)
+- CV upload and parsing
+- Interview scheduling with calendar sync
+- Offer management and tracking
+- Workflow automation (stage-based triggers)
+- Notes and feedback collection
+
+MATCH SCORING GUIDELINES:
+- 85-100: Excellent match (80%+ skills)
+- 70-84: Good match (60-79% skills)
+- 50-69: Minimum acceptable (40-59% skills)
+- 0-49: Below minimum (<40% skills)
+
+YOUR ROLE:
+- Help recruiters understand platform features and navigation
+- Guide users on specific features (how to use candidate modal, schedule interviews, etc.)
+- Answer questions about recruitment best practices
+- Assist with job descriptions, interview questions, email templates
+- Provide step-by-step instructions when needed
+- Troubleshoot common issues
+
+RESPONSE STYLE: Be concise, professional, helpful. Provide actionable advice. Reference specific pages/features when relevant. Focus on recruitment/HR tasks.`;
+
+  try {
+    const ai = getAiClient();
+    
+    // Build message history
+    const contents = [
+      ...history.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text }]
+      })),
+      { role: 'user' as const, parts: [{ text: userPrompt }] }
+    ];
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: modelId,
+      contents: contents,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        temperature: 0.7,
+        topP: 0.8,
+      }
+    });
+
+    const resultText = response.text;
+    if (!resultText) throw new Error("No response from AI");
+    
+    return resultText;
+  } catch (error: any) {
+    console.error("AI Chat Error:", error);
+    
+    // Check for quota/rate limit error (429 RESOURCE_EXHAUSTED)
+    if (error?.error?.code === 429 || error?.error?.status === 'RESOURCE_EXHAUSTED') {
+      const errorMessage = error?.error?.message || '';
+      if (errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('free tier')) {
+        // Extract retry delay if available
+        const retryDelay = error?.error?.details?.find((detail: any) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo')?.retryDelay;
+        const delaySeconds = retryDelay ? Math.ceil(parseFloat(retryDelay.replace('s', ''))) : 60;
+        
+        // Check if it's a daily quota (limit: 0 means quota exhausted)
+        const isDailyQuota = errorMessage.includes('PerDay') || errorMessage.includes('limit: 0');
+        
+        if (isDailyQuota) {
+          return `⚠️ Daily quota exhausted: You've used all free tier requests for today. The quota resets in 24 hours, or you can upgrade to a paid plan at https://aistudio.google.com/ for unlimited usage.`;
+        }
+        
+        return `⚠️ Rate limit reached: Please wait ${delaySeconds} seconds before trying again. To avoid this, upgrade to a paid plan at https://aistudio.google.com/ for higher limits.`;
+      }
+      return "Rate limit exceeded. Please wait a moment and try again.";
+    }
+    
+    // Check for leaked API key error (403 PERMISSION_DENIED)
+    if (error?.error?.code === 403 || error?.error?.status === 'PERMISSION_DENIED') {
+      const errorMessage = error?.error?.message || '';
+      const errorDetails = error?.error?.details || [];
+      
+      // Check for HTTP referrer blocking (common in localhost development)
+      const isReferrerBlocked = errorMessage.includes('referer') || 
+                                errorMessage.includes('referrer') ||
+                                errorDetails.some((detail: any) => 
+                                  detail.reason === 'API_KEY_HTTP_REFERRER_BLOCKED'
+                                );
+      
+      if (isReferrerBlocked) {
+        const referrer = errorDetails.find((detail: any) => detail.metadata?.httpReferrer);
+        const referrerUrl = referrer?.metadata?.httpReferrer || 'localhost';
+        
+        return `🔒 API Key Referrer Restriction: Your Gemini API key is blocking requests from ${referrerUrl}.\n\n` +
+               `If you don't have a Gemini API key yet:\n` +
+               `1. Go to https://aistudio.google.com/app/apikey\n` +
+               `2. Click "Create API Key"\n` +
+               `3. Copy your API key\n` +
+               `4. Add it to your .env file as: VITE_API_KEY=your_key_here\n` +
+               `5. Restart your development server\n\n` +
+               `If you already have an API key, to fix the referrer restriction:\n` +
+               `1. Go to https://console.cloud.google.com/apis/credentials\n` +
+               `2. Click on your Gemini API key\n` +
+               `3. Under "Application restrictions" → "HTTP referrers (websites)"\n` +
+               `4. Click "Add an item" and add: ${referrerUrl}/*\n` +
+               `5. Also add: http://localhost:3002/* and http://localhost:5173/*\n` +
+               `6. Click "Save"\n\n` +
+               `Or remove the referrer restriction entirely for development.\n\n` +
+               `See GEMINI_API_KEY_REFERRER_FIX.md for detailed instructions.`;
+      }
+      
+      if (errorMessage.includes('leaked') || errorMessage.includes('reported')) {
+        return "Your API key has been reported as leaked and needs to be replaced. Please generate a new API key from Google AI Studio and update your VITE_API_KEY environment variable.";
+      }
+      
+      return "API access denied. Please check your API key permissions and ensure it's valid.";
+    }
+    
+    // Check if it's an API key configuration error
+    if (error?.message?.includes('API key') || error?.message?.includes('apiKey') || error?.message?.includes('not configured')) {
+      return "I'm having trouble connecting. Please ensure your Gemini API key is configured correctly in your environment variables (VITE_API_KEY).";
+    }
+    
+    // Generic error message
+    return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.";
+  }
 };

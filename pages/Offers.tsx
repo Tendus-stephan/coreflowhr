@@ -3,8 +3,9 @@ import { Offer } from '../types';
 import { api } from '../services/api';
 import { OfferCard } from '../components/OfferCard';
 import { OfferModal } from '../components/OfferModal';
+import { NegotiateCounterOfferModal } from '../components/NegotiateCounterOfferModal';
 import { Button } from '../components/ui/Button';
-import { Plus, Filter, Search } from 'lucide-react';
+import { Plus, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Offers: React.FC = () => {
     const [offers, setOffers] = useState<Offer[]>([]);
@@ -15,8 +16,14 @@ const Offers: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [negotiatingOffer, setNegotiatingOffer] = useState<Offer | null>(null);
+    const [isNegotiateModalOpen, setIsNegotiateModalOpen] = useState(false);
     const [candidateMap, setCandidateMap] = useState<Map<string, string>>(new Map());
     const [jobMap, setJobMap] = useState<Map<string, string>>(new Map());
+    
+    // Pagination: 3 columns × 2 rows = 6 items per page
+    const ITEMS_PER_PAGE = 6;
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         loadOffers();
@@ -44,6 +51,8 @@ const Offers: React.FC = () => {
             }
 
         setFilteredOffers(filtered);
+        // Reset to page 1 when filters change
+        setCurrentPage(1);
     }, [offers, statusFilter, searchQuery, candidateMap, jobMap]);
 
     const loadOffers = async () => {
@@ -59,16 +68,24 @@ const Offers: React.FC = () => {
 
             // Load candidates
             if (candidateIds.length > 0) {
-                const candidates = await api.candidates.list();
-                const candidateNameMap = new Map(candidates.map(c => [c.id, c.name]));
-                setCandidateMap(candidateNameMap);
+                const candidatesResult = await api.candidates.list();
+                // Handle both array and { data: array } response formats
+                const candidates = Array.isArray(candidatesResult) ? candidatesResult : (candidatesResult?.data || []);
+                if (Array.isArray(candidates)) {
+                    const candidateNameMap = new Map(candidates.map(c => [c.id, c.name]));
+                    setCandidateMap(candidateNameMap);
+                }
             }
 
             // Load jobs
             if (jobIds.length > 0) {
-                const jobs = await api.jobs.list();
-                const jobTitleMap = new Map(jobs.map(j => [j.id, j.title]));
-                setJobMap(jobTitleMap);
+                const jobsResult = await api.jobs.list();
+                // Handle both array and { data: array } response formats
+                const jobs = Array.isArray(jobsResult) ? jobsResult : (jobsResult?.data || []);
+                if (Array.isArray(jobs)) {
+                    const jobTitleMap = new Map(jobs.map(j => [j.id, j.title]));
+                    setJobMap(jobTitleMap);
+                }
             }
         } catch (err: any) {
             console.error('Error loading offers:', err);
@@ -99,6 +116,36 @@ const Offers: React.FC = () => {
         }
     };
 
+    const handleAcceptCounterOffer = async (offer: Offer) => {
+        if (!confirm('Are you sure you want to accept the counter offer terms? This will update the offer and notify the candidate.')) {
+            return;
+        }
+        try {
+            await api.offers.acceptCounterOffer(offer.id);
+            alert('Counter offer accepted! Candidate has been notified.');
+            await loadOffers();
+        } catch (err: any) {
+            alert(err.message || 'Failed to accept counter offer');
+        }
+    };
+
+    const handleDeclineCounterOffer = async (offer: Offer) => {
+        if (!confirm('Are you sure you want to decline the counter offer? The original offer terms will remain, and the candidate will be notified.')) {
+            return;
+        }
+        try {
+            await api.offers.declineCounterOffer(offer.id);
+            alert('Counter offer declined. Candidate has been notified.');
+            await loadOffers();
+        } catch (err: any) {
+            alert(err.message || 'Failed to decline counter offer');
+        }
+    };
+
+    const handleNegotiateCounterOffer = (offer: Offer) => {
+        setNegotiatingOffer(offer);
+        setIsNegotiateModalOpen(true);
+    };
 
     const statusOptions: Array<{ value: Offer['status'] | 'all'; label: string }> = [
         { value: 'all', label: 'All Statuses' },
@@ -113,16 +160,19 @@ const Offers: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="p-8">
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-sm text-gray-500">Loading offers...</div>
+            <div className="min-h-screen bg-white">
+                <div className="p-8">
+                    <div className="flex items-center justify-center py-12">
+                        <div className="text-sm text-gray-500">Loading offers...</div>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="min-h-screen bg-white">
+            <div className="p-8 max-w-7xl mx-auto">
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -201,18 +251,64 @@ const Offers: React.FC = () => {
                     )}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredOffers.map((offer) => (
-                        <OfferCard
-                            key={offer.id}
-                            offer={offer}
-                            candidateName={offer.candidateId ? candidateMap.get(offer.candidateId) : 'General Offer (Not Linked)'}
-                            jobTitle={jobMap.get(offer.jobId)}
-                            onEdit={handleEdit}
-                            onSend={handleSend}
-                        />
-                    ))}
-                </div>
+                <>
+                    {/* Paginated Offers Grid - Max 3 columns, 2 rows (6 items per page) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredOffers
+                            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                            .map((offer) => (
+                                <OfferCard
+                                    key={offer.id}
+                                    offer={offer}
+                                    candidateName={offer.candidateId ? candidateMap.get(offer.candidateId) : 'General Offer (Not Linked)'}
+                                    jobTitle={jobMap.get(offer.jobId)}
+                                    onEdit={handleEdit}
+                                    onSend={handleSend}
+                                    onAcceptCounterOffer={handleAcceptCounterOffer}
+                                    onDeclineCounterOffer={handleDeclineCounterOffer}
+                                    onNegotiateCounterOffer={handleNegotiateCounterOffer}
+                                />
+                            ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {Math.ceil(filteredOffers.length / ITEMS_PER_PAGE) > 1 && (
+                        <div className="flex items-center justify-between border-t border-gray-200 pt-6 mt-6">
+                            <p className="text-sm text-gray-500">
+                                Showing <span className="font-bold text-gray-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, filteredOffers.length)}</span> of <span className="font-bold text-gray-900">{filteredOffers.length}</span> offers
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft size={18} />
+                                </button>
+                                {Array.from({ length: Math.ceil(filteredOffers.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                            currentPage === page
+                                                ? 'bg-black text-white'
+                                                : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredOffers.length / ITEMS_PER_PAGE), prev + 1))}
+                                    disabled={currentPage === Math.ceil(filteredOffers.length / ITEMS_PER_PAGE)}
+                                    className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {/* Offer Modal */}
@@ -228,6 +324,20 @@ const Offers: React.FC = () => {
                     onSave={loadOffers}
                 />
             )}
+
+            {/* Negotiate Counter Offer Modal */}
+            {isNegotiateModalOpen && negotiatingOffer && (
+                <NegotiateCounterOfferModal
+                    offer={negotiatingOffer}
+                    isOpen={isNegotiateModalOpen}
+                    onClose={() => {
+                        setIsNegotiateModalOpen(false);
+                        setNegotiatingOffer(null);
+                    }}
+                    onSave={loadOffers}
+                />
+            )}
+            </div>
         </div>
     );
 };

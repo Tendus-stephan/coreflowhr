@@ -114,3 +114,5 @@ Your Stripe Edge Functions in Supabase also need the production Stripe secret ke
   - Redeploy after adding variables
   - Check Vercel deployment logs to see if variables are being read
 
+
+

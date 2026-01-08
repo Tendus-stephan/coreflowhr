@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=0.85">
     <title>CoreFlow | Modern Recruitment OS</title>
-    <!-- Favicon - optimized for browser tabs -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/coreflow-favicon-logo.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/coreflow-favicon-logo.png">
-    <link rel="shortcut icon" type="image/png" href="/assets/images/coreflow-favicon-logo.png">
+    <!-- Favicon - Complete package -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/favicon-16x16.png">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
     <!-- Apple Touch Icon for iOS -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/coreflow-favicon-logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
     <!-- Android Chrome Icons -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/coreflow-favicon-logo.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/assets/images/coreflow-favicon-logo.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/assets/images/android-chrome-512x512.png">
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/site.webmanifest">
     <!-- Windows Tiles -->
-    <meta name="msapplication-TileImage" content="/assets/images/coreflow-favicon-logo.png">
+    <meta name="msapplication-TileImage" content="/assets/images/android-chrome-192x192.png">
     <meta name="msapplication-TileColor" content="#1f2937">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -41,7 +44,7 @@
             zoom: 0.85;
         }
         body {
-            background-color: #f9fafb;
+            background-color: #ffffff;
             color: #18181b;
             font-family: 'Inter', sans-serif;
             margin: 0;
@@ -71,6 +74,19 @@
         .scrollbar-hide {
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
+        }
+        /* CoreLoader Animations */
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(0%); }
+            100% { transform: translateX(100%); }
+        }
+        @keyframes fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; visibility: hidden; }
+        }
+        .fill-mode-forwards {
+            animation-fill-mode: forwards;
         }
     </style>
 <script type="importmap">

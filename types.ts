@@ -37,6 +37,7 @@ export interface Job {
   remote?: boolean;
   skills?: string[];
   company?: string;
+  isTest?: boolean;
 }
 
 export interface WorkExperience {
@@ -173,7 +174,7 @@ export interface EmailLog {
   fromEmail: string;
   subject: string;
   content: string; // HTML content
-  emailType?: 'Screening' | 'Interview' | 'Offer' | 'Rejection' | 'Hired' | 'Custom';
+  emailType?: 'Screening' | 'Interview' | 'Offer' | 'Rejection' | 'Hired' | 'Reschedule' | 'Offer Accepted' | 'Offer Declined' | 'Counter Offer Response' | 'Custom';
   status: 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
   sentAt: string;
   threadId?: string;
@@ -305,7 +306,7 @@ export interface EmailLog {
   fromEmail: string;
   subject: string;
   content: string; // HTML content
-  emailType?: 'Screening' | 'Interview' | 'Offer' | 'Rejection' | 'Hired' | 'Custom';
+  emailType?: 'Screening' | 'Interview' | 'Offer' | 'Rejection' | 'Hired' | 'Reschedule' | 'Offer Accepted' | 'Offer Declined' | 'Counter Offer Response' | 'Custom';
   status: 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
   sentAt: string;
   threadId?: string;

@@ -16,6 +16,7 @@ import { OfferModal } from './OfferModal';
 import { OfferCard } from './OfferCard';
 import { supabase } from '../services/supabase';
 import { Plus } from 'lucide-react';
+import { useModal } from '../contexts/ModalContext';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -25,6 +26,13 @@ interface CandidateModalProps {
 }
 
 export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpen, onClose, onUpdate }) => {
+  const { setCandidateModalOpen } = useModal();
+  
+  // Update modal context when modal opens/closes
+  useEffect(() => {
+    setCandidateModalOpen(isOpen);
+  }, [isOpen, setCandidateModalOpen]);
+  
   const [loadingAI, setLoadingAI] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers'>('overview');
   const [emailSubTab, setEmailSubTab] = useState<'compose' | 'history'>('compose');

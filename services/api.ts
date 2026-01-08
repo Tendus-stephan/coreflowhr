@@ -7,6 +7,8 @@ const getUserId = async (): Promise<string | null> => {
   return user?.id || null;
 };
 
+// Test mode removed - all jobs and candidates are now production data
+
 // Helper to generate a simple hash from string (for device fingerprinting)
 const simpleHash = (str: string): string => {
   let hash = 0;
@@ -587,33 +589,108 @@ export const api = {
                 return { twoFactorEnabled: false };
             }
 
-            return {
-                twoFactorEnabled: data?.two_factor_enabled ?? false,
-            };
+            // Check actual MFA enrollment status from Supabase (source of truth)
+            try {
+                const { data: factors } = await supabase.auth.mfa.listFactors();
+                const hasMFAFactor = factors?.totp && factors.totp.length > 0;
+                
+                // Sync database if MFA status differs
+                if (hasMFAFactor !== (data?.two_factor_enabled ?? false)) {
+                    await supabase
+                        .from('user_security_settings')
+                        .upsert({
+                            user_id: userId,
+                            two_factor_enabled: hasMFAFactor,
+                        }, {
+                            onConflict: 'user_id',
+                        });
+                }
+                
+                return {
+                    twoFactorEnabled: hasMFAFactor,
+                };
+            } catch (mfaError) {
+                // If MFA check fails, fall back to database value
+                console.warn('Error checking MFA factors, using database value:', mfaError);
+                return {
+                    twoFactorEnabled: data?.two_factor_enabled ?? false,
+                };
+            }
         },
-        enableTwoFactor: async (): Promise<{ qrCode: string; secret: string; backupCodes: string[] }> => {
+        enableTwoFactor: async (): Promise<{ qrCode: string; secret: string; backupCodes: string[]; factorId?: string }> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Use Supabase MFA API to enroll
-            const { data, error } = await supabase.auth.mfa.enroll({
+            // First check if a factor already exists
+            const { data: existingFactors, error: listError } = await supabase.auth.mfa.listFactors();
+            
+            if (listError) {
+                console.error('Error listing MFA factors:', listError);
+                throw new Error('Failed to check existing 2FA setup. Please try again.');
+            }
+
+            // Check if factor with this name already exists
+            const existingFactor = existingFactors?.totp?.find(
+                (factor: any) => factor.friendly_name === 'Coreflow Authenticator'
+            );
+
+            if (existingFactor) {
+                // Factor already exists - check if it's verified
+                if (existingFactor.status === 'verified') {
+                    throw new Error('2FA is already enabled and verified. Please disable it first if you want to reconfigure.');
+                }
+
+                // Factor exists but not verified - unenroll it first
+                try {
+                    const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+                        factorId: existingFactor.id,
+                    });
+
+                    if (unenrollError) {
+                        console.error('Error unenrolling existing factor:', unenrollError);
+                        throw new Error('An unverified 2FA factor already exists. Please try again or contact support.');
+                    }
+                } catch (unenrollErr: any) {
+                    throw new Error(unenrollErr.message || 'Failed to reset existing 2FA setup. Please try again.');
+                }
+            }
+
+            // Now enroll a new factor
+            const { data: enrollData, error } = await supabase.auth.mfa.enroll({
                 factorType: 'totp',
                 friendlyName: 'Coreflow Authenticator',
             });
 
-            if (error) throw error;
+            if (error) {
+                // Handle specific error about existing factor
+                if (error.message?.includes('already exists')) {
+                    throw new Error('2FA setup already exists. Please disable it first or contact support to reset it.');
+                }
+                console.error('MFA enroll error:', error);
+                throw new Error(error.message || 'Failed to enroll MFA factor');
+            }
+
+            if (!enrollData) {
+                throw new Error('No data returned from MFA enrollment');
+            }
+
+            // Extract QR code and secret from response
+            // Supabase returns: { id, type, totp: { qr_code, secret, uri } }
+            const qrCode = enrollData.totp?.qr_code || '';
+            const secret = enrollData.totp?.secret || '';
+
+            if (!qrCode || !secret) {
+                console.error('MFA enrollment response:', enrollData);
+                throw new Error('Invalid response from MFA enrollment. QR code or secret missing.');
+            }
 
             // Generate backup codes
             const backupCodes = Array.from({ length: 8 }, () => 
                 Math.random().toString(36).substring(2, 8).toUpperCase()
             );
 
-            // Extract QR code and secret from nested structure
-            const qrCode = data?.totp?.qr_code || '';
-            const secret = data?.totp?.secret || '';
-
-            // Store in security settings
-            await supabase
+            // Store in security settings (create if doesn't exist)
+            const { error: settingsError } = await supabase
                 .from('user_security_settings')
                 .upsert({
                     user_id: userId,
@@ -625,27 +702,93 @@ export const api = {
                     onConflict: 'user_id',
                 });
 
+            if (settingsError) {
+                console.error('Error storing security settings:', settingsError);
+                // Don't throw - MFA is enrolled, just settings storage failed
+            }
+
             return {
                 qrCode,
                 secret,
                 backupCodes,
+                factorId: enrollData.id, // Return factor ID for verification
             };
         },
-        verifyTwoFactor: async (code: string): Promise<{ error?: string }> => {
+        verifyTwoFactor: async (code: string, factorId?: string): Promise<{ error?: string }> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('No active session');
 
-            // Get MFA factors
-            const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+            // Get MFA factors (with retry to wait for factor to be available)
+            let factors;
+            let factorsError;
+            let retries = 0;
+            const maxRetries = 5; // Increased retries
 
-            if (factorsError || !factors?.totp?.[0]) {
-                return { error: '2FA not properly set up. Please try enabling it again.' };
+            do {
+                const result = await supabase.auth.mfa.listFactors();
+                factors = result.data;
+                factorsError = result.error;
+                
+                // Check both totp array and all array for factors
+                const totpFactors = factors?.totp || [];
+                const allFactors = factors?.all || [];
+                
+                // If we have a factorId, check in both arrays
+                if (factorId) {
+                    const foundInTotp = totpFactors.find((f: any) => f.id === factorId);
+                    const foundInAll = allFactors.find((f: any) => f.id === factorId && f.factor_type === 'totp');
+                    if (foundInTotp || foundInAll) {
+                        break;
+                    }
+                }
+                
+                // If we found any TOTP factor in totp array, break
+                if (totpFactors.length > 0) {
+                    break;
+                }
+                
+                // If we found a TOTP factor in all array (unverified), also break
+                const totpInAll = allFactors.find((f: any) => f.factor_type === 'totp');
+                if (totpInAll) {
+                    break;
+                }
+                
+                // Wait a bit before retrying (give Supabase time to register the factor)
+                if (retries < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+                }
+                retries++;
+            } while (retries < maxRetries);
+
+            if (factorsError) {
+                console.error('Error listing MFA factors:', factorsError);
+                return { error: 'Failed to verify 2FA setup. Please try enabling it again.' };
             }
 
-            const factor = factors.totp[0];
+            // Check both totp array and all array for TOTP factors
+            const totpFactors = factors?.totp || [];
+            const allFactors = factors?.all || [];
+            const totpInAll = allFactors.find((f: any) => f.factor_type === 'totp');
+
+            if (totpFactors.length === 0 && !totpInAll) {
+                console.error('No TOTP factors found after retries. Available factors:', factors);
+                return { error: '2FA not properly set up. Please try enabling it again. If the problem persists, wait a few seconds and try again.' };
+            }
+
+            // Use provided factorId if available, otherwise use first factor
+            let factor;
+            if (factorId) {
+                factor = totpFactors.find((f: any) => f.id === factorId) 
+                    || allFactors.find((f: any) => f.id === factorId && f.factor_type === 'totp');
+            }
+            
+            // If still no factor found, use first available TOTP factor
+            if (!factor) {
+                factor = totpFactors[0] || totpInAll;
+            }
 
             // Challenge the factor
             const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
@@ -833,9 +976,14 @@ export const api = {
             if (!userId) throw new Error('Not authenticated');
 
             // Get all jobs (including closed) to filter candidates
+            // Exclude test jobs: is_test = true OR title starts with [TEST]
             const [allJobsResult, candidatesResult, activityResult] = await Promise.all([
-                supabase.from('jobs').select('id, status, created_at, posted_date').eq('user_id', userId),
-                supabase.from('candidates').select('id, name, stage, job_id, applied_date, created_at, updated_at').eq('user_id', userId),
+                supabase.from('jobs')
+                    .select('id, status, created_at, posted_date, is_test, title')
+                    .eq('user_id', userId),
+                supabase.from('candidates')
+                    .select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test')
+                    .eq('user_id', userId),
                 supabase.from('activity_log')
                     .select('*')
                     .eq('user_id', userId)
@@ -844,9 +992,13 @@ export const api = {
                     .order('created_at', { ascending: false })
             ]);
 
-            const allJobs = allJobsResult.data || [];
-            const allCandidates = candidatesResult.data || [];
+            let allJobs = allJobsResult.data || [];
+            let allCandidates = candidatesResult.data || [];
             const hiredActivityLog = activityResult.data || [];
+            
+            // Filter out test data: exclude jobs with is_test = true or [TEST] prefix, and candidates with is_test = true
+            allJobs = allJobs.filter(j => !j.is_test && !j.title?.startsWith('[TEST]'));
+            allCandidates = allCandidates.filter(c => !c.is_test);
             
             // Get IDs of closed jobs
             const closedJobIds = new Set(
@@ -1144,7 +1296,8 @@ export const api = {
                 salaryRange: job.salary_range,
                 experienceLevel: job.experience_level,
                 remote: job.remote || false,
-                skills: job.skills || []
+                skills: job.skills || [],
+                isTest: job.is_test || false
             }));
 
             return {
@@ -1182,7 +1335,8 @@ export const api = {
                 salaryRange: data.salary_range,
                 experienceLevel: data.experience_level,
                 remote: data.remote || false,
-                skills: data.skills || []
+                skills: data.skills || [],
+                isTest: data.is_test || false
             };
         },
         create: async (jobData: Partial<Job>) => {
@@ -1194,11 +1348,14 @@ export const api = {
             const jobStatus = jobData.status || 'Draft';
             const postedDate = jobStatus === 'Active' ? new Date().toISOString() : null;
 
+            // Production mode - use job title as provided
+            const jobTitle = jobData.title || 'Untitled';
+
             const { data: job, error: jobError } = await supabase
                 .from('jobs')
                 .insert({
                     user_id: userId,
-                title: jobData.title || 'Untitled',
+                title: jobTitle,
                     department: jobData.department || 'General',
                 location: jobData.location || 'Remote',
                 type: jobData.type || 'Full-time',
@@ -1209,7 +1366,8 @@ export const api = {
                     experience_level: jobData.experienceLevel,
                     remote: jobData.remote || false,
                     skills: jobData.skills || [],
-                    posted_date: postedDate
+                    posted_date: postedDate,
+                    is_test: false // Production mode - always false
                 })
                 .select()
                 .single();
@@ -1234,7 +1392,8 @@ export const api = {
                 salaryRange: job.salary_range,
                 experienceLevel: job.experience_level,
                 remote: job.remote || false,
-                skills: job.skills || []
+                skills: job.skills || [],
+                isTest: job.is_test || false
             };
         },
         update: async (id: string, jobData: Partial<Job>) => {
@@ -1384,6 +1543,8 @@ export const api = {
             // They will receive a screening email automatically and can then upload CV to move to Screening
             const stage = 'New';
 
+            // Production mode - no test data
+
             // Calculate basic match score from skills if available
             let calculatedScore: number | null = null;
             if (candidateData.skills && candidateData.skills.length > 0) {
@@ -1419,10 +1580,10 @@ export const api = {
                     skills: candidateData.skills,
                     resume_summary: candidateData.resumeSummary,
                     ai_match_score: calculatedScore, // Calculate basic score from skills even without CV
-                    ai_analysis: candidateData.resumeSummary + ' (TEST CANDIDATE)',
+                    ai_analysis: candidateData.resumeSummary,
                     stage: stage,
                     source: 'ai_sourced',
-                    is_test: true,
+                    is_test: false, // Production mode - always false
                     applied_date: new Date().toISOString()
                 })
                 .select()
@@ -1570,8 +1731,9 @@ export const api = {
                     // Extract text from CV
                     const cvText = await extractTextFromCV(applicationData.cvFile);
                     
-                    // Parse CV text for structured data
-                    parsedData = parseCVText(cvText, job.skills || []);
+                    // Parse CV text using AI only (no regex fallback)
+                    const { parseCVTextWithAI } = await import('./cvParser');
+                    parsedData = await parseCVTextWithAI(cvText, job.skills || []);
                     
                     // Override email with form email (form email is more reliable)
                     parsedData.email = normalizedEmail;
@@ -1586,18 +1748,9 @@ export const api = {
                     parsedData.matchScore = matchResult.score; // Will be null if no job skills
                     parsedData.matchingSkillsCount = matchResult.matchingCount;
                 } catch (parseError: any) {
-                    console.error('Error parsing CV:', parseError);
-                    // Fallback: use form data and basic info
-                    parsedData = {
-                        fullText: 'CV parsing failed - manual review required',
-                        name: applicationData.name,
-                        email: normalizedEmail,
-                        phone: applicationData.phone,
-                        location: undefined,
-                        skills: [],
-                        experienceYears: undefined,
-                        matchScore: null // No score if parsing fails - score only calculated from actual CV
-                    };
+                    console.error('Error parsing CV with AI:', parseError);
+                    // Re-throw error - AI parsing is required
+                    throw new Error(`CV parsing failed: ${parseError.message || 'AI parsing unavailable'}. Please ensure your Gemini API key is configured correctly.`);;
                 }
 
                 const extractedSkills = parsedData.skills;
@@ -1707,7 +1860,7 @@ export const api = {
                             projects: parsedData.projects || [],
                             portfolio_urls: parsedData.portfolioUrls || {},
                             source: 'direct_application',
-                            is_test: false,
+                            is_test: false, // Production mode - always false
                             updated_at: new Date().toISOString()
                     };
                     
@@ -1752,6 +1905,7 @@ export const api = {
                     // CV upload is automated and does not require workflow
                     // Use job location, not CV location - candidate applied for this specific job
                     // CV is currently in temp path, will be re-uploaded to final path after candidate creation
+                    // Production mode - no test data
                     const { data: newCandidate, error: insertError } = await supabase
                         .from('candidates')
                         .insert({
@@ -1775,7 +1929,7 @@ export const api = {
                             portfolio_urls: parsedData.portfolioUrls || {},
                             stage: stage, // New CV submissions go to Screening
                             source: 'direct_application',
-                            is_test: false,
+                            is_test: false, // Production mode - always false
                             applied_date: new Date().toISOString()
                         })
                         .select()
@@ -2005,30 +2159,31 @@ export const api = {
                 }
                 
                 // Check if a workflow is configured for the target stage before allowing movement
-                // All stage transitions now require a workflow to be configured
-                const { data: workflows, error: workflowCheckError } = await supabase
-                    .from('email_workflows')
-                    .select('id')
-                    .eq('user_id', userId)
-                    .eq('trigger_stage', updates.stage)
-                    .eq('enabled', true)
-                    .limit(1);
-                
-                if (workflowCheckError) {
-                    throw new Error(`Error checking workflows: ${workflowCheckError.message}`);
-                }
-                
-                if (!workflows || workflows.length === 0) {
-                    const stageNames: Record<string, string> = {
-                        'Screening': 'Screening',
-                        'Interview': 'Interview',
-                        'Offer': 'Offer',
-                        'Rejected': 'Rejection',
-                        'Hired': 'Hired',
-                        'New': 'New'
-                    };
-                    const stageName = stageNames[updates.stage] || updates.stage;
-                    throw new Error(`Cannot move candidate to "${stageName}" stage. Please create an email workflow for the "${stageName}" stage in Settings > Email Workflows first.`);
+                // Interview stage is exempt - interviews are manually scheduled, not automatic
+                if (updates.stage !== 'Interview') {
+                    const { data: workflows, error: workflowCheckError } = await supabase
+                        .from('email_workflows')
+                        .select('id')
+                        .eq('user_id', userId)
+                        .eq('trigger_stage', updates.stage)
+                        .eq('enabled', true)
+                        .limit(1);
+                    
+                    if (workflowCheckError) {
+                        throw new Error(`Error checking workflows: ${workflowCheckError.message}`);
+                    }
+                    
+                    if (!workflows || workflows.length === 0) {
+                        const stageNames: Record<string, string> = {
+                            'Screening': 'Screening',
+                            'Offer': 'Offer',
+                            'Rejected': 'Rejection',
+                            'Hired': 'Hired',
+                            'New': 'New'
+                        };
+                        const stageName = stageNames[updates.stage] || updates.stage;
+                        throw new Error(`Cannot move candidate to "${stageName}" stage. Please create an email workflow for the "${stageName}" stage in Settings > Email Workflows first.`);
+                    }
                 }
                 
                 // Special check for Offer stage: candidate must have an active offer specifically linked to them
@@ -3407,8 +3562,10 @@ export const api = {
                     body: {},
                 });
 
+                // Handle non-2xx status codes gracefully
                 if (error) {
-                    console.error('Error fetching invoices:', error);
+                    // Silently handle errors - Edge Function may not be deployed or user may not have Stripe subscription
+                    console.warn('Invoices Edge Function error (non-critical):', error.message || error);
                     return [];
                 }
 
@@ -3418,15 +3575,21 @@ export const api = {
                     try {
                         responseData = JSON.parse(data);
                     } catch (e) {
-                        console.error('Failed to parse invoice data:', e);
+                        console.warn('Failed to parse invoice data (non-critical):', e);
                         return [];
                     }
                 }
 
                 return responseData?.invoices || [];
-            } catch (error) {
-                console.error('Error fetching invoices:', error);
-            return [];
+            } catch (error: any) {
+                // Silently handle all errors - invoices are optional feature
+                // Edge Function may not be deployed, or user may not have Stripe account
+                if (error?.message?.includes('non-2xx')) {
+                    console.warn('Invoices Edge Function returned non-2xx status (non-critical)');
+                } else {
+                    console.warn('Error fetching invoices (non-critical):', error?.message || error);
+                }
+                return [];
             }
         },
         getBillingDetails: async (): Promise<{ subscription: any; paymentMethod: any }> => {
@@ -3826,7 +3989,7 @@ export const api = {
                 updatedAt: data.updated_at
             };
         },
-        test: async (workflowId: string, candidateId: string): Promise<void> => {
+        test: async (workflowId: string, candidateId: string, testPlaceholders?: Record<string, string>): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
@@ -3860,10 +4023,55 @@ export const api = {
 
             const senderName = 'Recruiter'; // Always use "Recruiter" as sender name
 
-            // Send template WITH placeholders to user for testing
-            // Don't replace placeholders - send original template as-is so user can verify it
-            const subject = `[TEST] ${template.subject}`; // Add [TEST] prefix
-            const content = `This is a test email for workflow: "${workflow.name}"\n\n--- Original Template with Placeholders ---\n\nSubject: ${template.subject}\n\nContent:\n${template.content}\n\n--- End of Template ---\n\nNote: Placeholders like {candidate_name}, {job_title}, and {company_name} will be replaced with actual values when the workflow runs for real candidates.`;
+            // Replace placeholders in template with test values (if provided) or defaults
+            // Default test placeholder values
+            const defaultTestPlaceholders: Record<string, string> = {
+                candidate_name: 'John Doe',
+                job_title: 'Software Engineer',
+                position_title: 'Software Engineer',
+                company_name: 'Our Company',
+                your_name: profile?.name || 'Recruiter',
+                interviewer_name: profile?.name || 'Interviewer',
+                interview_date: 'Monday, January 15, 2024',
+                interview_time: '10:00 AM',
+                interview_duration: '1 hour',
+                interview_type: 'Video Call',
+                interview_details: 'Date: Monday, January 15, 2024\nTime: 10:00 AM\nDuration: 1 hour\nType: Video Call',
+                meeting_link: 'https://meet.google.com/xxx-yyyy-zzz',
+                address: '123 Main St, City, State 12345',
+                previous_interview_time: 'Monday, January 8, 2024 at 2:00 PM',
+                new_interview_time: 'Monday, January 15, 2024 at 10:00 AM',
+                old_interview_date: 'Monday, January 8, 2024',
+                old_interview_time: '2:00 PM',
+                salary: '$100,000 per year',
+                salary_amount: '100000',
+                salary_currency: 'USD',
+                salary_period: 'per year',
+                start_date: 'February 1, 2024',
+                expires_at: 'January 31, 2024',
+                benefits: 'Health insurance, 401k, Paid time off',
+                benefits_list: '• Health insurance\n• 401k\n• Paid time off',
+                notes: 'We are excited to have you join our team!',
+                offer_response_link: 'https://coreflowhr.com/offers/respond/test-token'
+            };
+
+            // Merge user-provided test placeholders with defaults (user values take precedence)
+            const mergedPlaceholders = { ...defaultTestPlaceholders, ...(testPlaceholders || {}) };
+
+            // Replace placeholders in subject and content
+            let subject = template.subject;
+            let content = template.content;
+
+            // Replace all placeholders in curly braces format {placeholder_name}
+            Object.keys(mergedPlaceholders).forEach(key => {
+                const placeholder = `{${key}}`;
+                const value = mergedPlaceholders[key];
+                subject = subject.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+                content = content.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+            });
+
+            // Add [TEST] prefix to subject
+            subject = `[TEST] ${subject}`;
 
             // Send test email to user
             const { error: emailError } = await supabase.functions.invoke('send-email', {
@@ -4174,6 +4382,24 @@ export const api = {
                 throw new Error('Cannot send a general offer. Please link it to a candidate first.');
             }
 
+            // Check if Offer workflow is configured before allowing offer to be sent
+            // Since sending an offer automatically moves candidate to Offer stage, workflow must be configured
+            const { data: workflows, error: workflowCheckError } = await supabase
+                .from('email_workflows')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('trigger_stage', 'Offer')
+                .eq('enabled', true)
+                .limit(1);
+            
+            if (workflowCheckError) {
+                throw new Error(`Error checking workflows: ${workflowCheckError.message}`);
+            }
+            
+            if (!workflows || workflows.length === 0) {
+                throw new Error('Cannot send offer. Please create an email workflow for the "Offer" stage in Settings > Email Workflows first.');
+            }
+
             // Get candidate - use list and find, as there's no direct get method
             const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1000 });
             const candidates = candidatesResult.data || [];
@@ -4276,11 +4502,11 @@ export const api = {
             tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60);
             
             // Build offer response link
-            // Since this runs in the browser, window.location.origin will work for both dev and production
-            // In dev: http://localhost:5173, In production: https://your-domain.com
-            const frontendUrl = typeof window !== 'undefined' 
-                ? window.location.origin 
-                : 'http://localhost:5173'; // Fallback for development
+            // Use production URL by default, fallback to window.location.origin for development
+            // This ensures links in emails always point to production, even if sent from dev environment
+            const frontendUrl = (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+                                    ? window.location.origin 
+                                    : 'https://coreflowhr.com');
             const offerResponseLink = `${frontendUrl}/offers/respond/${offerToken}`;
             
             // Replace template variables in content (notes placeholder removed from default, but still available if user adds it to template)
@@ -4345,10 +4571,39 @@ export const api = {
             if (updateError) throw updateError;
 
             // Automatically move candidate to Offer stage when offer is sent
+            // Do this directly via database update to bypass workflow checks (since we're already sending the offer email)
             try {
-                await api.candidates.update(offer.candidateId, {
-                    stage: CandidateStage.OFFER
-                });
+                // Get current stage and name for logging before update
+                const { data: candidateBeforeUpdate } = await supabase
+                    .from('candidates')
+                    .select('stage, name')
+                    .eq('id', offer.candidateId)
+                    .eq('user_id', userId)
+                    .single();
+
+                const oldStage = candidateBeforeUpdate?.stage;
+                const candidateName = candidateBeforeUpdate?.name;
+
+                // Update candidate stage to Offer
+                const { error: stageUpdateError } = await supabase
+                    .from('candidates')
+                    .update({ stage: 'Offer' })
+                    .eq('id', offer.candidateId)
+                    .eq('user_id', userId);
+
+                if (stageUpdateError) {
+                    console.error('Error updating candidate stage to Offer:', stageUpdateError);
+                    // Don't throw - offer was sent successfully, stage update is secondary
+                } else if (oldStage && oldStage !== 'Offer' && candidateName) {
+                    // Log the stage change activity (only if stage actually changed)
+                    try {
+                        const { logCandidateMoved } = await import('./activityLogger');
+                        await logCandidateMoved(candidateName, oldStage as CandidateStage, CandidateStage.OFFER);
+                    } catch (logError) {
+                        console.error('Error logging candidate stage change:', logError);
+                        // Don't throw - logging is non-critical
+                    }
+                }
             } catch (stageError: any) {
                 // Log error but don't fail the offer send if stage update fails
                 console.error('Error updating candidate stage to Offer:', stageError);
@@ -4515,6 +4770,524 @@ export const api = {
                 .single();
 
             if (error) throw error;
+
+            return {
+                id: updated.id,
+                candidateId: updated.candidate_id,
+                jobId: updated.job_id,
+                userId: updated.user_id,
+                positionTitle: updated.position_title,
+                startDate: updated.start_date || undefined,
+                salaryAmount: updated.salary_amount ? parseFloat(updated.salary_amount) : undefined,
+                salaryCurrency: updated.salary_currency || 'USD',
+                salaryPeriod: updated.salary_period || 'yearly',
+                benefits: updated.benefits || undefined,
+                notes: updated.notes || undefined,
+                status: updated.status as Offer['status'],
+                sentAt: updated.sent_at || undefined,
+                viewedAt: updated.viewed_at || undefined,
+                respondedAt: updated.responded_at || undefined,
+                expiresAt: updated.expires_at || undefined,
+                response: updated.response || undefined,
+                negotiationHistory: updated.negotiation_history || undefined,
+                createdAt: updated.created_at,
+                updatedAt: updated.updated_at
+            };
+        },
+        acceptCounterOffer: async (offerId: string): Promise<Offer> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            // Get offer
+            const offer = await api.offers.get(offerId);
+
+            if (offer.status !== 'negotiating') {
+                throw new Error('Offer is not in negotiating status');
+            }
+
+            // Get latest counter offer from negotiation history
+            const counterOffer = offer.negotiationHistory
+                ?.filter((item: any) => item.type === 'counter_offer')
+                .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+            if (!counterOffer || !counterOffer.counterOffer) {
+                throw new Error('No counter offer found');
+            }
+
+            const co = counterOffer.counterOffer;
+
+            // Update offer with counter offer terms
+            const updateData: any = {
+                status: 'accepted',
+                responded_at: new Date().toISOString()
+            };
+
+            // Apply counter offer terms
+            if (co.salaryAmount !== undefined) {
+                updateData.salary_amount = co.salaryAmount;
+                updateData.salary_currency = co.salaryCurrency || offer.salaryCurrency;
+                updateData.salary_period = co.salaryPeriod || offer.salaryPeriod;
+            }
+            if (co.startDate !== undefined) {
+                updateData.start_date = co.startDate;
+            }
+            if (co.benefits !== undefined) {
+                updateData.benefits = co.benefits;
+            }
+
+            // Add acceptance to negotiation history
+            const history = offer.negotiationHistory || [];
+            history.push({
+                timestamp: new Date().toISOString(),
+                type: 'counter_offer_accepted',
+                notes: 'Counter offer accepted by recruiter'
+            });
+
+            updateData.negotiation_history = history;
+
+            // Update offer
+            const { data: updated, error } = await supabase
+                .from('offers')
+                .update(updateData)
+                .eq('id', offerId)
+                .eq('user_id', userId)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Get candidate
+            if (offer.candidateId) {
+                const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1000 });
+                const candidates = candidatesResult.data || [];
+                const candidate = candidates.find(c => c.id === offer.candidateId);
+                
+                if (candidate && candidate.email) {
+                    // Get job
+                    const job = await api.jobs.get(offer.jobId);
+                    const companyName = job.company || 'Our Company';
+
+                    // Get email template
+                    const { data: templateData } = await supabase
+                        .from('email_templates')
+                        .select('*')
+                        .eq('user_id', userId)
+                        .eq('type', 'Offer Accepted')
+                        .single();
+
+                    let template = templateData || {
+                        subject: 'Counter Offer Accepted – {position_title} at {company_name}',
+                        content: 'Dear {candidate_name},\n\nWe are pleased to inform you that we have accepted your counter offer for the {position_title} position at {company_name}!\n\nFinal Offer Details:\nPosition: {position_title}\nSalary: {salary} ({salary_amount} {salary_currency} {salary_period})\nStart Date: {start_date}\nExpires: {expires_at}\n\nBenefits:\n{benefits_list}\n\nWe are excited to move forward with these terms and look forward to welcoming you to {company_name}!\n\nBest regards,\n{your_name}\n{company_name}'
+                    };
+
+                    // Get user profile
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('name')
+                        .eq('id', userId)
+                        .single();
+                    const userName = profile?.name || 'Recruiter';
+
+                    // Format salary
+                    const finalSalaryAmount = co.salaryAmount || offer.salaryAmount || 0;
+                    const finalCurrency = co.salaryCurrency || offer.salaryCurrency || 'USD';
+                    const finalPeriod = co.salaryPeriod || offer.salaryPeriod || 'yearly';
+                    const currencySymbol = finalCurrency === 'USD' ? '$' : finalCurrency;
+                    const periodText = finalPeriod === 'yearly' ? 'per year' : finalPeriod === 'monthly' ? 'per month' : 'per hour';
+                    const salaryText = `${currencySymbol}${finalSalaryAmount.toLocaleString()} ${periodText}`;
+
+                    // Format benefits
+                    const finalBenefits = co.benefits || offer.benefits || [];
+                    const benefitsList = finalBenefits.length > 0 
+                        ? finalBenefits.map((b: string) => `• ${b}`).join('\n')
+                        : 'Standard benefits package';
+
+                    // Format dates
+                    const finalStartDate = co.startDate || offer.startDate;
+                    const startDateText = finalStartDate
+                        ? new Date(finalStartDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : 'To be determined';
+                    const expiresAtText = offer.expiresAt
+                        ? new Date(offer.expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : 'No expiration date';
+
+                    // Replace template variables
+                    let subject = template.subject
+                        .replace(/{candidate_name}/g, candidate.name)
+                        .replace(/{position_title}/g, updated.position_title)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{job_title}/g, updated.position_title);
+
+                    let content = template.content
+                        .replace(/{candidate_name}/g, candidate.name)
+                        .replace(/{position_title}/g, updated.position_title)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{job_title}/g, updated.position_title)
+                        .replace(/{salary}/g, salaryText)
+                        .replace(/{salary_amount}/g, finalSalaryAmount.toLocaleString())
+                        .replace(/{salary_currency}/g, finalCurrency)
+                        .replace(/{salary_period}/g, periodText)
+                        .replace(/{start_date}/g, startDateText)
+                        .replace(/{expires_at}/g, expiresAtText)
+                        .replace(/{benefits_list}/g, benefitsList)
+                        .replace(/{your_name}/g, userName);
+
+                    // Send email
+                    await supabase.functions.invoke('send-email', {
+                        body: {
+                            to: candidate.email,
+                            subject: subject,
+                            content: content,
+                            fromName: 'Recruiter',
+                            candidateId: candidate.id,
+                            emailType: 'Offer Accepted'
+                        }
+                    });
+                }
+            }
+
+            // Move candidate to Hired stage if offer accepted
+            if (offer.candidateId) {
+                try {
+                    await api.candidates.update(offer.candidateId, { stage: CandidateStage.HIRED });
+                } catch (stageError) {
+                    console.error('Error updating candidate stage:', stageError);
+                    // Don't throw - offer acceptance is more important
+                }
+            }
+
+            return {
+                id: updated.id,
+                candidateId: updated.candidate_id,
+                jobId: updated.job_id,
+                userId: updated.user_id,
+                positionTitle: updated.position_title,
+                startDate: updated.start_date || undefined,
+                salaryAmount: updated.salary_amount ? parseFloat(updated.salary_amount) : undefined,
+                salaryCurrency: updated.salary_currency || 'USD',
+                salaryPeriod: updated.salary_period || 'yearly',
+                benefits: updated.benefits || undefined,
+                notes: updated.notes || undefined,
+                status: updated.status as Offer['status'],
+                sentAt: updated.sent_at || undefined,
+                viewedAt: updated.viewed_at || undefined,
+                respondedAt: updated.responded_at || undefined,
+                expiresAt: updated.expires_at || undefined,
+                response: updated.response || undefined,
+                negotiationHistory: updated.negotiation_history || undefined,
+                createdAt: updated.created_at,
+                updatedAt: updated.updated_at
+            };
+        },
+        declineCounterOffer: async (offerId: string, notes?: string): Promise<Offer> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            // Get offer
+            const offer = await api.offers.get(offerId);
+
+            if (offer.status !== 'negotiating') {
+                throw new Error('Offer is not in negotiating status');
+            }
+
+            // Add decline to negotiation history
+            const history = offer.negotiationHistory || [];
+            history.push({
+                timestamp: new Date().toISOString(),
+                type: 'counter_offer_declined',
+                notes: notes || 'Counter offer declined by recruiter'
+            });
+
+            // Revert to original offer terms (status goes back to 'sent')
+            const { data: updated, error } = await supabase
+                .from('offers')
+                .update({
+                    status: 'sent',
+                    negotiation_history: history
+                })
+                .eq('id', offerId)
+                .eq('user_id', userId)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Get candidate and send decline email
+            if (offer.candidateId) {
+                const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1000 });
+                const candidates = candidatesResult.data || [];
+                const candidate = candidates.find(c => c.id === offer.candidateId);
+                
+                if (candidate && candidate.email) {
+                    // Get job
+                    const job = await api.jobs.get(offer.jobId);
+                    const companyName = job.company || 'Our Company';
+
+                    // Get email template
+                    const { data: templateData } = await supabase
+                        .from('email_templates')
+                        .select('*')
+                        .eq('user_id', userId)
+                        .eq('type', 'Offer Declined')
+                        .single();
+
+                    let template = templateData || {
+                        subject: 'Counter Offer Update – {position_title} at {company_name}',
+                        content: 'Dear {candidate_name},\n\nThank you for your counter offer regarding the {position_title} position at {company_name}.\n\nAfter careful consideration, we are unable to accept the terms of your counter offer at this time. However, our original offer of {salary} ({salary_amount} {salary_currency} {salary_period}) remains available if you would like to proceed.\n\nWe understand this may be disappointing, and we appreciate your interest in joining {company_name}. If you have any questions or would like to discuss further, please don\'t hesitate to reach out.\n\nBest regards,\n{your_name}\n{company_name}'
+                    };
+
+                    // Get user profile
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('name')
+                        .eq('id', userId)
+                        .single();
+                    const userName = profile?.name || 'Recruiter';
+
+                    // Format salary (original offer)
+                    const salaryAmount = offer.salaryAmount || 0;
+                    const currency = offer.salaryCurrency || 'USD';
+                    const period = offer.salaryPeriod || 'yearly';
+                    const currencySymbol = currency === 'USD' ? '$' : currency;
+                    const periodText = period === 'yearly' ? 'per year' : period === 'monthly' ? 'per month' : 'per hour';
+                    const salaryText = `${currencySymbol}${salaryAmount.toLocaleString()} ${periodText}`;
+
+                    // Replace template variables
+                    let subject = template.subject
+                        .replace(/{candidate_name}/g, candidate.name)
+                        .replace(/{position_title}/g, offer.positionTitle)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{job_title}/g, offer.positionTitle);
+
+                    let content = template.content
+                        .replace(/{candidate_name}/g, candidate.name)
+                        .replace(/{position_title}/g, offer.positionTitle)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{job_title}/g, offer.positionTitle)
+                        .replace(/{salary}/g, salaryText)
+                        .replace(/{salary_amount}/g, salaryAmount.toLocaleString())
+                        .replace(/{salary_currency}/g, currency)
+                        .replace(/{salary_period}/g, periodText)
+                        .replace(/{your_name}/g, userName);
+
+                    // Send email
+                    await supabase.functions.invoke('send-email', {
+                        body: {
+                            to: candidate.email,
+                            subject: subject,
+                            content: content,
+                            fromName: 'Recruiter',
+                            candidateId: candidate.id,
+                            emailType: 'Offer Declined'
+                        }
+                    });
+                }
+            }
+
+            return {
+                id: updated.id,
+                candidateId: updated.candidate_id,
+                jobId: updated.job_id,
+                userId: updated.user_id,
+                positionTitle: updated.position_title,
+                startDate: updated.start_date || undefined,
+                salaryAmount: updated.salary_amount ? parseFloat(updated.salary_amount) : undefined,
+                salaryCurrency: updated.salary_currency || 'USD',
+                salaryPeriod: updated.salary_period || 'yearly',
+                benefits: updated.benefits || undefined,
+                notes: updated.notes || undefined,
+                status: updated.status as Offer['status'],
+                sentAt: updated.sent_at || undefined,
+                viewedAt: updated.viewed_at || undefined,
+                respondedAt: updated.responded_at || undefined,
+                expiresAt: updated.expires_at || undefined,
+                response: updated.response || undefined,
+                negotiationHistory: updated.negotiation_history || undefined,
+                createdAt: updated.created_at,
+                updatedAt: updated.updated_at
+            };
+        },
+        respondToCounterOffer: async (offerId: string, updatedFields: {
+            salaryAmount?: number;
+            salaryCurrency?: string;
+            salaryPeriod?: 'hourly' | 'monthly' | 'yearly';
+            startDate?: string;
+            benefits?: string[];
+            notes?: string;
+        }): Promise<Offer> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            // Get offer
+            const offer = await api.offers.get(offerId);
+
+            if (offer.status !== 'negotiating') {
+                throw new Error('Offer is not in negotiating status');
+            }
+
+            // Update offer with new terms
+            const updateData: any = {
+                status: 'negotiating'
+            };
+
+            if (updatedFields.salaryAmount !== undefined) {
+                updateData.salary_amount = updatedFields.salaryAmount;
+            }
+            if (updatedFields.salaryCurrency !== undefined) {
+                updateData.salary_currency = updatedFields.salaryCurrency;
+            }
+            if (updatedFields.salaryPeriod !== undefined) {
+                updateData.salary_period = updatedFields.salaryPeriod;
+            }
+            if (updatedFields.startDate !== undefined) {
+                updateData.start_date = updatedFields.startDate;
+            }
+            if (updatedFields.benefits !== undefined) {
+                updateData.benefits = updatedFields.benefits;
+            }
+
+            // Add negotiation response to history
+            const history = offer.negotiationHistory || [];
+            history.push({
+                timestamp: new Date().toISOString(),
+                type: 'counter_offer_response',
+                updatedFields: updatedFields,
+                notes: updatedFields.notes || 'Recruiter responded with updated terms'
+            });
+
+            updateData.negotiation_history = history;
+
+            // Update offer
+            const { data: updated, error } = await supabase
+                .from('offers')
+                .update(updateData)
+                .eq('id', offerId)
+                .eq('user_id', userId)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Get candidate and send negotiation response email
+            if (offer.candidateId) {
+                const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1000 });
+                const candidates = candidatesResult.data || [];
+                const candidate = candidates.find(c => c.id === offer.candidateId);
+                
+                if (candidate && candidate.email) {
+                    // Get job
+                    const job = await api.jobs.get(offer.jobId);
+                    const companyName = job.company || 'Our Company';
+
+                    // Get email template
+                    const { data: templateData } = await supabase
+                        .from('email_templates')
+                        .select('*')
+                        .eq('user_id', userId)
+                        .eq('type', 'Counter Offer Response')
+                        .single();
+
+                    let template = templateData || {
+                        subject: 'Updated Offer Terms – {position_title} at {company_name}',
+                        content: 'Dear {candidate_name},\n\nThank you for your counter offer. We appreciate your interest in the {position_title} position at {company_name}.\n\nAfter reviewing your request, we would like to propose the following updated terms:\n\nUpdated Offer Details:\nPosition: {position_title}\nSalary: {salary} ({salary_amount} {salary_currency} {salary_period})\nStart Date: {start_date}\nExpires: {expires_at}\n\nBenefits:\n{benefits_list}\n\n{notes}\n\nWe hope these terms work for you. Please let us know if you would like to proceed or if you have any further questions.\n\nBest regards,\n{your_name}\n{company_name}'
+                    };
+
+                    // Get user profile
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('name')
+                        .eq('id', userId)
+                        .single();
+                    const userName = profile?.name || 'Recruiter';
+
+                    // Format salary (updated terms)
+                    const finalSalaryAmount = updatedFields.salaryAmount !== undefined ? updatedFields.salaryAmount : (offer.salaryAmount || 0);
+                    const finalCurrency = updatedFields.salaryCurrency || offer.salaryCurrency || 'USD';
+                    const finalPeriod = updatedFields.salaryPeriod || offer.salaryPeriod || 'yearly';
+                    const currencySymbol = finalCurrency === 'USD' ? '$' : finalCurrency;
+                    const periodText = finalPeriod === 'yearly' ? 'per year' : finalPeriod === 'monthly' ? 'per month' : 'per hour';
+                    const salaryText = `${currencySymbol}${finalSalaryAmount.toLocaleString()} ${periodText}`;
+
+                    // Format benefits
+                    const finalBenefits = updatedFields.benefits || offer.benefits || [];
+                    const benefitsList = finalBenefits.length > 0 
+                        ? finalBenefits.map((b: string) => `• ${b}`).join('\n')
+                        : 'Standard benefits package';
+
+                    // Format dates
+                    const finalStartDate = updatedFields.startDate || offer.startDate;
+                    const startDateText = finalStartDate
+                        ? new Date(finalStartDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : 'To be determined';
+                    const expiresAtText = offer.expiresAt
+                        ? new Date(offer.expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : 'No expiration date';
+
+                    // Replace template variables
+                    let subject = template.subject
+                        .replace(/{candidate_name}/g, candidate.name)
+                        .replace(/{position_title}/g, updated.position_title)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{job_title}/g, updated.position_title);
+
+                    let content = template.content
+                        .replace(/{candidate_name}/g, candidate.name)
+                        .replace(/{position_title}/g, updated.position_title)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{job_title}/g, updated.position_title)
+                        .replace(/{salary}/g, salaryText)
+                        .replace(/{salary_amount}/g, finalSalaryAmount.toLocaleString())
+                        .replace(/{salary_currency}/g, finalCurrency)
+                        .replace(/{salary_period}/g, periodText)
+                        .replace(/{start_date}/g, startDateText)
+                        .replace(/{expires_at}/g, expiresAtText)
+                        .replace(/{benefits_list}/g, benefitsList)
+                        .replace(/{notes}/g, updatedFields.notes || '')
+                        .replace(/{your_name}/g, userName);
+
+                    // Generate new offer token for response link
+                    const { generateSecureToken } = await import('./tokenUtils');
+                    const offerToken = generateSecureToken(32);
+                    const tokenExpiresAt = new Date();
+                    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60);
+
+                    await supabase
+                        .from('offers')
+                        .update({
+                            offer_token: offerToken,
+                            offer_token_expires_at: tokenExpiresAt.toISOString()
+                        })
+                        .eq('id', offerId);
+
+                    // Build offer response link
+                    const frontendUrl = (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+                                            ? window.location.origin 
+                                            : 'https://coreflowhr.com');
+                    const offerResponseLink = `${frontendUrl}/offers/respond/${offerToken}`;
+
+                    // Add response link to email
+                    const clickableLink = `<a href="${offerResponseLink}" style="color: #2563eb; text-decoration: underline; font-weight: 500;">View and Respond to Offer</a>`;
+                    const responseSection = `\n\n---\n\nPlease click the link below to view the updated offer details and respond:\n${clickableLink}`;
+                    
+                    if (!content.includes('{offer_response_link}')) {
+                        content = content + responseSection;
+                    } else {
+                        content = content.replace(/{offer_response_link}/g, clickableLink);
+                    }
+
+                    // Send email
+                    await supabase.functions.invoke('send-email', {
+                        body: {
+                            to: candidate.email,
+                            subject: subject,
+                            content: content,
+                            fromName: 'Recruiter',
+                            candidateId: candidate.id,
+                            emailType: 'Counter Offer Response'
+                        }
+                    });
+                }
+            }
 
             return {
                 id: updated.id,

@@ -214,3 +214,6 @@ Would you like me to:
 2. **Switch to GPT-4o Mini** (I'll update the code)
 3. **Set up both** (fallback option)
 
+
+
+

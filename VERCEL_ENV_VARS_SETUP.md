@@ -15,7 +15,7 @@ Your API key is set locally in `.env.local`, but the **production site** (www.co
 2. Click **Add New** or **Add** button
 3. Enter:
    - **Key:** `VITE_API_KEY`
-   - **Value:** `AIzaSyB2GZ5M_LiuGNN0vnrQ3T5PAKssLkXIt1Y` (your Gemini API key)
+   - **Value:** `your_actual_gemini_api_key_here` (your Gemini API key from Google AI Studio)
    - **Environment:** Select **Production** (and optionally Preview/Development)
 4. Click **Save**
 
@@ -66,7 +66,7 @@ vercel login
 # Add environment variable for production
 vercel env add VITE_API_KEY production
 
-# Enter the value when prompted: AIzaSyB2GZ5M_LiuGNN0vnrQ3T5PAKssLkXIt1Y
+# Enter the value when prompted: your_actual_gemini_api_key_here
 
 # Redeploy
 vercel --prod

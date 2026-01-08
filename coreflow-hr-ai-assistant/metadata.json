@@ -1,0 +1,7 @@
+{
+  "name": "CoreFlow HR AI Assistant",
+  "description": "A premium HR recruitment dashboard featuring a highly sophisticated, Gemini-powered AI assistant for summarizing candidates, drafting job descriptions, and analyzing recruitment trends.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

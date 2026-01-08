@@ -129,6 +129,8 @@ BEGIN
     ELSIF NEW.type = 'Interview' OR NEW.id = 'interview' THEN
         workflow_name := 'Send Interview Email';
         trigger_stage := 'Interview';
+        -- Note: Interview workflows are created but disabled by default
+        -- Interviews are manually scheduled, not automatically triggered
     ELSIF NEW.type = 'Offer' OR NEW.id = 'offer' THEN
         workflow_name := 'Send Offer Email';
         trigger_stage := 'Offer';
@@ -163,7 +165,8 @@ BEGIN
             workflow_name,
             trigger_stage,
             NEW.id,
-            true,
+            -- Interview workflows are disabled by default (manually scheduled, not automatic)
+            CASE WHEN trigger_stage = 'Interview' THEN false ELSE true END,
             0
         );
     END IF;

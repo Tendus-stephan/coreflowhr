@@ -18,7 +18,7 @@ serve(async (req) => {
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
-    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
     // Remove trailing slash if present
     frontendUrl = frontendUrl.replace(/\/$/, '');
 
@@ -148,7 +148,7 @@ serve(async (req) => {
     return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_success=${integrationId}`, 302);
   } catch (error: any) {
     console.error('Error in connect-google-callback:', error);
-    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
     frontendUrl = frontendUrl.replace(/\/$/, '');
     return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent(error.message || 'Unknown error')}`, 302);
   }

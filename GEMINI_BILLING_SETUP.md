@@ -4,8 +4,12 @@
 
 **Google Gemini API uses a "pay-as-you-go" model:**
 1. You get a **free tier** (generous limits)
-2. Once you exceed free tier, you're automatically charged
-3. Payment is via **Google Cloud Platform (GCP) billing**
+2. **BUT:** You need to set up billing (even for free tier)
+3. **$10 prepayment required** (one-time, refundable) to activate account
+4. Once you exceed free tier, you're automatically charged
+5. Payment is via **Google Cloud Platform (GCP) billing**
+
+**Important:** The free tier exists, but Google requires billing setup with a $10 prepayment to activate it. This is a security/verification measure, not a charge.
 
 ## 📋 Step-by-Step Setup
 
@@ -31,6 +35,12 @@ This key is set in your `.env.local` as `VITE_API_KEY`.
    - If you don't have a billing account:
      - Click **Create Billing Account**
      - Enter your payment information (credit card)
+     - **You'll be asked for a $10 prepayment** (one-time, refundable)
+     - This prepayment:
+       - ✅ Is refundable if you close your account
+       - ✅ Is credited to your account
+       - ✅ Required even to activate free tier
+       - ✅ Not charged unless you exceed free tier limits
      - Complete the setup
 
 4. **Enable Gemini API:**
@@ -149,11 +159,20 @@ Google Cloud accepts:
 
 ## ❓ Common Questions
 
+### Do I need to set up billing to use the free tier?
+**Yes!** Google requires billing setup (including $10 prepayment) even to activate the free tier. This is a verification measure.
+
+### What is the $10 prepayment?
+- **One-time only** - You pay it once
+- **Refundable** - You can get it back if you close your account
+- **Required** - Even to use the free tier
+- **Not a charge** - It's a verification deposit
+- **Credited to your account** - You can use it for future charges
+
 ### Do I need to set up billing now?
-**No!** You can use the free tier without billing. Only set up billing when:
-- You expect to exceed free limits
-- You want to ensure no interruptions
-- You're ready to scale
+**For production use: Yes!** You need billing to activate the free tier. Only skip billing if:
+- You're just testing (but you'll hit quota errors)
+- You want to use an alternative AI provider instead
 
 ### What happens if I exceed free tier without billing?
 - API calls will start failing
@@ -194,13 +213,14 @@ Google Cloud accepts:
 **Your Current Setup:**
 - ✅ API key configured (`VITE_API_KEY`)
 - ✅ Using Gemini 2.0 Flash
-- ✅ Free tier active (1M tokens/day)
-- ⚠️ Billing not yet set up (OK for now)
+- ⚠️ Billing not yet set up (causing quota errors)
+- ❌ Free tier not fully active (hitting limits)
 
 **What You Need:**
-- Nothing right now! Free tier is active
-- Set up billing when you need more capacity
-- Or set it up proactively to avoid interruptions
+- Set up billing with $10 prepayment to activate free tier
+- This will enable the full free tier limits
+- Very affordable if you exceed limits
+- Refundable if you close account
 
 ---
 

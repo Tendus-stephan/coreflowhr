@@ -160,9 +160,7 @@ async function refreshGoogleToken(
 
     const tokenData = await tokenResponse.json();
     if (!tokenResponse.ok) {
-      console.error('Error refreshing Google token:', tokenData);
-      
-      // Handle invalid_grant error (token expired or revoked)
+      // Handle invalid_grant error (token expired or revoked) - expected error, don't log as error
       if (tokenData.error === 'invalid_grant') {
         // Mark integration as inactive so user knows they need to reconnect
         const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
@@ -172,22 +170,32 @@ async function refreshGoogleToken(
           .eq('id', integrationId)
           .eq('user_id', userId);
         
+        // Log as info instead of error since this is expected behavior
+        console.log('Google token expired or revoked - integration marked as inactive. User needs to reconnect.');
+        
         return { 
           error: 'Google token has expired or been revoked. Please reconnect your Google account in Settings → Integrations.' 
         };
       }
       
+      // Log other errors (unexpected token refresh failures)
+      console.error('Error refreshing Google token:', tokenData);
       return { error: 'Failed to refresh Google access token. Please reconnect Google in Settings → Integrations.' };
     }
 
     const newAccessToken = tokenData.access_token as string;
     const expiresIn = tokenData.expires_in as number | undefined;
+    
+    // Google may provide a new refresh token, use it if available
+    // Refresh tokens can become invalid after 6 months of inactivity
+    const newRefreshToken = tokenData.refresh_token || config.refresh_token;
 
     // Update integration config with new tokens
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     const newConfig = {
       ...config,
       access_token: newAccessToken,
+      refresh_token: newRefreshToken, // Update refresh token if Google provided a new one
       expires_at: expiresIn ? Date.now() + expiresIn * 1000 : config.expires_at,
     };
 
@@ -221,7 +229,9 @@ async function createGoogleMeetMeeting(
   const expiresAt = config.expires_at as number | undefined;
 
   const now = Date.now();
-  if (!accessToken || (expiresAt && expiresAt <= now + 60_000)) {
+  // Refresh token if it's expired or will expire within 5 minutes (was 1 minute)
+  // This prevents token expiration issues during meeting creation
+  if (!accessToken || (expiresAt && expiresAt <= now + 5 * 60_000)) {
     const refreshed = await refreshGoogleToken(config, userId, integrationId, supabaseUrl);
     if (refreshed.error) return { error: refreshed.error };
     accessToken = refreshed.accessToken;

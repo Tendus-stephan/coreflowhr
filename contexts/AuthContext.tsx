@@ -247,18 +247,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password,
     });
 
+    if (error) {
+      return { error, requiresMFA: false };
+    }
+
     if (data.user) {
       setUser(data.user);
       
-      // Check if MFA is required (user exists but no session)
-      const requiresMFA = !data.session && data.user;
-      
-      if (requiresMFA) {
-        // MFA is required - return special indicator
-        return { error: null, requiresMFA: true };
+      // Check Authenticator Assurance Level (AAL) - proper way to check MFA status
+      // AAL2 means MFA is required, AAL1 means password-only
+      try {
+        const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        
+        if (!aalError && aal) {
+          // If nextLevel is 'aal2' and different from currentLevel, MFA is required
+          if (aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+            // MFA is enabled and required - return special indicator
+            return { error: null, requiresMFA: true };
+          }
+        }
+      } catch (aalCheckError) {
+        // If AAL check fails, fall back to checking if session exists
+        console.warn('Could not check AAL, falling back to session check:', aalCheckError);
+        
+        // If no session but user exists, might be MFA or email verification
+        if (!data.session) {
+          // Check email confirmation status first
+          if (!data.user.email_confirmed_at) {
+            return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
+          }
+          
+          // Email confirmed but no session - likely MFA required
+          return { error: null, requiresMFA: true };
+        }
       }
       
-      // Only set session if email is confirmed
+      // Only set session if email is confirmed and we have a session
       if (data.user.email_confirmed_at && data.session) {
         setSession(data.session);
         
@@ -273,22 +297,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         // Email not confirmed - don't set session
         setSession(null);
+        if (!data.user.email_confirmed_at) {
+          return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
+        }
       }
     }
 
-    return { error, requiresMFA: false };
+    return { error: null, requiresMFA: false };
   };
 
   const verifyMFA = async (code: string) => {
     try {
-      // Get MFA factors
+      // Get MFA factors - check both totp array and all array
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
 
-      if (factorsError || !factors?.totp?.[0]) {
+      if (factorsError) {
+        return { error: new Error('Failed to retrieve 2FA setup. Please try again.') };
+      }
+
+      // Check both totp array and all array for TOTP factors
+      const totpFactors = factors?.totp || [];
+      const allFactors = factors?.all || [];
+      const totpInAll = allFactors.find((f: any) => f.factor_type === 'totp');
+      
+      if (totpFactors.length === 0 && !totpInAll) {
         return { error: new Error('2FA not properly set up. Please try enabling it again.') };
       }
 
-      const factor = factors.totp[0];
+      // Use factor from totp array if available, otherwise from all array
+      const factor = totpFactors[0] || totpInAll;
 
       // Challenge the factor
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
@@ -313,6 +350,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // MFA verified - get the session
       if (verifyData.session) {
         setSession(verifyData.session);
+        setUser(verifyData.session.user);
         
         // Track session in database
         try {
@@ -330,9 +368,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear state immediately for instant UI feedback
     setUser(null);
     setSession(null);
+    
+    // Sign out from Supabase first (synchronously wait for it)
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Even if signOut fails, continue with local state clearing
+      console.warn('Sign out error (non-critical):', error);
+    }
+    
+    // Clear all cached authentication data
+    if (typeof window !== 'undefined') {
+      // Clear sessionStorage (used for loader state, etc.)
+      sessionStorage.clear();
+      // Clear any auth-related localStorage
+      localStorage.removeItem('testMode'); // Remove test mode if it exists
+      // Clear any other cached data
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('sb-' + window.location.hostname.split('.')[0] + '-auth-token');
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      // Replace current history entry with login page (prevents back button access)
+      window.history.replaceState(null, '', '/login');
+      // Force full page reload to clear all React state and re-initialize auth
+      window.location.href = '/login';
+    }
   };
 
   const resetPassword = async (email: string) => {

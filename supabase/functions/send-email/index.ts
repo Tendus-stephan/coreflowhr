@@ -71,7 +71,7 @@ function sanitizeHtml(html: string): string {
   return sanitized;
 }
 
-// Create minimal branded email template wrapper (no logo, subtle branding)
+// Create professional email template with clean styling and subtle branding
 function createEmailTemplate(content: string, logoUrl: string, companyName: string, companyWebsite: string, recipientEmail?: string): string {
   return `
 <!DOCTYPE html>
@@ -87,25 +87,31 @@ function createEmailTemplate(content: string, logoUrl: string, companyName: stri
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff;">
+<body style="margin: 0; padding: 0; background-color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff;">
-          <!-- Content Area - No header/logo, starts directly with content -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+          <!-- Logo Header -->
           <tr>
-            <td style="padding: 0;">
+            <td align="center" style="padding: 30px 30px 20px 30px;">
+              <img src="${logoUrl}" alt="${companyName}" width="180" style="display: block; max-width: 180px; height: auto; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
+            </td>
+          </tr>
+          <!-- Content Area with proper padding -->
+          <tr>
+            <td style="padding: 0 30px 40px 30px;">
               <div style="color: #1f2937; font-size: 16px; line-height: 1.75; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                 ${content}
               </div>
             </td>
           </tr>
-          <!-- Minimal Footer -->
+          <!-- Professional Footer with subtle branding -->
           <tr>
-            <td style="padding-top: 40px; padding-bottom: 20px;">
-              <div style="border-top: 1px solid #e5e7eb; padding-top: 20px;">
-                <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.5; text-align: center;">
-                  Sent via CoreflowHR
+            <td style="padding: 0 30px 30px 30px;">
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+                <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5; text-align: center;">
+                  <span style="color: #6b7280;">Sent via CoreflowHR</span>
                   <span style="color: #d1d5db; margin: 0 8px;">|</span>
                   <a href="${companyWebsite}/unsubscribe${recipientEmail ? `?email=${encodeURIComponent(recipientEmail)}` : ''}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
                 </p>
@@ -225,27 +231,45 @@ serve(async (req) => {
       );
     }
 
-    // Use built-in sanitization (fallback sanitizer is defined above)
-
-    // Basic newline → <br> conversion so templates render nicely in HTML email
-    let htmlContent = String(content)
-      .split('\n')
-      .map((line) => (line.trim().length ? escapeHtml(line) : '<br>'))
-      .join('<br>');
+    // Check if content already contains HTML tags (more robust detection)
+    const contentStr = String(content);
+    // Match common HTML tags: <a>, <p>, <br>, <div>, <span>, <strong>, <em>, <b>, <i>, <u>, <ul>, <ol>, <li>, <h1-6>, <img>, etc.
+    // Also match tags with attributes like <a href=...> or <p style=...>
+    const htmlTagPattern = /<(a|p|br|div|span|strong|em|b|i|u|ul|ol|li|h[1-6]|img|table|tr|td|th|thead|tbody|style|link|script)[\s>\/]|<\/[a-z]+>/i;
+    const containsHtml = htmlTagPattern.test(contentStr);
     
-    // Convert any remaining plain URLs (not already in <a> tags) to clickable links
-    // Split by existing anchor tags, convert URLs in text parts only
-    const parts = htmlContent.split(/(<a[^>]*>.*?<\/a>)/g);
-    htmlContent = parts.map((part) => {
-      // If this part is already an anchor tag, leave it alone
-      if (part.startsWith('<a')) {
-        return part;
-      }
-      // Otherwise, convert URLs in this text part to links
-      return part.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" style="color: #2563eb; text-decoration: underline;">$1</a>');
-    }).join('');
+    let htmlContent: string;
+    
+    if (containsHtml) {
+      // Content already contains HTML - use it as-is WITHOUT ANY ESCAPING
+      // Simply preserve the HTML exactly as received
+      htmlContent = contentStr;
+      
+      // Only convert newlines in text portions (not inside HTML tags)
+      // Split by HTML tags to process text and tags separately
+      const parts = htmlContent.split(/(<[^>]*>)/g);
+      htmlContent = parts.map((part) => {
+        // If this part is an HTML tag (starts with <), keep it completely unchanged
+        if (part.trim().startsWith('<')) {
+          return part;
+        }
+        // For text portions between tags, convert newlines to <br>
+        // This helps with formatting while preserving HTML structure
+        return part.replace(/\n/g, '<br>');
+      }).join('');
+    } else {
+      // Plain text content - escape and convert to HTML
+      htmlContent = contentStr
+        .split('\n')
+        .map((line) => (line.trim().length ? escapeHtml(line) : '<br>'))
+        .join('<br>');
+      
+      // Convert plain URLs to clickable links
+      htmlContent = htmlContent.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" style="color: #2563eb; text-decoration: underline;">$1</a>');
+    }
 
-    // Sanitize HTML content to prevent XSS
+    // IMPORTANT: sanitizeHtml ONLY removes dangerous elements (script tags, event handlers, etc.)
+    // It does NOT escape HTML - it preserves valid HTML like <a>, <p>, style attributes, etc.
     htmlContent = sanitizeHtml(htmlContent);
 
     // Wrap content in branded email template
@@ -262,7 +286,8 @@ serve(async (req) => {
     // 4. Set LOGO_URL environment variable in Supabase Edge Functions secrets
     // 
     // URL format: https://[project-id].supabase.co/storage/v1/object/public/email-assets/logo.png
-    let logoUrl = Deno.env.get('LOGO_URL') || 'https://coreflowhr.com/assets/images/coreflow-favicon-logo.png';
+    // Default to full logo (coreflow-logo.png) for better branding in emails
+    let logoUrl = Deno.env.get('LOGO_URL') || 'https://coreflowhr.com/assets/images/coreflow-logo.png';
     
     // Ensure logo URL uses HTTPS (email clients may block HTTP images)
     if (logoUrl && logoUrl.startsWith('http://')) {
@@ -454,13 +479,3 @@ serve(async (req) => {
     );
   }
 });
-
-
-
-
-
-
-
-
-
-

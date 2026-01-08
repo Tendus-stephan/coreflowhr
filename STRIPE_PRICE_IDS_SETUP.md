@@ -91,3 +91,5 @@ After adding the environment variables:
 - **Price ID not found in Stripe?**: Go to Stripe Dashboard → Products → Click on your product → Click on the price → The Price ID is displayed at the top
 - **Variables not loading?**: Ensure your `.env` file is in the project root (same directory as `package.json`)
 
+
+

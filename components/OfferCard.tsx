@@ -1,7 +1,7 @@
 import React from 'react';
 import { Offer } from '../types';
 import { Button } from './ui/Button';
-import { Edit2, Send, AlertCircle } from 'lucide-react';
+import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface OfferCardProps {
@@ -10,6 +10,9 @@ interface OfferCardProps {
     jobTitle?: string;
     onEdit: (offer: Offer) => void;
     onSend?: (offer: Offer) => void;
+    onAcceptCounterOffer?: (offer: Offer) => void;
+    onDeclineCounterOffer?: (offer: Offer) => void;
+    onNegotiateCounterOffer?: (offer: Offer) => void;
 }
 
 export const OfferCard: React.FC<OfferCardProps> = ({
@@ -17,7 +20,10 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     candidateName,
     jobTitle,
     onEdit,
-    onSend
+    onSend,
+    onAcceptCounterOffer,
+    onDeclineCounterOffer,
+    onNegotiateCounterOffer
 }) => {
     const getStatusColor = (status: Offer['status']) => {
         // All statuses use normal gray color
@@ -167,7 +173,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                 </div>
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
                 {offer.status === 'draft' && onSend && (
                     <Button
                         variant="black"
@@ -177,6 +183,40 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     >
                         Send Offer
                     </Button>
+                )}
+                {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.some((item: any) => item.type === 'counter_offer') && (
+                    <>
+                        {onAcceptCounterOffer && (
+                            <Button
+                                variant="black"
+                                size="sm"
+                                onClick={() => onAcceptCounterOffer(offer)}
+                                icon={<CheckCircle size={14} />}
+                            >
+                                Accept
+                            </Button>
+                        )}
+                        {onNegotiateCounterOffer && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onNegotiateCounterOffer(offer)}
+                                icon={<MessageSquare size={14} />}
+                            >
+                                Negotiate
+                            </Button>
+                        )}
+                        {onDeclineCounterOffer && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onDeclineCounterOffer(offer)}
+                                icon={<XCircle size={14} />}
+                            >
+                                Decline
+                            </Button>
+                        )}
+                    </>
                 )}
             </div>
         </div>

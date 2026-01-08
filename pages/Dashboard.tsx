@@ -481,10 +481,10 @@ const QuickActions = ({
                     <span>Schedule Interview</span>
                 </button>
                 
-                <div className="relative">
+                <div className="relative" style={{ zIndex: openDropdown === 'bulk' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('bulk')}
-                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors ${openDropdown === 'bulk' ? 'border-black ring-1 ring-black' : 'border-gray-200'}`}
+                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'bulk' ? 'border-black ring-1 ring-black' : 'border-gray-200'}`}
                     >
                         <div className="flex items-center gap-3 text-gray-800 font-semibold">
                             <Download size={18} className="text-gray-500" />
@@ -494,7 +494,7 @@ const QuickActions = ({
                     </button>
                     
                     {openDropdown === 'bulk' && (
-                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden" style={{ zIndex: 1000 }}>
                             <button onClick={() => { onBulkReject(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Bulk Reject</button>
                             <button onClick={() => { onBulkMove(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Move to Next Stage</button>
                             <button onClick={() => { onExport(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors">Export Selected</button>
@@ -502,10 +502,10 @@ const QuickActions = ({
                     )}
                 </div>
 
-                <div className="relative">
+                <div className="relative" style={{ zIndex: openDropdown === 'report' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('report')}
-                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors ${openDropdown === 'report' ? 'border-black ring-1 ring-black' : 'border-gray-200'}`}
+                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'report' ? 'border-black ring-1 ring-black' : 'border-gray-200'}`}
                     >
                         <div className="flex items-center gap-3 text-gray-800 font-semibold">
                             <BarChart2 size={18} className="text-gray-500" />
@@ -515,7 +515,7 @@ const QuickActions = ({
                     </button>
 
                     {openDropdown === 'report' && (
-                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-[100] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
                             <button onClick={() => { onGenerateReport('weekly'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Weekly Performance</button>
                             <button onClick={() => { onGenerateReport('job'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Job Posting Analysis</button>
                             <button onClick={() => { onGenerateReport('time'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors">Time to Hire Analysis</button>
@@ -739,6 +739,11 @@ const Dashboard: React.FC = () => {
               console.error("Error loading dashboard", error);
           } finally {
               setLoading(false);
+              // Signal that dashboard loading is complete (for loader coordination)
+              // Use a small delay to ensure event listener is set up before event fires
+              setTimeout(() => {
+                  window.dispatchEvent(new Event('dashboardLoaded'));
+              }, 100);
           }
       };
 
@@ -807,6 +812,7 @@ const Dashboard: React.FC = () => {
       );
   }, [recentSearch, candidates]);
 
+  // Show regular loader during data loading (loader is handled at Layout level for login)
   if (loading) {
       return (
           <div className="flex items-center justify-center min-h-screen bg-white">

@@ -619,10 +619,10 @@ const Jobs: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto flex flex-col bg-white">
+    <div className="p-8 max-w-[1600px] mx-auto flex flex-col bg-white min-h-screen" style={{ position: 'relative', overflow: 'visible' }}>
       {/* Modal */}
-      <JobManageModal job={selectedJob} isOpen={!!selectedJob} onClose={() => setSelectedJob(null)} navigate={navigate} />
-      <JobSettingsModal job={settingsJob} isOpen={!!settingsJob} onClose={() => setSettingsJob(null)} />
+      {selectedJob && <JobManageModal job={selectedJob} isOpen={!!selectedJob} onClose={() => setSelectedJob(null)} navigate={navigate} />}
+      {settingsJob && <JobSettingsModal job={settingsJob} isOpen={!!settingsJob} onClose={() => setSettingsJob(null)} />}
 
       {/* Close Job Confirmation Modal */}
       {jobToClose && createPortal(
@@ -698,7 +698,7 @@ const Jobs: React.FC = () => {
       </div>
 
       {/* Controls Container */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-6 space-y-4">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-6 space-y-4" style={{ position: 'relative', zIndex: 2 }}>
           
           {/* Status Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
@@ -726,7 +726,7 @@ const Jobs: React.FC = () => {
           </div>
 
           {/* Filters Row */}
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-4" style={{ position: 'relative' }}>
               <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
@@ -737,39 +737,36 @@ const Jobs: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                   />
               </div>
-              <div className="flex gap-3">
-                  <div className="relative">
-                      <select 
-                          value={selectedExperienceLevel}
-                          onChange={(e) => setSelectedExperienceLevel(e.target.value)}
-                          className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black cursor-pointer hover:bg-gray-50 transition-colors"
-                      >
-                          <option>All Experience Levels</option>
-                          <option>Entry Level</option>
-                          <option>Mid Level</option>
-                          <option>Senior Level</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                  </div>
-                  <div className="relative">
-                      <select 
-                          value={selectedJobType}
-                          onChange={(e) => setSelectedJobType(e.target.value)}
-                          className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black cursor-pointer hover:bg-gray-50 transition-colors"
-                      >
-                          <option>All Job Types</option>
-                          <option>Full-time</option>
-                          <option>Part-time</option>
-                          <option>Contract</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                  </div>
+              <div className="relative flex-1">
+                  <select 
+                      value={selectedExperienceLevel}
+                      onChange={(e) => setSelectedExperienceLevel(e.target.value)}
+                      className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                      <option>All Experience Levels</option>
+                      <option>Entry Level</option>
+                      <option>Mid Level</option>
+                      <option>Senior Level</option>
+                  </select>
+              </div>
+              <div className="relative flex-1" style={{ position: 'relative' }}>
+                  <select 
+                      value={selectedJobType}
+                      onChange={(e) => setSelectedJobType(e.target.value)}
+                      className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
+                      style={{ position: 'relative' }}
+                  >
+                      <option>All Job Types</option>
+                      <option>Full-time</option>
+                      <option>Part-time</option>
+                      <option>Contract</option>
+                  </select>
               </div>
           </div>
       </div>
 
       {/* Results Count */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4 px-1">
+      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4 px-1" style={{ position: 'relative', zIndex: 0 }}>
           <Filter size={14} />
           <span>{filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} found</span>
       </div>
@@ -807,12 +804,27 @@ const Jobs: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6 mt-4 md:mt-0 w-full md:w-auto justify-between md:justify-end">
+                <div className="flex items-center gap-6 mt-4 md:mt-0 w-full md:w-auto justify-between md:justify-end relative" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2 relative">
-                        <Button variant="outline" size="sm" className="h-9" onClick={() => setSelectedJob(job)}>Manage</Button>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-9"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setSelectedJob(job);
+                            }}
+                        >
+                            Manage
+                        </Button>
                         
                         <button 
-                            onClick={(e) => toggleActionMenu(e, job.id)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                toggleActionMenu(e, job.id);
+                            }}
                             className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors border border-transparent hover:border-gray-200 ${openActionMenuId === job.id ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
                         >
                             <MoreVertical size={18} />
@@ -822,7 +834,9 @@ const Jobs: React.FC = () => {
                         {openActionMenuId === job.id && (
                             <div 
                                 ref={actionMenuRef}
-                                className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                                className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                                style={{ zIndex: 1000, position: 'absolute' }}
+                                onClick={(e) => e.stopPropagation()}
                             >
                                 <button 
                                     onClick={() => handleAction('edit', job)}

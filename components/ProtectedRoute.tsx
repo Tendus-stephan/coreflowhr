@@ -280,7 +280,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // If not authenticated, redirect to login with return path
-  if (!session) {
+  // Also check user to ensure both are null (prevent stale state)
+  if (!session || !user) {
+    // Clear any stale state before redirecting
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear();
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

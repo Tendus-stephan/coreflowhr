@@ -411,9 +411,9 @@ const Calendar: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="flex flex-col bg-white min-h-screen">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Interview Calendar</h1>
@@ -514,7 +514,7 @@ const Calendar: React.FC = () => {
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 p-6 overflow-hidden">
+      <div className="flex-1 p-6 overflow-hidden bg-white" style={{ minHeight: 'calc(100vh - 200px)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-gray-500">Loading calendar...</div>

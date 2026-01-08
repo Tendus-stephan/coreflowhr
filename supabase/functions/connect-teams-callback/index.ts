@@ -19,7 +19,7 @@ serve(async (req) => {
     const error = url.searchParams.get('error');
     const errorDescription = url.searchParams.get('error_description');
 
-    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
     // Remove trailing slash if present
     frontendUrl = frontendUrl.replace(/\/$/, '');
 
@@ -275,7 +275,7 @@ serve(async (req) => {
     return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_success=${integrationId}`, 302);
   } catch (error: any) {
     console.error('Error in connect-teams-callback:', error);
-    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:3000';
+    let frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
     frontendUrl = frontendUrl.replace(/\/$/, '');
     console.error('Redirecting to frontend with error:', frontendUrl);
     return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent(error.message || 'Unknown error')}`, 302);

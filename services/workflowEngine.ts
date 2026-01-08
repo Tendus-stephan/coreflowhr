@@ -142,7 +142,14 @@ export async function executeWorkflow(
             .replace(/{candidate_name}/g, candidate.name)
             .replace(/{job_title}/g, jobTitle)
             .replace(/{company_name}/g, companyName)
-            .replace(/{your_name}/g, userName);
+            .replace(/{your_name}/g, userName)
+            // Also replace square bracket placeholders that AI might generate
+            .replace(/\[Your Name\]/g, userName)
+            .replace(/\[Your Title\]/g, '')
+            .replace(/\[Website\/Contact Info\]/g, '')
+            // Replace awkward formal terms
+            .replace(/Curricular Vitae/gi, 'CV')
+            .replace(/curricular vitae/gi, 'CV');
 
         // Replace offer-specific placeholders if offer details are available
         if (offerDetails) {
@@ -165,17 +172,12 @@ export async function executeWorkflow(
 
             const formatBenefits = () => {
                 if (!offerDetails.benefits || offerDetails.benefits.length === 0) return 'Standard benefits package';
-                return offerDetails.benefits.join(', ');
+                return offerDetails.benefits.map(b => `• ${b}`).join('\n');
             };
 
             const formatBenefitsList = () => {
                 if (!offerDetails.benefits || offerDetails.benefits.length === 0) return 'Standard benefits package';
-                return offerDetails.benefits.map((b: string, i: number) => {
-                    if (i === offerDetails.benefits.length - 1 && offerDetails.benefits.length > 1) {
-                        return `and ${b}`;
-                    }
-                    return b;
-                }).join(', ');
+                return offerDetails.benefits.map(b => `• ${b}`).join('\n');
             };
 
             // Replace offer placeholders in subject
@@ -230,14 +232,15 @@ export async function executeWorkflow(
             }
             
             // Build CV upload link
+            // Use production URL by default, fallback to localhost only in development
             const frontendUrl = typeof window !== 'undefined' 
                 ? window.location.origin 
-                : 'http://localhost:5173';
+                : (process.env.VITE_FRONTEND_URL || 'https://www.coreflowhr.com');
             const cvUploadLink = `${frontendUrl}/jobs/apply/${jobId}?token=${cvUploadToken}`;
             
             // Format as clickable HTML link
             const clickableLink = `<a href="${cvUploadLink}" style="color: #2563eb; text-decoration: underline; font-weight: 500;">${cvUploadLink}</a>`;
-            const linkSection = `\n\n---\n\nPlease kindly follow the link below to upload your CV:\n${clickableLink}`;
+            const linkSection = `\n\n---\n\nPlease follow the link below to upload your CV:\n${clickableLink}`;
             
             // Add CV upload link - always append at bottom if not in template
             if (content.includes('{cv_upload_link}')) {
@@ -439,6 +442,13 @@ export async function executeWorkflowsForStage(
     skipIfAlreadySent: boolean = false
 ): Promise<void> {
     try {
+        // Interview stage workflows should NOT execute automatically
+        // Interviews are manually scheduled by recruiters, not triggered by stage changes
+        if (newStage === 'Interview') {
+            console.log('[Workflow Engine] Skipping automatic workflow execution for Interview stage - interviews are manually scheduled');
+            return;
+        }
+        
         // Get all enabled workflows for this stage
         const { data: workflows, error } = await supabase
             .from('email_workflows')

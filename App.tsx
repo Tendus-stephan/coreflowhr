@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SourcingProvider } from './contexts/SourcingContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
+import { ModalProvider, useModal } from './contexts/ModalContext';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
-import { CandidateSourcingNotification } from './components/CandidateSourcingNotification';
+import { AIAssistantMenu } from './components/AIAssistantMenu';
+import { CoreLoader } from './components/CoreLoader';
 import Dashboard from './pages/Dashboard';
 import CandidateBoard from './pages/CandidateBoard';
 import Jobs from './pages/Jobs';
@@ -27,7 +29,61 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 const Layout = () => {
   const location = useLocation();
   const { isExpanded } = useSidebar();
+  const { isCandidateModalOpen } = useModal(); // Move this BEFORE any conditional returns
   
+  // Check sessionStorage synchronously to avoid flash - use function initializer
+  const [showLoader, setShowLoader] = useState(() => {
+    if (location.pathname === '/dashboard') {
+      const shouldShow = sessionStorage.getItem('showDashboardLoader') === 'true';
+      if (shouldShow) {
+        sessionStorage.removeItem('showDashboardLoader');
+        return true;
+      }
+    }
+    return false;
+  });
+
+  // Check sessionStorage when route changes to /dashboard
+  useEffect(() => {
+    if (location.pathname === '/dashboard') {
+      const shouldShow = sessionStorage.getItem('showDashboardLoader') === 'true';
+      if (shouldShow) {
+        sessionStorage.removeItem('showDashboardLoader');
+        setShowLoader(true);
+      }
+    } else {
+      // Hide loader if navigating away from dashboard
+      if (showLoader) {
+        setShowLoader(false);
+      }
+    }
+  }, [location.pathname]);
+
+  // Listen for dashboard loading completion to hide loader
+  useEffect(() => {
+    if (!showLoader) return;
+
+    const handleDashboardLoaded = () => {
+      // Wait a bit for smooth transition
+      setTimeout(() => {
+        setShowLoader(false);
+      }, 300);
+    };
+
+    // Add timeout fallback to prevent loader from getting stuck (max 10 seconds)
+    const timeoutId = setTimeout(() => {
+      console.warn('Dashboard loader timeout - hiding loader');
+      setShowLoader(false);
+    }, 10000);
+
+    window.addEventListener('dashboardLoaded', handleDashboardLoaded);
+    
+    return () => {
+      window.removeEventListener('dashboardLoaded', handleDashboardLoaded);
+      clearTimeout(timeoutId);
+    };
+  }, [showLoader]);
+
   // Pages that don't show the sidebar
   const isStandalonePage = [
     '/', 
@@ -37,7 +93,7 @@ const Layout = () => {
     '/verify-email',
     '/terms',
     '/privacy',
-    '/onboarding'
+    '/onboarding',
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond'));
@@ -47,18 +103,23 @@ const Layout = () => {
   }
 
   const sidebarWidth = isExpanded ? '256px' : '80px';
+  
+  // Don't show AI button on onboarding page or when candidate modal is open
+  const showAIButton = location.pathname !== '/onboarding' && !isCandidateModalOpen;
 
-  // Don't show AI button on onboarding page
-  const showAIButton = location.pathname !== '/onboarding';
+  // Show loader if it's a dashboard login
+  if (showLoader && location.pathname === '/dashboard') {
+    return <CoreLoader />;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-gray-100">
+    <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
       <main className="overflow-x-hidden relative transition-all duration-150 bg-white" style={{ paddingBottom: '80px', marginLeft: sidebarWidth }}>
         <Outlet />
       </main>
       {/* CoreFlow AI notification - hidden on onboarding */}
-      {showAIButton && <CandidateSourcingNotification />}
+      {showAIButton && <AIAssistantMenu />}
     </div>
   );
 };
@@ -224,7 +285,9 @@ const App: React.FC = () => {
       <AuthProvider>
         <SourcingProvider>
           <SidebarProvider>
-            <AppRoutes />
+            <ModalProvider>
+              <AppRoutes />
+            </ModalProvider>
           </SidebarProvider>
         </SourcingProvider>
       </AuthProvider>

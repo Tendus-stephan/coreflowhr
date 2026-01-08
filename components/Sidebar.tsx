@@ -8,15 +8,21 @@ import { api } from '../services/api';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, session, signOut } = useAuth();
   const { isExpanded, setIsExpanded } = useSidebar();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('User');
 
+  // Don't render sidebar if user is not authenticated
+  // This check must be AFTER all hooks to maintain hook order
+  const isAuthenticated = user && session;
+
   // Load user profile data
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
     const loadProfile = async () => {
       if (user) {
         try {
@@ -44,7 +50,7 @@ const Sidebar: React.FC = () => {
     return () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-  }, [user, location.pathname]); // Reload when user changes or when navigating (e.g., returning from Settings)
+  }, [user, location.pathname, isAuthenticated]); // Reload when user changes or when navigating (e.g., returning from Settings)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -67,10 +73,16 @@ const Sidebar: React.FC = () => {
   ];
 
   const handleLogout = async () => {
-    await signOut();
+    // Don't await - signOut handles redirect immediately
+    signOut();
   };
 
   const userEmail = user?.email || '';
+
+  // Don't render sidebar if user is not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className={`${isExpanded ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col fixed top-0 left-0 bottom-0 shadow-sm z-20 transition-all duration-150`} style={{ overflow: 'hidden' }}>

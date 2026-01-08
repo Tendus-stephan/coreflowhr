@@ -95,7 +95,10 @@ async function extractTextFromPDF(file: File): Promise<string> {
         const loadingTask = pdfjsLib.getDocument({
             data: arrayBuffer,
             useSystemFonts: true,
-            verbosity: 0 // Suppress console warnings
+            verbosity: 0, // Suppress console warnings
+            standardFontDataUrl: '/node_modules/pdfjs-dist/cmaps/',
+            cMapUrl: '/node_modules/pdfjs-dist/cmaps/',
+            cMapPacked: true
         });
         
         const pdf = await loadingTask.promise;
@@ -104,14 +107,55 @@ async function extractTextFromPDF(file: File): Promise<string> {
         // Extract text from each page
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            const pageText = content.items
-                .map((item: any) => item.str)
-                .join(' ');
-            fullText += pageText + '\n';
+            
+            try {
+                // Try to extract text content
+                const textContent = await page.getTextContent({
+                    normalizeWhitespace: true,
+                    disableCombineTextItems: false
+                });
+                
+                // Extract text from items
+                const pageText = textContent.items
+                    .map((item: any) => {
+                        // Get text from item (item.str contains the actual text)
+                        let text = '';
+                        if (item.str !== undefined && item.str !== null) {
+                            text = String(item.str);
+                        } else if (item.text !== undefined && item.text !== null) {
+                            text = String(item.text);
+                        }
+                        
+                        // Remove control characters and non-printable characters (0x00-0x1F, 0x7F-0x9F)
+                        text = text.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+                        return text.trim();
+                    })
+                    .filter((text: string) => text.length > 0 && !/^[\s\x00-\x1F]*$/.test(text)) // Remove empty and whitespace-only
+                    .join(' ');
+                
+                fullText += pageText + '\n';
+            } catch (pageError: any) {
+                console.warn(`Warning: Failed to extract text from page ${i}:`, pageError);
+                // Continue with other pages
+            }
         }
 
-        return fullText.trim();
+        const cleanedText = fullText.trim();
+        
+        // Validate extracted text - if it contains too many control characters, it's likely corrupted
+        const controlCharCount = (cleanedText.match(/[\x00-\x1F\x7F-\x9F]/g) || []).length;
+        if (controlCharCount > cleanedText.length * 0.1) {
+            console.warn('⚠️ Extracted PDF text contains many control characters - text extraction may have failed');
+        }
+        
+        // Log preview for debugging
+        console.log('📄 PDF Text Extracted:', {
+            length: cleanedText.length,
+            preview: cleanedText.substring(0, 200),
+            controlCharCount
+        });
+
+        return cleanedText;
     } catch (error: any) {
         console.error('Error extracting text from PDF:', error);
         throw new Error(`Failed to extract text from PDF: ${error.message || 'The file may be corrupted or password-protected.'}`);
@@ -133,7 +177,41 @@ async function extractTextFromDOCX(file: File): Promise<string> {
 }
 
 /**
+ * Parse CV text using OpenAI (GPT-4o Mini) only - NO GEMINI
+ */
+export async function parseCVTextWithAI(text: string, jobSkills?: string[]): Promise<ParsedCVData> {
+  // Use OpenAI ONLY via Supabase Edge Function (secure, reliable, guaranteed JSON)
+  console.log('🤖 [CV Parser] Using OpenAI for CV parsing (via Supabase Edge Function)');
+  console.log('🚫 [CV Parser] Gemini is NOT being used for CV parsing');
+  
+  const { parseCVWithOpenAI } = await import('./openaiService');
+  const aiParsed = await parseCVWithOpenAI(text, jobSkills);
+  
+  console.log('✅ [CV Parser] OpenAI CV parsing completed:', {
+    name: aiParsed.name ? 'Found' : 'Not found',
+    email: aiParsed.email ? 'Found' : 'Not found',
+    skillsCount: aiParsed.skills?.length || 0,
+    workExpCount: aiParsed.workExperience?.length || 0
+  });
+  
+  // Merge AI results with full text
+  return {
+    fullText: text,
+    name: aiParsed.name,
+    email: aiParsed.email,
+    phone: aiParsed.phone,
+    location: aiParsed.location,
+    skills: aiParsed.skills || [],
+    experienceYears: aiParsed.experienceYears,
+    workExperience: aiParsed.workExperience,
+    projects: aiParsed.projects,
+    portfolioUrls: aiParsed.portfolioUrls
+  };
+}
+
+/**
  * Parse basic information from CV text using regex patterns
+ * This is the fallback method when AI parsing is not available
  */
 export function parseCVText(text: string, jobSkills?: string[]): ParsedCVData {
     const fullText = text;
