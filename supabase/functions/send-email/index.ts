@@ -260,10 +260,10 @@ serve(async (req) => {
     } else {
       // Plain text content - escape and convert to HTML
       htmlContent = contentStr
-        .split('\n')
-        .map((line) => (line.trim().length ? escapeHtml(line) : '<br>'))
-        .join('<br>');
-      
+      .split('\n')
+      .map((line) => (line.trim().length ? escapeHtml(line) : '<br>'))
+      .join('<br>');
+    
       // Convert plain URLs to clickable links
       htmlContent = htmlContent.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" style="color: #2563eb; text-decoration: underline;">$1</a>');
     }

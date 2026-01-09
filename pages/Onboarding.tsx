@@ -419,7 +419,7 @@ const Onboarding: React.FC = () => {
                         <div className="flex gap-2">
                              <span className="px-4 py-1.5 bg-white/10 text-white/80 rounded-full text-xs font-bold uppercase tracking-widest border border-white/10">Module {slide.id}</span>
                              <span className="px-4 py-1.5 bg-white/10 text-white/80 rounded-full text-xs font-bold uppercase tracking-widest border border-white/10">Interactive</span>
-                        </div>
+                    </div>
                         <h3 className="text-5xl font-black text-white tracking-tighter leading-none italic">{slide.subtitle}</h3>
                         <p className="text-white/40 text-lg max-w-sm font-medium leading-relaxed">
                             Master the CoreflowHR interface in minutes with our guided visual tours.

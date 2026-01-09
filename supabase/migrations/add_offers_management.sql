@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS offers (
     viewed_at TIMESTAMP WITH TIME ZONE,
     responded_at TIMESTAMP WITH TIME ZONE,
     expires_at TIMESTAMP WITH TIME ZONE,
-    
+
     -- Response details
     response TEXT, -- Candidate's response/notes
     negotiation_history JSONB, -- Track negotiation rounds
@@ -118,4 +118,7 @@ CREATE TRIGGER update_offer_templates_updated_at
     BEFORE UPDATE ON offer_templates
     FOR EACH ROW
     EXECUTE FUNCTION update_offer_templates_updated_at();
+
+
+
 

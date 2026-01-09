@@ -86,7 +86,7 @@ export interface Candidate {
   updatedAt?: string;
   cvFileUrl?: string;
   cvFileName?: string;
-  source?: 'ai_sourced' | 'direct_application' | 'email_application' | 'referral';
+  source?: 'ai_sourced' | 'direct_application' | 'email_application' | 'referral' | 'scraped';
   isTest?: boolean;
   workExperience?: WorkExperience[];
   projects?: Project[];

@@ -612,9 +612,9 @@ export const api = {
             } catch (mfaError) {
                 // If MFA check fails, fall back to database value
                 console.warn('Error checking MFA factors, using database value:', mfaError);
-                return {
-                    twoFactorEnabled: data?.two_factor_enabled ?? false,
-                };
+            return {
+                twoFactorEnabled: data?.two_factor_enabled ?? false,
+            };
             }
         },
         enableTwoFactor: async (): Promise<{ qrCode: string; secret: string; backupCodes: string[]; factorId?: string }> => {
@@ -2161,28 +2161,28 @@ export const api = {
                 // Check if a workflow is configured for the target stage before allowing movement
                 // Interview stage is exempt - interviews are manually scheduled, not automatic
                 if (updates.stage !== 'Interview') {
-                    const { data: workflows, error: workflowCheckError } = await supabase
-                        .from('email_workflows')
-                        .select('id')
-                        .eq('user_id', userId)
-                        .eq('trigger_stage', updates.stage)
-                        .eq('enabled', true)
-                        .limit(1);
-                    
-                    if (workflowCheckError) {
-                        throw new Error(`Error checking workflows: ${workflowCheckError.message}`);
-                    }
-                    
-                    if (!workflows || workflows.length === 0) {
-                        const stageNames: Record<string, string> = {
-                            'Screening': 'Screening',
-                            'Offer': 'Offer',
-                            'Rejected': 'Rejection',
-                            'Hired': 'Hired',
-                            'New': 'New'
-                        };
-                        const stageName = stageNames[updates.stage] || updates.stage;
-                        throw new Error(`Cannot move candidate to "${stageName}" stage. Please create an email workflow for the "${stageName}" stage in Settings > Email Workflows first.`);
+                const { data: workflows, error: workflowCheckError } = await supabase
+                    .from('email_workflows')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('trigger_stage', updates.stage)
+                    .eq('enabled', true)
+                    .limit(1);
+                
+                if (workflowCheckError) {
+                    throw new Error(`Error checking workflows: ${workflowCheckError.message}`);
+                }
+                
+                if (!workflows || workflows.length === 0) {
+                    const stageNames: Record<string, string> = {
+                        'Screening': 'Screening',
+                        'Offer': 'Offer',
+                        'Rejected': 'Rejection',
+                        'Hired': 'Hired',
+                        'New': 'New'
+                    };
+                    const stageName = stageNames[updates.stage] || updates.stage;
+                    throw new Error(`Cannot move candidate to "${stageName}" stage. Please create an email workflow for the "${stageName}" stage in Settings > Email Workflows first.`);
                     }
                 }
                 
@@ -3589,7 +3589,7 @@ export const api = {
                 } else {
                     console.warn('Error fetching invoices (non-critical):', error?.message || error);
                 }
-                return [];
+            return [];
             }
         },
         getBillingDetails: async (): Promise<{ subscription: any; paymentMethod: any }> => {
@@ -4505,7 +4505,7 @@ export const api = {
             // Use production URL by default, fallback to window.location.origin for development
             // This ensures links in emails always point to production, even if sent from dev environment
             const frontendUrl = (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                                    ? window.location.origin 
+                ? window.location.origin 
                                     : 'https://coreflowhr.com');
             const offerResponseLink = `${frontendUrl}/offers/respond/${offerToken}`;
             
