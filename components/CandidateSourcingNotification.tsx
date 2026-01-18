@@ -105,7 +105,7 @@ export const CandidateSourcingNotification: React.FC = () => {
                                 <Sparkles className="text-white" size={20} />
                             </div>
                             <div>
-                                <h3 className="text-white font-bold text-sm">CoreFlow AI</h3>
+                                <h3 className="text-white font-bold text-sm">CoreFlowHR AI</h3>
                                 <p className="text-white/80 text-xs">Candidate Sourcing</p>
                             </div>
                         </div>
@@ -138,7 +138,7 @@ export const CandidateSourcingNotification: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                         <Info size={16} className="text-gray-500" />
                                         <span className="text-sm font-medium text-gray-700">
-                                            CoreFlow AI Assistant
+                                            CoreFlowHR AI Assistant
                                         </span>
                                     </div>
                                     <p className="text-xs text-gray-600 leading-relaxed">

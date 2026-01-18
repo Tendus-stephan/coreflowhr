@@ -65,18 +65,24 @@ const slides: Slide[] = [
         subtitle: "Visual Workflow",
         accentColor: "blue",
         visualLabel: "KANBAN",
-        content: "Visualize your recruitment process with our Kanban board. Move candidates through stages: New → Screening → Interview → Offer → Hired.",
+        content: "Visualize your recruitment process with our Kanban board. Move candidates through stages: New → Screening → Interview → Offer → Hired. New candidates start without emails - contact them via LinkedIn outreach first.",
         detailedSteps: [
             "Go to the Candidates page from the sidebar",
             "View candidates organized in columns by stage",
-            "Click and drag a candidate card to move them between stages",
-            "Click on a card to view full details and take actions",
+            "⚠️ 'New' stage: Sourced candidates without emails - use LinkedIn outreach to contact them",
+            "Click on a candidate card to open their profile and generate LinkedIn outreach message",
+            "After candidate registers email, they automatically move to 'Screening' stage",
+            "Click and drag candidate cards to move them between stages (after they have emails)",
             "Filter candidates by job, stage, or AI match score"
         ],
         commonIssues: [
             {
+                issue: "Candidate in 'New' stage has no email",
+                solution: "This is normal! Sourced candidates don't have emails by default. Open their profile → Email tab → Generate LinkedIn outreach message to contact them."
+            },
+            {
                 issue: "Can't move candidate to a stage",
-                solution: "You must create an email workflow for that stage first. Go to Settings > Email Workflows."
+                solution: "For stages after 'Screening', ensure the candidate has an email (they should after registration). Also check that email workflows are enabled in Settings > Email Workflows."
             },
             {
                 issue: "AI match score not showing",
@@ -84,7 +90,9 @@ const slides: Slide[] = [
             }
         ],
         tips: [
-            "Use bulk actions to move multiple candidates at once",
+            "'New' stage candidates: Generate LinkedIn outreach message to collect their email",
+            "After registration, candidates automatically move to 'Screening' and receive CV upload email",
+            "Use bulk actions to move multiple candidates at once (after they have emails)",
             "Right-click on a card for a quick actions menu",
             "Export candidate data using the download button"
         ],
@@ -96,15 +104,16 @@ const slides: Slide[] = [
         subtitle: "Hiring at Scale",
         accentColor: "emerald",
         visualLabel: "JOBS",
-        content: "Post jobs and manage job statuses. It's crucial to carefully cross-check all job details and input core skills required for the position. Once a job is created and set to Active, candidates will be automatically sourced based on these skills.",
+        content: "Post jobs and manage job statuses. It's crucial to carefully cross-check all job details and input core skills required for the position. Once a job is created and set to Active, candidates will be automatically sourced from LinkedIn based on these skills.",
         detailedSteps: [
             "Click 'New Job' or go to Jobs page and click 'Create Job'",
-            "Fill in details: Title, Department, Location, Type",
+            "Fill in details: Title, Department, Location, Type, Experience Level",
             "⚠️ IMPORTANT: Carefully cross-check all job information for accuracy",
-            "⚠️ CRITICAL: Input all core skills required for the job - this directly impacts AI candidate matching accuracy",
+            "⚠️ CRITICAL: Input all core skills required for the job - this directly impacts candidate matching accuracy",
             "Review and verify all details before proceeding",
             "Set status: Draft, Active, or Closed",
-            "Once Active, candidates will be automatically sourced for the job based on the skills you've defined"
+            "Once Active, candidates will be automatically sourced from LinkedIn",
+            "⚠️ NOTE: Sourced candidates don't have emails by default - you'll contact them via LinkedIn"
         ],
         commonIssues: [
             {
@@ -112,8 +121,8 @@ const slides: Slide[] = [
                 solution: "Make sure the job is set to 'Active' status. Only active jobs trigger candidate sourcing. Also verify that core skills have been properly inputted."
             },
             {
-                issue: "Poor AI match scores for candidates",
-                solution: "Ensure you've inputted all core/required skills for the job. The AI matching system relies heavily on these skills to find suitable candidates."
+                issue: "Poor candidate matches",
+                solution: "Ensure you've inputted all core/required skills for the job. The sourcing system relies heavily on these skills to find suitable candidates."
             },
             {
                 issue: "Job disappeared from the list",
@@ -124,39 +133,50 @@ const slides: Slide[] = [
             "⚠️ Always cross-check job details before setting to Active - accuracy is crucial",
             "⚠️ Input all core skills comprehensively - missing skills lead to poor candidate matches",
             "Use Draft status to prepare and review jobs before publishing",
-            "The more specific and detailed your skills list, the better the AI matching will be",
-            "Close jobs when filled to keep your dashboard clean"
+            "The more specific and detailed your skills list, the better the candidate matches will be",
+            "Close jobs when filled to keep your dashboard clean",
+            "Remember: Sourced candidates start in 'New' stage without emails - use LinkedIn outreach to contact them"
         ],
         icon: <Briefcase className="w-10 h-10" />
     },
     {
         id: 4,
-        title: "Automated Email Workflows",
+        title: "Contacting Candidates & Email Workflows",
         subtitle: "Seamless Communication",
         accentColor: "amber",
         visualLabel: "EMAILS",
-        content: "Set up stage-based email automation to keep candidates engaged. Customize templates, use AI for content, and track communications.",
+        content: "Contact new candidates via LinkedIn outreach first. Once they register their email, automated workflows handle all future communications. Customize templates, use AI for content, and track everything.",
         detailedSteps: [
-            "Go to Settings > Email Workflows",
-            "Select the trigger stage (e.g., when moved to 'Screening')",
-            "Choose or create an email template",
-            "Set optional conditions like minimum AI score",
-            "Enable the workflow and set optional delays"
+            "📋 For NEW candidates (no email): Open candidate modal → Email tab → 'Outreach' section",
+            "Generate LinkedIn message: Click 'Generate Outreach Message' → AI creates message with registration link",
+            "Copy the message and paste it to the candidate on LinkedIn manually",
+            "Candidate clicks link → Registers email → Automatically moved to 'Screening' → Receives CV upload email",
+            "📧 For Email Workflows: Go to Settings > Email Workflows",
+            "⚠️ IMPORTANT: Create a 'Screening' workflow before generating outreach (required for CV upload emails)",
+            "Select trigger stage (Screening, Offer, Hired, Rejected) - 'New' stage workflows are disabled",
+            "Choose or create an email template for that stage",
+            "Enable the workflow - emails will send automatically when candidates move to that stage"
         ],
         commonIssues: [
             {
-                issue: "Emails not being sent",
-                solution: "Check if the workflow is enabled and if an email template is correctly assigned."
+                issue: "Can't generate outreach message",
+                solution: "You must create and enable a 'Screening' workflow first in Settings > Email Workflows. This ensures candidates receive CV upload emails after registering."
+            },
+            {
+                issue: "Emails not being sent after registration",
+                solution: "Check that a 'Screening' workflow is enabled in Settings > Email Workflows. Candidates must have an enabled workflow to receive emails when moved to that stage."
             },
             {
                 issue: "Placeholders showing (e.g. {name})",
-                solution: "Ensure candidate profile has the required data. Verify placeholder names in Settings."
+                solution: "Ensure candidate profile has the required data. Verify placeholder names match your template variables."
             }
         ],
         tips: [
-            "Create workflows for all stages to fully automate",
-            "Use AI-generated content to save writing time",
-            "Test the workflow with a dummy candidate before sending emails out to ensure everything works correctly"
+            "⚠️ Always create a 'Screening' workflow before generating outreach messages - this is required",
+            "New candidates don't have emails - use LinkedIn outreach first, then workflows take over",
+            "Use AI-generated content for outreach messages and email templates to save time",
+            "Test workflows by moving a candidate to different stages to ensure emails send correctly",
+            "'New' stage workflows are disabled - candidates without emails can't receive emails automatically"
         ],
         icon: <Mail className="w-10 h-10" />
     },

@@ -8,44 +8,44 @@ interface PipelineColumnProps {
     stage: CandidateStage;
     candidates: Candidate[];
     onSelectCandidate: (candidate: Candidate) => void;
+    onDropCandidate?: (candidateId: string, newStage: CandidateStage) => void;
 }
 
-export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 4;
-  
-  const totalPages = Math.ceil(candidates.length / ITEMS_PER_PAGE);
-  const paginatedCandidates = candidates.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+// Separate component for draggable candidate card
+const DraggableCandidateCard: React.FC<{
+    candidate: Candidate;
+    onSelect: (candidate: Candidate) => void;
+}> = ({ candidate, onSelect }) => {
+    const [isDragging, setIsDragging] = useState(false);
 
-  // Reset to page 1 if the underlying candidates list changes significantly (e.g. filtering)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [candidates.length, stage]);
+    const handleDragStart = (e: React.DragEvent) => {
+        e.dataTransfer.setData('candidateId', candidate.id);
+        e.dataTransfer.setData('sourceStage', candidate.stage);
+        e.dataTransfer.effectAllowed = 'move';
+        setIsDragging(true);
+    };
 
-  const nextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(p => p + 1);
-  };
+    const handleDragEnd = () => {
+        setIsDragging(false);
+    };
 
-  const prevPage = () => {
-    if (currentPage > 1) setCurrentPage(p => p - 1);
-  };
+    const handleClick = (e: React.MouseEvent) => {
+        // Only open modal if we're not dragging (after a short delay to check)
+        if (!isDragging) {
+            onSelect(candidate);
+        }
+    };
 
-  return (
-    <div className="flex-shrink-0 w-[350px] snap-center flex flex-col bg-gray-50/50 rounded-xl border border-border" style={{ height: '100%' }}>
-      <div className="p-4 flex items-center justify-between border-b border-border/50 bg-white rounded-t-xl sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-            <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wide">{title}</h3>
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">{candidates.length}</span>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar" style={{ minHeight: '0' }}>
-        {paginatedCandidates.map((candidate) => (
-          <div 
-            key={candidate.id}
-            onClick={() => onSelectCandidate(candidate)}
-            className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group relative mb-2"
-          >
+    return (
+        <div 
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onClick={handleClick}
+            className={`bg-white p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-move group relative mb-2 ${
+                isDragging ? 'opacity-50 border-blue-300' : 'border-gray-200 cursor-pointer'
+            }`}
+        >
             <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-3">
                     <Avatar name={candidate.name} className="w-10 h-10 border border-gray-100" />
@@ -91,7 +91,79 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
                 )}
             </div>
             <p className="text-[10px] text-gray-400 mt-3 text-right pt-2 border-t border-gray-50">Sourced {new Date(candidate.appliedDate).toLocaleDateString()}</p>
-          </div>
+        </div>
+    );
+};
+
+export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const ITEMS_PER_PAGE = 4;
+  
+  const totalPages = Math.ceil(candidates.length / ITEMS_PER_PAGE);
+  const paginatedCandidates = candidates.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Reset to page 1 if the underlying candidates list changes significantly (e.g. filtering)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [candidates.length, stage]);
+
+  const nextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(p => p + 1);
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) setCurrentPage(p => p - 1);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const candidateId = e.dataTransfer.getData('candidateId');
+    const sourceStage = e.dataTransfer.getData('sourceStage') as CandidateStage;
+    
+    // Only process if dropped on a different stage
+    if (candidateId && sourceStage !== stage && onDropCandidate) {
+      onDropCandidate(candidateId, stage);
+    }
+  };
+
+  return (
+    <div 
+      className={`flex-shrink-0 w-[350px] snap-center flex flex-col rounded-xl border transition-colors ${isDragOver ? 'bg-blue-50 border-blue-300 border-2' : 'bg-gray-50/50 border-border'}`}
+      style={{ height: '100%' }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <div className="p-4 flex items-center justify-between border-b border-border/50 bg-white rounded-t-xl sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wide">{title}</h3>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">{candidates.length}</span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar" style={{ minHeight: '0' }}>
+        {paginatedCandidates.map((candidate) => (
+          <DraggableCandidateCard 
+            key={candidate.id}
+            candidate={candidate}
+            onSelect={onSelectCandidate}
+          />
         ))}
         {candidates.length === 0 && (
             <div className="h-32 flex flex-col items-center justify-center text-gray-400 gap-2 border-2 border-dashed border-gray-200 rounded-xl m-2">

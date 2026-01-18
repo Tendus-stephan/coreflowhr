@@ -35,9 +35,38 @@ const JobApplication: React.FC = () => {
       }
 
       try {
-        // Load job data
-        const jobData = await api.jobs.get(jobId);
-        setJob(jobData);
+        // Load job data - use direct supabase query for public access (no auth required)
+        // RLS policy "Public can view active jobs" allows anonymous access
+        const { data: jobData, error: jobError } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', jobId)
+          .eq('status', 'Active')
+          .single();
+        
+        if (jobError || !jobData) {
+          throw new Error('Job not found or is no longer accepting applications');
+        }
+        
+        // Map to Job type
+        const mappedJob = {
+          id: jobData.id,
+          title: jobData.title,
+          department: jobData.department || 'General',
+          location: jobData.location,
+          type: jobData.type,
+          status: jobData.status,
+          applicantsCount: jobData.applicants_count || 0,
+          postedDate: jobData.posted_date || jobData.created_at,
+          description: jobData.description || '',
+          company: jobData.company,
+          salaryRange: jobData.salary_range,
+          experienceLevel: jobData.experience_level,
+          remote: jobData.remote || false,
+          skills: jobData.skills || []
+        };
+        
+        setJob(mappedJob);
 
         // Check for token in URL
         const searchParams = new URLSearchParams(window.location.search);
@@ -181,7 +210,7 @@ const JobApplication: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-gray-50 flex items-center justify-center overflow-y-auto">
         <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -189,11 +218,11 @@ const JobApplication: React.FC = () => {
 
   if (error && !job) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+      <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center mb-0">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-6 whitespace-normal">{error.trim()}</p>
           <Button variant="black" onClick={() => window.location.href = '/'}>
             Go to Home
           </Button>
@@ -204,8 +233,8 @@ const JobApplication: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+      <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center mb-0">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
           <p className="text-gray-600 mb-6">
@@ -217,7 +246,7 @@ const JobApplication: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 py-12 px-4 pb-0">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Job Details Sidebar */}
         <div className="lg:col-span-1">

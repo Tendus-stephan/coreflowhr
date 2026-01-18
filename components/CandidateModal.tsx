@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
 import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
 import { Button } from './ui/Button';
-import { generateCandidateAnalysis, draftEmail } from '../services/geminiService';
+import { generateCandidateAnalysis, draftEmail, draftOutreachMessage } from '../services/geminiService';
 import { api } from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList, Legend } from 'recharts';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
@@ -41,6 +41,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [selectedInterviewForFeedback, setSelectedInterviewForFeedback] = useState<string | null>(null);
   const [emailDraft, setEmailDraft] = useState<{ subject: string; content: string } | null>(null);
+  const [outreachDraft, setOutreachDraft] = useState<{ subject: string; content: string; registrationLink: string } | null>(null);
+  const [outreachCopied, setOutreachCopied] = useState(false);
+  const [loadingOutreach, setLoadingOutreach] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [job, setJob] = useState<Job | undefined>(undefined);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -326,6 +329,69 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   const handleCancelSend = () => {
       setShowConfirmSend(false);
+  };
+
+  const handleGenerateOutreach = async () => {
+      if (!job) {
+          setEmailError('Job information not available');
+          return;
+      }
+      
+      setLoadingOutreach(true);
+      setEmailError(null);
+      try {
+          // Check if a Screening workflow is enabled before generating outreach
+          // This prevents candidates from registering but not receiving CV upload emails
+          const workflows = await api.workflows.list();
+          const screeningWorkflow = workflows.find(w => w.triggerStage === 'Screening' && w.enabled);
+          
+          if (!screeningWorkflow) {
+              const errorMessage = 'Please create and enable a Screening workflow in Settings > Email Workflows before generating outreach messages. Candidates who register their email need to receive a CV upload email automatically.';
+              alert(errorMessage);
+              throw new Error(errorMessage);
+          }
+          
+          // Generate registration token
+          const token = await api.candidates.generateRegistrationToken(candidate.id);
+          
+          // Build registration link
+          // Always use production URL for links in messages (never localhost)
+          // window.location.origin is checked if we're in production, otherwise use default production URL
+          const frontendUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+              ? window.location.origin 
+              : 'https://www.coreflowhr.com';
+          const registrationLink = `${frontendUrl}/candidates/register/${candidate.id}?token=${token}`;
+          
+          // Generate outreach draft
+          const draft = await draftOutreachMessage(candidate, job, registrationLink);
+          
+          setOutreachDraft({
+              subject: draft.subject,
+              content: draft.content,
+              registrationLink: registrationLink
+          });
+      } catch (error: any) {
+          console.error('Error generating outreach message:', error);
+          setEmailError(error.message || 'Failed to generate outreach message');
+      } finally {
+          setLoadingOutreach(false);
+      }
+  };
+
+  const handleCopyOutreachMessage = async () => {
+      if (!outreachDraft) return;
+      
+      // Copy full message (subject + content)
+      const fullMessage = `${outreachDraft.subject}\n\n${outreachDraft.content}`;
+      
+      try {
+          await navigator.clipboard.writeText(fullMessage);
+          setOutreachCopied(true);
+          setTimeout(() => setOutreachCopied(false), 2000);
+      } catch (error) {
+          console.error('Failed to copy message:', error);
+          setEmailError('Failed to copy message to clipboard');
+      }
   };
 
   const getScoreColor = (score?: number) => {
@@ -952,101 +1018,210 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
                     {emailSubTab === 'compose' && (
                         <>
-                    <div className="flex gap-3 overflow-x-auto pb-2">
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleGenerateEmail('Screening')} 
-                            disabled={loadingAI || disableScreening}
-                            className={disableScreening ? 'opacity-50 cursor-not-allowed' : ''}
-                        >
-                            Draft Screening
-                        </Button>
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleGenerateEmail('Offer')} 
-                            disabled={loadingAI || disableOffer}
-                            className={disableOffer ? 'opacity-50 cursor-not-allowed' : ''}
-                        >
-                            Draft Offer
-                        </Button>
-                        {showHired && (
-                            <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={() => handleGenerateEmail('Hired')} 
-                                disabled={loadingAI}
-                            >
-                                Draft Hired
-                            </Button>
-                        )}
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleGenerateEmail('Rejection')} 
-                            disabled={loadingAI || disableRejection} 
-                            className={`hover:text-red-600 hover:border-red-200 ${disableRejection ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            Draft Rejection
-                        </Button>
-                    </div>
-                    
-                    {loadingAI && <div className="text-sm text-gray-500 animate-pulse flex items-center gap-2"><BrainCircuit size={14} className="animate-spin"/> Generating draft...</div>}
+                            {/* Show outreach section if candidate has no email */}
+                            {!candidate.email ? (
+                                <div className="space-y-6">
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle size={20} className="text-gray-600 mt-0.5" />
+                                            <div className="flex-1">
+                                                <h3 className="text-sm font-semibold text-gray-900 mb-1">LinkedIn Outreach</h3>
+                                                <p className="text-sm text-gray-700">This candidate doesn't have an email. Generate an outreach message with a registration link to send via LinkedIn.</p>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                    {emailDraft && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">Subject</label>
-                                <input 
-                                    type="text"
-                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
-                                    value={emailDraft.subject}
-                                    onChange={(e) => setEmailDraft({ ...emailDraft, subject: e.target.value })}
-                                    placeholder="Email subject..."
-                                        />
+                                    <div className="flex items-center gap-3">
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={handleGenerateOutreach}
+                                            disabled={loadingOutreach || !job}
+                                        >
+                                            <BrainCircuit size={14} className="mr-2" />
+                                            Generate Outreach Message
+                                        </Button>
+                                        
+                                        {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
+                                            <a 
+                                                href={candidate.profileUrl || candidate.portfolioUrls?.linkedin}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                            >
+                                                <ExternalLink size={14} />
+                                                Open LinkedIn Profile
+                                            </a>
+                                        )}
                                     </div>
-                    <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">Email Content</label>
-                        <textarea 
-                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-black focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
-                                    value={emailDraft.content}
-                                    onChange={(e) => setEmailDraft({ ...emailDraft, content: e.target.value })}
-                                    placeholder="Email content will appear here..."
-                        />
+
+                                    {loadingOutreach && (
+                                        <div className="text-sm text-gray-500 animate-pulse flex items-center gap-2">
+                                            <BrainCircuit size={14} className="animate-spin"/>
+                                            Generating outreach message...
+                                        </div>
+                                    )}
+
+                                    {outreachDraft && (
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700">Subject (for reference)</label>
+                                                <input 
+                                                    type="text"
+                                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                                                    value={outreachDraft.subject}
+                                                    readOnly
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700">LinkedIn Message</label>
+                                                <textarea 
+                                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-black focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
+                                                    value={outreachDraft.content}
+                                                    readOnly
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700">Registration Link</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="text"
+                                                        className="flex-1 bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10 font-mono text-xs"
+                                                        value={outreachDraft.registrationLink}
+                                                        readOnly
+                                                    />
+                                                </div>
+                                            </div>
+                                            {emailError && (
+                                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                                                    {emailError}
+                                                </div>
+                                            )}
+                                            {outreachCopied && (
+                                                <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
+                                                    <CheckCircle size={16} />
+                                                    Message copied to clipboard!
+                                                </div>
+                                            )}
+                                            <div className="flex justify-end gap-3">
+                                                <Button 
+                                                    variant="outline" 
+                                                    onClick={handleCopyOutreachMessage}
+                                                    disabled={!outreachDraft}
+                                                >
+                                                    Copy Message to Clipboard
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!outreachDraft && !loadingOutreach && (
+                                        <div className="text-center py-12 text-gray-500">
+                                            <Mail size={48} className="mx-auto mb-4 opacity-50" />
+                                            <p className="text-sm">Click "Generate Outreach Message" to create a LinkedIn message with registration link</p>
+                                        </div>
+                                    )}
                                 </div>
-                            <div className="space-y-2">
-                                {emailError && (
-                                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
-                                        {emailError}
+                            ) : (
+                                /* Show regular email compose for candidates with email */
+                                <>
+                                    <div className="flex gap-3 overflow-x-auto pb-2">
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={() => handleGenerateEmail('Screening')} 
+                                            disabled={loadingAI || disableScreening}
+                                            className={disableScreening ? 'opacity-50 cursor-not-allowed' : ''}
+                                        >
+                                            Draft Screening
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={() => handleGenerateEmail('Offer')} 
+                                            disabled={loadingAI || disableOffer}
+                                            className={disableOffer ? 'opacity-50 cursor-not-allowed' : ''}
+                                        >
+                                            Draft Offer
+                                        </Button>
+                                        {showHired && (
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline" 
+                                                onClick={() => handleGenerateEmail('Hired')} 
+                                                disabled={loadingAI}
+                                            >
+                                                Draft Hired
+                                            </Button>
+                                        )}
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={() => handleGenerateEmail('Rejection')} 
+                                            disabled={loadingAI || disableRejection} 
+                                            className={`hover:text-red-600 hover:border-red-200 ${disableRejection ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        >
+                                            Draft Rejection
+                                        </Button>
                                     </div>
-                                )}
-                                {emailSent && (
-                                    <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
-                                        <CheckCircle size={16} />
-                                        Email sent successfully!
-                                    </div>
-                                )}
-                    <div className="flex justify-end">
-                                    <Button 
-                                        icon={<Mail size={16}/>} 
-                                        variant="black" 
-                                        onClick={handleSendEmailClick}
-                                        disabled={sendingEmail || !emailDraft}
-                                    >
-                                        {sendingEmail ? 'Sending...' : 'Send Email'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {!emailDraft && !loadingAI && (
-                        <div className="text-center py-12 text-gray-500">
-                            <Mail size={48} className="mx-auto mb-4 opacity-50" />
-                            <p className="text-sm">Click a button above to generate an email draft</p>
-                    </div>
-                    )}
+                                    
+                                    {loadingAI && <div className="text-sm text-gray-500 animate-pulse flex items-center gap-2"><BrainCircuit size={14} className="animate-spin"/> Generating draft...</div>}
+
+                                    {emailDraft && (
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700">Subject</label>
+                                                <input 
+                                                    type="text"
+                                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                                                    value={emailDraft.subject}
+                                                    onChange={(e) => setEmailDraft({ ...emailDraft, subject: e.target.value })}
+                                                    placeholder="Email subject..."
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700">Email Content</label>
+                                                <textarea 
+                                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-black focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
+                                                    value={emailDraft.content}
+                                                    onChange={(e) => setEmailDraft({ ...emailDraft, content: e.target.value })}
+                                                    placeholder="Email content will appear here..."
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                {emailError && (
+                                                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                                                        {emailError}
+                                                    </div>
+                                                )}
+                                                {emailSent && (
+                                                    <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
+                                                        <CheckCircle size={16} />
+                                                        Email sent successfully!
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-end">
+                                                    <Button 
+                                                        icon={<Mail size={16}/>} 
+                                                        variant="black" 
+                                                        onClick={handleSendEmailClick}
+                                                        disabled={sendingEmail || !emailDraft}
+                                                    >
+                                                        {sendingEmail ? 'Sending...' : 'Send Email'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {!emailDraft && !loadingAI && (
+                                        <div className="text-center py-12 text-gray-500">
+                                            <Mail size={48} className="mx-auto mb-4 opacity-50" />
+                                            <p className="text-sm">Click a button above to generate an email draft</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </>
                     )}
 

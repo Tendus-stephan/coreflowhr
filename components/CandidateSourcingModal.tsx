@@ -85,7 +85,7 @@ export const CandidateSourcingModal: React.FC<CandidateSourcingModalProps> = ({
                                     Processing: {currentCandidateName}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                    Analyzing profile and calculating match score...
+                                    Scraping LinkedIn profiles and validating candidates...
                                 </p>
                             </div>
                         </div>
@@ -96,7 +96,7 @@ export const CandidateSourcingModal: React.FC<CandidateSourcingModalProps> = ({
                             <CheckCircle className="text-green-600" size={20} />
                             <div className="flex-1">
                                 <p className="text-sm font-medium text-green-900">
-                                    Successfully sourced {total} test candidates
+                                    Successfully sourced {current} candidates
                                 </p>
                                 <p className="text-xs text-green-700 mt-0.5">
                                     Candidates are now available in your candidate board
@@ -108,8 +108,8 @@ export const CandidateSourcingModal: React.FC<CandidateSourcingModalProps> = ({
                     {/* Info */}
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
                         <p className="text-xs text-blue-900">
-                            <span className="font-semibold">Note:</span> These are demo/test candidates generated for testing purposes. 
-                            In production, candidates will be sourced through AI scraping methods.
+                            <span className="font-semibold">Note:</span> Candidates are being sourced from LinkedIn using real profiles. 
+                            This may take a few moments depending on the number of candidates requested.
                         </p>
                     </div>
                 </div>

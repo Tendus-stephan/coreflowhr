@@ -39,13 +39,55 @@ You need **at least one** of these providers:
 - Each LinkedIn scrape uses ~1-2 compute units
 - Enough for testing and light usage
 
-#### Option B: ScraperAPI (Alternative/Fallback)
+#### Option B: SociaVault (Cheapest Pay-as-you-go)
+
+**Why SociaVault?**
+- **Cheapest option**: $0.001 per request (1/10th of a cent)
+- **No monthly fee**: Pay only for what you use
+- **50 free credits** for testing
+- **LinkedIn support**: Dedicated LinkedIn API
+- **Legitimate service**: Verified as safe by ScamAdviser
+
+**Setup Steps:**
+1. Go to https://sociavault.com
+2. Sign up for a free account (get 50 free credits)
+3. Go to Dashboard → Copy API Key
+4. Add to `.env.local`: `SOCIAVAULT_API_KEY=your_key_here`
+5. **See detailed guide**: `scraper/SETUP_SOCIAVAULT.md`
+
+**Cost:**
+- 50 free credits (testing)
+- $0.001 per request after that
+- Example: 100 profiles = $0.10 (10 cents)
+
+#### Option C: ScrapingBee (Affordable Alternative)
+
+**Why ScrapingBee?**
+- **Well-established**: Trusted by thousands of developers since 2019
+- **Affordable**: $0.20 per 1,000 requests
+- **Free trial**: Available for testing
+- **Reliable**: High uptime and good support
+- **LinkedIn + Job Boards**: Supports both
+
+**Setup Steps:**
+1. Go to https://www.scrapingbee.com
+2. Sign up for a free account
+3. Go to Dashboard → Copy API Key
+4. Add to `.env.local`: `SCRAPINGBEE_API_KEY=your_key_here`
+5. **See detailed guide**: `scraper/SETUP_SCRAPINGBEE.md`
+
+**Cost:**
+- Free trial available
+- $0.20 per 1,000 requests
+- Example: 1,000 profiles = $0.20 (20 cents)
+
+#### Option D: ScraperAPI (Not Recommended for LinkedIn)
 
 **Why ScraperAPI?**
-- General-purpose scraping (LinkedIn, job boards, etc.)
+- General-purpose scraping (job boards, etc.)
 - FREE tier: 1,000 requests/month
-- Paid: $29/month (Starter plan)
-- Good fallback if Apify fails
+- **LinkedIn requires paid plan**: $29/month minimum
+- Use only for job boards (where free tier works)
 
 **Setup Steps:**
 1. Go to https://www.scraperapi.com
@@ -56,9 +98,10 @@ You need **at least one** of these providers:
 
 **Free Tier Limits:**
 - 1,000 requests/month
-- Good for testing and light usage
+- ❌ LinkedIn NOT supported on free tier
+- ✅ Job boards work on free tier
 
-#### Option C: GitHub API (Free, Tech Roles Only)
+#### Option E: GitHub API (Free, Tech Roles Only)
 
 **Why GitHub?**
 - Completely FREE
@@ -87,10 +130,16 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 # Option 1: Apify (Recommended)
 APIFY_API_TOKEN=your_apify_api_token
 
-# Option 2: ScraperAPI (Alternative)
+# Option 2: SociaVault (Cheapest - $0.001 per request)
+SOCIAVAULT_API_KEY=your_sociavault_api_key
+
+# Option 3: ScrapingBee ($0.20 per 1K requests)
+SCRAPINGBEE_API_KEY=your_scrapingbee_api_key
+
+# Option 4: ScraperAPI (Not recommended for LinkedIn - requires paid plan)
 SCRAPERAPI_KEY=your_scraperapi_key
 
-# Option 3: GitHub (Optional, for tech roles)
+# Option 5: GitHub (Optional, for tech roles)
 GITHUB_TOKEN=your_github_token
 
 # Configuration (Optional)

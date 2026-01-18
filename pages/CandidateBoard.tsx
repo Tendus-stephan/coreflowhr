@@ -177,6 +177,30 @@ const CandidateBoard: React.FC = () => {
       }
   };
 
+  // Handle drag and drop for candidates
+  const handleDropCandidate = async (candidateId: string, newStage: CandidateStage) => {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+
+      // Check if stage actually changed
+      if (candidate.stage === newStage) return;
+
+      try {
+          // Update candidate stage via API
+          const updatedCandidate = await api.candidates.update(candidateId, {
+              stage: newStage
+          });
+
+          // Update local state
+          await handleCandidateUpdate(updatedCandidate);
+      } catch (error) {
+          console.error('Error moving candidate:', error);
+          setToastMessage('Failed to move candidate. Please try again.');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+      }
+  };
+
   // --- Filter Pill Counts ---
   const counts = useMemo(() => {
       const getCount = (filterType: string) => {
@@ -383,36 +407,42 @@ const CandidateBoard: React.FC = () => {
                 stage={CandidateStage.NEW} 
                 candidates={getCandidatesByStage(CandidateStage.NEW)} 
                 onSelectCandidate={setSelectedCandidate}
+                onDropCandidate={handleDropCandidate}
             />
             <PipelineColumn 
                 title="Screening" 
                 stage={CandidateStage.SCREENING} 
                 candidates={getCandidatesByStage(CandidateStage.SCREENING)} 
                 onSelectCandidate={setSelectedCandidate}
+                onDropCandidate={handleDropCandidate}
             />
             <PipelineColumn 
                 title="Interview" 
                 stage={CandidateStage.INTERVIEW} 
                 candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} 
                 onSelectCandidate={setSelectedCandidate}
+                onDropCandidate={handleDropCandidate}
             />
             <PipelineColumn 
                 title="Offer" 
                 stage={CandidateStage.OFFER} 
                 candidates={getCandidatesByStage(CandidateStage.OFFER)} 
                 onSelectCandidate={setSelectedCandidate}
+                onDropCandidate={handleDropCandidate}
             />
             <PipelineColumn 
                 title="Hired" 
                 stage={CandidateStage.HIRED} 
                 candidates={getCandidatesByStage(CandidateStage.HIRED)} 
                 onSelectCandidate={setSelectedCandidate}
+                onDropCandidate={handleDropCandidate}
             />
             <PipelineColumn 
                 title="Rejected" 
                 stage={CandidateStage.REJECTED} 
                 candidates={getCandidatesByStage(CandidateStage.REJECTED)} 
                 onSelectCandidate={setSelectedCandidate}
+                onDropCandidate={handleDropCandidate}
             />
           </div>
       </div>

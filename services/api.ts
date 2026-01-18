@@ -191,7 +191,13 @@ export const trackSession = async (): Promise<void> => {
             console.error('Error updating session after conflict:', updateError);
           }
         } else {
-          console.error('Error inserting session:', insertError);
+          console.error('Error inserting session:', {
+            message: insertError?.message,
+            details: insertError?.details,
+            hint: insertError?.hint,
+            code: insertError?.code,
+            fullError: insertError
+          });
         }
         return;
       }
@@ -1280,24 +1286,37 @@ export const api = {
 
             const { data, error } = await query;
 
-            if (error) throw error;
+            if (error) {
+                // Log detailed error information for debugging
+                console.error('Supabase error fetching jobs:', {
+                    message: error.message,
+                    code: error.code,
+                    details: error.details,
+                    hint: error.hint,
+                    fullError: error
+                });
+                throw error;
+            }
 
-            const jobs = (data || []).map(job => ({
+            const jobs = (data || []).map((job: any) => ({
                 id: job.id,
-                title: job.title,
+                title: job.title || '',
                 department: job.department || 'General',
-                location: job.location,
-                type: job.type,
-                status: job.status,
+                location: job.location || '',
+                type: job.type || 'Full-time',
+                status: job.status || 'Draft',
                 applicantsCount: job.applicants_count || 0,
-                postedDate: job.posted_date || job.created_at,
+                postedDate: job.posted_date || job.created_at || new Date().toISOString(),
                 description: job.description || '',
                 company: job.company,
                 salaryRange: job.salary_range,
                 experienceLevel: job.experience_level,
                 remote: job.remote || false,
                 skills: job.skills || [],
-                isTest: job.is_test || false
+                isTest: job.is_test || false,
+                scrapingStatus: job.scraping_status || null,
+                scrapingError: job.scraping_error || null,
+                scrapingAttemptedAt: job.scraping_attempted_at || null
             }));
 
             return {
@@ -1336,7 +1355,10 @@ export const api = {
                 experienceLevel: data.experience_level,
                 remote: data.remote || false,
                 skills: data.skills || [],
-                isTest: data.is_test || false
+                isTest: data.is_test || false,
+                scrapingStatus: data.scraping_status || null,
+                scrapingError: data.scraping_error || null,
+                scrapingAttemptedAt: data.scraping_attempted_at || null
             };
         },
         create: async (jobData: Partial<Job>) => {
@@ -1599,14 +1621,8 @@ export const api = {
                 console.error('Error logging candidate creation:', logError);
             }
 
-            // Execute workflows for "New" stage to send emails to newly sourced candidates
-            try {
-                const { executeWorkflowsForStage } = await import('./workflowEngine');
-                await executeWorkflowsForStage(createdCandidate.id, 'New', userId, false);
-            } catch (workflowError) {
-                console.error('Error executing workflow for newly sourced candidate:', workflowError);
-                // Don't fail candidate creation if workflow execution fails
-            }
+            // Note: Automatic "New" stage workflow execution is disabled
+            // Emails are now sent manually or when candidates move to other stages
         },
         apply: async (jobId: string, applicationData: {
             name: string;
@@ -1777,7 +1793,7 @@ export const api = {
                         const { generateCandidateAnalysis } = await import('./geminiService');
                         const candidateForAnalysis: Candidate = {
                             id: '', // Temporary, won't be used in analysis
-                            name: parsedData.name || applicationData.name,
+                            name: applicationData.name, // Always use form name, never CV-extracted name
                             email: normalizedEmail,
                             role: job.title,
                             jobId: jobId,
@@ -1846,7 +1862,7 @@ export const api = {
                     // Update existing candidate
                     // CV is already uploaded to final path (cvFilePath and cvFileUrl are set above)
                     const updateData: any = {
-                            name: parsedData.name || applicationData.name,
+                            name: applicationData.name, // Always use form name, never CV-extracted name
                             phone: parsedData.phone || applicationData.phone || null,
                             cover_letter: applicationData.coverLetter || null,
                             cv_file_url: cvFileUrl,
@@ -1911,7 +1927,7 @@ export const api = {
                         .insert({
                             user_id: job.user_id,
                             job_id: jobId,
-                            name: parsedData.name || applicationData.name,
+                            name: applicationData.name, // Always use form name, never CV-extracted name
                             email: normalizedEmail,
                             phone: parsedData.phone || applicationData.phone || null,
                             cover_letter: applicationData.coverLetter || null,
@@ -2081,7 +2097,8 @@ export const api = {
                 isTest: candidate.is_test,
                 workExperience: candidate.work_experience || [],
                 projects: candidate.projects || [],
-                portfolioUrls: candidate.portfolio_urls || {}
+                portfolioUrls: candidate.portfolio_urls || {},
+                profileUrl: candidate.profile_url
             };
             });
             
@@ -2290,7 +2307,8 @@ export const api = {
                 skills: data.skills || [],
                 workExperience: data.work_experience || [],
                 projects: data.projects || [],
-                portfolioUrls: data.portfolio_urls || {}
+                portfolioUrls: data.portfolio_urls || {},
+                profileUrl: data.profile_url
             };
         },
         search: async (query: string, stageFilter?: CandidateStage): Promise<Candidate[]> => {
@@ -2345,7 +2363,8 @@ export const api = {
                 isTest: candidate.is_test,
                 workExperience: candidate.work_experience || [],
                 projects: candidate.projects || [],
-                portfolioUrls: candidate.portfolio_urls || {}
+                portfolioUrls: candidate.portfolio_urls || {},
+                profileUrl: candidate.profile_url
             }));
         },
         getNotes: async (candidateId: string): Promise<Note[]> => {
@@ -2501,6 +2520,135 @@ export const api = {
                 .eq('user_id', userId); // Ensure user can only delete their own notes
 
             if (error) throw error;
+        },
+        generateRegistrationToken: async (candidateId: string): Promise<string> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            // Verify candidate belongs to user
+            const { data: candidate, error: candidateError } = await supabase
+                .from('candidates')
+                .select('id, user_id')
+                .eq('id', candidateId)
+                .eq('user_id', userId)
+                .single();
+
+            if (candidateError || !candidate) {
+                throw new Error('Candidate not found or access denied');
+            }
+
+            // Generate secure random token (32 characters)
+            const generateSecureToken = () => {
+                const array = new Uint8Array(32);
+                crypto.getRandomValues(array);
+                return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+            };
+
+            const token = generateSecureToken();
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiration
+
+            // Update candidate with token
+            const { error: updateError } = await supabase
+                .from('candidates')
+                .update({
+                    registration_token: token,
+                    registration_token_expires_at: expiresAt.toISOString(),
+                    registration_token_used: false
+                })
+                .eq('id', candidateId)
+                .eq('user_id', userId);
+
+            if (updateError) throw updateError;
+
+            return token;
+        },
+        register: async (candidateId: string, token: string, email: string): Promise<void> => {
+            // Normalize email
+            const normalizedEmail = email.toLowerCase().trim();
+
+            // Validate token - check if exists, not expired, not used, and get candidate with user_id and stage
+            const { data: candidate, error: candidateError } = await supabase
+                .from('candidates')
+                .select('id, user_id, job_id, stage, registration_token, registration_token_expires_at, registration_token_used, email')
+                .eq('id', candidateId)
+                .single();
+
+            if (candidateError || !candidate) {
+                throw new Error('Candidate not found');
+            }
+
+            if (candidate.email) {
+                throw new Error('Candidate already has an email registered');
+            }
+
+            if (!candidate.registration_token || candidate.registration_token !== token) {
+                throw new Error('Invalid registration token');
+            }
+
+            if (candidate.registration_token_used) {
+                throw new Error('Registration token has already been used');
+            }
+
+            const expiresAt = candidate.registration_token_expires_at ? new Date(candidate.registration_token_expires_at) : null;
+            if (expiresAt && expiresAt < new Date()) {
+                throw new Error('Registration token has expired');
+            }
+
+            // Update candidate with email, mark token as used, and move to Screening stage
+            // After registration, candidate moves to Screening to receive CV upload instructions via email
+            const { error: updateError } = await supabase
+                .from('candidates')
+                .update({
+                    email: normalizedEmail,
+                    registration_token_used: true,
+                    stage: 'Screening' // Move to Screening after registration - they'll get email with CV upload link
+                })
+                .eq('id', candidateId);
+
+            if (updateError) throw updateError;
+
+            // Execute Screening workflow to send email with CV upload link
+            // This happens after email is registered, so they can receive the workflow email
+            if (candidate.user_id) {
+                try {
+                    // Small delay to ensure database update is fully committed
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // Re-fetch candidate to ensure we have the latest data including the newly registered email
+                    const { data: updatedCandidate, error: fetchError } = await supabase
+                        .from('candidates')
+                        .select('*')
+                        .eq('id', candidateId)
+                        .single();
+                    
+                    if (fetchError) {
+                        console.error('[Registration] Error fetching updated candidate:', fetchError);
+                    }
+                    
+                    if (!updatedCandidate || !updatedCandidate.email) {
+                        console.warn('[Registration] Candidate email not found after update - workflow may not execute');
+                        console.warn('[Registration] Updated candidate data:', updatedCandidate);
+                    } else {
+                        console.log(`[Registration] Candidate email confirmed: ${updatedCandidate.email}`);
+                    }
+                    
+                    const { executeWorkflowsForStage } = await import('./workflowEngine');
+                    // Don't skip if already sent - this is the first email after registration
+                    console.log(`[Registration] Executing Screening workflow for candidate ${candidateId} (user: ${candidate.user_id})`);
+                    await executeWorkflowsForStage(candidateId, 'Screening', candidate.user_id, false);
+                    console.log(`[Registration] Screening workflow execution completed for candidate ${candidateId}`);
+                } catch (workflowError) {
+                    console.error('[Registration] Error executing screening workflow after registration:', workflowError);
+                    console.error('[Registration] Workflow error details:', {
+                        message: workflowError instanceof Error ? workflowError.message : 'Unknown error',
+                        stack: workflowError instanceof Error ? workflowError.stack : undefined
+                    });
+                    // Don't fail registration if workflow execution fails - email is registered successfully
+                }
+            } else {
+                console.warn('[Registration] No user_id found for candidate - cannot execute workflow');
+            }
         }
     },
     interviews: {
@@ -3433,7 +3581,7 @@ export const api = {
         }
     },
     settings: {
-        getPlan: async (): Promise<BillingPlan> => {
+        getPlan: async (): Promise<BillingPlan & { subscriptionStatus?: string; subscriptionStripeId?: string; subscriptionPeriodEnd?: string }> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
@@ -3446,12 +3594,15 @@ export const api = {
             if (error && error.code !== 'PGRST116') throw error;
 
             return {
-                name: data?.billing_plan_name || 'Basic',
+                name: data?.billing_plan_name || 'Basic Plan',
                 price: parseFloat(data?.billing_plan_price) || 0,
                 interval: data?.billing_plan_interval || 'monthly',
-                activeJobsLimit: data?.billing_plan_active_jobs_limit || 10,
-                candidatesLimit: data?.billing_plan_candidates_limit || 20,
-                currency: data?.billing_plan_currency || '$'
+                activeJobsLimit: data?.billing_plan_active_jobs_limit || 5,
+                candidatesLimit: data?.billing_plan_candidates_limit || 50,
+                currency: data?.billing_plan_currency || '$',
+                subscriptionStatus: data?.subscription_status || null,
+                subscriptionStripeId: data?.subscription_stripe_id || null,
+                subscriptionPeriodEnd: data?.subscription_current_period_end || null
             };
         },
         getNotificationPreferences: async (): Promise<{
@@ -3602,7 +3753,14 @@ export const api = {
                     body: {},
                 });
 
+                // Handle both error object and non-2xx status codes gracefully
                 if (error) {
+                    // If it's a FunctionsHttpError (non-2xx status), try to parse the error body
+                    if (error.message?.includes('non-2xx') || error.message?.includes('Edge Function')) {
+                        console.warn('Billing Edge Function returned non-2xx status (may not be deployed or missing subscription):', error.message);
+                        // Return null gracefully - this is expected if user has no subscription
+                        return { subscription: null, paymentMethod: null };
+                    }
                     console.error('Error fetching billing details:', error);
                     return { subscription: null, paymentMethod: null };
                 }
@@ -4502,11 +4660,11 @@ export const api = {
             tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60);
             
             // Build offer response link
-            // Use production URL by default, fallback to window.location.origin for development
-            // This ensures links in emails always point to production, even if sent from dev environment
-            const frontendUrl = (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+            // Always use production URL for email links (never localhost)
+            // window.location.origin is only checked if we're in browser AND not localhost
+            const frontendUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
                 ? window.location.origin 
-                                    : 'https://coreflowhr.com');
+                : 'https://www.coreflowhr.com';
             const offerResponseLink = `${frontendUrl}/offers/respond/${offerToken}`;
             
             // Replace template variables in content (notes placeholder removed from default, but still available if user adds it to template)
@@ -5260,9 +5418,10 @@ export const api = {
                         .eq('id', offerId);
 
                     // Build offer response link
-                    const frontendUrl = (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                                            ? window.location.origin 
-                                            : 'https://coreflowhr.com');
+                    // Always use production URL for email links (never localhost)
+                    const frontendUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+                        ? window.location.origin 
+                        : 'https://www.coreflowhr.com';
                     const offerResponseLink = `${frontendUrl}/offers/respond/${offerToken}`;
 
                     // Add response link to email

@@ -1,8 +1,9 @@
 import { supabase } from './supabase';
+import { createNotification, notifyCandidateEvent, notifyJobEvent } from './notificationHelpers';
 
 /**
  * Comprehensive activity logging service
- * Logs all important actions in the workspace
+ * Logs all important actions in the workspace AND creates notifications
  */
 
 export type ActivityAction =
@@ -137,10 +138,20 @@ const formatActionText = (action: ActivityAction, target: string, targetTo?: str
 
 // Candidate Activities
 export const logCandidateAdded = async (candidateName: string) => {
-    await logActivity({
-        action: 'candidate_added',
-        target: candidateName
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        // Log activity
+        await logActivity({
+            action: 'candidate_added',
+            target: candidateName
+        });
+        // Create notification
+        try {
+            await notifyCandidateEvent(user.id, 'added', candidateName);
+        } catch (error) {
+            console.error('Error creating candidate added notification:', error);
+        }
+    }
 };
 
 export const logCVParsed = async (candidateName: string, source?: string) => {
@@ -160,11 +171,21 @@ export const logCandidateScored = async (candidateName: string, score?: number) 
 };
 
 export const logCandidateMoved = async (candidateName: string, fromStage: string, toStage: string) => {
-    await logActivity({
-        action: 'candidate_moved',
-        target: candidateName,
-        targetTo: `${fromStage} → ${toStage}`
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        // Log activity
+        await logActivity({
+            action: 'candidate_moved',
+            target: candidateName,
+            targetTo: `${fromStage} → ${toStage}`
+        });
+        // Create notification
+        try {
+            await notifyCandidateEvent(user.id, 'moved', candidateName, `Moved from ${fromStage} to ${toStage}`);
+        } catch (error) {
+            console.error('Error creating candidate moved notification:', error);
+        }
+    }
 };
 
 export const logCandidateEdited = async (candidateName: string) => {
@@ -184,10 +205,20 @@ export const logWorkflowTriggered = async (workflowName: string, candidateName?:
 
 // Job Activities
 export const logJobCreated = async (jobTitle: string) => {
-    await logActivity({
-        action: 'job_created',
-        target: jobTitle
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        // Log activity
+        await logActivity({
+            action: 'job_created',
+            target: jobTitle
+        });
+        // Create notification - use job_status_update since job_created doesn't exist
+        try {
+            await notifyJobEvent(user.id, 'status_update', jobTitle, 'Job has been created');
+        } catch (error) {
+            console.error('Error creating job created notification:', error);
+        }
+    }
 };
 
 export const logJobEdited = async (jobTitle: string) => {
@@ -198,10 +229,20 @@ export const logJobEdited = async (jobTitle: string) => {
 };
 
 export const logJobPublished = async (jobTitle: string) => {
-    await logActivity({
-        action: 'job_published',
-        target: jobTitle
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        // Log activity
+        await logActivity({
+            action: 'job_published',
+            target: jobTitle
+        });
+        // Create notification
+        try {
+            await notifyJobEvent(user.id, 'status_update', jobTitle, 'Job has been published');
+        } catch (error) {
+            console.error('Error creating job published notification:', error);
+        }
+    }
 };
 
 export const logJobUnpublished = async (jobTitle: string) => {
@@ -227,10 +268,20 @@ export const logJobCloned = async (originalTitle: string, newTitle: string) => {
 };
 
 export const logJobClosed = async (jobTitle: string) => {
-    await logActivity({
-        action: 'job_closed',
-        target: jobTitle
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        // Log activity
+        await logActivity({
+            action: 'job_closed',
+            target: jobTitle
+        });
+        // Create notification
+        try {
+            await notifyJobEvent(user.id, 'status_update', jobTitle, 'Job has been closed');
+        } catch (error) {
+            console.error('Error creating job closed notification:', error);
+        }
+    }
 };
 
 export const logJobDeleted = async (jobTitle: string) => {

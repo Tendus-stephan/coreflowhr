@@ -37,7 +37,7 @@ export interface ScrapedCandidate {
     twitter?: string;
   };
   // Additional metadata
-  source: 'linkedin' | 'github' | 'jobboard' | 'twitter' | 'portfolio';
+  source: 'linkedin' | 'github' | 'mightyrecruiter' | 'jobspider' | 'twitter' | 'portfolio';
   rawData?: any; // Store raw provider response for debugging
 }
 
@@ -58,8 +58,7 @@ export interface Education {
 export interface ScrapeOptions {
   maxCandidates?: number;
   minMatchScore?: number;
-  sources?: ('linkedin' | 'github' | 'jobboard')[];
-  provider?: 'apify' | 'scraperapi';
+  sources?: ('linkedin' | 'github' | 'mightyrecruiter' | 'jobspider')[]; // FREE sources with candidate profiles
 }
 
 export interface ScrapeResult {
@@ -68,6 +67,14 @@ export interface ScrapeResult {
   candidatesSaved: number;
   errors?: string[];
   source: string;
+  statistics?: {
+    found: number;
+    saved: number;
+    invalid: number;
+    duplicates: number;
+    saveErrors: number;
+    processed: number;
+  };
 }
 
 export interface LinkedInQuery {
@@ -82,6 +89,35 @@ export interface GitHubQuery {
   language?: string;
   location?: string;
   keywords?: string[];
+  maxResults?: number;
+}
+
+export interface MightyRecruiterQuery {
+  jobTitle?: string;
+  skills?: string[];
+  location?: string;
+  experienceLevel?: string;
+  maxResults?: number;
+}
+
+export interface JobSpiderQuery {
+  jobTitle?: string;
+  skills?: string[];
+  location?: string;
+  maxResults?: number;
+}
+
+export interface JobBoardQuery {
+  jobTitle?: string;
+  skills?: string[];
+  location?: string;
+  maxResults?: number;
+}
+
+
+
+  skills?: string[];
+  location?: string;
   maxResults?: number;
 }
 

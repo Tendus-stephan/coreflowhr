@@ -22,6 +22,7 @@ import JobApplication from './pages/JobApplication';
 import Calendar from './pages/Calendar';
 import Offers from './pages/Offers';
 import OfferResponse from './pages/OfferResponse';
+import CandidateRegister from './pages/CandidateRegister';
 import Onboarding from './pages/Onboarding';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -96,7 +97,8 @@ const Layout = () => {
     '/onboarding',
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
-    location.pathname.startsWith('/offers/respond'));
+    location.pathname.startsWith('/offers/respond') ||
+    location.pathname.startsWith('/candidates/register'));
 
   if (isStandalonePage) {
     return <Outlet />;
@@ -268,6 +270,10 @@ const AppRoutes: React.FC = () => {
         <Route 
           path="/jobs/apply/:jobId" 
           element={<JobApplication />}
+        />
+        <Route 
+          path="/candidates/register/:candidateId" 
+          element={<CandidateRegister />}
         />
         <Route 
           path="/offers/respond/:token" 

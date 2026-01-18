@@ -8,6 +8,10 @@ import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { CandidateModal } from '../components/CandidateModal';
 import { api, Notification } from '../services/api';
+import { scrapeCandidates } from '../services/scrapingApi';
+import { handleScrapingError, logScrapingError } from '../services/scrapingErrorHandler';
+import { getAvailableSources } from '../services/planLimits';
+import { supabase } from '../services/supabase';
 
 // --- Job Settings Modal ---
 const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: boolean, onClose: () => void }) => {
@@ -467,11 +471,13 @@ const Jobs: React.FC = () => {
   const [settingsJob, setSettingsJob] = useState<Job | null>(null);
   const [jobToClose, setJobToClose] = useState<Job | null>(null);
   const [closingJob, setClosingJob] = useState(false);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   
   // Pagination & Actions State
   const [currentPage, setCurrentPage] = useState(1);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
-  const ITEMS_PER_PAGE = 5;
+  const ITEMS_PER_PAGE = 10; // Client-side pagination for filtered results
+  const API_PAGE_SIZE = 100; // Fetch more jobs from API to ensure all jobs are loaded
 
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
@@ -482,20 +488,45 @@ const Jobs: React.FC = () => {
   useEffect(() => {
     const loadJobs = async () => {
         setLoading(true);
-        // Load all jobs including closed ones for the Jobs page
-        const [jobsResult, n] = await Promise.all([
-            api.jobs.list({ excludeClosed: false, page: currentPage, pageSize: ITEMS_PER_PAGE }), 
-            api.notifications.list()
-        ]);
-        // Handle paginated response
-        const jobsData = jobsResult && typeof jobsResult === 'object' && 'data' in jobsResult 
-            ? jobsResult.data 
-            : Array.isArray(jobsResult) 
-                ? jobsResult 
-                : [];
-        setJobs(jobsData);
-        setNotifications(n);
-        setLoading(false);
+        try {
+            // Load all jobs including closed ones for the Jobs page
+            // Fetch with large page size to get all jobs, then paginate client-side
+            const [jobsResult, n] = await Promise.all([
+                api.jobs.list({ excludeClosed: false, page: 1, pageSize: API_PAGE_SIZE }), 
+                api.notifications.list()
+            ]);
+            // Handle paginated response
+            const jobsData = jobsResult && typeof jobsResult === 'object' && 'data' in jobsResult 
+                ? jobsResult.data 
+                : Array.isArray(jobsResult) 
+                    ? jobsResult 
+                    : [];
+            setJobs(jobsData);
+            setNotifications(n);
+            setLoading(false);
+        } catch (error: any) {
+            console.error('Error loading jobs:', {
+                message: error?.message,
+                code: error?.code,
+                details: error?.details,
+                hint: error?.hint,
+                fullError: error
+            });
+            
+            // Handle network errors gracefully
+            if (error?.message?.includes('Failed to fetch') || error?.code === '') {
+                console.error('⚠️ Network error: Unable to connect to Supabase. Check your internet connection and Supabase configuration.');
+                // Set empty state instead of showing error (let user retry by refreshing)
+                setJobs([]);
+                setNotifications([]);
+            } else {
+                // Other errors - show empty state
+                setJobs([]);
+                setNotifications([]);
+            }
+            
+            setLoading(false);
+        }
     };
     loadJobs();
   }, [currentPage]);
@@ -520,7 +551,10 @@ const Jobs: React.FC = () => {
       const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             job.location.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesExperience = selectedExperienceLevel === 'All Experience Levels' || 
-                                job.experienceLevel === selectedExperienceLevel;
+                                job.experienceLevel === selectedExperienceLevel ||
+                                (selectedExperienceLevel.includes('Entry') && job.experienceLevel?.includes('Entry')) ||
+                                (selectedExperienceLevel.includes('Mid') && job.experienceLevel?.includes('Mid')) ||
+                                (selectedExperienceLevel.includes('Senior') && job.experienceLevel?.includes('Senior'));
       const matchesJobType = selectedJobType === 'All Job Types' || 
                              job.type === selectedJobType;
       return matchesTab && matchesSearch && matchesExperience && matchesJobType;
@@ -564,9 +598,9 @@ const Jobs: React.FC = () => {
               // Show confirmation before deleting
               if (window.confirm(`Are you sure you want to delete "${job.title}"? This action cannot be undone and will also remove all associated candidates.`)) {
                   api.jobs.delete(job.id)
-                      .then(() => {
+                      .then(async () => {
                           setJobs(prev => prev.filter(j => j.id !== job.id));
-                          const { playNotificationSound } = require('../utils/soundUtils');
+                          const { playNotificationSound } = await import('../utils/soundUtils');
                           playNotificationSound();
                       })
                       .catch((error: any) => {
@@ -575,6 +609,127 @@ const Jobs: React.FC = () => {
                       });
               }
               break;
+      }
+  };
+
+  const handleRetryScraping = async (job: Job) => {
+      setRetryingJobId(job.id);
+      try {
+          // Get user's plan to determine max candidates
+          const billingPlan = await api.settings.getPlan();
+          const maxCandidates = billingPlan.candidatesLimit === 'Unlimited' 
+              ? 10 
+              : typeof billingPlan.candidatesLimit === 'number' 
+                  ? Math.min(10, billingPlan.candidatesLimit) 
+                  : 10;
+
+          // Update scraping status to pending
+          try {
+              await supabase
+                  .from('jobs')
+                  .update({ 
+                      scraping_status: 'pending',
+                      scraping_error: null,
+                      scraping_attempted_at: new Date().toISOString()
+                  })
+                  .eq('id', job.id);
+          } catch (dbError: any) {
+              if (dbError.message?.includes('does not exist') || dbError.code === '42703') {
+                  console.warn('⚠️ scraping_status column does not exist. Please run the migration: RUN_SCRAPING_STATUS_MIGRATION.sql');
+              }
+          }
+
+          // Update local state
+          setJobs(prev => prev.map(j => 
+              j.id === job.id 
+                  ? { ...j, scrapingStatus: 'pending' as const, scrapingError: null }
+                  : j
+          ));
+
+          // Get available sources for plan
+          const availableSources = getAvailableSources(billingPlan.name) as any[];
+
+          // Scrape candidates
+          const response = await scrapeCandidates(job.id, {
+              sources: availableSources.length > 0 ? availableSources : ['linkedin'],
+              maxCandidates: maxCandidates
+          });
+
+          if (!response.success) {
+              throw new Error(response.error || 'Scraping failed');
+          }
+
+          // Calculate total saved
+          const totalSaved = response.totalSaved || 0;
+
+          // Update scraping status to succeeded
+          try {
+              await supabase
+                  .from('jobs')
+                  .update({ 
+                      scraping_status: 'succeeded',
+                      scraping_error: null
+                  })
+                  .eq('id', job.id);
+          } catch (dbError: any) {
+              if (dbError.message?.includes('does not exist') || dbError.code === '42703') {
+                  console.warn('⚠️ scraping_status column does not exist. Please run the migration: RUN_SCRAPING_STATUS_MIGRATION.sql');
+              }
+          }
+
+          // Update local state
+          setJobs(prev => prev.map(j => 
+              j.id === job.id 
+                  ? { ...j, scrapingStatus: 'succeeded' as const, scrapingError: null, applicantsCount: (j.applicantsCount || 0) + totalSaved }
+                  : j
+          ));
+
+          // Reload jobs to get updated counts
+          const jobsResult = await api.jobs.list({ excludeClosed: false, page: 1, pageSize: API_PAGE_SIZE });
+          const jobsData = jobsResult && typeof jobsResult === 'object' && 'data' in jobsResult 
+              ? jobsResult.data 
+              : Array.isArray(jobsResult) 
+                  ? jobsResult 
+                  : [];
+          setJobs(jobsData);
+
+          // Play success sound
+          if (totalSaved > 0) {
+              const { playNotificationSound } = await import('../utils/soundUtils');
+              playNotificationSound();
+          }
+      } catch (error: any) {
+          // Handle error gracefully - never show Apify-specific errors
+          const errorInfo = handleScrapingError(error);
+          logScrapingError(job.id, errorInfo, { error });
+
+          // Update scraping status to failed
+          try {
+              await supabase
+                  .from('jobs')
+                  .update({ 
+                      scraping_status: 'failed',
+                      scraping_error: errorInfo.userMessage,
+                      scraping_attempted_at: new Date().toISOString()
+                  })
+                  .eq('id', job.id);
+          } catch (dbError: any) {
+              if (dbError.message?.includes('does not exist') || dbError.code === '42703') {
+                  console.warn('⚠️ scraping_status column does not exist. Please run the migration: RUN_SCRAPING_STATUS_MIGRATION.sql');
+              }
+          }
+
+          // Update local state
+          setJobs(prev => prev.map(j => 
+              j.id === job.id 
+                  ? { ...j, scrapingStatus: 'failed' as const, scrapingError: errorInfo.userMessage }
+                  : j
+          ));
+
+          // Show user-friendly error (never mentions Apify)
+          alert(errorInfo.userMessage);
+      } finally {
+          setRetryingJobId(null);
       }
   };
 
@@ -743,10 +898,10 @@ const Jobs: React.FC = () => {
                       onChange={(e) => setSelectedExperienceLevel(e.target.value)}
                       className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
                   >
-                      <option>All Experience Levels</option>
-                      <option>Entry Level</option>
-                      <option>Mid Level</option>
-                      <option>Senior Level</option>
+                      <option value="All Experience Levels">All Experience Levels</option>
+                      <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
+                      <option value="Mid Level (2-5 years)">Mid Level (2-5 years)</option>
+                      <option value="Senior Level (5+ years)">Senior Level (5+ years)</option>
                   </select>
               </div>
               <div className="relative flex-1" style={{ position: 'relative' }}>
@@ -802,10 +957,44 @@ const Jobs: React.FC = () => {
                             Posted {new Date(job.postedDate).toLocaleDateString()}
                         </div>
                     </div>
+                    
+                    {/* Scraping Error Message */}
+                    {(job.scrapingStatus === 'failed' || job.scrapingStatus === 'partial') && job.scrapingError && (
+                        <div className={`mt-3 px-3 py-2 rounded-lg text-xs border ${
+                            job.scrapingStatus === 'partial' 
+                                ? 'bg-yellow-50 border-yellow-200 text-yellow-700' 
+                                : 'bg-red-50 border-red-200 text-red-700'
+                        }`}>
+                            <span className="font-medium">
+                                {job.scrapingStatus === 'partial' ? 'Partial sourcing:' : 'Sourcing failed:'}
+                            </span> {job.scrapingError}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-6 mt-4 md:mt-0 w-full md:w-auto justify-between md:justify-end relative" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2 relative">
+                        {/* Retry Button for Failed/Partial Scraping */}
+                        {(job.scrapingStatus === 'failed' || job.scrapingStatus === 'partial') && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-9"
+                                disabled={retryingJobId === job.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleRetryScraping(job);
+                                }}
+                            >
+                                {retryingJobId === job.id 
+                                    ? 'Retrying...' 
+                                    : job.scrapingStatus === 'partial' 
+                                        ? 'Continue Sourcing' 
+                                        : 'Retry Sourcing'}
+                            </Button>
+                        )}
+                        
                         <Button 
                             variant="outline" 
                             size="sm" 

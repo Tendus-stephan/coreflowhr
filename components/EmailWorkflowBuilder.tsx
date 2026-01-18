@@ -18,7 +18,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
     onSave
 }) => {
     const [name, setName] = useState('');
-    const [triggerStage, setTriggerStage] = useState<CandidateStage>(CandidateStage.NEW);
+    const [triggerStage, setTriggerStage] = useState<CandidateStage>(CandidateStage.SCREENING);
     const [emailTemplateId, setEmailTemplateId] = useState('');
     const [minMatchScore, setMinMatchScore] = useState<number | undefined>(undefined);
     const [sourceFilter, setSourceFilter] = useState<string[]>([]);
@@ -47,7 +47,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
             } else {
                 // Creating new workflow
                 setName('');
-                setTriggerStage(CandidateStage.NEW);
+                setTriggerStage(CandidateStage.SCREENING); // Default to Screening (New stage workflows are disabled)
                 setEmailTemplateId('');
                 setMinMatchScore(undefined);
                 setSourceFilter([]);
@@ -178,12 +178,17 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                             onChange={(e) => setTriggerStage(e.target.value as CandidateStage)}
                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                         >
-                            {Object.values(CandidateStage).map(stage => (
-                                <option key={stage} value={stage}>{stage}</option>
-                            ))}
+                            {Object.values(CandidateStage)
+                                .filter(stage => stage !== CandidateStage.NEW) // Remove "New" - workflows are disabled for New stage
+                                .map(stage => (
+                                    <option key={stage} value={stage}>{stage}</option>
+                                ))}
                         </select>
                         <p className="text-xs text-gray-500 mt-1">
                             This workflow will trigger when a candidate moves to this stage
+                        </p>
+                        <p className="text-xs text-yellow-600 mt-1 italic">
+                            Note: "New" stage workflows are disabled - candidates are contacted via LinkedIn outreach first
                         </p>
                     </div>
 

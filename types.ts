@@ -23,6 +23,9 @@ export interface User {
 }
 
 export interface Job {
+  scrapingStatus?: 'pending' | 'succeeded' | 'failed' | 'partial' | null;
+  scrapingError?: string | null;
+  scrapingAttemptedAt?: string | null;
   id: string;
   title: string;
   department: string;
@@ -71,7 +74,7 @@ export interface PortfolioURLs {
 export interface Candidate {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   role: string;
   jobId: string;
   stage: CandidateStage;
@@ -91,6 +94,7 @@ export interface Candidate {
   workExperience?: WorkExperience[];
   projects?: Project[];
   portfolioUrls?: PortfolioURLs;
+  profileUrl?: string;
 }
 
 export interface Interview {

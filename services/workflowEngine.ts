@@ -42,15 +42,30 @@ export async function executeWorkflow(
             throw new Error(`Candidate not found: ${candidateError?.message}`);
         }
 
+        // Skip "New" stage workflows entirely - emails are not sent automatically after sourcing
+        // Candidates are sourced without emails by default - they must register via LinkedIn outreach
+        if (workflow.trigger_stage === 'New') {
+            await createExecutionLog(workflowId, candidateId, 'skipped', undefined, 'New stage workflows are disabled - use LinkedIn outreach for candidates without email');
+            return;
+        }
+
+        // Check if candidate has an email address - required for sending emails
+        // NOTE: Candidates by default don't have emails. They only get emails after:
+        // 1. Registering via LinkedIn outreach registration link, OR
+        // 2. Direct application with email provided
+        // If no email exists, skip workflow and recommend LinkedIn outreach
+        if (!candidate.email || candidate.email.trim() === '') {
+            await createExecutionLog(workflowId, candidateId, 'skipped', undefined, 'Candidate does not have an email address (default state) - use LinkedIn outreach to collect email first');
+            return;
+        }
+
         // Check if candidate is a test candidate
-        // For "New" stage: Allow emails to test candidates (newly sourced candidates should receive application emails)
         // For other stages: Only skip if they're truly a test candidate (AI-sourced without CV upload)
         // If they have a CV uploaded or applied directly, they're a real candidate and should receive emails
-        const isNewStage = workflow.trigger_stage === 'New';
         const hasRealApplication = candidate.source === 'direct_application' || (candidate.cv_file_url || (candidate as any).cvFileUrl);
         
-        // Skip test candidates only if not in "New" stage and no real application
-        if (candidate.is_test && !isNewStage && !hasRealApplication) {
+        // Skip test candidates only if no real application
+        if (candidate.is_test && !hasRealApplication) {
             await createExecutionLog(workflowId, candidateId, 'skipped', undefined, 'Test candidate - email not sent');
             return;
         }
@@ -207,8 +222,9 @@ export async function executeWorkflow(
                 .replace(/{notes}/g, offerDetails.notes || '');
         }
 
-        // For "New" stage workflows, add CV upload link if candidate is in "New" stage and has a job
-        if (workflow.trigger_stage === 'New' && candidate.stage === 'New' && jobId) {
+        // For "Screening" stage workflows, add CV upload link if candidate is in "Screening" stage and has a job
+        // Note: "New" stage workflows are now disabled, but CV upload links can still be used in Screening stage
+        if (workflow.trigger_stage === 'Screening' && candidate.stage === 'Screening' && jobId) {
             // Generate or get CV upload token for this candidate
             let cvUploadToken = candidate.cv_upload_token;
             
@@ -232,10 +248,11 @@ export async function executeWorkflow(
             }
             
             // Build CV upload link
-            // Use production URL by default, fallback to localhost only in development
-            const frontendUrl = typeof window !== 'undefined' 
+            // Always use production URL for email links (never localhost)
+            // If running in browser and not localhost, use current origin; otherwise use production URL
+            const frontendUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
                 ? window.location.origin 
-                : (process.env.VITE_FRONTEND_URL || 'https://www.coreflowhr.com');
+                : (process.env.VITE_FRONTEND_URL || process.env.FRONTEND_URL || 'https://www.coreflowhr.com');
             const cvUploadLink = `${frontendUrl}/jobs/apply/${jobId}?token=${cvUploadToken}`;
             
             // Format as clickable HTML link
@@ -442,6 +459,12 @@ export async function executeWorkflowsForStage(
     skipIfAlreadySent: boolean = false
 ): Promise<void> {
     try {
+        // Skip "New" stage workflows - emails are not sent automatically after sourcing
+        if (newStage === 'New') {
+            console.log('[Workflow Engine] Skipping "New" stage workflow - automatic emails after sourcing are disabled');
+            return;
+        }
+        
         // Interview stage workflows should NOT execute automatically
         // Interviews are manually scheduled by recruiters, not triggered by stage changes
         if (newStage === 'Interview') {
@@ -463,8 +486,11 @@ export async function executeWorkflowsForStage(
         }
 
         if (!workflows || workflows.length === 0) {
+            console.log(`[Workflow Engine] No enabled workflows found for stage "${newStage}" (user: ${userId})`);
             return; // No workflows configured for this stage
         }
+        
+        console.log(`[Workflow Engine] Found ${workflows.length} enabled workflow(s) for stage "${newStage}"`);
 
         // If skipIfAlreadySent is true, check if any workflow for this stage was already sent
         // OR if an offer email was just sent (for Offer stage to prevent duplicates)

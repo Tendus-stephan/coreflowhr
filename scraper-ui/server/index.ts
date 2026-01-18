@@ -1,218 +1,180 @@
 /**
- * Express server for scraper testing UI
- * Provides REST API endpoints for scraping operations
+ * Scraper UI Backend API Server
+ * Provides API endpoints for jobs, scraping, and results
  */
 
 import express from 'express';
 import cors from 'cors';
-import { ScrapingService } from '../../scraper/src/services/ScrapingService.js';
-import { DatabaseService } from '../../scraper/src/services/DatabaseService.js';
-import { ScrapeOptions } from '../../scraper/src/types/index.js';
-import { logger } from '../../scraper/src/utils/logger.js';
+import { ScrapingService } from '../../scraper/src/services/ScrapingService';
+import { DatabaseService } from '../../scraper/src/services/DatabaseService';
+import { logger } from '../../scraper/src/utils/logger';
 
 const app = express();
-const PORT = process.env.SCRAPER_UI_PORT || 3003;
+const PORT = process.env.PORT || 3005;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage for scraping jobs (in production, use Redis or database)
-const activeJobs = new Map<string, {
-  jobId: string;
-  status: 'running' | 'completed' | 'failed';
-  progress: number;
-  results?: any[];
-  error?: string;
-  startedAt: Date;
-  completedAt?: Date;
-}>();
+const scrapingService = new ScrapingService();
+const databaseService = new DatabaseService();
 
-/**
- * GET /api/jobs
- * List all active jobs
- */
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Get all active jobs
 app.get('/api/jobs', async (req, res) => {
   try {
-    const dbService = new DatabaseService();
-    const jobs = await dbService.getActiveJobs();
-    res.json({ success: true, jobs });
+    const jobs = await databaseService.getActiveJobs();
+    res.json(jobs);
   } catch (error: any) {
     logger.error('Error fetching jobs:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * GET /api/jobs/:jobId
- * Get job details
- */
-app.get('/api/jobs/:jobId', async (req, res) => {
+// Get job by ID
+app.get('/api/jobs/:id', async (req, res) => {
   try {
-    const { jobId } = req.params;
-    const dbService = new DatabaseService();
-    const job = await dbService.getJob(jobId);
-    
+    const job = await databaseService.getJob(req.params.id);
     if (!job) {
-      return res.status(404).json({ success: false, error: 'Job not found' });
+      return res.status(404).json({ error: 'Job not found' });
     }
-    
-    res.json({ success: true, job });
+    res.json(job);
   } catch (error: any) {
     logger.error('Error fetching job:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * GET /api/jobs/:jobId/candidates
- * Get scraped candidates for a job
- */
-app.get('/api/jobs/:jobId/candidates', async (req, res) => {
+// Scrape candidates for a job
+app.post('/api/scrape', async (req, res) => {
   try {
-    const { jobId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
-    
-    const dbService = new DatabaseService();
-    const candidates = await dbService.getCandidatesForJob(
-      jobId,
-      parseInt(limit as string, 10),
-      parseInt(offset as string, 10)
-    );
-    
-    res.json({ success: true, candidates });
-  } catch (error: any) {
-    logger.error('Error fetching candidates:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+    const { jobId, sources, maxCandidates, minMatchScore } = req.body;
 
-/**
- * POST /api/jobs/:jobId/scrape
- * Start scraping for a job
- */
-app.post('/api/jobs/:jobId/scrape', async (req, res) => {
-  const { jobId } = req.params;
-  const options: ScrapeOptions = req.body || {};
-
-  // Check if job is already being scraped
-  if (activeJobs.has(jobId)) {
-    const job = activeJobs.get(jobId)!;
-    if (job.status === 'running') {
-      return res.status(409).json({
-        success: false,
-        error: 'Scraping already in progress for this job',
-        jobId
-      });
+    if (!jobId) {
+      return res.status(400).json({ error: 'jobId is required' });
     }
-  }
 
-  // Start scraping in background
-  const scrapingService = new ScrapingService();
-  
-  activeJobs.set(jobId, {
-    jobId,
-    status: 'running',
-    progress: 0,
-    startedAt: new Date()
-  });
+    logger.info(`Starting scraping for job ${jobId}`, { sources, maxCandidates, minMatchScore });
 
-  // Run scraping asynchronously
-  scrapingService.scrapeForJob(jobId, options)
-    .then(results => {
-      activeJobs.set(jobId, {
-        jobId,
-        status: 'completed',
-        progress: 100,
-        results,
-        startedAt: activeJobs.get(jobId)!.startedAt,
-        completedAt: new Date()
-      });
-      logger.info(`Scraping completed for job ${jobId}`);
-    })
-    .catch(error => {
-      activeJobs.set(jobId, {
-        jobId,
-        status: 'failed',
-        progress: 0,
-        error: error.message,
-        startedAt: activeJobs.get(jobId)!.startedAt,
-        completedAt: new Date()
-      });
-      logger.error(`Scraping failed for job ${jobId}:`, error);
+    const results = await scrapingService.scrapeForJob(jobId, {
+      sources,
+      maxCandidates,
+      minMatchScore
     });
-
-  res.json({
-    success: true,
-    message: 'Scraping started',
-    jobId
-  });
-});
-
-/**
- * GET /api/jobs/:jobId/scrape/status
- * Get scraping status for a job
- */
-app.get('/api/jobs/:jobId/scrape/status', (req, res) => {
-  const { jobId } = req.params;
-  const job = activeJobs.get(jobId);
-
-  if (!job) {
-    return res.status(404).json({
-      success: false,
-      error: 'No scraping job found'
-    });
-  }
-
-  res.json({
-    success: true,
-    status: job.status,
-    progress: job.progress,
-    results: job.results,
-    error: job.error,
-    startedAt: job.startedAt,
-    completedAt: job.completedAt
-  });
-});
-
-/**
- * GET /api/providers/status
- * Check which scraping providers are configured
- */
-app.get('/api/providers/status', async (req, res) => {
-  try {
-    const { validateProviderConfig } = await import('../../scraper/src/config/providers.js');
-    
-    const sources = ['linkedin', 'github', 'jobboard'];
-    const status: Record<string, boolean> = {};
-    
-    for (const source of sources) {
-      const validation = validateProviderConfig([source]);
-      status[source] = validation.valid;
-    }
 
     res.json({
       success: true,
-      providers: status
+      results,
+      totalSaved: results.reduce((sum, r) => sum + r.candidatesSaved, 0)
     });
   } catch (error: any) {
-    logger.error('Error checking provider status:', error);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error('Error scraping:', error);
+    logger.error('Full error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    
+    // Return detailed error information
+    res.status(500).json({ 
+      error: error.message,
+      success: false,
+      results: [],
+      totalSaved: 0,
+      diagnostic: {
+        errorType: error.name,
+        errorCode: error.code,
+        message: error.message
+      }
+    });
   }
 });
 
-/**
- * Health check
- */
-app.get('/api/health', (req, res) => {
-  res.json({ success: true, status: 'ok' });
+// Get scraped candidates for a job
+app.get('/api/jobs/:id/candidates', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const candidates = await databaseService.getCandidatesForJob(id, limit, offset);
+    res.json(candidates);
+  } catch (error: any) {
+    logger.error('Error fetching candidates:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Start server
+// Get scraping status/statistics
+app.get('/api/status', async (req, res) => {
+  try {
+    // This could return provider status, recent scraping activity, etc.
+    res.json({ status: 'ready' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Diagnostic endpoint to check scraper configuration
+app.get('/api/diagnostic', async (req, res) => {
+  try {
+    const diagnostics: any = {
+      server: {
+        status: 'running',
+        port: PORT,
+        timestamp: new Date().toISOString()
+      },
+      apify: {
+        configured: false,
+        hasToken: false,
+        tokenLength: 0,
+        error: null
+      },
+      database: {
+        connected: false,
+        error: null
+      }
+    };
+
+    // Check Apify configuration
+    try {
+      const { providerConfig } = await import('../../scraper/src/config/providers');
+      const hasToken = !!providerConfig.apify?.apiToken;
+      diagnostics.apify.hasToken = hasToken;
+      diagnostics.apify.tokenLength = providerConfig.apify?.apiToken?.length || 0;
+      
+      if (hasToken) {
+        const { ApifyService } = await import('../../scraper/src/services/providers/ApifyService');
+        const apifyService = new ApifyService();
+        diagnostics.apify.configured = await apifyService.isConfigured();
+      }
+    } catch (apifyError: any) {
+      diagnostics.apify.error = apifyError.message;
+    }
+
+    // Check database connection
+    try {
+      const testJob = await databaseService.getActiveJobs();
+      diagnostics.database.connected = true;
+      diagnostics.database.jobsCount = testJob.length;
+    } catch (dbError: any) {
+      diagnostics.database.error = dbError.message;
+    }
+
+    res.json(diagnostics);
+  } catch (error: any) {
+    res.status(500).json({ 
+      error: error.message,
+      diagnostics: null 
+    });
+  }
+});
+
 app.listen(PORT, () => {
-  logger.info(`Scraper UI server running on http://localhost:${PORT}`);
-  console.log(`\n🚀 Scraper Testing UI Server`);
-  console.log(`   URL: http://localhost:${PORT}`);
-  console.log(`   API: http://localhost:${PORT}/api\n`);
+  console.log(`🚀 Scraper UI API server running on http://localhost:${PORT}`);
+  logger.info(`Scraper UI API server started on port ${PORT}`);
 });
-

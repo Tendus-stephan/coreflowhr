@@ -102,16 +102,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                         </div>
                         <div>
                             <p className="text-sm font-bold text-gray-900">Email Support</p>
-                            <p className="text-xs text-gray-500">support@coreflow.ai</p>
-                        </div>
-                    </div>
-                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center gap-3">
-                        <div className="bg-white p-2 rounded-lg border border-gray-200">
-                            <MessageSquare size={20} className="text-gray-900"/>
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-gray-900">Live Chat</p>
-                            <p className="text-xs text-gray-500">Available 9am - 5pm EST</p>
+                            <p className="text-xs text-gray-500">coreflowhr@gmail.com</p>
                         </div>
                     </div>
                 </div>
@@ -848,16 +839,52 @@ const Settings: React.FC = () => {
                 ]);
                 setPlan(p);
                 setInvoices(inv);
-                setStripeSubscription(billingDetails.subscription);
-                setStripePaymentMethod(billingDetails.paymentMethod);
+                
+                // Use Stripe subscription data if available, otherwise fallback to database subscription data
+                if (billingDetails.subscription) {
+                    setStripeSubscription(billingDetails.subscription);
+                    setStripePaymentMethod(billingDetails.paymentMethod);
+                } else if (p.subscriptionStatus === 'active' && p.subscriptionStripeId) {
+                    // Create subscription object from database data as fallback
+                    setStripeSubscription({
+                        id: p.subscriptionStripeId,
+                        status: p.subscriptionStatus,
+                        planName: p.name,
+                        amount: p.price,
+                        currency: p.currency === '$' ? 'USD' : p.currency,
+                        interval: p.interval === 'monthly' ? 'month' : 'year',
+                        currentPeriodEnd: p.subscriptionPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                        cancelAtPeriodEnd: false
+                    });
+                    setStripePaymentMethod(null); // Payment method not available from database
+                } else {
+                    setStripeSubscription(null);
+                    setStripePaymentMethod(null);
+                }
             } catch (error) {
                 // If billing functions aren't deployed yet, just load plan from database
-            const p = await api.settings.getPlan();
-            setPlan(p);
+                const p = await api.settings.getPlan();
+                setPlan(p);
                 setInvoices([]);
-                setStripeSubscription(null);
-                setStripePaymentMethod(null);
-                console.warn('Billing Edge Functions may not be deployed yet. See DEPLOY_BILLING_FUNCTIONS.md for deployment instructions.');
+                
+                // Use database subscription data if available
+                if (p.subscriptionStatus === 'active' && p.subscriptionStripeId) {
+                    setStripeSubscription({
+                        id: p.subscriptionStripeId,
+                        status: p.subscriptionStatus,
+                        planName: p.name,
+                        amount: p.price,
+                        currency: p.currency === '$' ? 'USD' : p.currency,
+                        interval: p.interval === 'monthly' ? 'month' : 'year',
+                        currentPeriodEnd: p.subscriptionPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                        cancelAtPeriodEnd: false
+                    });
+                    setStripePaymentMethod(null);
+                } else {
+                    setStripeSubscription(null);
+                    setStripePaymentMethod(null);
+                }
+                console.warn('Billing Edge Functions may not be deployed yet. Using database subscription data as fallback.');
             }
             const t = await api.settings.getTemplates();
             setTemplates(t);

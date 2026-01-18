@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Candidate, Job } from "../types";
 import { ParsedCVData } from "./cvParser";
+import { COMPREHENSIVE_SYSTEM_PROMPT } from "./geminiSystemPrompt";
 
 // Initialize Gemini Client
 // IMPORTANT: The API key is injected by the environment.
@@ -510,6 +511,96 @@ ${contextText}`;
     }
 };
 
+export const draftOutreachMessage = async (candidate: Candidate, job: Job, registrationLink: string): Promise<EmailDraft> => {
+    const modelId = "gemini-2.0-flash";
+    
+    // Build context about the candidate and job
+    const candidateContext = [];
+    if (candidate.experience) {
+        candidateContext.push(`${candidate.experience} years of experience`);
+    }
+    if (candidate.skills && candidate.skills.length > 0) {
+        candidateContext.push(`Skills: ${candidate.skills.slice(0, 5).join(', ')}`);
+    }
+    if (candidate.location) {
+        candidateContext.push(`Location: ${candidate.location}`);
+    }
+    
+    const contextText = candidateContext.length > 0 ? `\n\nCandidate Context:\n${candidateContext.join('\n')}` : '';
+    
+    const prompt = `Write a professional LinkedIn outreach message for ${candidate.name} about a ${job.title} opportunity at ${job.company || 'our company'}.
+
+This is a LinkedIn message (not an email), so it should be:
+- Warm and personable, suitable for LinkedIn messaging
+- Concise (2-3 short paragraphs max)
+- Professional but approachable
+- Include the registration link naturally in the message
+
+HOW THE REGISTRATION PROCESS WORKS:
+1. Candidate clicks the registration link you provide in the message
+2. They land on a registration page where they enter their email address
+3. Once they register their email, it's stored in our system
+4. After registration, they can receive regular email communications from us for different stages (screening, interviews, offers, etc.)
+5. The registration link is secure and one-time use only
+
+The message should:
+- Introduce yourself/company briefly
+- Mention why their background caught your attention
+- Present the job opportunity briefly
+- Explain that they need to register their email via the link to continue the process (since we can't contact them directly on LinkedIn for subsequent communications)
+- Include this registration link: ${registrationLink}
+- Express interest in learning more about them
+- Make it clear that after registering, they'll receive further communications via email
+
+Requirements:
+- Generate both a subject line (for reference, though LinkedIn messages don't use subjects) and message content
+- Subject line should be clear and professional (under 60 characters)
+- Message body should naturally incorporate the registration link and explain why they need to register
+- Use the candidate's name naturally
+- Keep the tone professional but friendly
+- Briefly explain that email registration is needed for continued communication
+
+Return a JSON object with:
+1. "subject": A subject line for reference (string)
+2. "content": The LinkedIn message content (string, use \\n for line breaks, include the registration link)
+
+${contextText}`;
+    
+    try {
+        const ai = getAiClient();
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: modelId,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        subject: { type: Type.STRING },
+                        content: { type: Type.STRING }
+                    },
+                    required: ["subject", "content"]
+                }
+            }
+        });
+        
+        const resultText = response.text;
+        if (!resultText) throw new Error("No response from AI");
+        
+        const parsed = JSON.parse(resultText);
+        return {
+            subject: parsed.subject || `Opportunity: ${job.title}`,
+            content: parsed.content || `Hi ${candidate.name},\n\nI came across your profile and was impressed by your background. We have an opening for ${job.title} that seems like a great fit.\n\nIf you're interested, please register here: ${registrationLink}\n\nLooking forward to hearing from you!`
+        };
+    } catch (e) {
+        console.error("Outreach message draft generation failed:", e);
+        return {
+            subject: `Opportunity: ${job.title}`,
+            content: `Hi ${candidate.name},\n\nI came across your profile and was impressed by your background. We have an opening for ${job.title} that seems like a great fit.\n\nIf you're interested, please register here: ${registrationLink}\n\nLooking forward to hearing from you!`
+        };
+    }
+};
+
 export interface EmailTemplateGeneration {
     subject: string;
     content: string;
@@ -919,54 +1010,8 @@ export interface ChatMessage {
 export const getAIChatResponse = async (userPrompt: string, history: ChatMessage[] = []): Promise<string> => {
   const modelId = "gemini-2.0-flash";
   
-  const SYSTEM_PROMPT = `You are CoreFlow AI, a world-class HR assistant for the CoreFlowHR recruitment platform (www.coreflowhr.com).
-
-PLATFORM OVERVIEW:
-CoreFlowHR is a modern, AI-powered recruitment operating system that streamlines the entire hiring process from job posting to candidate onboarding.
-
-KEY PAGES: Dashboard, Candidate Board (Kanban pipeline), Jobs, Calendar, Offers, Settings, Onboarding
-
-CANDIDATE PIPELINE: 5 stages - New → Screening → Interview → Offer → Hired/Rejected
-- Drag-and-drop stage management
-- AI match scoring (0-100 scale)
-- Automated email workflows trigger on stage changes
-
-AI FEATURES:
-- AI candidate analysis (analyzes CV/resume, provides match score)
-- AI email generation (drafts professional emails)
-- AI chat assistant (you - provides recruitment advice)
-
-EMAIL SYSTEM:
-- 6 template types: Screening, Interview, Rejection, Offer, Hired, Reschedule
-- AI-powered generation with unique content
-- Email history tracking
-- Professional templates with minimal branding
-
-INTEGRATIONS: Google Calendar, Google Meet, Microsoft Teams, Resend
-
-KEY CAPABILITIES:
-- Candidate sourcing (AI-generated or direct applications)
-- CV upload and parsing
-- Interview scheduling with calendar sync
-- Offer management and tracking
-- Workflow automation (stage-based triggers)
-- Notes and feedback collection
-
-MATCH SCORING GUIDELINES:
-- 85-100: Excellent match (80%+ skills)
-- 70-84: Good match (60-79% skills)
-- 50-69: Minimum acceptable (40-59% skills)
-- 0-49: Below minimum (<40% skills)
-
-YOUR ROLE:
-- Help recruiters understand platform features and navigation
-- Guide users on specific features (how to use candidate modal, schedule interviews, etc.)
-- Answer questions about recruitment best practices
-- Assist with job descriptions, interview questions, email templates
-- Provide step-by-step instructions when needed
-- Troubleshoot common issues
-
-RESPONSE STYLE: Be concise, professional, helpful. Provide actionable advice. Reference specific pages/features when relevant. Focus on recruitment/HR tasks.`;
+  // Use the comprehensive system prompt with full platform knowledge
+  const SYSTEM_PROMPT = COMPREHENSIVE_SYSTEM_PROMPT;
 
   try {
     const ai = getAiClient();
