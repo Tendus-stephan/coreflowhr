@@ -100,6 +100,16 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error('Error in scrape-candidates function:', error);
+    try {
+      const sentryDsn = Deno.env.get('SENTRY_DSN');
+      if (sentryDsn) {
+        const sentry = await import('https://esm.sh/@sentry/node@8.30.0');
+        sentry.init({ dsn: sentryDsn, environment: Deno.env.get('ENVIRONMENT') || 'production' });
+        sentry.captureException(error);
+      }
+    } catch (sentryError) {
+      console.error('Failed to send scrape-candidates error to Sentry:', sentryError);
+    }
     
     // Try to update job status if we have jobId
     try {

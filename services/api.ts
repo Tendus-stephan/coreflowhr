@@ -1373,7 +1373,6 @@ export const api = {
             // Check active jobs limit if activating the job
             if (jobStatus === 'Active') {
                 const { getPlanLimits } = await import('./planLimits');
-                const { getEffectiveLimit } = await import('./credits');
                 
                 // Get user's plan
                 const { data: settings } = await supabase
@@ -1393,12 +1392,10 @@ export const api = {
                     .eq('status', 'Active');
                 
                 const currentActiveJobs = activeJobs?.length || 0;
-                
-                // Get effective limit (base + credits)
-                const maxActiveJobs = await getEffectiveLimit(userId, planName, 'jobs');
+                const maxActiveJobs = limits.maxActiveJobs;
                 
                 if (currentActiveJobs >= maxActiveJobs) {
-                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs (${maxActiveJobs} with credits). Please close or archive existing jobs before creating new active ones, or upgrade your plan.`);
+                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs. Please close or archive existing jobs before creating new active ones, or upgrade your plan.`);
                 }
             }
             
@@ -1490,7 +1487,6 @@ export const api = {
             // If status is being changed to Active, check active jobs limit
             if (updateData.status === 'Active' && oldStatus !== 'Active') {
                 const { getPlanLimits } = await import('./planLimits');
-                const { getEffectiveLimit } = await import('./credits');
                 
                 // Get user's plan
                 const { data: settings } = await supabase
@@ -1511,12 +1507,10 @@ export const api = {
                     .neq('id', id); // Exclude current job
                 
                 const currentActiveJobs = (activeJobs?.length || 0) + 1; // +1 for the job being activated
-                
-                // Get effective limit (base + credits)
-                const maxActiveJobs = await getEffectiveLimit(userId, planName, 'jobs');
+                const maxActiveJobs = limits.maxActiveJobs;
                 
                 if (currentActiveJobs > maxActiveJobs) {
-                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs (${maxActiveJobs} with credits). Please close or archive existing jobs before activating this one, or upgrade your plan.`);
+                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs. Please close or archive existing jobs before activating this one, or upgrade your plan.`);
                 }
                 
                 // Set posted_date if not set

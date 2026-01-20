@@ -213,7 +213,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       try {
           const usage = await api.plan.getAiAnalysisUsage();
           if (!usage.remaining || usage.remaining <= 0) {
-              alert(`You've reached your monthly AI analysis limit (${usage.max} analyses). Upgrade to Professional for ${(await api.settings.getPlan()).name === 'Basic Plan' ? 100 : usage.max} AI analyses per month.`);
+              alert(
+                `You've reached your monthly AI analysis limit (${usage.max} analyses). ` +
+                `Upgrade to Professional to increase your monthly AI analysis quota.`
+              );
               return;
           }
       } catch (error) {

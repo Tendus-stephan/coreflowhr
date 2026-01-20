@@ -25,10 +25,9 @@ CREATE POLICY "Users can view their own credits"
     ON public.user_credits FOR SELECT
     USING (auth.uid() = user_id);
 
--- RLS Policy: Users can insert their own credits (for purchases)
-CREATE POLICY "Users can insert their own credits"
-    ON public.user_credits FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+-- IMPORTANT: Do NOT allow direct client inserts for credits.
+-- Credits should only be created by trusted backend processes (e.g. Stripe webhooks)
+-- using the service role key, which bypasses RLS.
 
 -- RLS Policy: Users can update their own credits
 CREATE POLICY "Users can update their own credits"
@@ -57,7 +56,7 @@ BEGIN
         ai_analysis_count = 0,
         ai_analysis_reset_date = NOW()
     WHERE 
-        ai_analysis_reset_date < DATE_TRUNC('month', NOW()) - INTERVAL '1 month';
+        ai_analysis_reset_date < DATE_TRUNC('month', NOW());
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

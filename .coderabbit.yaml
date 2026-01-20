@@ -1,14 +1,12 @@
 # CodeRabbit Configuration for CoreFlowHR
 # This file customizes how CodeRabbit reviews your code
 
-language: typescript
+language: en-US
 reviews:
-  pull_requests:
-    enabled: true
-    review_type: full  # full | concise | changed
-    request_changes_workflow: false
-    high_level_summary: true
-    poem_generation: false
+  enabled: true
+  profile: full
+  summary: true
+  poem: false
 
 # Focus areas for reviews
 focus:

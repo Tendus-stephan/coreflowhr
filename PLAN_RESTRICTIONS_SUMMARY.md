@@ -70,17 +70,17 @@ This document summarizes all the restrictions and limits enforced in CoreFlowHR 
 - **Status**: ✅ Fully enforced
 
 #### 4. **Active Jobs Limit** ✅
-- **Limit**: 15 active jobs (base) + credits
-- **Location**: `services/api.ts` (uses `getEffectiveLimit()` to include credits)
-- **Status**: ✅ Fully enforced (just added)
+- **Limit**: 15 active jobs
+- **Location**: `services/api.ts` (uses fixed plan limits)
+- **Status**: ✅ Fully enforced
 
 #### 5. **Candidates Per Job** ✅
-- **Limit**: 100 candidates per job (base) + credits
+- **Limit**: 100 candidates per job
 - **Location**: `pages/AddJob.tsx` (uses `canSourceCandidates()`)
 - **Status**: ✅ Fully enforced
 
 #### 6. **Candidates Per Month** ⚠️
-- **Limit**: 2,000 candidates per month (base) + credits
+- **Limit**: 2,000 candidates per month
 - **Location**: Not currently tracked/enforced
 - **Status**: ⚠️ Not enforced (would require monthly tracking of candidate additions)
 - **Note**: This limit is defined but not actively checked. Monthly tracking would require:
@@ -102,8 +102,8 @@ This document summarizes all the restrictions and limits enforced in CoreFlowHR 
 - Exceed 20 AI analyses per month
 
 ### ✅ Professional Plan Users Cannot:
-- Exceed 15 active jobs (base limit) without credits
-- Exceed 100 candidates per job (base limit) without credits
+- Exceed 15 active jobs
+- Exceed 100 candidates per job
 - Exceed 100 AI analyses per month
 - Create more than 10 workflows
 - Export more than 500 candidates at once
@@ -122,10 +122,8 @@ api.plan.getAiAnalysisUsage()          // Gets AI analysis quota status
 api.plan.hasAiAnalysisQuota(used)      // Checks AI analysis quota
 ```
 
-### Credits System (`services/credits.ts`)
-- Professional plan users can purchase credits to extend limits
-- `getEffectiveLimit()` returns base limit + available credits
-- Credits are checked for: jobs, candidates, ai_analysis
+### Credits System
+- Removed. Plans now use fixed limits only (no credits).
 
 ### Limit Configuration (`services/planLimits.ts`)
 - All limits defined in `PLAN_LIMITS` constant
@@ -138,7 +136,7 @@ api.plan.hasAiAnalysisQuota(used)      // Checks AI analysis quota
 
 **All critical restrictions are in place:**
 - ✅ Basic plan users are blocked from Professional features
-- ✅ Professional plan users cannot exceed their limits (with credits support)
+- ✅ Professional plan users cannot exceed their fixed limits
 - ✅ Both plans enforce usage quotas
 - ✅ UI elements disabled/hidden appropriately
 - ✅ Server-side checks prevent bypassing client-side restrictions

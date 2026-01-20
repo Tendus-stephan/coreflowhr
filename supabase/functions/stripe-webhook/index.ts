@@ -341,6 +341,17 @@ serve(async (req) => {
       stack: error.stack,
       type: error.constructor.name,
     });
+    try {
+      // Optional: forward error to Sentry if DSN is configured
+      const sentryDsn = Deno.env.get('SENTRY_DSN');
+      if (sentryDsn) {
+        const sentry = await import('https://esm.sh/@sentry/node@8.30.0');
+        sentry.init({ dsn: sentryDsn, environment: Deno.env.get('ENVIRONMENT') || 'production' });
+        sentry.captureException(error);
+      }
+    } catch (sentryError) {
+      console.error('Failed to send error to Sentry:', sentryError);
+    }
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Internal server error',

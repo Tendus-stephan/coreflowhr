@@ -171,6 +171,16 @@ IMPORTANT RULES:
 
   } catch (error: any) {
     console.error("Error parsing CV:", error);
+    try {
+      const sentryDsn = Deno.env.get("SENTRY_DSN");
+      if (sentryDsn) {
+        const sentry = await import("https://esm.sh/@sentry/node@8.30.0");
+        sentry.init({ dsn: sentryDsn, environment: Deno.env.get("ENVIRONMENT") || "production" });
+        sentry.captureException(error);
+      }
+    } catch (sentryError) {
+      console.error("Failed to send parse-cv error to Sentry:", sentryError);
+    }
     return new Response(
       JSON.stringify({ 
         error: error.message || "Internal server error",
