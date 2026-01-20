@@ -7,14 +7,18 @@ export type PlanName = 'Basic' | 'Professional';
 
 export interface PlanLimits {
   name: PlanName;
-  maxCandidatesPerJob: number | 'Unlimited';
-  maxActiveJobs: number | 'Unlimited';
-  maxCandidatesPerMonth?: number | 'Unlimited';
+  maxCandidatesPerJob: number;
+  maxActiveJobs: number;
+  maxCandidatesPerMonth: number;
+  maxAiAnalysisPerMonth: number;
+  maxEmailWorkflows: number;
+  maxExportCandidates: number;
   features: string[];
   sourcingSources: string[]; // Which sources are available
   aiAnalysis: boolean;
+  aiEmailGeneration: boolean;
   advancedAnalytics: boolean;
-  teamCollaboration: boolean;
+  integrationsEnabled: boolean;
   prioritySupport: boolean;
   customEmailTemplates: boolean;
 }
@@ -25,11 +29,15 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     maxCandidatesPerJob: 50,
     maxActiveJobs: 5,
     maxCandidatesPerMonth: 500,
+    maxAiAnalysisPerMonth: 20,
+    maxEmailWorkflows: 3,
+    maxExportCandidates: 50,
     features: [
-      'Up to 5 active jobs',
-      'Up to 50 candidates per job',
-      'Up to 500 candidates per month',
-      'LinkedIn sourcing via Apify',
+      '5 active jobs',
+      '50 candidates per job',
+      '500 candidates per month',
+      '20 AI analyses per month',
+      '3 email workflows',
       'AI-powered candidate matching',
       'Email templates',
       'Basic analytics',
@@ -37,32 +45,36 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     ],
     sourcingSources: ['linkedin'],
     aiAnalysis: true,
+    aiEmailGeneration: false,
     advancedAnalytics: false,
-    teamCollaboration: false,
+    integrationsEnabled: false,
     prioritySupport: false,
     customEmailTemplates: false,
   },
   Professional: {
     name: 'Professional',
-    maxCandidatesPerJob: 'Unlimited',
-    maxActiveJobs: 'Unlimited',
-    maxCandidatesPerMonth: 'Unlimited',
+    maxCandidatesPerJob: 100,
+    maxActiveJobs: 15,
+    maxCandidatesPerMonth: 2000,
+    maxAiAnalysisPerMonth: 100,
+    maxEmailWorkflows: 10,
+    maxExportCandidates: 500,
     features: [
-      'Unlimited active jobs',
-      'Unlimited candidates per job',
-      'Unlimited candidates per month',
-      'LinkedIn sourcing via Apify',
-      'Advanced AI matching',
-      'Custom email templates',
+      '15 active jobs (base) + buy more',
+      '100 candidates per job (base) + buy more',
+      '2,000 candidates per month (base) + buy more',
+      '100 AI analyses per month (base) + buy more',
+      '10 email workflows (base) + buy more',
+      'AI email generation',
       'Advanced analytics & reports',
-      'Team collaboration',
+      'Integrations (Google Calendar, Meet, Teams)',
       'Priority support',
-      'API access',
     ],
     sourcingSources: ['linkedin'],
     aiAnalysis: true,
+    aiEmailGeneration: true,
     advancedAnalytics: true,
-    teamCollaboration: true,
+    integrationsEnabled: true,
     prioritySupport: true,
     customEmailTemplates: true,
   },
@@ -89,13 +101,9 @@ export function getPlanLimits(planName: string | null | undefined): PlanLimits {
 export function canSourceCandidates(
   planName: string | null | undefined,
   requestedCount: number
-): { allowed: boolean; maxAllowed: number | 'Unlimited'; message?: string } {
+): { allowed: boolean; maxAllowed: number; message?: string } {
   const limits = getPlanLimits(planName);
   const maxAllowed = limits.maxCandidatesPerJob;
-
-  if (maxAllowed === 'Unlimited') {
-    return { allowed: true, maxAllowed: 'Unlimited' };
-  }
 
   if (requestedCount <= maxAllowed) {
     return { allowed: true, maxAllowed };
@@ -104,7 +112,7 @@ export function canSourceCandidates(
   return {
     allowed: false,
     maxAllowed,
-    message: `Your ${limits.name} plan allows up to ${maxAllowed} candidates per job. Upgrade to Professional for unlimited candidates.`,
+    message: `Your ${limits.name} plan allows up to ${maxAllowed} candidates per job. Upgrade to Professional for up to ${PLAN_LIMITS.Professional.maxCandidatesPerJob} candidates per job.`,
   };
 }
 
@@ -121,7 +129,7 @@ export function getAvailableSources(planName: string | null | undefined): string
  */
 export function hasFeature(
   planName: string | null | undefined,
-  feature: keyof Omit<PlanLimits, 'name' | 'maxCandidatesPerJob' | 'maxActiveJobs' | 'maxCandidatesPerMonth' | 'features' | 'sourcingSources'>
+  feature: keyof Omit<PlanLimits, 'name' | 'maxCandidatesPerJob' | 'maxActiveJobs' | 'maxCandidatesPerMonth' | 'maxAiAnalysisPerMonth' | 'maxEmailWorkflows' | 'maxExportCandidates' | 'features' | 'sourcingSources'>
 ): boolean {
   const limits = getPlanLimits(planName);
   return limits[feature] === true;
@@ -137,6 +145,6 @@ export function getUpgradeMessage(
   const current = getPlanLimits(currentPlan);
   const target = PLAN_LIMITS[targetPlan];
 
-  return `Upgrade to ${target.name} to unlock ${target.maxCandidatesPerJob === 'Unlimited' ? 'unlimited' : target.maxCandidatesPerJob} candidates per job and more features.`;
+  return `Upgrade to ${target.name} to unlock ${target.maxCandidatesPerJob} candidates per job and more features.`;
 }
 

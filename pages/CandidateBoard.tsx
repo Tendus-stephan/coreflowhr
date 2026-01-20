@@ -20,6 +20,7 @@ const CandidateBoard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('success');
 
   const [selectedJob, setSelectedJob] = useState<string>('all');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All'); 
@@ -164,6 +165,7 @@ const CandidateBoard: React.FC = () => {
           
           // Show toast notification
           setToastMessage(`${updatedCandidate.name} moved to ${updatedCandidate.stage}`);
+          setToastType('success');
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
       }
@@ -177,6 +179,43 @@ const CandidateBoard: React.FC = () => {
       }
   };
 
+  // Get valid next stage for a candidate (follows same logic as "Move to Next Stage")
+  const getValidNextStage = (currentStage: CandidateStage): CandidateStage | null => {
+      switch (currentStage) {
+          case CandidateStage.NEW: return CandidateStage.SCREENING;
+          case CandidateStage.SCREENING: return CandidateStage.INTERVIEW;
+          case CandidateStage.INTERVIEW: return CandidateStage.OFFER;
+          case CandidateStage.OFFER: return CandidateStage.HIRED;
+          case CandidateStage.HIRED: return null; // Terminal stage
+          case CandidateStage.REJECTED: return null; // Terminal stage
+          default: return null;
+      }
+  };
+
+  // Check if a stage transition is valid
+  // Only allows: forward movement to the next stage OR to Rejected
+  const isValidStageTransition = (currentStage: CandidateStage, targetStage: CandidateStage): boolean => {
+      // Can always move to Rejected from any non-terminal stage
+      if (targetStage === CandidateStage.REJECTED) {
+          // Cannot move from Hired or Rejected
+          return currentStage !== CandidateStage.HIRED && currentStage !== CandidateStage.REJECTED;
+      }
+      
+      // Cannot move from terminal stages
+      if (currentStage === CandidateStage.HIRED || currentStage === CandidateStage.REJECTED) {
+          return false;
+      }
+      
+      // Cannot move to New stage manually
+      if (targetStage === CandidateStage.NEW) {
+          return false;
+      }
+      
+      // Only allow forward movement to the immediate next stage
+      const validNextStage = getValidNextStage(currentStage);
+      return validNextStage === targetStage;
+  };
+
   // Handle drag and drop for candidates
   const handleDropCandidate = async (candidateId: string, newStage: CandidateStage) => {
       const candidate = candidates.find(c => c.id === candidateId);
@@ -184,6 +223,25 @@ const CandidateBoard: React.FC = () => {
 
       // Check if stage actually changed
       if (candidate.stage === newStage) return;
+
+      // Validate stage transition
+      if (!isValidStageTransition(candidate.stage, newStage)) {
+          let errorMessage = '';
+          
+          if (candidate.stage === CandidateStage.HIRED || candidate.stage === CandidateStage.REJECTED) {
+              errorMessage = `Cannot move candidate from ${candidate.stage}. This is a terminal stage. Candidates can only be moved to "Rejected" if not already rejected.`;
+          } else if (newStage === CandidateStage.NEW) {
+              errorMessage = `Cannot move candidate to "New" stage. Candidates automatically progress from New after registration.`;
+          } else {
+              errorMessage = `Cannot move candidate from ${candidate.stage} to ${newStage}. Invalid stage transition.`;
+          }
+          
+          setToastMessage(errorMessage);
+          setToastType('error');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 5000);
+          return;
+      }
 
       try {
           // Update candidate stage via API
@@ -193,11 +251,13 @@ const CandidateBoard: React.FC = () => {
 
           // Update local state
           await handleCandidateUpdate(updatedCandidate);
-      } catch (error) {
+      } catch (error: any) {
           console.error('Error moving candidate:', error);
-          setToastMessage('Failed to move candidate. Please try again.');
+          const errorMessage = error?.message || 'Failed to move candidate. Please try again.';
+          setToastMessage(errorMessage);
+          setToastType('error');
           setShowToast(true);
-          setTimeout(() => setShowToast(false), 3000);
+          setTimeout(() => setShowToast(false), 5000);
       }
   };
 
@@ -273,32 +333,44 @@ const CandidateBoard: React.FC = () => {
                 <Button 
                     variant="black" 
                     icon={<Download size={16} />}
-                    onClick={() => {
-                        // Export all filtered candidates to CSV
-                        const csvContent = [
-                            ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
-                            ...filteredCandidates.map(c => [
-                                `"${c.name}"`,
-                                `"${c.email || ''}"`,
-                                `"${c.role || ''}"`,
-                                `"${c.stage}"`,
-                                c.aiMatchScore || '',
-                                `"${(c.skills || []).join('; ')}"`,
-                                `"${c.location || ''}"`,
-                                c.experience || ''
-                            ].join(','))
-                        ].join('\n');
-                        
-                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                        const link = document.createElement('a');
-                        const url = URL.createObjectURL(blob);
-                        link.setAttribute('href', url);
-                        link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
-                        link.style.visibility = 'hidden';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(url);
+                    onClick={async () => {
+                        try {
+                            // Export all filtered candidates to CSV
+                            // Check export limit
+                            const exportCheck = await api.plan.canExportCandidates(filteredCandidates.length);
+                            if (!exportCheck.allowed) {
+                                alert(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export. Please filter to fewer candidates or upgrade to Professional.`);
+                                return;
+                            }
+                            
+                            const csvContent = [
+                                ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
+                                ...filteredCandidates.map(c => [
+                                    `"${c.name}"`,
+                                    `"${c.email || ''}"`,
+                                    `"${c.role || ''}"`,
+                                    `"${c.stage}"`,
+                                    c.aiMatchScore || '',
+                                    `"${(c.skills || []).join('; ')}"`,
+                                    `"${c.location || ''}"`,
+                                    c.experience || ''
+                                ].join(','))
+                            ].join('\n');
+                            
+                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                            const link = document.createElement('a');
+                            const url = URL.createObjectURL(blob);
+                            link.setAttribute('href', url);
+                            link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
+                            link.style.visibility = 'hidden';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        } catch (error) {
+                            console.error('Error exporting candidates:', error);
+                            alert('Failed to export candidates. Please try again.');
+                        }
                     }}
                 >
                     Export
@@ -408,6 +480,7 @@ const CandidateBoard: React.FC = () => {
                 candidates={getCandidatesByStage(CandidateStage.NEW)} 
                 onSelectCandidate={setSelectedCandidate}
                 onDropCandidate={handleDropCandidate}
+                isValidDropTarget={isValidStageTransition}
             />
             <PipelineColumn 
                 title="Screening" 
@@ -415,6 +488,7 @@ const CandidateBoard: React.FC = () => {
                 candidates={getCandidatesByStage(CandidateStage.SCREENING)} 
                 onSelectCandidate={setSelectedCandidate}
                 onDropCandidate={handleDropCandidate}
+                isValidDropTarget={isValidStageTransition}
             />
             <PipelineColumn 
                 title="Interview" 
@@ -422,6 +496,7 @@ const CandidateBoard: React.FC = () => {
                 candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} 
                 onSelectCandidate={setSelectedCandidate}
                 onDropCandidate={handleDropCandidate}
+                isValidDropTarget={isValidStageTransition}
             />
             <PipelineColumn 
                 title="Offer" 
@@ -429,6 +504,7 @@ const CandidateBoard: React.FC = () => {
                 candidates={getCandidatesByStage(CandidateStage.OFFER)} 
                 onSelectCandidate={setSelectedCandidate}
                 onDropCandidate={handleDropCandidate}
+                isValidDropTarget={isValidStageTransition}
             />
             <PipelineColumn 
                 title="Hired" 
@@ -436,6 +512,7 @@ const CandidateBoard: React.FC = () => {
                 candidates={getCandidatesByStage(CandidateStage.HIRED)} 
                 onSelectCandidate={setSelectedCandidate}
                 onDropCandidate={handleDropCandidate}
+                isValidDropTarget={isValidStageTransition}
             />
             <PipelineColumn 
                 title="Rejected" 
@@ -443,6 +520,7 @@ const CandidateBoard: React.FC = () => {
                 candidates={getCandidatesByStage(CandidateStage.REJECTED)} 
                 onSelectCandidate={setSelectedCandidate}
                 onDropCandidate={handleDropCandidate}
+                isValidDropTarget={isValidStageTransition}
             />
           </div>
       </div>
@@ -465,7 +543,7 @@ const CandidateBoard: React.FC = () => {
       {/* Toast Notification */}
       <Toast
         message={toastMessage}
-        type="success"
+        type={toastType}
         isVisible={showToast}
         onClose={() => setShowToast(false)}
       />

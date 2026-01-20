@@ -1494,7 +1494,7 @@ const Settings: React.FC = () => {
         { id: 'notifications', label: 'Notifications', icon: Mail },
         { id: 'templates', label: 'Email Templates', icon: FileText },
         { id: 'workflows', label: 'Email Workflows', icon: Zap },
-        { id: 'integrations', label: 'Integrations', icon: Layers },
+        { id: 'integrations', label: 'Integrations', icon: Layers, requiresProfessional: true },
         { id: 'security', label: 'Security', icon: AlertCircle },
     ];
 
@@ -1522,7 +1522,15 @@ const Settings: React.FC = () => {
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar */}
                 <div className="w-full md:w-64 flex-shrink-0 space-y-1">
-                    {tabs.map((tab) => (
+                    {tabs
+                        .filter(tab => {
+                            // Hide integrations tab for Basic plan
+                            if (tab.requiresProfessional && plan?.name === 'Basic Plan') {
+                                return false;
+                            }
+                            return true;
+                        })
+                        .map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -1949,40 +1957,59 @@ const Settings: React.FC = () => {
                                     <p className="text-sm font-medium">{saveMessage.text}</p>
                                 </div>
                             )}
-                            <div className="grid grid-cols-1 gap-4">
-                                {integrations.filter(integration => integration.id !== 'teams').map((integration) => (
-                                    <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
-                                                <img src={integration.logo} alt={integration.name} className="w-full h-full object-contain" />
+                            {plan?.name === 'Basic Plan' ? (
+                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+                                    <Layers size={48} className="mx-auto text-gray-400 mb-4" />
+                                    <h3 className="text-lg font-bold text-gray-900 mb-2">Integrations Available on Professional Plan</h3>
+                                    <p className="text-sm text-gray-500 mb-6">
+                                        Upgrade to Professional to connect Google Calendar, Google Meet, and Microsoft Teams.
+                                    </p>
+                                    <Button
+                                        variant="black"
+                                        onClick={() => {
+                                            setActiveTab('billing');
+                                            handleSubscribe('professional');
+                                        }}
+                                    >
+                                        Upgrade to Professional
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {integrations.filter(integration => integration.id !== 'teams').map((integration) => (
+                                        <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
+                                                    <img src={integration.logo} alt={integration.name} className="w-full h-full object-contain" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-gray-900">{integration.name}</h3>
+                                                    <p className="text-sm text-gray-500">{integration.desc}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-gray-900">{integration.name}</h3>
-                                                <p className="text-sm text-gray-500">{integration.desc}</p>
-                                            </div>
+                                            <button 
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleIntegrationConnect(integration);
+                                                }}
+                                                disabled={isConnectingIntegration === integration.id}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                    integration.active 
+                                                    ? 'bg-black text-white hover:bg-gray-800' 
+                                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {isConnectingIntegration === integration.id 
+                                                    ? 'Connecting...' 
+                                                    : integration.active 
+                                                        ? 'Disconnect' 
+                                                        : 'Connect'}
+                                            </button>
                                         </div>
-                                        <button 
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                handleIntegrationConnect(integration);
-                                            }}
-                                            disabled={isConnectingIntegration === integration.id}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                integration.active 
-                                                ? 'bg-black text-white hover:bg-gray-800' 
-                                                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            {isConnectingIntegration === integration.id 
-                                                ? 'Connecting...' 
-                                                : integration.active 
-                                                    ? 'Disconnect' 
-                                                    : 'Connect'}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                     

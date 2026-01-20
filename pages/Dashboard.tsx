@@ -352,6 +352,14 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                 if (type === 'export') {
                                     // Export selected candidates to CSV
                                     const selectedCandidates = candidates.filter(c => selectedIds.includes(c.id));
+                                    
+                                    // Check export limit
+                                    const exportCheck = await api.plan.canExportCandidates(selectedCandidates.length);
+                                    if (!exportCheck.allowed) {
+                                        alert(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export. Please select fewer candidates or upgrade to Professional.`);
+                                        return;
+                                    }
+                                    
                                     const csvContent = [
                                         ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
                                         ...selectedCandidates.map(c => [

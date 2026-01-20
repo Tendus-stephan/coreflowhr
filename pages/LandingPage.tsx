@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { 
   Check, Users, 
   Calendar, Mail, LayoutTemplate,
   BrainCircuit, ScanLine, BarChart3, Play, 
   MessageSquare, Video, Plus, Minus,
-  LayoutDashboard, Briefcase, Bell, Clock, ChevronDown, LogOut, CheckCircle, FileText, Settings, TrendingUp, MoreHorizontal, Download, BarChart2, Search, Activity
+  LayoutDashboard, Briefcase, Bell, Clock, ChevronDown, LogOut, CheckCircle, FileText, Settings, TrendingUp, MoreHorizontal, Download, BarChart2, Search, Activity, X
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
@@ -45,11 +46,84 @@ const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; className?: 
   );
 };
 
+// Book Demo Modal Component
+const BookDemoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  // Load Calendly script when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Load Calendly CSS
+      const link = document.createElement('link');
+      link.href = 'https://assets.calendly.com/assets/external/widget.css';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+
+      // Load Calendly JS
+      const script = document.createElement('script');
+      script.src = 'https://assets.calendly.com/assets/external/widget.js';
+      script.async = true;
+      document.body.appendChild(script);
+
+      return () => {
+        // Cleanup on unmount
+        const existingLink = document.querySelector('link[href*="calendly.com"]');
+        const existingScript = document.querySelector('script[src*="calendly.com"]');
+        if (existingLink) existingLink.remove();
+        if (existingScript) existingScript.remove();
+      };
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  // Calendly URL for product demo booking
+  const calendlyUrl = process.env.REACT_APP_CALENDLY_URL || 'https://calendly.com/coreflowhr/product-demo';
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Book a Demo</h2>
+            <p className="text-sm text-gray-500 mt-1">Schedule a personalized walkthrough of CoreFlowHR</p>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-900 transition-colors p-2 rounded-full hover:bg-gray-100"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div 
+            className="calendly-inline-widget" 
+            data-url={calendlyUrl}
+            style={{ minWidth: '320px', height: '700px' }}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [showDemoModal, setShowDemoModal] = useState(false);
   const { user, session, signOut, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -375,8 +449,14 @@ const LandingPage: React.FC = () => {
                 </Button>
               </Link>
             )}
-            <Button variant="outline" size="xl" className="h-14 px-8 rounded-full text-base bg-white hover:bg-gray-50 border-gray-200" icon={<Play size={16} className="fill-gray-900 text-gray-900"/>}>
-              See how it works
+            <Button 
+              variant="outline" 
+              size="xl" 
+              className="h-14 px-8 rounded-full text-base bg-white hover:bg-gray-50 border-gray-200" 
+              icon={<Calendar size={16} />}
+              onClick={() => setShowDemoModal(true)}
+            >
+              Book a Demo
             </Button>
           </div>
         </FadeIn>
@@ -997,14 +1077,15 @@ const LandingPage: React.FC = () => {
                        <p className="text-sm text-gray-500 mb-4">Perfect for small teams getting started</p>
                        <ul className="space-y-4">
                            {[
-                               "Up to 10 active job postings", 
-                               "20 candidates per job", 
-                               "Unlimited candidate applications", 
-                               "AI-powered screening & ranking",
-                               "Automated interview scheduling",
-                               "Basic analytics dashboard",
-                               "Email notifications",
-                               "Standard support"
+                               "5 active jobs", 
+                               "50 candidates per job", 
+                               "500 candidates per month", 
+                               "20 AI analyses per month",
+                               "3 email workflows",
+                               "AI-powered candidate matching",
+                               "Email templates",
+                               "Basic analytics",
+                               "Email support"
                            ].map((feat, i) => (
                                <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
                                    <div className="mt-0.5 bg-black rounded-full p-0.5 text-white">
@@ -1051,15 +1132,16 @@ const LandingPage: React.FC = () => {
                        <p className="text-sm text-gray-500 mb-4">Advanced features for growing teams</p>
                        <ul className="space-y-4">
                            {[
-                               "15 active job postings (can purchase extra slots)", 
-                               "100 candidates per job", 
-                               "Unlimited candidate applications", 
-                               "Advanced AI ranking & auto shortlisting",
-                               "Team collaboration (multi-user workspace)",
-                               "Interview calendar integration (Google/Outlook)",
+                               "15 active jobs (base) + buy more", 
+                               "100 candidates per job (base) + buy more", 
+                               "2,000 candidates per month (base) + buy more", 
+                               "100 AI analyses per month (base) + buy more",
+                               "10 email workflows (base) + buy more",
+                               "AI email generation",
                                "Advanced analytics & reports",
-                               "Priority chat + email support",
-                               "Custom integrations"
+                               "Integrations (Google Calendar, Meet, Teams)",
+                               "Priority support",
+                               "Purchase additional credits for more usage"
                            ].map((feat, i) => (
                                <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
                                    <div className="mt-0.5 bg-black rounded-full p-0.5 text-white">
@@ -1133,6 +1215,9 @@ const LandingPage: React.FC = () => {
             </h1>
         </div>
       </footer>
+      
+      {/* Book Demo Modal */}
+      <BookDemoModal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} />
       
       {/* Floating Chat Button (Simulated) */}
       <div className="fixed bottom-8 right-8 z-40">

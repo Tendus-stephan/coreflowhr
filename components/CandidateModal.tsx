@@ -208,6 +208,18 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   const handleRunAIAnalysis = async () => {
       if (!job) return;
+      
+      // Check AI analysis quota
+      try {
+          const usage = await api.plan.getAiAnalysisUsage();
+          if (!usage.remaining || usage.remaining <= 0) {
+              alert(`You've reached your monthly AI analysis limit (${usage.max} analyses). Upgrade to Professional for ${(await api.settings.getPlan()).name === 'Basic Plan' ? 100 : usage.max} AI analyses per month.`);
+              return;
+          }
+      } catch (error) {
+          console.error('Error checking AI analysis quota:', error);
+      }
+      
       setLoadingAI(true);
       try {
         const analysis = await generateCandidateAnalysis(candidate, job);
@@ -224,12 +236,60 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
             aiMatchScore: analysis.score,
             aiAnalysis: formattedAnalysis
         });
+        
+        // Increment AI analysis count in database
+        try {
+            const userId = (await supabase.auth.getUser()).data.user?.id;
+            if (userId) {
+                const { data: settings } = await supabase
+                    .from('user_settings')
+                    .select('ai_analysis_count, ai_analysis_reset_date')
+                    .eq('user_id', userId)
+                    .single();
+                
+                const now = new Date();
+                const resetDate = settings?.ai_analysis_reset_date ? new Date(settings.ai_analysis_reset_date) : null;
+                let count = 0;
+                
+                // Reset if new month
+                if (!resetDate || resetDate.getMonth() !== now.getMonth() || resetDate.getFullYear() !== now.getFullYear()) {
+                    count = 1;
+                    await supabase
+                        .from('user_settings')
+                        .upsert({
+                            user_id: userId,
+                            ai_analysis_count: 1,
+                            ai_analysis_reset_date: now.toISOString()
+                        }, { onConflict: 'user_id' });
+                } else {
+                    count = (settings?.ai_analysis_count || 0) + 1;
+                    await supabase
+                        .from('user_settings')
+                        .update({ ai_analysis_count: count })
+                        .eq('user_id', userId);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating AI analysis count:', error);
+            // Don't block user if tracking fails
+        }
       } finally {
         setLoadingAI(false);
       }
   };
 
   const handleGenerateEmail = async (type: 'Screening' | 'Offer' | 'Hired' | 'Rejection') => {
+      // Check if AI email generation is allowed
+      try {
+          const canUseAi = await api.plan.canUseAiEmailGeneration();
+          if (!canUseAi) {
+              alert('AI email generation is only available on the Professional plan. Upgrade to Professional to use this feature.');
+              return;
+          }
+      } catch (error) {
+          console.error('Error checking AI email generation permission:', error);
+      }
+      
       setLoadingAI(true);
       setEmailSent(false);
       setEmailError(null);

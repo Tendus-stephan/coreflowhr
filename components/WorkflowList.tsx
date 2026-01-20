@@ -22,6 +22,8 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [canCreate, setCanCreate] = useState(true);
+    const [workflowLimitInfo, setWorkflowLimitInfo] = useState<{ current: number; max: number; message?: string } | null>(null);
 
     useEffect(() => {
         loadWorkflows();
@@ -63,12 +65,29 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             } else {
                 setWorkflows(data);
             }
+            
+            // Check workflow limit
+            const checkResult = await api.plan.canCreateWorkflow(data.length);
+            setCanCreate(checkResult.allowed);
+            setWorkflowLimitInfo({
+                current: data.length,
+                max: checkResult.maxAllowed,
+                message: checkResult.message
+            });
         } catch (err: any) {
             console.error('Error loading workflows:', err);
             setError(err.message || 'Failed to load workflows');
         } finally {
             setLoading(false);
         }
+    };
+    
+    const handleCreateClick = () => {
+        if (!canCreate && workflowLimitInfo) {
+            alert(workflowLimitInfo.message || `You've reached your workflow limit (${workflowLimitInfo.max} workflows). Upgrade to Professional for more workflows.`);
+            return;
+        }
+        onCreate();
     };
 
     const handleToggle = async (workflow: EmailWorkflow) => {
@@ -122,12 +141,21 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             )}
 
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-900">Email Workflows</h3>
+                <div>
+                    <h3 className="text-lg font-bold text-gray-900">Email Workflows</h3>
+                    {workflowLimitInfo && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            {workflowLimitInfo.current} of {workflowLimitInfo.max} workflows used
+                        </p>
+                    )}
+                </div>
                 <Button
                     variant="black"
                     size="sm"
                     icon={<Plus size={16} />}
-                    onClick={onCreate}
+                    onClick={handleCreateClick}
+                    disabled={!canCreate}
+                    className={!canCreate ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                     Create Workflow
                 </Button>
@@ -141,7 +169,9 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
                         variant="outline"
                         size="sm"
                         icon={<Plus size={16} />}
-                        onClick={onCreate}
+                        onClick={handleCreateClick}
+                        disabled={!canCreate}
+                        className={!canCreate ? 'opacity-50 cursor-not-allowed' : ''}
                     >
                         Create Your First Workflow
                     </Button>

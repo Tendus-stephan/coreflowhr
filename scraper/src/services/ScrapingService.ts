@@ -337,7 +337,7 @@ export class ScrapingService {
             consecutiveEmptyFetches: consecutiveEmptyFetches
           };
         }
-        
+
         results.push({
           success: true,
           candidatesFound: allCandidates.length,
@@ -352,7 +352,7 @@ export class ScrapingService {
           logger.info(`📊 Statistics: ${stats.invalid} invalid, ${stats.duplicates} duplicates, ${stats.saveErrors} save errors`);
           logger.info(`📊 Apify runs used: ${apifyRunsUsed} (Free tier: 10 runs/day, ${10 - apifyRunsUsed} remaining today)`);
         } else {
-          logger.info(`✅ ${source.toUpperCase()}: Found ${allCandidates.length}, Saved ${saved} unique candidates (target: ${quota})`);
+        logger.info(`✅ ${source.toUpperCase()}: Found ${allCandidates.length}, Saved ${saved} unique candidates (target: ${quota})`);
           logger.info(`📊 Statistics: ${stats.invalid} invalid, ${stats.duplicates} duplicates, ${stats.saveErrors} save errors`);
         }
         

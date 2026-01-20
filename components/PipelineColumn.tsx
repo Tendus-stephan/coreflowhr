@@ -9,6 +9,7 @@ interface PipelineColumnProps {
     candidates: Candidate[];
     onSelectCandidate: (candidate: Candidate) => void;
     onDropCandidate?: (candidateId: string, newStage: CandidateStage) => void;
+    isValidDropTarget?: (sourceStage: CandidateStage, targetStage: CandidateStage) => boolean;
 }
 
 // Separate component for draggable candidate card
@@ -95,9 +96,10 @@ const DraggableCandidateCard: React.FC<{
     );
 };
 
-export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate }) => {
+export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate, isValidDropTarget }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragSourceStage, setDragSourceStage] = useState<CandidateStage | null>(null);
   const ITEMS_PER_PAGE = 4;
   
   const totalPages = Math.ceil(candidates.length / ITEMS_PER_PAGE);
@@ -119,32 +121,62 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(true);
+    
+    const sourceStage = e.dataTransfer.getData('sourceStage') as CandidateStage;
+    setDragSourceStage(sourceStage || null);
+    
+    // Only show drag over effect if it's a valid drop target
+    if (sourceStage && isValidDropTarget) {
+      const isValid = isValidDropTarget(sourceStage as CandidateStage, stage);
+      if (isValid || sourceStage === stage) {
+        setIsDragOver(true);
+      } else {
+        setIsDragOver(false);
+      }
+    } else {
+      setIsDragOver(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
+    setDragSourceStage(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
+    setDragSourceStage(null);
     
     const candidateId = e.dataTransfer.getData('candidateId');
     const sourceStage = e.dataTransfer.getData('sourceStage') as CandidateStage;
     
     // Only process if dropped on a different stage
     if (candidateId && sourceStage !== stage && onDropCandidate) {
+      // Validation is handled in handleDropCandidate, but we can do a quick check here too
+      if (isValidDropTarget && !isValidDropTarget(sourceStage as CandidateStage, stage)) {
+        // Invalid drop - the error will be shown by handleDropCandidate
+        return;
+      }
       onDropCandidate(candidateId, stage);
     }
   };
 
+  // Check if this column is a valid drop target for the current drag
+  const isInvalidDropTarget = dragSourceStage && isValidDropTarget && dragSourceStage !== stage && !isValidDropTarget(dragSourceStage, stage);
+  
   return (
     <div 
-      className={`flex-shrink-0 w-[350px] snap-center flex flex-col rounded-xl border transition-colors ${isDragOver ? 'bg-blue-50 border-blue-300 border-2' : 'bg-gray-50/50 border-border'}`}
+      className={`flex-shrink-0 w-[350px] snap-center flex flex-col rounded-xl border transition-colors ${
+        isDragOver 
+          ? 'bg-blue-50 border-blue-300 border-2' 
+          : isInvalidDropTarget
+          ? 'bg-red-50/50 border-red-200 opacity-60'
+          : 'bg-gray-50/50 border-border'
+      }`}
       style={{ height: '100%' }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

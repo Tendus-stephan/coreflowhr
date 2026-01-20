@@ -1,5 +1,6 @@
 import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate } from "../types";
 import { supabase } from "./supabase";
+import { getPlanLimits, hasFeature } from "./planLimits";
 
 // Helper to get current user ID
 const getUserId = async (): Promise<string | null> => {
@@ -1368,6 +1369,39 @@ export const api = {
             // Determine status - if not provided, default to 'Draft' for safety
             // Status should always be explicitly set by the caller
             const jobStatus = jobData.status || 'Draft';
+            
+            // Check active jobs limit if activating the job
+            if (jobStatus === 'Active') {
+                const { getPlanLimits } = await import('./planLimits');
+                const { getEffectiveLimit } = await import('./credits');
+                
+                // Get user's plan
+                const { data: settings } = await supabase
+                    .from('user_settings')
+                    .select('billing_plan_name')
+                    .eq('user_id', userId)
+                    .single();
+                
+                const planName = settings?.billing_plan_name || 'Basic Plan';
+                const limits = getPlanLimits(planName);
+                
+                // Get current active jobs count
+                const { data: activeJobs } = await supabase
+                    .from('jobs')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('user_id', userId)
+                    .eq('status', 'Active');
+                
+                const currentActiveJobs = activeJobs?.length || 0;
+                
+                // Get effective limit (base + credits)
+                const maxActiveJobs = await getEffectiveLimit(userId, planName, 'jobs');
+                
+                if (currentActiveJobs >= maxActiveJobs) {
+                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs (${maxActiveJobs} with credits). Please close or archive existing jobs before creating new active ones, or upgrade your plan.`);
+                }
+            }
+            
             const postedDate = jobStatus === 'Active' ? new Date().toISOString() : null;
 
             // Production mode - use job title as provided
@@ -1453,9 +1487,42 @@ export const api = {
                 }
             }
 
-            // If status is being changed to Active and posted_date is not set, set it now
-            if (updateData.status === 'Active' && oldStatus !== 'Active' && !oldPostedDate) {
-                updateData.posted_date = new Date().toISOString();
+            // If status is being changed to Active, check active jobs limit
+            if (updateData.status === 'Active' && oldStatus !== 'Active') {
+                const { getPlanLimits } = await import('./planLimits');
+                const { getEffectiveLimit } = await import('./credits');
+                
+                // Get user's plan
+                const { data: settings } = await supabase
+                    .from('user_settings')
+                    .select('billing_plan_name')
+                    .eq('user_id', userId)
+                    .single();
+                
+                const planName = settings?.billing_plan_name || 'Basic Plan';
+                const limits = getPlanLimits(planName);
+                
+                // Get current active jobs count (excluding the current job being updated)
+                const { data: activeJobs } = await supabase
+                    .from('jobs')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('user_id', userId)
+                    .eq('status', 'Active')
+                    .neq('id', id); // Exclude current job
+                
+                const currentActiveJobs = (activeJobs?.length || 0) + 1; // +1 for the job being activated
+                
+                // Get effective limit (base + credits)
+                const maxActiveJobs = await getEffectiveLimit(userId, planName, 'jobs');
+                
+                if (currentActiveJobs > maxActiveJobs) {
+                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs (${maxActiveJobs} with credits). Please close or archive existing jobs before activating this one, or upgrade your plan.`);
+                }
+                
+                // Set posted_date if not set
+                if (!oldPostedDate) {
+                    updateData.posted_date = new Date().toISOString();
+                }
             }
 
             const { data, error } = await supabase
@@ -3963,6 +4030,107 @@ export const api = {
                     console.error('Error logging integration disconnect activity:', error);
                 }
             }
+        }
+    },
+    plan: {
+        /**
+         * Check if plan allows AI email generation
+         */
+        canUseAiEmailGeneration: async (): Promise<boolean> => {
+            const plan = await api.settings.getPlan();
+            const limits = getPlanLimits(plan.name);
+            return limits.aiEmailGeneration;
+        },
+        
+        /**
+         * Check if user can create a workflow
+         */
+        canCreateWorkflow: async (currentWorkflowCount: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
+            const plan = await api.settings.getPlan();
+            const limits = getPlanLimits(plan.name);
+            const maxAllowed = limits.maxEmailWorkflows;
+            
+            if (currentWorkflowCount < maxAllowed) {
+                return { allowed: true, maxAllowed };
+            }
+            
+            return {
+                allowed: false,
+                maxAllowed,
+                message: `Your ${limits.name} plan allows up to ${maxAllowed} email workflows. Upgrade to Professional for up to ${getPlanLimits('Professional').maxEmailWorkflows} workflows.`
+            };
+        },
+        
+        /**
+         * Check if user can export specified number of candidates
+         */
+        canExportCandidates: async (count: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
+            const plan = await api.settings.getPlan();
+            const limits = getPlanLimits(plan.name);
+            const maxAllowed = limits.maxExportCandidates;
+            
+            if (count <= maxAllowed) {
+                return { allowed: true, maxAllowed };
+            }
+            
+            return {
+                allowed: false,
+                maxAllowed,
+                message: `Your ${limits.name} plan allows up to ${maxAllowed} candidates per export. Upgrade to Professional for up to ${getPlanLimits('Professional').maxExportCandidates} candidates per export.`
+            };
+        },
+        
+        /**
+         * Check if user has AI analysis quota remaining
+         */
+        hasAiAnalysisQuota: async (usedThisMonth: number): Promise<{ allowed: boolean; maxAllowed: number; remaining: number; message?: string }> => {
+            const plan = await api.settings.getPlan();
+            const limits = getPlanLimits(plan.name);
+            const maxAllowed = limits.maxAiAnalysisPerMonth;
+            const remaining = maxAllowed - usedThisMonth;
+            
+            if (remaining > 0) {
+                return { allowed: true, maxAllowed, remaining };
+            }
+            
+            return {
+                allowed: false,
+                maxAllowed,
+                remaining: 0,
+                message: `Your ${limits.name} plan allows ${maxAllowed} AI analyses per month. Upgrade to Professional for ${getPlanLimits('Professional').maxAiAnalysisPerMonth} AI analyses per month.`
+            };
+        },
+        
+        /**
+         * Get user's AI analysis usage for current month
+         */
+        getAiAnalysisUsage: async (): Promise<{ used: number; max: number; remaining: number }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            
+            const plan = await api.settings.getPlan();
+            const limits = getPlanLimits(plan.name);
+            
+            // Get current month's usage from user_settings
+            const { data } = await supabase
+                .from('user_settings')
+                .select('ai_analysis_count, ai_analysis_reset_date')
+                .eq('user_id', userId)
+                .single();
+            
+            const resetDate = data?.ai_analysis_reset_date ? new Date(data.ai_analysis_reset_date) : null;
+            const now = new Date();
+            
+            // Reset if it's a new month
+            let used = 0;
+            if (resetDate && resetDate.getMonth() === now.getMonth() && resetDate.getFullYear() === now.getFullYear()) {
+                used = data?.ai_analysis_count || 0;
+            }
+            
+            const max = limits.maxAiAnalysisPerMonth;
+            const remaining = Math.max(0, max - used);
+            
+            return { used, max, remaining };
         }
     },
     workflows: {
