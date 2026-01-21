@@ -173,7 +173,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
     const handleScheduleInterview = async () => {
         if (!selectedCandidate || !date || !time) return;
-        if (interviewType === 'Video Call' && (!selectedPlatform || !meetingLink)) return;
+        // For video calls, require a meeting link only when an integration is connected.
+        // If there are no integrations, allow manual video interviews without an auto-generated link.
+        if (interviewType === 'Video Call' && integrations.length > 0 && (!selectedPlatform || !meetingLink)) return;
         if (interviewType === 'In Person' && !address) return;
 
         setIsScheduling(true);
@@ -582,16 +584,15 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         </div>
                                 ) : (
                                     <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 text-center">
-                                        No video platforms connected. Connect Google Meet in Settings.
+                                        No calendar integrations connected. You can still paste a meeting link below and send interview details by email.
                                     </div>
                                 )}
                     </div>
 
-                            {integrations.length > 0 && (
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-gray-900">Meeting Link</label>
                         <div className="flex gap-2">
-                            {meetingLink ? (
+                            {meetingLink && integrations.length > 0 ? (
                                 <div className="relative flex-1">
                                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <a
@@ -609,13 +610,20 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                 <input 
                                     type="text" 
-                                    placeholder="Generate meeting link..." 
+                                    placeholder={integrations.length > 0 ? 'Generate meeting link...' : 'Paste meeting link (Zoom, Meet, Teams...)'}
                                     value={meetingLink}
-                                    readOnly
-                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none text-gray-600" 
+                                    onChange={(e) => {
+                                        // Allow manual entry when no integrations; keep read-only when using integrations (auto-generated).
+                                        if (integrations.length === 0) {
+                                            setMeetingLink(e.target.value);
+                                        }
+                                    }}
+                                    readOnly={integrations.length > 0}
+                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none text-gray-600" 
                                 />
                             </div>
                             )}
+                            {integrations.length > 0 && (
                             <button 
                                 type="button" 
                                 onClick={generateLink} 
@@ -624,9 +632,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             >
                                 {isGenerating ? '...' : 'Generate'}
                             </button>
-                        </div>
-                    </div>
                             )}
+                        </div>
+                        {integrations.length === 0 && (
+                            <p className="text-xs text-gray-500">
+                                This link will be included in the interview email, but it will not create a calendar event automatically.
+                            </p>
+                        )}
+                    </div>
                         </>
                     )}
 
@@ -651,7 +664,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button 
                         variant="black" 
-                        disabled={isScheduling || !selectedCandidate || !date || !time || (interviewType === 'Video Call' && (!selectedPlatform || !meetingLink)) || (interviewType === 'In Person' && !address)}
+                        disabled={
+                            isScheduling ||
+                            !selectedCandidate ||
+                            !date ||
+                            !time ||
+                            (interviewType === 'Video Call' && integrations.length > 0 && (!selectedPlatform || !meetingLink)) ||
+                            (interviewType === 'In Person' && !address)
+                        }
                         onClick={handleScheduleInterview}
                     >
                         {isScheduling ? 'Scheduling...' : 'Schedule Interview'}

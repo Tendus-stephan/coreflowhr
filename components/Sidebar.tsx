@@ -85,7 +85,7 @@ const Sidebar: React.FC = () => {
   }
 
   return (
-    <div className={`${isExpanded ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col fixed top-0 left-0 bottom-0 shadow-sm z-20 transition-all duration-150`} style={{ overflow: 'hidden' }}>
+    <div className={`${isExpanded ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col fixed top-0 left-0 bottom-0 shadow-sm z-20 transition-all duration-150 hidden md:flex`} style={{ overflow: 'hidden' }}>
       <div className={`${isExpanded ? 'px-6' : 'px-4'} ${isExpanded ? 'py-4' : 'py-6'} ${isExpanded ? 'mb-1' : 'mb-2'} flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} flex-shrink-0`}>
         <Link to="/dashboard" className="flex items-center gap-3">
           {isExpanded ? (

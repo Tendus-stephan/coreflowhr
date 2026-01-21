@@ -21,7 +21,7 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "@octokit/rest": "^20.0.0",
-    "@sentry/node": "^9.27.0",
+    "@sentry/node": "^10.35.0",
     "@sentry/react": "^10.35.0",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",

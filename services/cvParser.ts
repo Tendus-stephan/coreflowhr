@@ -111,9 +111,9 @@ async function extractTextFromPDF(file: File): Promise<string> {
             try {
                 // Try to extract text content
                 const textContent = await page.getTextContent({
-                    normalizeWhitespace: true,
-                    disableCombineTextItems: false
-                });
+                    // Options are cast to any to remain compatible with different pdfjs versions
+                    disableCombineTextItems: false,
+                } as any);
                 
                 // Extract text from items
                 const pageText = textContent.items

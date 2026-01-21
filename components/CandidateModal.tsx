@@ -215,7 +215,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           if (!usage.remaining || usage.remaining <= 0) {
               alert(
                 `You've reached your monthly AI analysis limit (${usage.max} analyses). ` +
-                `Upgrade to Professional to increase your monthly AI analysis quota.`
+                `Your quota will reset next month.`
               );
               return;
           }

@@ -25,19 +25,12 @@ CREATE POLICY "Users can view their own credits"
     ON public.user_credits FOR SELECT
     USING (auth.uid() = user_id);
 
--- IMPORTANT: Do NOT allow direct client inserts for credits.
--- Credits should only be created by trusted backend processes (e.g. Stripe webhooks)
+-- IMPORTANT: Do NOT allow direct client inserts, updates, or deletes for credits.
+-- Credits should only be created/modified by trusted backend processes (e.g. Stripe webhooks)
 -- using the service role key, which bypasses RLS.
-
--- RLS Policy: Users can update their own credits
-CREATE POLICY "Users can update their own credits"
-    ON public.user_credits FOR UPDATE
-    USING (auth.uid() = user_id);
-
--- RLS Policy: Users can delete their own credits
-CREATE POLICY "Users can delete their own credits"
-    ON public.user_credits FOR DELETE
-    USING (auth.uid() = user_id);
+-- 
+-- Credit mutations (UPDATE/DELETE) are handled by backend/service-role only.
+-- (No UPDATE/DELETE policies for authenticated users to prevent credit manipulation.)
 
 -- Add AI analysis tracking to user_settings
 ALTER TABLE public.user_settings

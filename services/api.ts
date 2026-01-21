@@ -1385,13 +1385,13 @@ export const api = {
                 const limits = getPlanLimits(planName);
                 
                 // Get current active jobs count
-                const { data: activeJobs } = await supabase
+                const { count: activeJobsCount } = await supabase
                     .from('jobs')
                     .select('id', { count: 'exact', head: true })
                     .eq('user_id', userId)
                     .eq('status', 'Active');
                 
-                const currentActiveJobs = activeJobs?.length || 0;
+                const currentActiveJobs = activeJobsCount ?? 0;
                 const maxActiveJobs = limits.maxActiveJobs;
                 
                 if (currentActiveJobs >= maxActiveJobs) {
@@ -1499,14 +1499,14 @@ export const api = {
                 const limits = getPlanLimits(planName);
                 
                 // Get current active jobs count (excluding the current job being updated)
-                const { data: activeJobs } = await supabase
+                const { count: activeJobsCount } = await supabase
                     .from('jobs')
                     .select('id', { count: 'exact', head: true })
                     .eq('user_id', userId)
                     .eq('status', 'Active')
                     .neq('id', id); // Exclude current job
                 
-                const currentActiveJobs = (activeJobs?.length || 0) + 1; // +1 for the job being activated
+                const currentActiveJobs = (activeJobsCount ?? 0) + 1; // +1 for the job being activated
                 const maxActiveJobs = limits.maxActiveJobs;
                 
                 if (currentActiveJobs > maxActiveJobs) {
@@ -2339,6 +2339,10 @@ export const api = {
             }
 
             // Execute workflows for the new stage
+            // Note: We execute workflows AFTER stage update to ensure candidate is in correct stage
+            // If workflow execution fails, we log the error but don't rollback the stage update
+            // This is intentional - the candidate stage change is the source of truth
+            // Failed workflows can be retried manually or via execution logs
             if (updates.stage !== undefined) {
                 // Skip workflow execution for Offer stage if an offer email was just sent
                 // (This prevents duplicate emails when offer.send() moves candidate to Offer stage)
@@ -2346,8 +2350,27 @@ export const api = {
                 try {
                     const { executeWorkflowsForStage } = await import('./workflowEngine');
                     await executeWorkflowsForStage(candidateId, updates.stage, userId, shouldSkipIfAlreadySent);
-                } catch (workflowError) {
+                } catch (workflowError: any) {
+                    // Log error but don't fail the candidate update
+                    // This ensures candidate stage is updated even if workflow execution fails
                     console.error('Error executing workflows:', workflowError);
+                    // Optionally: Create a failed execution log for monitoring
+                    try {
+                        const workflowIds = await supabase
+                            .from('email_workflows')
+                            .select('id')
+                            .eq('user_id', userId)
+                            .eq('trigger_stage', updates.stage)
+                            .eq('enabled', true);
+                        
+                        if (workflowIds.data && workflowIds.data.length > 0) {
+                            // Log failed execution for monitoring (but don't block stage update)
+                            console.warn(`[Workflow Engine] Failed to execute ${workflowIds.data.length} workflow(s) for stage ${updates.stage} - candidate stage updated but workflows may need manual retry`);
+                        }
+                    } catch (logError) {
+                        // Ignore logging errors
+                        console.error('Error logging workflow failure:', logError);
+                    }
                 }
             }
 
@@ -4048,10 +4071,15 @@ export const api = {
                 return { allowed: true, maxAllowed };
             }
             
+            const isTopPlan = limits.name === 'Professional';
+            const message = isTopPlan
+                ? `You've reached your maximum of ${maxAllowed} email workflows. Please delete an existing workflow or contact support for assistance.`
+                : `Your ${limits.name} plan allows up to ${maxAllowed} email workflows. Upgrade to Professional for up to ${getPlanLimits('Professional').maxEmailWorkflows} workflows.`;
+            
             return {
                 allowed: false,
                 maxAllowed,
-                message: `Your ${limits.name} plan allows up to ${maxAllowed} email workflows. Upgrade to Professional for up to ${getPlanLimits('Professional').maxEmailWorkflows} workflows.`
+                message
             };
         },
         
@@ -4067,10 +4095,15 @@ export const api = {
                 return { allowed: true, maxAllowed };
             }
             
+            const isTopPlan = limits.name === 'Professional';
+            const message = isTopPlan
+                ? `Your plan allows up to ${maxAllowed} candidates per export. Please filter to fewer candidates or contact support for assistance.`
+                : `Your ${limits.name} plan allows up to ${maxAllowed} candidates per export. Upgrade to Professional for up to ${getPlanLimits('Professional').maxExportCandidates} candidates per export.`;
+            
             return {
                 allowed: false,
                 maxAllowed,
-                message: `Your ${limits.name} plan allows up to ${maxAllowed} candidates per export. Upgrade to Professional for up to ${getPlanLimits('Professional').maxExportCandidates} candidates per export.`
+                message
             };
         },
         
@@ -4087,11 +4120,16 @@ export const api = {
                 return { allowed: true, maxAllowed, remaining };
             }
             
+            const isTopPlan = limits.name === 'Professional';
+            const message = isTopPlan
+                ? `You've reached your monthly limit of ${maxAllowed} AI analyses. Your quota will reset next month.`
+                : `Your ${limits.name} plan allows ${maxAllowed} AI analyses per month. Upgrade to Professional for ${getPlanLimits('Professional').maxAiAnalysisPerMonth} AI analyses per month.`;
+            
             return {
                 allowed: false,
                 maxAllowed,
                 remaining: 0,
-                message: `Your ${limits.name} plan allows ${maxAllowed} AI analyses per month. Upgrade to Professional for ${getPlanLimits('Professional').maxAiAnalysisPerMonth} AI analyses per month.`
+                message
             };
         },
         

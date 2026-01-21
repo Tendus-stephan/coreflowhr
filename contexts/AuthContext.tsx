@@ -341,7 +341,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         factorId: factor.id,
         challengeId: challenge.id,
         code,
-      });
+      }) as any;
 
       if (verifyError) {
         return { error: verifyError };

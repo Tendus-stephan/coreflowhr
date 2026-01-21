@@ -75,6 +75,8 @@ export interface ScrapeResult {
     saveErrors: number;
     processed: number;
   };
+  // Optional diagnostic information for debugging scraping runs
+  diagnostic?: any;
 }
 
 export interface LinkedInQuery {
@@ -113,19 +115,3 @@ export interface JobBoardQuery {
   location?: string;
   maxResults?: number;
 }
-
-
-
-  skills?: string[];
-  location?: string;
-  maxResults?: number;
-}
-
-export interface JobBoardQuery {
-  jobTitle?: string;
-  skills?: string[];
-  location?: string;
-  maxResults?: number;
-}
-
-

@@ -68,6 +68,80 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
         }
     };
 
+    // Filter templates based on trigger stage to prevent logical errors
+    // e.g., "Offer Accepted" template shouldn't be available for "Offer" stage trigger
+    // These offer status templates are handled separately by the offer system, not workflows
+    const getFilteredTemplates = (): EmailTemplate[] => {
+        // Templates that should NEVER be used in workflows (handled by other systems)
+        const excludedTemplateTypes = [
+            'Offer Accepted',
+            'Offer Declined', 
+            'Counter Offer Response'
+        ];
+
+        const stageToTemplateTypeMap: Record<CandidateStage, string[]> = {
+            [CandidateStage.NEW]: [], // New stage workflows are disabled
+            [CandidateStage.SCREENING]: ['Screening'],
+            [CandidateStage.INTERVIEW]: ['Interview', 'Reschedule'],
+            [CandidateStage.OFFER]: ['Offer'], // Only "Offer" type for sending offers, NOT status templates
+            [CandidateStage.HIRED]: ['Hired'],
+            [CandidateStage.REJECTED]: ['Rejection']
+        };
+
+        const allowedTypes = stageToTemplateTypeMap[triggerStage] || [];
+        
+        // Get currently selected template (if editing)
+        const currentTemplate = emailTemplateId ? templates.find(t => t.id === emailTemplateId) : null;
+        const isCurrentTemplateInvalid = currentTemplate && (
+            excludedTemplateTypes.includes(currentTemplate.type) ||
+            (allowedTypes.length > 0 && !allowedTypes.includes(currentTemplate.type))
+        );
+        
+        // Filter templates:
+        // 1. Exclude offer status templates (handled by offer system, not workflows)
+        // 2. Only show templates matching the allowed types for this stage
+        // 3. BUT: Include current template even if invalid (so user can see what was selected)
+        const filtered = templates.filter(template => {
+            // Always include current template (even if invalid) so user can see it
+            if (template.id === emailTemplateId) {
+                return true;
+            }
+            // Never show offer status templates in workflows
+            if (excludedTemplateTypes.includes(template.type)) {
+                return false;
+            }
+            // If no allowed types for this stage, show all (except excluded)
+            if (allowedTypes.length === 0) {
+                return true;
+            }
+            // Only show templates matching allowed types
+            return allowedTypes.includes(template.type);
+        });
+        
+        return filtered;
+    };
+
+    // Check if current template selection is invalid
+    const isCurrentTemplateInvalid = (): boolean => {
+        if (!emailTemplateId) return false;
+        const currentTemplate = templates.find(t => t.id === emailTemplateId);
+        if (!currentTemplate) return false;
+        
+        const excludedTemplateTypes = ['Offer Accepted', 'Offer Declined', 'Counter Offer Response'];
+        if (excludedTemplateTypes.includes(currentTemplate.type)) return true;
+        
+        const stageToTemplateTypeMap: Record<CandidateStage, string[]> = {
+            [CandidateStage.NEW]: [],
+            [CandidateStage.SCREENING]: ['Screening'],
+            [CandidateStage.INTERVIEW]: ['Interview', 'Reschedule'],
+            [CandidateStage.OFFER]: ['Offer'],
+            [CandidateStage.HIRED]: ['Hired'],
+            [CandidateStage.REJECTED]: ['Rejection']
+        };
+        const allowedTypes = stageToTemplateTypeMap[triggerStage] || [];
+        return allowedTypes.length > 0 && !allowedTypes.includes(currentTemplate.type);
+    };
+
     const handleAddSource = () => {
         if (sourceInput.trim() && !sourceFilter.includes(sourceInput.trim())) {
             setSourceFilter([...sourceFilter, sourceInput.trim()]);
@@ -87,6 +161,12 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
 
         if (!emailTemplateId) {
             setError('Email template is required');
+            return;
+        }
+
+        // Validate template is appropriate for trigger stage
+        if (isCurrentTemplateInvalid()) {
+            setError('The selected email template is not appropriate for this trigger stage. Please select a different template.');
             return;
         }
 
@@ -175,7 +255,27 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                         </label>
                         <select
                             value={triggerStage}
-                            onChange={(e) => setTriggerStage(e.target.value as CandidateStage)}
+                            onChange={(e) => {
+                                const newStage = e.target.value as CandidateStage;
+                                setTriggerStage(newStage);
+                                // Reset template selection if current template is not valid for new stage
+                                const filteredTemplates = templates.filter(template => {
+                                    const stageToTemplateTypeMap: Record<CandidateStage, string[]> = {
+                                        [CandidateStage.NEW]: [],
+                                        [CandidateStage.SCREENING]: ['Screening'],
+                                        [CandidateStage.INTERVIEW]: ['Interview', 'Reschedule'],
+                                        [CandidateStage.OFFER]: ['Offer'],
+                                        [CandidateStage.HIRED]: ['Hired'],
+                                        [CandidateStage.REJECTED]: ['Rejection']
+                                    };
+                                    const allowedTypes = stageToTemplateTypeMap[newStage] || [];
+                                    return allowedTypes.includes(template.type);
+                                });
+                                const currentTemplate = templates.find(t => t.id === emailTemplateId);
+                                if (currentTemplate && !filteredTemplates.find(t => t.id === currentTemplate.id)) {
+                                    setEmailTemplateId(''); // Clear invalid selection
+                                }
+                            }}
                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                         >
                             {Object.values(CandidateStage)
@@ -203,12 +303,35 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                         >
                             <option value="">Select a template...</option>
-                            {templates.map(template => (
-                                <option key={template.id} value={template.id}>
-                                    {template.title} ({template.type})
+                            {getFilteredTemplates().length === 0 ? (
+                                <option value="" disabled>
+                                    No templates available for {triggerStage} stage
                                 </option>
-                            ))}
+                            ) : (
+                                getFilteredTemplates().map(template => (
+                                    <option key={template.id} value={template.id}>
+                                        {template.title} ({template.type})
+                                    </option>
+                                ))
+                            )}
                         </select>
+                        {getFilteredTemplates().length === 0 && (
+                            <p className="text-xs text-amber-600 mt-1">
+                                Create a {triggerStage === CandidateStage.OFFER ? 'Offer' : 
+                                         triggerStage === CandidateStage.REJECTED ? 'Rejection' : 
+                                         triggerStage} template in Settings → Email Templates first
+                            </p>
+                        )}
+                        {isCurrentTemplateInvalid() && (
+                            <p className="text-xs text-red-600 mt-1 font-medium">
+                                ⚠️ This template is not appropriate for {triggerStage} stage. Please select a different template.
+                            </p>
+                        )}
+                        {!isCurrentTemplateInvalid() && getFilteredTemplates().length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                Only templates appropriate for {triggerStage} stage are shown
+                            </p>
+                        )}
                     </div>
 
                     {/* Conditions */}

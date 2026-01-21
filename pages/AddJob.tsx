@@ -307,9 +307,7 @@ const AddJob: React.FC = () => {
 
               // Get user's plan limits
               const planLimits = getPlanLimits(userPlan);
-              const defaultCandidates = planLimits.maxCandidatesPerJob === 'Unlimited' 
-                ? 10 
-                : Math.min(10, typeof planLimits.maxCandidatesPerJob === 'number' ? planLimits.maxCandidatesPerJob : 10);
+              const defaultCandidates = Math.min(10, planLimits.maxCandidatesPerJob);
               
               // Check if user can source this many candidates
               const limitCheck = canSourceCandidates(userPlan, defaultCandidates);
@@ -321,9 +319,7 @@ const AddJob: React.FC = () => {
               }
 
               // Use the allowed limit (may be less than requested)
-              const maxCandidates = typeof limitCheck.maxAllowed === 'number' 
-                ? Math.min(defaultCandidates, limitCheck.maxAllowed)
-                : defaultCandidates;
+              const maxCandidates = Math.min(defaultCandidates, limitCheck.maxAllowed);
               
               // Get available sources for this plan
               const availableSources = getAvailableSources(userPlan) as any[];

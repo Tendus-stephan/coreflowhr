@@ -170,8 +170,9 @@ serve(async (req) => {
         // Determine plan limits based on plan type
         const planType = session.metadata?.planType || 'basic';
         const isProfessional = planType.toLowerCase() === 'professional';
-        const maxJobs = isProfessional ? 50 : 10;
-        const maxCandidates = isProfessional ? 200 : 50;
+        // Align webhook limits with frontend/server plan definitions
+        const maxJobs = isProfessional ? 25 : 5;
+        const maxCandidates = isProfessional ? 300 : 100;
 
         // Update or insert user_settings
         const { error: upsertError } = await supabaseClient
@@ -345,9 +346,10 @@ serve(async (req) => {
       // Optional: forward error to Sentry if DSN is configured
       const sentryDsn = Deno.env.get('SENTRY_DSN');
       if (sentryDsn) {
-        const sentry = await import('https://esm.sh/@sentry/node@8.30.0');
+        const sentry = await import('https://esm.sh/@sentry/node@10.35.0');
         sentry.init({ dsn: sentryDsn, environment: Deno.env.get('ENVIRONMENT') || 'production' });
         sentry.captureException(error);
+        await sentry.flush(2000);
       }
     } catch (sentryError) {
       console.error('Failed to send error to Sentry:', sentryError);

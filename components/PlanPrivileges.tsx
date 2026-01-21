@@ -29,24 +29,24 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
             </thead>
             <tbody>
               <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Active Jobs</td>
-                <td className="p-3 text-sm text-center text-gray-900">5</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">Unlimited</td>
+                <td className="p-3 text-sm text-gray-700">Active Roles</td>
+                <td className="p-3 text-sm text-center text-gray-900">Up to 5</td>
+                <td className="p-3 text-sm text-center text-gray-900 font-bold">Up to 25 (base)</td>
               </tr>
               <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Candidates per Job</td>
-                <td className="p-3 text-sm text-center text-gray-900">50</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">Unlimited</td>
+                <td className="p-3 text-sm text-gray-700">AI‑ranked candidates per role</td>
+                <td className="p-3 text-sm text-center text-gray-900">Up to 100</td>
+                <td className="p-3 text-sm text-center text-gray-900 font-bold">Up to 300</td>
               </tr>
               <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Candidates per Month</td>
-                <td className="p-3 text-sm text-center text-gray-900">500</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">Unlimited</td>
+                <td className="p-3 text-sm text-gray-700">Sourced candidates / month</td>
+                <td className="p-3 text-sm text-center text-gray-900">Up to 1,000</td>
+                <td className="p-3 text-sm text-center text-gray-900 font-bold">Up to 4,000 (base)</td>
               </tr>
               <tr className="border-b border-gray-100">
                 <td className="p-3 text-sm text-gray-700">Sourcing Sources</td>
-                <td className="p-3 text-sm text-center text-gray-900">LinkedIn, GitHub</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">All Sources</td>
+                <td className="p-3 text-sm text-center text-gray-900">LinkedIn (core)</td>
+                <td className="p-3 text-sm text-center text-gray-900 font-bold">All enabled sources</td>
               </tr>
               <tr className="border-b border-gray-100">
                 <td className="p-3 text-sm text-gray-700">AI Analysis</td>
@@ -102,26 +102,20 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">Candidates per Job</span>
             <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.maxCandidatesPerJob === 'Unlimited' 
-                ? 'Unlimited' 
-                : currentPlanLimits.maxCandidatesPerJob}
+              {currentPlanLimits.maxCandidatesPerJob}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">Active Jobs</span>
             <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.maxActiveJobs === 'Unlimited' 
-                ? 'Unlimited' 
-                : currentPlanLimits.maxActiveJobs}
+              {currentPlanLimits.maxActiveJobs}
             </span>
           </div>
           {currentPlanLimits.maxCandidatesPerMonth && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700">Candidates per Month</span>
               <span className="text-sm font-bold text-gray-900">
-                {currentPlanLimits.maxCandidatesPerMonth === 'Unlimited' 
-                  ? 'Unlimited' 
-                  : currentPlanLimits.maxCandidatesPerMonth}
+                {currentPlanLimits.maxCandidatesPerMonth}
               </span>
             </div>
           )}

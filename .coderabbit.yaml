@@ -3,35 +3,70 @@
 
 language: en-US
 reviews:
-  enabled: true
-  profile: full
-  summary: true
+  auto_review:
+    enabled: true
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
   poem: false
+  path_filters:
+    - "!*.test.ts"
+    - "!*.test.tsx"
+    - "!*.spec.ts"
+    - "!*.spec.tsx"
+    - "!dist/**"
+    - "!build/**"
+    - "!node_modules/**"
+    - "!.next/**"
+    - "!supabase/migrations/**"
+    - "!**/*.d.ts"
+    - "!coverage/**"
+  path_instructions:
+    "This is CoreFlowHR - a React + TypeScript recruitment platform with:
 
-# Focus areas for reviews
-focus:
-  - security
-  - performance
-  - code_quality
-  - maintainability
-  - type_safety
-  - api_security
+Tech Stack:
+- Frontend: React, TypeScript, Vite, Tailwind CSS
+- Backend: Supabase (PostgreSQL, Auth, Edge Functions, Storage)
+- Payments: Stripe integration
+- AI/ML: Google Gemini API for CV parsing and analysis
+- Email: Resend API for transactional emails
 
-# Files/patterns to ignore during reviews
-ignore:
-  - "*.test.ts"
-  - "*.test.tsx"
-  - "*.spec.ts"
-  - "*.spec.tsx"
-  - "dist/**"
-  - "build/**"
-  - "node_modules/**"
-  - ".next/**"
-  - "supabase/migrations/**"  # Migration files are auto-generated
-  - "**/*.d.ts"
-  - "coverage/**"
+Key Features:
+- Candidate pipeline management (Kanban board)
+- AI-powered candidate matching and scoring
+- Email workflows automation
+- Job posting and candidate sourcing
+- Interview scheduling (Google Calendar/Meet integration)
+- Subscription management with Stripe
 
-# Custom instructions for CodeRabbit
+Important Patterns:
+- Use TypeScript strict mode - ensure proper types
+- All API calls should check authentication via getUserId()
+- Use Supabase RLS policies for security (don't bypass)
+- Error handling should be user-friendly with toast notifications
+- UI components use Tailwind CSS utility classes
+- State management via React hooks (useState, useEffect)
+
+Review Focus Areas:
+1. Security: Check for auth bypass, SQL injection risks, XSS vulnerabilities
+2. API Security: Verify all API endpoints check authentication
+3. Type Safety: Ensure TypeScript types are correct and not using 'any'
+4. React Best Practices: Proper hook usage, memoization where needed
+5. Error Handling: All async operations should have try/catch
+6. Performance: Check for unnecessary re-renders, large list rendering
+7. Accessibility: UI components should have proper ARIA labels
+8. Code Quality: Consistent naming, DRY principle, proper comments
+
+Common Issues to Flag:
+- Missing error handling in async functions
+- Using 'any' type in TypeScript
+- Missing authentication checks
+- Hardcoded API keys or secrets
+- Security vulnerabilities in user input handling
+- Performance issues (missing keys in lists, unnecessary useEffect deps)
+- Accessibility issues (missing labels, keyboard navigation)"
+
+# Custom instructions for CodeRabbit (deprecated - moved to path_instructions above)
 custom_instructions: |
   This is CoreFlowHR - a React + TypeScript recruitment platform with:
   

@@ -117,7 +117,7 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
-      <main className="overflow-x-hidden relative transition-all duration-150 bg-white" style={{ paddingBottom: '80px', marginLeft: sidebarWidth }}>
+      <main className={`overflow-x-hidden relative transition-all duration-150 bg-white ${isExpanded ? 'md:ml-[256px]' : 'md:ml-[80px]'}`} style={{ paddingBottom: '80px' }}>
         <Outlet />
       </main>
       {/* CoreFlow AI notification - hidden on onboarding */}
@@ -286,6 +286,13 @@ const AppRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // Dev-only Sentry test: visit the app with ?sentryTest=1 to trigger an error
+  useEffect(() => {
+    if (import.meta.env.DEV && window.location.search.includes('sentryTest=1')) {
+      throw new Error('Sentry frontend test error');
+    }
+  }, []);
+
   return (
     <Router>
       <AuthProvider>

@@ -72,7 +72,9 @@ const Offers: React.FC = () => {
                 // Handle both array and { data: array } response formats
                 const candidates = Array.isArray(candidatesResult) ? candidatesResult : (candidatesResult?.data || []);
                 if (Array.isArray(candidates)) {
-                    const candidateNameMap = new Map(candidates.map(c => [c.id, c.name]));
+                    const candidateNameMap = new Map<string, string>(
+                        candidates.map((c: any): [string, string] => [String(c.id), String(c.name ?? '')])
+                    );
                     setCandidateMap(candidateNameMap);
                 }
             }
@@ -83,7 +85,9 @@ const Offers: React.FC = () => {
                 // Handle both array and { data: array } response formats
                 const jobs = Array.isArray(jobsResult) ? jobsResult : (jobsResult?.data || []);
                 if (Array.isArray(jobs)) {
-                    const jobTitleMap = new Map(jobs.map(j => [j.id, j.title]));
+                    const jobTitleMap = new Map<string, string>(
+                        jobs.map((j: any): [string, string] => [String(j.id), String(j.title ?? '')])
+                    );
                     setJobMap(jobTitleMap);
                 }
             }

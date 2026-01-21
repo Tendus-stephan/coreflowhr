@@ -88,10 +88,11 @@ export class CandidateProcessor {
       locationString = candidate.location.trim() || undefined;
     } else if (candidate.location && typeof candidate.location === 'object') {
       // Location is an object, extract as string
+      const loc: any = candidate.location as any;
       const locationParts: string[] = [];
-      if (candidate.location.city) locationParts.push(candidate.location.city);
-      if (candidate.location.country) locationParts.push(candidate.location.country);
-      if (candidate.location.region) locationParts.push(candidate.location.region);
+      if (loc.city) locationParts.push(String(loc.city));
+      if (loc.country) locationParts.push(String(loc.country));
+      if (loc.region) locationParts.push(String(loc.region));
       locationString = locationParts.length > 0 ? locationParts.join(', ') : undefined;
     }
     

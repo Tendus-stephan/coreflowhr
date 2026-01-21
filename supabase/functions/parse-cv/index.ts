@@ -174,9 +174,10 @@ IMPORTANT RULES:
     try {
       const sentryDsn = Deno.env.get("SENTRY_DSN");
       if (sentryDsn) {
-        const sentry = await import("https://esm.sh/@sentry/node@8.30.0");
+        const sentry = await import("https://esm.sh/@sentry/node@10.35.0");
         sentry.init({ dsn: sentryDsn, environment: Deno.env.get("ENVIRONMENT") || "production" });
         sentry.captureException(error);
+        await sentry.flush(2000);
       }
     } catch (sentryError) {
       console.error("Failed to send parse-cv error to Sentry:", sentryError);

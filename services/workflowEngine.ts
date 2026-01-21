@@ -269,6 +269,37 @@ export async function executeWorkflow(
             }
         }
 
+        // Check if this workflow was already executed successfully (atomic check)
+        // This prevents duplicate emails even if multiple requests trigger simultaneously
+        const { data: existingExecution } = await supabase
+            .from('workflow_executions')
+            .select('id, status')
+            .eq('workflow_id', workflowId)
+            .eq('candidate_id', candidateId)
+            .eq('status', 'sent')
+            .limit(1)
+            .single();
+        
+        if (existingExecution) {
+            console.log(`[Workflow Engine] Workflow ${workflowId} already executed successfully for candidate ${candidateId}, skipping`);
+            return;
+        }
+
+        // Check if there's a pending execution (another request is processing)
+        const { data: pendingExecution } = await supabase
+            .from('workflow_executions')
+            .select('id')
+            .eq('workflow_id', workflowId)
+            .eq('candidate_id', candidateId)
+            .eq('status', 'pending')
+            .limit(1)
+            .single();
+        
+        if (pendingExecution) {
+            console.log(`[Workflow Engine] Workflow ${workflowId} is already being processed for candidate ${candidateId}, skipping`);
+            return;
+        }
+
         // Create execution log with pending status (with unique constraint to prevent duplicates)
         let executionId: string;
         try {
@@ -496,6 +527,8 @@ export async function executeWorkflowsForStage(
         // OR if an offer email was just sent (for Offer stage to prevent duplicates)
         if (skipIfAlreadySent) {
             const workflowIds = workflows.map(w => w.id);
+            
+            // Atomic check: Check for existing successful executions
             const { data: existingExecutions } = await supabase
                 .from('workflow_executions')
                 .select('workflow_id')
@@ -504,7 +537,14 @@ export async function executeWorkflowsForStage(
                 .eq('status', 'sent')
                 .limit(1);
             
+            // If any workflow was already sent successfully, skip execution
+            if (existingExecutions && existingExecutions.length > 0) {
+                console.log(`[Workflow Engine] Skipping ${newStage} workflows - already executed for candidate ${candidateId}`);
+                return;
+            }
+            
             // For Offer stage, also check if an offer email was sent in the last 5 minutes
+            // This prevents duplicate emails when offer.send() moves candidate to Offer stage
             if (newStage === 'Offer') {
                 const fiveMinutesAgo = new Date();
                 fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
@@ -518,14 +558,9 @@ export async function executeWorkflowsForStage(
                     .limit(1);
                 
                 if (recentOfferEmails && recentOfferEmails.length > 0) {
-                    console.log('[Workflow Engine] Skipping Offer workflow - offer email was just sent');
+                    console.log('[Workflow Engine] Skipping Offer workflow - offer email was just sent (within 5 minutes)');
                     return; // Skip if offer email was just sent
                 }
-            }
-            
-            // If any workflow was already sent successfully, skip execution
-            if (existingExecutions && existingExecutions.length > 0) {
-                return;
             }
         }
 

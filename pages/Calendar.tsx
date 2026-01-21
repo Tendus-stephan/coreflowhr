@@ -192,8 +192,8 @@ const Calendar: React.FC = () => {
         border: '0px',
         display: 'block',
         cursor: 'move',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
+        userSelect: 'none' as const,
+        WebkitUserSelect: 'none' as const,
       },
       className: 'rbc-event rbc-event-draggable',
     };
@@ -523,8 +523,8 @@ const Calendar: React.FC = () => {
           <DragAndDropCalendar
             localizer={localizer}
             events={events}
-            startAccessor="start"
-            endAccessor="end"
+            startAccessor={(event: any) => event.start}
+            endAccessor={(event: any) => event.end}
             style={{ height: '100%' }}
             view={view}
             onView={setView}

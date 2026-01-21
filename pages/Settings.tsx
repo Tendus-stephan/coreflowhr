@@ -1968,7 +1968,7 @@ const Settings: React.FC = () => {
                                         variant="black"
                                         onClick={() => {
                                             setActiveTab('billing');
-                                            handleSubscribe('professional');
+                                            handleUpgradePlan('professional', 'monthly');
                                         }}
                                     >
                                         Upgrade to Professional

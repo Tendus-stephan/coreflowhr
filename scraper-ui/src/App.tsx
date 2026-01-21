@@ -3,7 +3,7 @@ import JobList from './components/JobList'
 import ScrapingControls from './components/ScrapingControls'
 import ResultsView from './components/ResultsView'
 
-interface Job {
+export interface Job {
   id: string
   title: string
   status: string
@@ -12,7 +12,7 @@ interface Job {
   department?: string
 }
 
-interface ScrapeResult {
+export interface ScrapeResult {
   source: string
   candidatesFound: number
   candidatesSaved: number
