@@ -29,7 +29,9 @@ This document confirms that both Basic and Pro plans are production-ready with p
 **Fix Applied:**
 - Workflow execution errors are caught and logged but don't rollback stage update
 - This is **intentional design** - candidate stage change is the source of truth
-- Failed workflows are logged for monitoring and can be retried manually
+- **ALL failed workflows are logged** - even failures before execution log creation
+- Failed workflows are logged in `workflow_executions` table with 'failed' status and error message
+- Users can view failed workflows in Settings → Email Workflows → Execution History
 - Added comprehensive error logging for failed workflow executions
 
 **Location:** `services/api.ts:2341-2372`

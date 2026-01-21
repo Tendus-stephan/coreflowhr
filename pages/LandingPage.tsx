@@ -133,7 +133,25 @@ const LandingPage: React.FC = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const { user, session, signOut, loading } = useAuth();
+  
+  // Get auth context - use optional chaining to handle hot reload edge cases
+  let user: any = null;
+  let session: any = null;
+  let signOut: () => Promise<void> = async () => {};
+  let loading = true;
+  
+  try {
+    const auth = useAuth();
+    user = auth.user;
+    session = auth.session;
+    signOut = auth.signOut;
+    loading = auth.loading;
+  } catch (error) {
+    // During hot reload, context might not be available yet
+    // This is a development-only issue - in production, AuthProvider always wraps the app
+    console.warn('Auth context temporarily unavailable (likely hot reload):', error);
+  }
+  
   const navigate = useNavigate();
 
   const toggleFaq = (index: number) => {

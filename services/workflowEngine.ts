@@ -11,6 +11,7 @@ export async function executeWorkflow(
     userId: string,
     bypassEnabledCheck: boolean = false
 ): Promise<void> {
+    let executionId: string | null = null;
     try {
         // Get workflow
         const { data: workflow, error: workflowError } = await supabase
@@ -388,7 +389,45 @@ export async function executeWorkflow(
         await updateExecutionLog(executionId, 'sent', emailLog?.id);
     } catch (error: any) {
         console.error('Error executing workflow:', error);
-        // Try to update execution log if we have an executionId
+        
+        // Ensure ALL failures are logged, even if they occur before execution log creation
+        if (!executionId) {
+            // Error occurred before execution log was created - create a failed log now
+            try {
+                await createExecutionLog(
+                    workflowId, 
+                    candidateId, 
+                    'failed', 
+                    undefined, 
+                    error?.message || 'Workflow execution failed before email send'
+                );
+            } catch (logError: any) {
+                // If logging fails, at least log to console
+                console.error('Failed to create execution log for failed workflow:', logError);
+            }
+        } else {
+            // Execution log exists - update it to failed status if not already updated
+            try {
+                // Check current status - only update if still pending
+                const { data: currentExecution } = await supabase
+                    .from('workflow_executions')
+                    .select('status')
+                    .eq('id', executionId)
+                    .single();
+                
+                if (currentExecution && currentExecution.status === 'pending') {
+                    await updateExecutionLog(
+                        executionId, 
+                        'failed', 
+                        undefined, 
+                        error?.message || 'Workflow execution failed'
+                    );
+                }
+            } catch (updateError: any) {
+                console.error('Failed to update execution log to failed status:', updateError);
+            }
+        }
+        
         throw error;
     }
 }
@@ -569,7 +608,9 @@ export async function executeWorkflowsForStage(
             try {
                 await executeWorkflow(workflow.id, candidateId, userId);
             } catch (workflowError: any) {
-                console.error(`Error executing workflow ${workflow.id}:`, workflowError);
+                // Error is already logged in executeWorkflow function
+                // Execution log is created/updated there, so we just continue with other workflows
+                console.error(`[Workflow Engine] Workflow ${workflow.id} failed for candidate ${candidateId}:`, workflowError?.message || 'Unknown error');
                 // Continue with other workflows even if one fails
             }
         }
