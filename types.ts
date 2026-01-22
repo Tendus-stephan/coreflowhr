@@ -22,6 +22,17 @@ export interface User {
   };
 }
 
+export interface Client {
+  id: string;
+  name: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Job {
   scrapingStatus?: 'pending' | 'succeeded' | 'failed' | 'partial' | null;
   scrapingError?: string | null;
@@ -40,6 +51,8 @@ export interface Job {
   remote?: boolean;
   skills?: string[];
   company?: string;
+  clientId?: string; // Link to client
+  client?: Client; // Full client object (when joined)
   isTest?: boolean;
 }
 

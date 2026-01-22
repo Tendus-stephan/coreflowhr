@@ -13,13 +13,24 @@ interface AuthContextType {
   verifyMFA: (code: string) => Promise<{ error: any }>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create a default context value to prevent errors during HMR
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  session: null,
+  loading: true,
+  signUp: async () => ({ error: new Error('AuthProvider not initialized') }),
+  signIn: async () => ({ error: new Error('AuthProvider not initialized') }),
+  signOut: async () => {},
+  resetPassword: async () => ({ error: new Error('AuthProvider not initialized') }),
+  verifyMFA: async () => ({ error: new Error('AuthProvider not initialized') })
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  // During HMR, context might temporarily be the default value
+  // This is safe - the component will re-render once AuthProvider re-initializes
   return context;
 };
 

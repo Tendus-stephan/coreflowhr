@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check } from 'lucide-react';
+import { ArrowLeft, ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
@@ -165,6 +165,7 @@ const AddJob: React.FC = () => {
       remote: boolean;
       skills: string;
       description: string;
+      clientId?: string;
   }>({
       title: '',
       company: '',
@@ -174,10 +175,14 @@ const AddJob: React.FC = () => {
       salary: '',
       remote: false,
       skills: '',
-      description: ''
+      description: '',
+      clientId: undefined
   });
+  
+  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
 
-  // Load user plan and job data
+  // Load user plan, clients, and job data
   useEffect(() => {
       const loadData = async () => {
           // Load user plan
@@ -187,6 +192,17 @@ const AddJob: React.FC = () => {
           } catch (error) {
               console.error('Failed to load billing plan:', error);
               setUserPlan('Basic'); // Default to Basic if error
+          }
+
+          // Load clients
+          setLoadingClients(true);
+          try {
+              const clientsList = await api.clients.list();
+              setClients(clientsList.map(c => ({ id: c.id, name: c.name })));
+          } catch (error) {
+              console.error('Failed to load clients:', error);
+          } finally {
+              setLoadingClients(false);
           }
 
           // Load job data if editing
@@ -205,7 +221,8 @@ const AddJob: React.FC = () => {
                       salary: job.salaryRange || '',
                       remote: job.remote || false,
                       skills: Array.isArray(job.skills) ? job.skills.join(', ') : (job.skills || ''),
-                      description: job.description || ''
+                      description: job.description || '',
+                      clientId: job.clientId || undefined
                   });
               }
           } catch (error) {
@@ -233,7 +250,8 @@ const AddJob: React.FC = () => {
   };
 
   const handleSaveDraft = async () => {
-      if (!formData.title) {
+      // For drafts, only title is required
+      if (!formData.title || !formData.title.trim()) {
           alert('Please enter a job title');
           return;
       }
@@ -247,14 +265,16 @@ const AddJob: React.FC = () => {
               await api.jobs.update(id, {
                   ...formData,
                   skills: skillsArray,
-                  status: 'Draft' as const
+                  status: 'Draft' as const,
+                  clientId: formData.clientId || undefined
               });
           } else {
           // Create the job as draft (no candidates generated)
           await api.jobs.create({
               ...formData,
               skills: skillsArray,
-              status: 'Draft' as const
+              status: 'Draft' as const,
+              clientId: formData.clientId || undefined
           });
           }
           
@@ -268,7 +288,35 @@ const AddJob: React.FC = () => {
   };
 
   const handlePost = async () => {
-      if (!formData.title) return;
+      // Validate all required fields
+      if (!formData.title || !formData.title.trim()) {
+          alert('Please enter a job title');
+          return;
+      }
+      if (!formData.clientId) {
+          alert('Please select a client');
+          return;
+      }
+      if (!formData.company || !formData.company.trim()) {
+          alert('Please enter a company name');
+          return;
+      }
+      if (!formData.location || !formData.location.trim()) {
+          alert('Please enter a location');
+          return;
+      }
+      if (!formData.salary || !formData.salary.trim()) {
+          alert('Please enter a salary range');
+          return;
+      }
+      if (!formData.skills || !formData.skills.trim()) {
+          alert('Please enter required skills');
+          return;
+      }
+      if (!formData.description || !formData.description.trim()) {
+          alert('Please enter a job description');
+          return;
+      }
       setIsSubmitting(true);
       try {
           // Convert comma separated skills to array
@@ -695,7 +743,7 @@ const AddJob: React.FC = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Job Title</label>
+                          <label className="text-sm font-bold text-gray-900">Job Title *</label>
                           <input 
                             type="text" 
                             name="title"
@@ -703,17 +751,40 @@ const AddJob: React.FC = () => {
                             onChange={handleChange}
                             placeholder="e.g. Senior Product Designer" 
                             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            required
                           />
                       </div>
                       <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Company</label>
+                          <label className="text-sm font-bold text-gray-900">Client (Agency) *</label>
+                          <select
+                            name="clientId"
+                            value={formData.clientId || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value || undefined }))}
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                            disabled={loadingClients}
+                            required
+                          >
+                            <option value="">Select a client</option>
+                            {clients.map(client => (
+                              <option key={client.id} value={client.id}>{client.name}</option>
+                            ))}
+                          </select>
+                          {clients.length === 0 && !loadingClients && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              <Link to="/clients" className="text-gray-900 underline">Create a client</Link> to organize jobs by company
+                            </p>
+                          )}
+                      </div>
+                      <div className="space-y-2">
+                          <label className="text-sm font-bold text-gray-900">Company Name *</label>
                           <input 
-                            type="text" 
+                            type="text"
                             name="company"
                             value={formData.company}
                             onChange={handleChange}
                             placeholder="e.g. CoreFlow Inc." 
                             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            required
                           />
                       </div>
                   </div>
@@ -733,13 +804,14 @@ const AddJob: React.FC = () => {
                       
                       {/* Custom Dropdown: Job Type */}
                       <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Job Type</label>
+                          <label className="text-sm font-bold text-gray-900">Job Type *</label>
                           <div className="relative">
                             <select 
                                 name="type"
                                 value={formData.type}
                                 onChange={handleChange}
                                 className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none cursor-pointer"
+                                required
                             >
                                 <option>Full-time</option>
                                 <option>Part-time</option>
@@ -751,13 +823,14 @@ const AddJob: React.FC = () => {
 
                       {/* Custom Dropdown: Experience */}
                       <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Experience Level</label>
+                          <label className="text-sm font-bold text-gray-900">Experience Level *</label>
                           <div className="relative">
                             <select 
                                 name="experience"
                                 value={formData.experience}
                                 onChange={handleChange}
                                 className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none cursor-pointer"
+                                required
                             >
                                 <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
                                 <option value="Mid Level (2-5 years)">Mid Level (2-5 years)</option>
@@ -770,7 +843,7 @@ const AddJob: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                       <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Salary Range</label>
+                          <label className="text-sm font-bold text-gray-900">Salary Range *</label>
                           <input 
                             type="text" 
                             name="salary"
@@ -778,6 +851,7 @@ const AddJob: React.FC = () => {
                             onChange={handleChange}
                             placeholder="e.g. $120k - $150k" 
                             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            required
                           />
                       </div>
                       
@@ -799,7 +873,7 @@ const AddJob: React.FC = () => {
                   <h3 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">Job Details</h3>
                   
                   <div className="space-y-2">
-                      <label className="text-sm font-bold text-gray-900">Required Skills</label>
+                      <label className="text-sm font-bold text-gray-900">Required Skills *</label>
                       <input 
                         type="text" 
                         name="skills"
@@ -807,17 +881,19 @@ const AddJob: React.FC = () => {
                         onChange={handleChange}
                         placeholder="e.g. React, TypeScript, Node.js (comma separated)" 
                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                        required
                       />
                   </div>
 
                   <div className="space-y-2">
-                      <label className="text-sm font-bold text-gray-900">Job Description</label>
+                      <label className="text-sm font-bold text-gray-900">Job Description *</label>
                       <textarea 
                         name="description"
                         value={formData.description}
                         onChange={handleChange}
                         placeholder="Describe the role, responsibilities, and requirements..." 
                         className="w-full h-64 px-4 py-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        required
                       ></textarea>
                   </div>
               </div>

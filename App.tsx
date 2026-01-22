@@ -26,6 +26,7 @@ import CandidateRegister from './pages/CandidateRegister';
 import Onboarding from './pages/Onboarding';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import Clients from './pages/Clients';
 
 const Layout = () => {
   const location = useLocation();
@@ -264,6 +265,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Offers />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/clients" 
+          element={
+            <ProtectedRoute>
+              <Clients />
             </ProtectedRoute>
           } 
         />

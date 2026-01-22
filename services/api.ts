@@ -1,4 +1,4 @@
-import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate } from "../types";
+import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate, Client } from "../types";
 import { supabase } from "./supabase";
 import { getPlanLimits, hasFeature } from "./planLimits";
 
@@ -1272,10 +1272,18 @@ export const api = {
             const { count, error: countError } = await countQuery;
             if (countError) throw countError;
 
-            // Build data query with pagination
+            // Build data query with pagination - join clients if available
             let query = supabase
                 .from('jobs')
-                .select('*')
+                .select(`
+                    *,
+                    clients:client_id (
+                        id,
+                        name,
+                        contact_email,
+                        contact_phone
+                    )
+                `)
                 .eq('user_id', userId);
             
             // Exclude closed jobs if requested (default is to include all)
@@ -1310,6 +1318,7 @@ export const api = {
                 postedDate: job.posted_date || job.created_at || new Date().toISOString(),
                 description: job.description || '',
                 company: job.company,
+                clientId: job.client_id || undefined,
                 salaryRange: job.salary_range,
                 experienceLevel: job.experience_level,
                 remote: job.remote || false,
@@ -1334,13 +1343,22 @@ export const api = {
 
             const { data, error } = await supabase
                 .from('jobs')
-                .select('*')
+                .select(`
+                    *,
+                    clients:client_id (
+                        id,
+                        name,
+                        contact_email,
+                        contact_phone
+                    )
+                `)
                 .eq('id', id)
                 .eq('user_id', userId)
                 .single();
 
             if (error || !data) return undefined;
 
+            const client = data.clients && !Array.isArray(data.clients) ? data.clients : null;
             return {
                 id: data.id,
                 title: data.title,
@@ -1352,6 +1370,17 @@ export const api = {
                 postedDate: data.posted_date || data.created_at,
                 description: data.description || '',
                 company: data.company,
+                clientId: data.client_id || undefined,
+                client: client ? {
+                    id: client.id,
+                    name: client.name,
+                    contactEmail: client.contact_email || undefined,
+                    contactPhone: client.contact_phone || undefined,
+                    address: undefined,
+                    notes: undefined,
+                    createdAt: '',
+                    updatedAt: ''
+                } : undefined,
                 salaryRange: data.salary_range,
                 experienceLevel: data.experience_level,
                 remote: data.remote || false,
@@ -1415,6 +1444,7 @@ export const api = {
                 status: jobStatus,
                 description: jobData.description || '',
                     company: jobData.company,
+                    client_id: jobData.clientId || null,
                     salary_range: jobData.salaryRange,
                     experience_level: jobData.experienceLevel,
                     remote: jobData.remote || false,
@@ -1461,6 +1491,7 @@ export const api = {
             if (jobData.status) updateData.status = jobData.status;
             if (jobData.description !== undefined) updateData.description = jobData.description;
             if (jobData.company !== undefined) updateData.company = jobData.company;
+            if (jobData.clientId !== undefined) updateData.client_id = jobData.clientId || null;
             if (jobData.salaryRange !== undefined) updateData.salary_range = jobData.salaryRange;
             if (jobData.experienceLevel !== undefined) updateData.experience_level = jobData.experienceLevel;
             if (jobData.remote !== undefined) updateData.remote = jobData.remote;
@@ -6110,6 +6141,134 @@ export const api = {
                 createdAt: updated.created_at,
                 updatedAt: updated.updated_at
             };
+        }
+    },
+    clients: {
+        list: async (): Promise<Client[]> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const { data, error } = await supabase
+                .from('clients')
+                .select('*')
+                .eq('user_id', userId)
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+
+            return (data || []).map((client: any) => ({
+                id: client.id,
+                name: client.name,
+                contactEmail: client.contact_email || undefined,
+                contactPhone: client.contact_phone || undefined,
+                address: client.address || undefined,
+                notes: client.notes || undefined,
+                createdAt: client.created_at,
+                updatedAt: client.updated_at
+            }));
+        },
+        get: async (id: string): Promise<Client | undefined> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const { data, error } = await supabase
+                .from('clients')
+                .select('*')
+                .eq('id', id)
+                .eq('user_id', userId)
+                .single();
+
+            if (error || !data) return undefined;
+
+            return {
+                id: data.id,
+                name: data.name,
+                contactEmail: data.contact_email || undefined,
+                contactPhone: data.contact_phone || undefined,
+                address: data.address || undefined,
+                notes: data.notes || undefined,
+                createdAt: data.created_at,
+                updatedAt: data.updated_at
+            };
+        },
+        create: async (clientData: Partial<Client>): Promise<Client> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            if (!clientData.name) {
+                throw new Error('Client name is required');
+            }
+
+            const { data, error } = await supabase
+                .from('clients')
+                .insert({
+                    user_id: userId,
+                    name: clientData.name,
+                    contact_email: clientData.contactEmail || null,
+                    contact_phone: clientData.contactPhone || null,
+                    address: clientData.address || null,
+                    notes: clientData.notes || null
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            return {
+                id: data.id,
+                name: data.name,
+                contactEmail: data.contact_email || undefined,
+                contactPhone: data.contact_phone || undefined,
+                address: data.address || undefined,
+                notes: data.notes || undefined,
+                createdAt: data.created_at,
+                updatedAt: data.updated_at
+            };
+        },
+        update: async (id: string, clientData: Partial<Client>): Promise<Client> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const updateData: any = {};
+            if (clientData.name !== undefined) updateData.name = clientData.name;
+            if (clientData.contactEmail !== undefined) updateData.contact_email = clientData.contactEmail || null;
+            if (clientData.contactPhone !== undefined) updateData.contact_phone = clientData.contactPhone || null;
+            if (clientData.address !== undefined) updateData.address = clientData.address || null;
+            if (clientData.notes !== undefined) updateData.notes = clientData.notes || null;
+
+            const { data, error } = await supabase
+                .from('clients')
+                .update(updateData)
+                .eq('id', id)
+                .eq('user_id', userId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            if (!data) throw new Error('Client not found');
+
+            return {
+                id: data.id,
+                name: data.name,
+                contactEmail: data.contact_email || undefined,
+                contactPhone: data.contact_phone || undefined,
+                address: data.address || undefined,
+                notes: data.notes || undefined,
+                createdAt: data.created_at,
+                updatedAt: data.updated_at
+            };
+        },
+        delete: async (id: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const { error } = await supabase
+                .from('clients')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', userId);
+
+            if (error) throw error;
         }
     }
 };

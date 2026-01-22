@@ -133,25 +133,7 @@ const LandingPage: React.FC = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
-  
-  // Get auth context - use optional chaining to handle hot reload edge cases
-  let user: any = null;
-  let session: any = null;
-  let signOut: () => Promise<void> = async () => {};
-  let loading = true;
-  
-  try {
-    const auth = useAuth();
-    user = auth.user;
-    session = auth.session;
-    signOut = auth.signOut;
-    loading = auth.loading;
-  } catch (error) {
-    // During hot reload, context might not be available yet
-    // This is a development-only issue - in production, AuthProvider always wraps the app
-    console.warn('Auth context temporarily unavailable (likely hot reload):', error);
-  }
-  
+  const { user, session, signOut, loading } = useAuth();
   const navigate = useNavigate();
 
   const toggleFaq = (index: number) => {
@@ -434,12 +416,12 @@ const LandingPage: React.FC = () => {
           
           {/* High Contrast Typography */}
           <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-6 md:mb-8 leading-[1.1] max-w-5xl mx-auto px-4">
-            <span className="text-gray-900">Recruitment OS</span> <br />
-            <span className="text-gray-400">for modern teams</span>
+            <span className="text-gray-900">Built for Recruitment Agencies</span> <br />
+            <span className="text-gray-400">Scale placements with AI automation</span>
           </h1>
           
           <p className="text-base sm:text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-light px-4">
-            Track, analyze, and improve your entire hiring pipeline with an AI-powered workflow platform designed for speed.
+            Self-service candidate registration. Zero manual data entry. Handle 5x more placements.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 md:mb-24 px-4">
@@ -790,44 +772,35 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
              <FadeIn>
                <div className="text-center mb-8 sm:mb-10 md:mb-12">
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 tracking-tight px-4">Why Choose CoreFlow</h2>
-                  <p className="text-gray-500 text-base sm:text-lg px-4">The recruitment platform trusted by leading companies worldwide.</p>
-               </div>
-
-               {/* "Problem" Banner */}
-               <div className="max-w-3xl mx-auto bg-white border-l-4 border-gray-900 shadow-sm rounded-r-lg p-6 mb-16 flex flex-col md:flex-row items-center text-center md:text-left gap-4">
-                  <div className="flex-1">
-                      <p className="font-semibold text-gray-900 mb-1">Tired of spending hours on manual resume screening?</p>
-                      <p className="text-sm text-gray-500">Frustrated with biased hiring decisions and missing top talent? Stop wasting time and money on inefficient recruitment processes.</p>
-                  </div>
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 tracking-tight px-4">Why Agencies Choose CoreFlow</h2>
                </div>
              </FadeIn>
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                  {[
                     { 
-                        title: "Faster Hiring Cycles", 
-                        desc: "Automate repetitive tasks and reduce your time-to-hire by up to 60%.",
-                        improvement: "60%",
-                        points: ["60% faster hiring", "Automated workflows", "Reduced bottlenecks"]
+                        title: "Self-Service Registration", 
+                        desc: "Candidates register themselves. Zero manual data entry.",
+                        improvement: "10x",
+                        points: ["10 minutes → 10 seconds", "Zero manual data entry", "Structured profiles automatically"]
                     },
                     { 
-                        title: "AI-Powered Technology", 
-                        desc: "Advanced machine learning algorithms that learn and improve with every hire.",
-                        improvement: "99.2%",
-                        points: ["Continuous learning", "99.2% accuracy", "Real-time insights"]
+                        title: "AI Email Generation", 
+                        desc: "One-click personalized emails. No more typing the same message 50 times.",
+                        improvement: "50x",
+                        points: ["One-click generation", "Personalized content", "Saves hours per day"]
                     },
                     { 
-                        title: "Eliminate Hiring Bias", 
-                        desc: "Objective, data-driven hiring decisions that focus purely on qualifications and skills.",
+                        title: "Multi-Client Management", 
+                        desc: "Organize jobs by client. Filter, group, and report per client.",
                         improvement: "100%",
-                        points: ["Unbiased screening", "Diverse talent pools", "Fair evaluation process"]
+                        points: ["Organize by client", "Client-specific views", "Professional reporting"]
                     },
                     { 
-                        title: "Cost-Effective Solution", 
-                        desc: "Reduce hiring costs by up to 50% while improving candidate quality and retention.",
-                        improvement: "50%",
-                        points: ["50% cost reduction", "Better ROI", "Higher retention rates"]
+                        title: "Automated Workflows", 
+                        desc: "Set once, works forever. Stage changes trigger emails automatically.",
+                        improvement: "5x",
+                        points: ["Automated follow-ups", "Consistent communication", "Handle 5x more placements"]
                     }
                  ].map((item, i) => (
                      <FadeIn key={i} delay={i * 100}>

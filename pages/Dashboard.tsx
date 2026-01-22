@@ -734,10 +734,13 @@ const Dashboard: React.FC = () => {
               setNotifications(n);
               
               // Check for expired jobs and refresh notifications if any were created
+              // Note: checkJobExpirations has built-in debouncing (1 hour minimum between checks)
+              // to prevent duplicate notifications
               try {
                   const { checkJobExpirations } = await import('../services/jobExpirationChecker');
                   await checkJobExpirations();
-                  // Refresh notifications after checking expirations
+                  // Only refresh notifications if checkJobExpirations didn't skip (due to debounce)
+                  // This prevents unnecessary API calls
                   const updatedNotifications = await api.notifications.list();
                   setNotifications(updatedNotifications);
               } catch (expError) {

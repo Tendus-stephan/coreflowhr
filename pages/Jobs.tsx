@@ -467,6 +467,8 @@ const Jobs: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('All Experience Levels');
   const [selectedJobType, setSelectedJobType] = useState<string>('All Job Types');
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [settingsJob, setSettingsJob] = useState<Job | null>(null);
   const [jobToClose, setJobToClose] = useState<Job | null>(null);

@@ -523,8 +523,8 @@ const Calendar: React.FC = () => {
           <DragAndDropCalendar
             localizer={localizer}
             events={events}
-            startAccessor={(event: any) => event.start}
-            endAccessor={(event: any) => event.end}
+            startAccessor="start"
+            endAccessor="end"
             style={{ height: '100%' }}
             view={view}
             onView={setView}
