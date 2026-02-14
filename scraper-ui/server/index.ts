@@ -3,10 +3,8 @@
  * Provides API endpoints for jobs, scraping, and results
  */
 
-// Node 18.17 and earlier: polyfill global File so undici (used by apify-client/fetch) does not throw
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-require('./polyfill-file.cjs');
+// Must be first: Node 18.17 has no global File; undici (apify-client) expects it. ESM runs this before other imports.
+import './polyfill-file.mjs';
 
 import express from 'express';
 import cors from 'cors';
