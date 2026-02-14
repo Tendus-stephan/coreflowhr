@@ -141,17 +141,36 @@ export class DatabaseService {
       id: data.id,
       title: data.title,
       location: data.location,
+      location_type: typeof data.location,
+      location_value: data.location ? `"${data.location}"` : 'NULL/UNDEFINED',
       experience_level: data.experience_level,
+      experience_level_type: typeof data.experience_level,
+      experience_level_value: data.experience_level ? `"${data.experience_level}"` : 'NULL/UNDEFINED',
+      remote: data.remote,
       skills: Array.isArray(data.skills) ? data.skills.slice(0, 3) : data.skills,
       skills_count: Array.isArray(data.skills) ? data.skills.length : 'not array',
-      remote: data.remote
+      all_columns: Object.keys(data) // Log all available columns
+    });
+
+    // Ensure location and experienceLevel are properly extracted (handle empty strings, null, undefined)
+    const location = data.location && typeof data.location === 'string' && data.location.trim() 
+      ? data.location.trim() 
+      : undefined;
+    const experienceLevel = data.experience_level && typeof data.experience_level === 'string' && data.experience_level.trim()
+      ? data.experience_level.trim()
+      : undefined;
+
+    logger.info(`📋 Extracted job fields:`, {
+      location: location || 'MISSING',
+      experienceLevel: experienceLevel || 'MISSING',
+      remote: data.remote || false
     });
 
     return {
       id: data.id,
       title: data.title,
       department: data.department || 'General',
-      location: data.location,
+      location: location, // Use cleaned location
       type: data.type,
       status: data.status,
       applicantsCount: data.applicants_count || 0,
@@ -159,7 +178,7 @@ export class DatabaseService {
       description: data.description || '',
       company: data.company,
       salaryRange: data.salary_range,
-      experienceLevel: data.experience_level || null, // Explicitly handle null
+      experienceLevel: experienceLevel, // Use cleaned experienceLevel
       remote: data.remote || false,
       skills: Array.isArray(data.skills) ? data.skills : (data.skills ? [data.skills] : []), // Ensure it's an array
       userId: data.user_id

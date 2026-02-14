@@ -11,9 +11,12 @@ export class ApifyService {
   private clients: Map<string, any> = new Map(); // Map of token -> client
   private currentTokenIndex: number = 0;
   private exhaustedTokens: Set<string> = new Set(); // Tokens that hit quota limits
+  private exhaustedTokensTime: Map<string, number> = new Map(); // When tokens were marked exhausted (for auto-reset)
   private initialized: boolean = false;
   private initializationError: Error | null = null;
   private availableTokens: string[] = [];
+  private client: any = null; // Single client instance
+  private readonly EXHAUSTED_TOKEN_RESET_HOURS = 24; // Reset exhausted tokens after 24 hours
 
   constructor() {
     // Don't initialize here - do it lazily when needed
@@ -72,6 +75,84 @@ export class ApifyService {
   async isConfigured(): Promise<boolean> {
     await this.initializeClient();
     return this.client !== null && !this.initializationError;
+  }
+
+  /**
+   * Get available tokens (simplified - single token)
+   * Auto-resets tokens that were marked exhausted more than 24 hours ago
+   */
+  private getAvailableTokens(): string[] {
+    if (this.availableTokens.length === 0 && providerConfig.apify?.apiToken) {
+      this.availableTokens = [providerConfig.apify.apiToken];
+    }
+    
+    // Auto-reset tokens that were exhausted more than 24 hours ago
+    const now = Date.now();
+    const resetThreshold = this.EXHAUSTED_TOKEN_RESET_HOURS * 60 * 60 * 1000;
+    
+    for (const [token, exhaustedAt] of this.exhaustedTokensTime.entries()) {
+      if (now - exhaustedAt > resetThreshold) {
+        logger.info(`🔄 Auto-resetting token (exhausted ${Math.round((now - exhaustedAt) / (60 * 60 * 1000))} hours ago)`);
+        this.exhaustedTokens.delete(token);
+        this.exhaustedTokensTime.delete(token);
+      }
+    }
+    
+    const available = this.availableTokens.filter(token => !this.exhaustedTokens.has(token));
+    
+    if (available.length === 0 && this.availableTokens.length > 0) {
+      logger.warn(`⚠️ All tokens are marked as exhausted. Available tokens: ${this.availableTokens.length}, Exhausted: ${this.exhaustedTokens.size}`);
+      logger.warn(`⚠️ Exhausted tokens will auto-reset after ${this.EXHAUSTED_TOKEN_RESET_HOURS} hours.`);
+    }
+    
+    return available;
+  }
+
+  /**
+   * Get next available token (simplified - single token)
+   */
+  private getNextToken(): string | null {
+    const tokens = this.getAvailableTokens();
+    if (tokens.length === 0) return null;
+    return tokens[this.currentTokenIndex % tokens.length];
+  }
+
+  /**
+   * Get client for a specific token
+   */
+  private async getClientForToken(token: string): Promise<any> {
+    if (this.clients.has(token)) {
+      return this.clients.get(token);
+    }
+    if (!this.client) {
+      await this.initializeClient();
+    }
+    if (this.client) {
+      this.clients.set(token, this.client);
+      return this.client;
+    }
+    throw new Error('Apify client not initialized');
+  }
+
+  /**
+   * Mark a token as exhausted (hit quota limit)
+   * Only marks as exhausted if we're CERTAIN it's a quota limit error
+   */
+  private markTokenExhausted(token: string, reason?: string): void {
+    if (!this.exhaustedTokens.has(token)) {
+      logger.warn(`🚫 Marking token as exhausted. Reason: ${reason || 'Quota limit reached'}`);
+      this.exhaustedTokens.add(token);
+      this.exhaustedTokensTime.set(token, Date.now());
+    }
+  }
+  
+  /**
+   * Reset an exhausted token (for testing or manual reset)
+   */
+  private resetExhaustedToken(token: string): void {
+    logger.info(`🔄 Manually resetting exhausted token`);
+    this.exhaustedTokens.delete(token);
+    this.exhaustedTokensTime.delete(token);
   }
 
   /**
@@ -188,49 +269,33 @@ export class ApifyService {
         throw new Error('Apify client not initialized');
       }
 
-      // Try common LinkedIn actor names on Apify
-      // ⚠️ IMPORTANT: Actor names change frequently. Visit https://apify.com/store and search "LinkedIn" to find current actors
-      // ⚠️ NOTE: harvestapi/linkedin-profile-search is currently returning 0 results - may need alternative
+      // Use the most reliable LinkedIn scraper
+      // ⚠️ COST WARNING: Each actor.call() creates a run and consumes compute units
+      // Using just 1 scraper = 1 compute unit per scrape (most cost-effective)
       const possibleActorIds = [
-        'apify/linkedin-profile-scraper', // Try this first - more reliable
-        'harvestapi/linkedin-profile-search', // ⭐ Was working but now returns 0 results
-        'jancurn/linkedin-profiles-scraper',
-        'apify/linkedin-scraper',
-        'heds/linkedin-profile-scraper',
-        'apify/linkedin-profiles-scraper',
-        'dev_fusion/Linkedin-Profile-Scraper' // Requires profile URLs (not search queries) - last resort
+        'harvestapi/linkedin-profile-search' // ⭐ 4.6/5 rating, 5.9K users - No cookies required
       ];
+      
+      // Use only 1 scraper to minimize costs
+      const MAX_ACTOR_ATTEMPTS = 1;
       
       let run;
       let actorId = '';
       let lastError: any = null;
       let triedActors: string[] = [];
+      let runClient: any = null; // Store the client used for the successful run
+      let runToken: string | null = null; // Store the token used for the successful run
+      let currentToken: string | null = null; // Track current token for error handling
 
       // Build search query for LinkedIn
       const searchQuery = this.buildLinkedInSearchQuery(query);
 
-      logger.info(`🔍 Attempting to scrape LinkedIn. Will try ${possibleActorIds.length} different actors...`);
-        // Run the actor (use first available token for job boards)
-        const firstToken = this.getAvailableTokens()[0];
-        if (!firstToken) {
-          throw new Error('No available Apify tokens for job board scraping');
-        }
-        const boardClient = await this.getClientForToken(firstToken);
-        const run = await boardClient.actor(actorId).call(actorInput);
-        jobTitle: query.jobTitle,
-        skills: query.skills,
-        const { items } = await boardClient.dataset(run.defaultDatasetId).listItems();
-        experienceLevel: query.experienceLevel,
-        maxResults: query.maxResults
-      });
+      logger.info(`🔍 Attempting to scrape LinkedIn using the most reliable scraper...`);
+      logger.info(`📋 Using: harvestapi/linkedin-profile-search (4.6/5 rating, 5.9K users)`);
+      logger.info(`💰 Cost: 1 compute unit per scrape (most cost-effective)`);
 
-      // Try each actor until one works
-      // Note: Different actors may expect different input formats:
-      // - harvestapi/linkedin-profile-search: { query: string, location: string, maxResults: number }
-      // - Some accept: { searchQuery: string, maxResults: number }
-      // - Others may accept: { profileUrls: string[], ... } or other formats
-      // If an actor fails, we try the next one (fallback strategy)
-      for (const candidateId of possibleActorIds) {
+      // Try the single actor
+      for (const candidateId of possibleActorIds.slice(0, MAX_ACTOR_ATTEMPTS)) {
         try {
           actorId = candidateId;
           triedActors.push(candidateId);
@@ -259,11 +324,8 @@ export class ApifyService {
             if (query.location && query.location.trim()) {
               // Extract city and state from "City, State" or "City, Country" format
               const locationParts = query.location.split(',').map(s => s.trim()).filter(Boolean);
-    const availableTokens = this.getAvailableTokens();
-    if (availableTokens.length === 0) {
-      const errorMsg = this.initializationError 
-        ? `ApifyClient failed to initialize: ${this.initializationError.message}`
-        : 'Apify API token not configured. Set APIFY_API_TOKEN or APIFY_API_TOKENS in .env.local';
+              const cityName = locationParts[0] || query.location.trim();
+              
               const cityExpansions: { [key: string]: string[] } = {
                 // New Jersey - expand small cities to nearby larger metros
                 'Roseland': ['Newark', 'Jersey City', 'New York'], // Roseland → Newark/Jersey City/New York metro
@@ -274,21 +336,13 @@ export class ApifyService {
                 'Berkeley': ['Oakland', 'San Francisco'],
                 // Add more common small cities as needed
               };
-      // Use the most reliable LinkedIn scraper
-      // ⚠️ COST WARNING: Each actor.call() creates a run and consumes compute units
-      // Using just 1 scraper = 1 compute unit per scrape (most cost-effective)
-      // ⚠️ IMPORTANT: Actor names change frequently. Visit https://apify.com/store and search "LinkedIn" to find current actors
-      const possibleActorIds = [
-        // Best option: Most reliable, highest rating, most users
-        'harvestapi/linkedin-profile-search' // ⭐ 4.6/5 rating, 5.9K users - No cookies required
-      ];
-      
-      // Use only 1 scraper to minimize costs
-      const MAX_ACTOR_ATTEMPTS = 1;
+              
+              if (cityExpansions[cityName]) {
+                // Expand small city to nearby larger cities
+                locationParam = cityExpansions[cityName];
+                logger.info(`Location: "${query.location}" → Expanded to: ${locationParam.join(', ')}`);
               } else {
                 // For larger cities or unknown cities, use as-is
-      let runClient: any = null; // Store the client used for the successful run
-      let runToken: string | null = null; // Store the token used for the successful run
                 locationParam = [cityName];
                 logger.info(`Location: "${query.location}" → Using: "${cityName}"`);
               }
@@ -296,9 +350,7 @@ export class ApifyService {
               // No location = location-agnostic search (better for remote or broad searches)
               logger.info(`⚠️ No location provided - using location-agnostic search (better for finding more candidates)`);
             }
-      logger.info(`🔍 Attempting to scrape LinkedIn using the most reliable scraper...`);
-      logger.info(`📋 Using: harvestapi/linkedin-profile-search (4.6/5 rating, 5.9K users)`);
-      logger.info(`💰 Cost: 1 compute unit per scrape (most cost-effective)`);
+            
             actorInput = {
               searchQuery: fuzzyQuery,
               locations: locationParam || undefined, // Use 'locations' (array) - required by Apify actor
@@ -307,206 +359,233 @@ export class ApifyService {
               takePages: Math.ceil((query.maxResults || 50) / 10) // Estimate pages needed (10 items per page)
             };
             logger.info(`📝 Apify actor input - searchQuery: "${fuzzyQuery}", locations: ${locationParam ? JSON.stringify(locationParam) : 'none (location-agnostic)'}, maxResults: ${query.maxResults || 50}`);
-            logger.info(`📋 Full query object received:`, {
-      // Try with token rotation - if one token hits quota limit, try next token
-      const maxTokenAttempts = this.getAvailableTokens().length;
-      let tokenAttempt = 0;
-      let currentToken: string | null = null;
-      let lastTokenError: any = null;
-      
-      while (tokenAttempt < maxTokenAttempts) {
-        // Get next available token
-        currentToken = this.getNextToken();
-        if (!currentToken) {
-          throw new Error('No available Apify tokens. All tokens have hit quota limits.');
-        }
-        
-        tokenAttempt++;
-        logger.info(`[Apify] Using token ${tokenAttempt}/${maxTokenAttempts} (first 10 chars: ${currentToken.substring(0, 10)}...)`);
-        
-        // Get client for this token
-        const client = await this.getClientForToken(currentToken);
-        
-        // Try each actor until one works (limited to MAX_ACTOR_ATTEMPTS to save costs)
-        // Note: Different actors may expect different input formats
-        // ⚠️ IMPORTANT: Each actor.call() creates a run and consumes compute units
-        // We only try a few actors to avoid wasting compute units on multiple failed runs
-        const actorsToTry = possibleActorIds.slice(0, MAX_ACTOR_ATTEMPTS);
-        for (const candidateId of actorsToTry) {
+          } else {
             // Standard format for other actors
             actorInput = {
-            searchQuery,
-          logger.info(`🔄 Trying LinkedIn scraper profile ${triedActors.length}/${possibleActorIds.length}: ${actorId}`);
+              searchQuery,
+              maxResults: query.maxResults || 50
             };
           }
           
-          // Run the actor with retry logic for connection errors
-          let retries = 3;
-          let lastCallError: any = null;
+          // Try with token rotation - if one token hits quota limit, try next token
+          const maxTokenAttempts = this.getAvailableTokens().length;
+          let tokenAttempt = 0;
+          let lastTokenError: any = null;
           
-          while (retries > 0) {
-            try {
-              // Add timeout wrapper (30 seconds for actor call)
-              const callPromise = this.client.actor(actorId).call(actorInput);
-              const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Actor call timeout after 30 seconds')), 30000);
-              });
-              
-              run = await Promise.race([callPromise, timeoutPromise]) as any;
-              
-              logger.info(`📊 Run created: ID=${run?.id}, Status=${run?.status}, Actor=${actorId}`);
-              logger.info(`📤 Actor input sent:`, JSON.stringify(actorInput, null, 2));
-              
-              // Check for free tier limit in run logs
-              if (run && run.id) {
-                try {
-                  const runDetails = await this.client.run(run.id).get();
-                  const statusMessage = runDetails.statusMessage || '';
-                  const logs = runDetails.log || '';
-                  
-                  logger.info(`📋 Run details:`, {
-                    id: runDetails.id,
-                    status: runDetails.status,
-                    statusMessage: statusMessage,
-                    defaultDatasetId: runDetails.defaultDatasetId,
-                    startedAt: runDetails.startedAt,
-                    finishedAt: runDetails.finishedAt,
-                    stats: runDetails.stats
-                  });
-                  
-                  // Check if free tier limit was reached
-                  if (statusMessage.toLowerCase().includes('free user run limit') ||
-                      statusMessage.toLowerCase().includes('run limit reached') ||
-                      logs.toLowerCase().includes('free users are limited') ||
-                      logs.toLowerCase().includes('free user run limit')) {
-                    throw new Error(
-                      '🚫 Apify Free Tier Limit Reached!\n\n' +
-                      'You have used all 10 free runs for today.\n' +
-                      'Options:\n' +
-                      '1. Wait 24 hours for the limit to reset\n' +
-                      '2. Upgrade to a paid plan at https://apify.com/pricing\n' +
-                      '3. Use a different Apify account (new API token)\n\n' +
-                      'To avoid this in the future, the scraper will now stop immediately when the limit is detected.'
-                    );
+          while (tokenAttempt < maxTokenAttempts) {
+            // Get next available token
+            currentToken = this.getNextToken();
+            if (!currentToken) {
+              // Before throwing, check if we have any tokens at all
+              if (this.availableTokens.length === 0) {
+                throw new Error('No Apify API token configured. Please set APIFY_API_TOKEN in your environment variables.');
+              } else {
+                // We have tokens but they're all marked as exhausted
+                const exhaustedCount = this.exhaustedTokens.size;
+                const resetTimes = Array.from(this.exhaustedTokensTime.values()).map(t => 
+                  Math.round((Date.now() - t) / (60 * 60 * 1000))
+                );
+                throw new Error(
+                  `No available Apify tokens. All ${exhaustedCount} token(s) have hit quota limits.\n` +
+                  `Tokens will auto-reset after ${this.EXHAUSTED_TOKEN_RESET_HOURS} hours.\n` +
+                  `Time since exhaustion: ${resetTimes.map(h => `${h}h`).join(', ')}`
+                );
+              }
+            }
+            
+            tokenAttempt++;
+            logger.info(`[Apify] Using token ${tokenAttempt}/${maxTokenAttempts} (first 10 chars: ${currentToken.substring(0, 10)}...)`);
+            
+            // Get client for this token
+            const client = await this.getClientForToken(currentToken);
+            
+            // Run the actor with retry logic for connection errors
+            let retries = 3;
+            let lastCallError: any = null;
+            
+            while (retries > 0) {
+              try {
+                // Add timeout wrapper (30 seconds for actor call)
+                const callPromise = client.actor(actorId).call(actorInput);
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('Actor call timeout after 30 seconds')), 30000);
+                });
+                
+                run = await Promise.race([callPromise, timeoutPromise]) as any;
+                
+                logger.info(`📊 Run created: ID=${run?.id}, Status=${run?.status}, Actor=${actorId}`);
+                logger.info(`📤 Actor input sent:`, JSON.stringify(actorInput, null, 2));
+                
+                // Check for free tier limit in run logs
+                if (run && run.id) {
+                  try {
+                    const runDetails = await client.run(run.id).get();
+                    const statusMessage = runDetails.statusMessage || '';
+                    const logs = runDetails.log || '';
+                    
+                    logger.info(`📋 Run details:`, {
+                      id: runDetails.id,
+                      status: runDetails.status,
+                      statusMessage: statusMessage,
+                      defaultDatasetId: runDetails.defaultDatasetId,
+                      startedAt: runDetails.startedAt,
+                      finishedAt: runDetails.finishedAt,
+                      stats: runDetails.stats
+                    });
+                    
+                    // Check if free tier limit was reached
+                    if (statusMessage.toLowerCase().includes('free user run limit') ||
+                        statusMessage.toLowerCase().includes('run limit reached') ||
+                        logs.toLowerCase().includes('free users are limited') ||
+                        logs.toLowerCase().includes('free user run limit')) {
+                      // Mark this token as exhausted and try next token
+                      this.markTokenExhausted(currentToken, `Free tier limit detected in run status: ${statusMessage}`);
+                      throw new Error('QUOTA_LIMIT_REACHED'); // Special error to trigger token rotation
+                    }
+                    
+                    // Log any warnings or errors from the run
+                    if (statusMessage) {
+                      logger.warn(`⚠️ Run status message: ${statusMessage}`);
+                    }
+                    if (logs && logs.length > 100) {
+                      logger.info(`📝 Run logs (first 500 chars): ${logs.substring(0, 500)}`);
+                    }
+                  } catch (limitCheckError: any) {
+                    // If it's our free tier limit error, throw it
+                    if (limitCheckError.message.includes('Free Tier Limit') || limitCheckError.message === 'QUOTA_LIMIT_REACHED') {
+                      throw limitCheckError;
+                    }
+                    // Otherwise, ignore the check error and continue
                   }
-                  
-                  // Log any warnings or errors from the run
-                  if (statusMessage) {
-                    logger.warn(`⚠️ Run status message: ${statusMessage}`);
-                  }
-                  if (logs && logs.length > 100) {
-                    logger.info(`📝 Run logs (first 500 chars): ${logs.substring(0, 500)}`);
-                  }
-                } catch (limitCheckError: any) {
-                  // If it's our free tier limit error, throw it
-                  if (limitCheckError.message.includes('Free Tier Limit')) {
-                    throw limitCheckError;
-                  }
-                  // Otherwise, ignore the check error and continue
+                }
+                
+                // If we get here, it worked!
+                logger.info(`✅ Successfully using actor: ${actorId}`);
+                runClient = client; // Store client for subsequent operations
+                runToken = currentToken; // Store token for quota limit tracking
+                break; // Exit retry loop
+              } catch (callError: any) {
+                lastCallError = callError;
+                const errorCode = callError.code || '';
+                const errorMessage = callError.message || String(callError);
+                
+                // Check if it's a quota limit error - try next token
+                // Only mark as exhausted if we're CERTAIN it's a quota limit
+                const isQuotaError = errorMessage === 'QUOTA_LIMIT_REACHED' || 
+                    errorMessage?.toLowerCase().includes('free tier limit') ||
+                    errorMessage?.toLowerCase().includes('run limit') ||
+                    errorMessage?.toLowerCase().includes('quota') ||
+                    errorCode === 429 || // HTTP 429 Too Many Requests
+                    (callError.statusCode === 429);
+                    
+                if (isQuotaError && currentToken) {
+                  logger.warn(`🚫 Quota limit detected during actor call. Error: ${errorMessage}`);
+                  this.markTokenExhausted(currentToken, `Quota limit during call: ${errorMessage}`);
+                  lastTokenError = callError;
+                  break; // Exit retry loop, try next token
+                } else if (currentToken) {
+                  // Not a quota error - don't mark as exhausted, but log it
+                  logger.info(`⚠️ Non-quota error during actor call (not marking token as exhausted): ${errorMessage}`);
+                }
+                
+                // Check if it's a connection error that we should retry
+                if ((errorCode === 'ECONNRESET' || 
+                     errorCode === 'ETIMEDOUT' || 
+                     errorCode === 'ECONNREFUSED' ||
+                     errorMessage.includes('aborted') ||
+                     errorMessage.includes('ECONNRESET') ||
+                     errorMessage.includes('timeout')) && retries > 1) {
+                  retries--;
+                  const waitTime = (4 - retries) * 2000; // 2s, 4s, 6s
+                  logger.warn(`⚠️ Connection error (${errorCode || errorMessage}). Retrying in ${waitTime/1000}s... (${retries} retries left)`);
+                  await new Promise(resolve => setTimeout(resolve, waitTime));
+                  continue;
+                } else {
+                  throw callError;
                 }
               }
-          
-          // If we get here, it worked!
-          logger.info(`✅ Successfully using actor: ${actorId}`);
-          break;
-            } catch (callError: any) {
-              lastCallError = callError;
-              const errorCode = callError.code || '';
-              const errorMessage = callError.message || String(callError);
-              
-              // Check if it's a connection error that we should retry
-              if ((errorCode === 'ECONNRESET' || 
-                   errorCode === 'ETIMEDOUT' || 
-                   errorCode === 'ECONNREFUSED' ||
-                   errorMessage.includes('aborted') ||
-                   errorMessage.includes('ECONNRESET') ||
-                   errorMessage.includes('timeout')) && retries > 1) {
-                retries--;
-                const waitTime = (4 - retries) * 2000; // 2s, 4s, 6s
-                logger.warn(`⚠️ Connection error (${errorCode || errorMessage}). Retrying in ${waitTime/1000}s... (${retries} retries left)`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-                continue;
-              } else {
-              const callPromise = client.actor(actorId).call(actorInput);
-                throw callError;
-              }
+            }
+            
+            if (run) {
+              break; // Successfully got run, exit retry loop
             }
           }
           
           if (run) {
+            break; // Successfully got run, exit token loop
+          }
+          
+          // If quota limit was hit, try next token
+          if (lastTokenError && lastTokenError.message === 'QUOTA_LIMIT_REACHED') {
+            continue; // Try next token
+          }
+          
+          if (run) {
             break; // Successfully got run, exit actor loop
-          } else {
-            throw lastCallError || new Error('Failed to call actor after retries');
           }
         } catch (error: any) {
           lastError = error;
-                  const runDetails = await client.run(run.id).get();
-                  const statusMessage = runDetails.statusMessage || '';
-                  const logs = runDetails.log || '';
-                  
-                  logger.info(`📋 Run details:`, {
-                    id: runDetails.id,
-                    status: runDetails.status,
-                    statusMessage: statusMessage,
-                    defaultDatasetId: runDetails.defaultDatasetId,
-                    startedAt: runDetails.startedAt,
-                    finishedAt: runDetails.finishedAt,
-                    stats: runDetails.stats
-                  });
-                  
-                  // Check if free tier limit was reached
-                  if (statusMessage.toLowerCase().includes('free user run limit') ||
-                      statusMessage.toLowerCase().includes('run limit reached') ||
-                      logs.toLowerCase().includes('free users are limited') ||
-                      logs.toLowerCase().includes('free user run limit')) {
-                    // Mark this token as exhausted and try next token
-                    this.markTokenExhausted(currentToken);
-                    throw new Error('QUOTA_LIMIT_REACHED'); // Special error to trigger token rotation
-                  }
-                  
-                  // Log any warnings or errors from the run
-                  if (statusMessage) {
-                    logger.warn(`⚠️ Run status message: ${statusMessage}`);
-                  }
-                  if (logs && logs.length > 100) {
-                    logger.info(`📝 Run logs (first 500 chars): ${logs.substring(0, 500)}`);
-                  }
-                } catch (limitCheckError: any) {
-                  // If it's a quota limit, mark token exhausted and throw special error
-                  if (limitCheckError.message.includes('Free Tier Limit') || 
-                      limitCheckError.message === 'QUOTA_LIMIT_REACHED') {
-                    this.markTokenExhausted(currentToken);
-                    throw new Error('QUOTA_LIMIT_REACHED');
-      }
-
-      // Check run status for free tier limit before fetching results
-      try {
-        const runDetails = await this.client.run(run.id).get();
-        const statusMessage = runDetails.statusMessage || '';
-        const logs = runDetails.log || '';
-        
-        // Check if free tier limit was reached
-        if (statusMessage.toLowerCase().includes('free user run limit') ||
-            statusMessage.toLowerCase().includes('run limit reached') ||
-            logs.toLowerCase().includes('free users are limited') ||
-            logs.toLowerCase().includes('free user run limit')) {
-          throw new Error(
-            '🚫 Apify Free Tier Limit Reached!\n\n' +
-            'You have used all 10 free runs for today.\n' +
-            'Options:\n' +
-            '1. Wait 24 hours for the limit to reset\n' +
-            '2. Upgrade to a paid plan at https://apify.com/pricing\n' +
-            '3. Use a different Apify account (new API token)\n\n' +
-            'This run was consumed but returned 0 results due to the limit.'
-          );
+          logger.warn(`⚠️ Actor ${actorId} failed:`, error.message || String(error));
+          
+          // Check if it's a quota limit error - mark token as exhausted
+          // Only mark as exhausted if we're CERTAIN it's a quota limit
+          const isQuotaError = error.message === 'QUOTA_LIMIT_REACHED' || 
+              error.message?.toLowerCase().includes('free tier limit') ||
+              error.message?.toLowerCase().includes('run limit') ||
+              error.message?.toLowerCase().includes('quota') ||
+              error.code === 429 || // HTTP 429 Too Many Requests
+              (error.statusCode === 429);
+              
+          if (isQuotaError && currentToken) {
+            logger.warn(`🚫 Quota limit detected for token. Error: ${error.message}`);
+            this.markTokenExhausted(currentToken, `Quota limit: ${error.message}`);
+          } else if (currentToken) {
+            // Not a quota error - don't mark as exhausted
+            logger.info(`⚠️ Non-quota error occurred (not marking token as exhausted): ${error.message}`);
+          }
+          
+          // Continue to next actor
+          continue;
         }
-      } catch (limitCheckError: any) {
-        // If it's our free tier limit error, throw it
-        if (limitCheckError.message.includes('Free Tier Limit')) {
-          throw limitCheckError;
-        }
-        // Otherwise, ignore the check error and continue
+    }
+    
+    // Check if we got a successful run
+    if (!run) {
+      if (this.getAvailableTokens().length > 0) {
+        throw new Error(`All ${triedActors.length} actors failed. Last error: ${lastError?.message || 'Unknown error'}`);
+      } else {
+        throw new Error('No available Apify tokens. All tokens have hit quota limits.');
       }
+    }
+    
+    // Check run status for free tier limit before fetching results
+    try {
+      const runDetails = await runClient.run(run.id).get();
+      const statusMessage = runDetails.statusMessage || '';
+      const logs = runDetails.log || '';
+      
+      // Check if free tier limit was reached
+      if (statusMessage.toLowerCase().includes('free user run limit') ||
+          statusMessage.toLowerCase().includes('run limit reached') ||
+          logs.toLowerCase().includes('free users are limited') ||
+          logs.toLowerCase().includes('free user run limit')) {
+        throw new Error(
+          '🚫 Apify Free Tier Limit Reached!\n\n' +
+          'You have used all 10 free runs for today.\n' +
+          'Options:\n' +
+          '1. Wait 24 hours for the limit to reset\n' +
+          '2. Upgrade to a paid plan at https://apify.com/pricing\n' +
+          '3. Use a different Apify account (new API token)\n\n' +
+          'This run was consumed but returned 0 results due to the limit.'
+        );
+      }
+    } catch (limitCheckError: any) {
+      // If it's our free tier limit error, throw it
+      if (limitCheckError.message.includes('Free Tier Limit')) {
+        throw limitCheckError;
+      }
+      // Otherwise, ignore the check error and continue
+    }
 
       // Wait for run to finish and get results with retry logic
       logger.info(`⏳ Waiting for run to finish: ${run.id}`);
@@ -519,146 +598,41 @@ export class ApifyService {
       
       while (finalRunStatus !== 'SUCCEEDED' && finalRunStatus !== 'FAILED' && finalRunStatus !== 'ABORTED' && (Date.now() - startTime) < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
-          // Check if it's a quota limit error - mark token exhausted and try next token
-          if (errorMessage === 'QUOTA_LIMIT_REACHED' || this.isQuotaLimitError(error)) {
-            logger.warn(`❌ Token quota limit reached. Marking token as exhausted and trying next token...`);
-            this.markTokenExhausted(currentToken);
-            // Break out of actor loop and try next token
-            break;
-          }
-          
-          logger.warn(`❌ Actor "${candidateId}" failed: ${errorMessage}`);
-          logger.warn(`   → Error type: ${errorType}`);
-          
-          // Check if it's a "not found" error - try next actor (this is FREE, no run created)
-          if (errorType === 'record-not-found' || errorMessage.includes('not found')) {
-            logger.info(`   → This actor doesn't exist (no cost - no run created). Trying next actor...`);
-            continue; // Safe to continue - no compute units consumed
-          } else if (errorMessage.toLowerCase().includes('input') || 
-                     errorMessage.toLowerCase().includes('invalid') ||
-                     errorMessage.toLowerCase().includes('parameter')) {
-            // Input format error - run was created but failed, so we consumed compute units
-            logger.warn(`   → Input format mismatch. Run was created (compute units consumed). Trying next actor...`);
-            if (triedActors.length >= MAX_ACTOR_ATTEMPTS) {
-              logger.warn(`   → Reached max attempts (${MAX_ACTOR_ATTEMPTS}). Stopping to avoid more costs.`);
-              break;
-            }
-            continue;
-          } else {
-            // Other error - run may have been created, consuming compute units
-            logger.warn(`   → Other error occurred. Run may have been created (compute units consumed). Trying next actor...`);
-            if (triedActors.length >= MAX_ACTOR_ATTEMPTS) {
-              logger.warn(`   → Reached max attempts (${MAX_ACTOR_ATTEMPTS}). Stopping to avoid more costs.`);
-              break;
-            }
-            continue;
-          }
+        
+        try {
+          const runStatus = await runClient.run(run.id).get();
+          finalRunStatus = runStatus.status;
+        } catch (statusError: any) {
+          logger.warn(`⚠️ Error checking run status: ${statusError.message}`);
+          break;
         }
       }
-
-      // If we got a run, store the client and token, then break out of token loop
-      if (run) {
-        runClient = client; // Store client for subsequent operations
-        runToken = currentToken; // Store token for quota limit tracking
-        break;
+      
+      if (finalRunStatus !== 'SUCCEEDED') {
+        throw new Error(`Run ${run.id} finished with status: ${finalRunStatus}`);
       }
       
-      // If quota limit was hit, try next token
-      if (lastError && (lastError.message === 'QUOTA_LIMIT_REACHED' || this.isQuotaLimitError(lastError))) {
-        logger.info(`[Apify] Token exhausted, trying next token...`);
-        lastTokenError = lastError;
-        continue; // Try next token
-      }
-      
-      // If all actors failed for this token, try next token (unless it's a quota limit)
-      if (!run && this.getAvailableTokens().length > 0) {
-        logger.warn(`[Apify] All actors failed for current token. Trying next token...`);
-        continue;
-      }
-    } // End token rotation loop
-
-    // Check if we exhausted all tokens
-    if (!run && this.getAvailableTokens().length === 0) {
-      throw new Error(
-        `🚫 All Apify tokens have hit quota limits!\n\n` +
-        `All ${maxTokenAttempts} token(s) have been exhausted.\n` +
-        `Options:\n` +
-        `1. Wait 24 hours for limits to reset\n` +
-        `2. Add more tokens: APIFY_API_TOKENS=token1,token2,token3 in .env.local\n` +
-        `3. Upgrade to paid Apify plans at https://apify.com/pricing`
-      );
-    }
-
-    if (!run) {
-      const triedList = triedActors.join(', ');
-      throw new Error(
-        `❌ None of the LinkedIn actors worked with any available token!\n\n` +
-        `Tried actors:\n  - ${triedList.split(', ').join('\n  - ')}\n\n` +
-        `Last error: ${lastError?.message || 'Unknown'}\n\n` +
-        `📋 HOW TO FIX:\n` +
-        `1. Visit: https://apify.com/store\n` +
-        `2. Search for: "LinkedIn"\n` +
-        `3. Find an ACTIVE/PUBLIC actor (check it's not deprecated)\n` +
-        `4. Copy the actor ID (format: "username/actor-name" or "username~actor-name")\n` +
-        `5. Update line 190 in: scraper/src/services/providers/ApifyService.ts\n` +
-        `6. Add the actor ID to the possibleActorIds array\n\n` +
-        `Common actor ID formats:\n` +
-        `- "username/actor-name" (Apify converts to username~actor-name internally)\n` +
-        `- Example: "apify/linkedin-profile-scraper" or "jancurn/linkedin-scraper"`
-      );
-    }
-          }
-          if (result.items && result.items.length > 0) {
-      // Use the client that created the run
+      // Use runClient for subsequent operations
       if (!runClient) {
-        // Fallback: get client from current token (shouldn't happen, but safety check)
-        const fallbackToken = this.getNextToken();
+        const fallbackToken = this.getAvailableTokens()[0];
         if (fallbackToken) {
           runClient = await this.getClientForToken(fallbackToken);
           runToken = fallbackToken;
         } else {
-          throw new Error('No client available for run operations');
+          runClient = this.client; // Fallback to default client
         }
       }
       
-      try {
-        const runDetails = await runClient.run(run.id).get();
-              const statusMessage = runDetails.statusMessage || '';
-        const logs = runDetails.log || '';
-              
-        // Check if free tier limit was reached
-              if (statusMessage.toLowerCase().includes('free user run limit') ||
-            statusMessage.toLowerCase().includes('run limit reached') ||
-            logs.toLowerCase().includes('free users are limited') ||
-            logs.toLowerCase().includes('free user run limit')) {
-          // Mark token as exhausted
-          if (runToken) {
-            this.markTokenExhausted(runToken);
-          }
-                throw new Error(
-            '🚫 Apify Free Tier Limit Reached!\n\n' +
-            'You have used all 10 free runs for today.\n' +
-            'Options:\n' +
-            '1. Wait 24 hours for the limit to reset\n' +
-            '2. Upgrade to a paid plan at https://apify.com/pricing\n' +
-            '3. Use a different Apify account (new API token)\n\n' +
-            'This run was consumed but returned 0 results due to the limit.'
-          );
-        }
-      } catch (limitCheckError: any) {
-        // If it's our free tier limit error, mark token exhausted and throw
-        if (limitCheckError.message.includes('Free Tier Limit') && runToken) {
-          this.markTokenExhausted(runToken);
-        }
-        // Re-throw to stop processing
-              }
-            } catch (limitError: any) {
-              if (limitError.message.includes('Free Tier Limit')) {
-                throw limitError;
-              }
-            }
-          }
-          
+      // Fetch results from the dataset
+      logger.info(`📥 Fetching results from dataset: ${run.defaultDatasetId}`);
+      const dataset = runClient.dataset(run.defaultDatasetId);
+      let datasetRetries = 3;
+      let items: any[] = [];
+      
+      while (datasetRetries > 0) {
+        try {
+          const result = await dataset.listItems();
+          items = result.items || [];
           break; // Success
         } catch (datasetError: any) {
           datasetRetries--;
@@ -669,7 +643,6 @@ export class ApifyService {
           if ((errorCode === 'ECONNRESET' || 
                errorCode === 'ETIMEDOUT' || 
                errorCode === 'ECONNREFUSED' ||
-          const runStatus = await runClient.run(run.id).get();
                errorMessage.includes('ECONNRESET') ||
                errorMessage.includes('timeout')) && datasetRetries > 0) {
             const waitTime = (4 - datasetRetries) * 2000; // 2s, 4s, 6s
@@ -678,7 +651,6 @@ export class ApifyService {
             continue;
           } else {
             // Not retryable or out of retries
-        const runDetails = await runClient.run(run.id).get().catch(() => null);
             throw new Error(`Failed to fetch dataset: ${errorMessage}`);
           }
         }
@@ -696,7 +668,7 @@ export class ApifyService {
           location: query.location,
           experienceLevel: query.experienceLevel,
           maxResults: query.maxResults
-          const datasetPromise = runClient.dataset(run.defaultDatasetId).listItems();
+        });
         logger.warn(`   This could be due to:`);
         logger.warn(`   - No profiles matching the search criteria`);
         logger.warn(`   - Search query too specific`);
@@ -715,16 +687,12 @@ export class ApifyService {
           headline: items[0].headline,
           url: items[0].url
         });
-              const runDetails = await runClient.run(run.id).get();
+      }
 
       // Limit results to requested amount (actors may return more)
       const limitedItems = items.slice(0, query.maxResults || 50);
 
       // Transform Apify results to ScrapedCandidate format
-                // Mark token as exhausted if we detect quota limit
-                if (runToken) {
-                  this.markTokenExhausted(runToken);
-                }
       return limitedItems.map((item: any) => this.transformLinkedInProfile(item));
     } catch (error: any) {
       logger.error('Error scraping LinkedIn via Apify:', error);

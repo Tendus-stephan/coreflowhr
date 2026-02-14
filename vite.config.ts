@@ -11,6 +11,26 @@ export default defineConfig(({ mode }) => {
         hmr: {
           port: 3002,
         },
+        // Proxy API requests to scraper server if it's running (for scraper-ui testing)
+        // Main app uses Supabase directly, so this is only for scraper-ui compatibility
+        proxy: {
+          '/api': {
+            target: 'http://localhost:3005',
+            changeOrigin: true,
+            secure: false,
+            // Only proxy if scraper server is running, otherwise let it fail gracefully
+            configure: (proxy, _options) => {
+              proxy.on('error', (err, _req, _res) => {
+                // Silently ignore proxy errors - main app doesn't use /api endpoints
+                // This prevents console spam when scraper-ui server isn't running
+                if (err.code === 'ECONNREFUSED') {
+                  return; // Ignore connection refused errors
+                }
+                console.error('Proxy error:', err);
+              });
+            },
+          },
+        },
       },
       plugins: [react()],
       define: {

@@ -3,6 +3,7 @@
  */
 
 import { Job, LinkedInQuery, GitHubQuery, MightyRecruiterQuery, JobSpiderQuery, JobBoardQuery } from '../types';
+import { logger } from './logger';
 
 export function buildLinkedInQuery(job: Job, maxResults: number = 50): LinkedInQuery {
   // Only use actual skills from job.skills array - don't extract from description (can get long sentences)
@@ -22,11 +23,51 @@ export function buildLinkedInQuery(job: Job, maxResults: number = 50): LinkedInQ
   
   const allSkills = [...new Set([...actualSkills, ...descriptionSkills])];
   
+  // Always include location and experienceLevel if they exist in the job
+  // Only skip location for remote jobs
+  // Handle empty strings, null, and undefined properly
+  const location = job.remote 
+    ? undefined 
+    : (job.location && typeof job.location === 'string' && job.location.trim() 
+        ? job.location.trim() 
+        : undefined);
+  
+  const experienceLevel = (job.experienceLevel && typeof job.experienceLevel === 'string' && job.experienceLevel.trim())
+    ? job.experienceLevel.trim()
+    : undefined;
+  
+  // Log what we're using with detailed info
+  logger.info(`📋 Job fields for query building:`, {
+    hasLocation: !!job.location,
+    locationType: typeof job.location,
+    locationValue: job.location,
+    cleanedLocation: location || 'NOT_USED',
+    hasExperienceLevel: !!job.experienceLevel,
+    experienceLevelType: typeof job.experienceLevel,
+    experienceLevelValue: job.experienceLevel,
+    cleanedExperienceLevel: experienceLevel || 'NOT_USED',
+    isRemote: job.remote
+  });
+  
+  if (location) {
+    logger.info(`📍 Using location for filtering: "${location}"`);
+  } else if (job.remote) {
+    logger.info(`🌍 Job is remote - skipping location filter`);
+  } else {
+    logger.warn(`⚠️ No location provided in job data (job.location = ${job.location})`);
+  }
+  
+  if (experienceLevel) {
+    logger.info(`👔 Using experience level for filtering: "${experienceLevel}"`);
+  } else {
+    logger.warn(`⚠️ No experience level provided in job data (job.experienceLevel = ${job.experienceLevel})`);
+  }
+  
   return {
     jobTitle: job.title,
     skills: allSkills,
-    location: job.remote ? undefined : job.location, // Don't filter by location for remote jobs
-    experienceLevel: job.experienceLevel,
+    location: location,
+    experienceLevel: experienceLevel,
     maxResults
   };
 }

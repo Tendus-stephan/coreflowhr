@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2 } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2 } from 'lucide-react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
 import { CandidateSourcingModal } from '../components/CandidateSourcingModal';
@@ -264,6 +264,7 @@ const AddJob: React.FC = () => {
               // Update existing job as draft
               await api.jobs.update(id, {
                   ...formData,
+                  experienceLevel: formData.experience, // Map experience to experienceLevel
                   skills: skillsArray,
                   status: 'Draft' as const,
                   clientId: formData.clientId || undefined
@@ -272,6 +273,7 @@ const AddJob: React.FC = () => {
           // Create the job as draft (no candidates generated)
           await api.jobs.create({
               ...formData,
+              experienceLevel: formData.experience, // Map experience to experienceLevel
               skills: skillsArray,
               status: 'Draft' as const,
               clientId: formData.clientId || undefined
@@ -329,6 +331,7 @@ const AddJob: React.FC = () => {
               // Update existing job to Active
               await api.jobs.update(id, {
                   ...formData,
+                  experienceLevel: formData.experience, // Map experience to experienceLevel
                   skills: skillsArray,
                   status: 'Active' as const
               });
@@ -341,7 +344,8 @@ const AddJob: React.FC = () => {
           } else {
               // Create the job with explicit Active status
               createdJob = await api.jobs.create({
-              ...formData,
+                  ...formData,
+                  experienceLevel: formData.experience, // Map experience to experienceLevel
                   skills: skillsArray,
                   status: 'Active' as const
               });
@@ -708,17 +712,11 @@ const AddJob: React.FC = () => {
           </div>
       ) : (
           <>
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-            <Link to="/jobs" className="p-2 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition-colors">
-                <ArrowLeft size={20} />
-            </Link>
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Job' : 'Post a New Job'}</h1>
-                <p className="text-sm text-gray-500">{isEditing ? 'Update your job listing details.' : 'Create a job listing to start finding candidates.'}</p>
-            </div>
+      <div className="mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Job' : 'Post a New Job'}</h1>
+          <p className="text-sm text-gray-500">{isEditing ? 'Update your job listing details.' : 'Create a job listing to start finding candidates.'}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate('/jobs')}>Back to Jobs</Button>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">

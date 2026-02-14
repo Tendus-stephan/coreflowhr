@@ -1439,14 +1439,14 @@ export const api = {
                     user_id: userId,
                 title: jobTitle,
                     department: jobData.department || 'General',
-                location: jobData.location || 'Remote',
+                location: jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? undefined : 'Remote'),
                 type: jobData.type || 'Full-time',
                 status: jobStatus,
                 description: jobData.description || '',
                     company: jobData.company,
                     client_id: jobData.clientId || null,
                     salary_range: jobData.salaryRange,
-                    experience_level: jobData.experienceLevel,
+                    experience_level: jobData.experienceLevel && jobData.experienceLevel.trim() ? jobData.experienceLevel.trim() : null,
                     remote: jobData.remote || false,
                     skills: jobData.skills || [],
                     posted_date: postedDate,
@@ -1486,14 +1486,18 @@ export const api = {
             const updateData: any = {};
             if (jobData.title) updateData.title = jobData.title;
             if (jobData.department) updateData.department = jobData.department;
-            if (jobData.location) updateData.location = jobData.location;
+            if (jobData.location !== undefined) {
+                updateData.location = jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? null : jobData.location);
+            }
             if (jobData.type) updateData.type = jobData.type;
             if (jobData.status) updateData.status = jobData.status;
             if (jobData.description !== undefined) updateData.description = jobData.description;
             if (jobData.company !== undefined) updateData.company = jobData.company;
             if (jobData.clientId !== undefined) updateData.client_id = jobData.clientId || null;
             if (jobData.salaryRange !== undefined) updateData.salary_range = jobData.salaryRange;
-            if (jobData.experienceLevel !== undefined) updateData.experience_level = jobData.experienceLevel;
+            if (jobData.experienceLevel !== undefined) {
+                updateData.experience_level = jobData.experienceLevel && jobData.experienceLevel.trim() ? jobData.experienceLevel.trim() : null;
+            }
             if (jobData.remote !== undefined) updateData.remote = jobData.remote;
             if (jobData.skills !== undefined) updateData.skills = jobData.skills;
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit } from 'lucide-react';
+import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link, useNavigate } from 'react-router-dom';
 import { Job, Candidate, CandidateStage } from '../types';
@@ -679,10 +679,16 @@ const Jobs: React.FC = () => {
               }
           }
 
-          // Update local state
+          // Update local state with success status and timestamp
           setJobs(prev => prev.map(j => 
               j.id === job.id 
-                  ? { ...j, scrapingStatus: 'succeeded' as const, scrapingError: null, applicantsCount: (j.applicantsCount || 0) + totalSaved }
+                  ? { 
+                      ...j, 
+                      scrapingStatus: 'succeeded' as const, 
+                      scrapingError: null, 
+                      applicantsCount: (j.applicantsCount || 0) + totalSaved,
+                      scrapingAttemptedAt: new Date().toISOString()
+                  }
                   : j
           ));
 
@@ -694,6 +700,15 @@ const Jobs: React.FC = () => {
                   ? jobsResult 
                   : [];
           setJobs(jobsData);
+          
+          // Keep success indicator visible for 5 seconds
+          setTimeout(() => {
+              setJobs(prev => prev.map(j => 
+                  j.id === job.id 
+                      ? { ...j, scrapingAttemptedAt: undefined }
+                      : j
+              ));
+          }, 5000);
 
           // Play success sound
           if (totalSaved > 0) {
@@ -931,7 +946,11 @@ const Jobs: React.FC = () => {
       {/* Job List */}
       <div className="grid gap-4 flex-1 content-start">
         {currentJobs.map(job => (
-            <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 hover:shadow-md transition-all group relative">
+            <div key={job.id} className={`bg-white border rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 hover:shadow-md transition-all group relative ${
+                retryingJobId === job.id 
+                    ? 'border-blue-300 bg-blue-50/30' 
+                    : 'border-gray-200'
+            }`}>
                 <div className="flex-1 cursor-pointer" onClick={() => setSelectedJob(job)}>
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-black transition-colors">{job.title}</h3>
@@ -940,6 +959,20 @@ const Jobs: React.FC = () => {
                         }`}>
                             {job.status}
                         </span>
+                        {/* Sourcing Loader Indicator */}
+                        {retryingJobId === job.id && (
+                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                <Loader2 size={12} className="animate-spin" />
+                                <span>Sourcing...</span>
+                            </div>
+                        )}
+                        {/* Success Indicator */}
+                        {job.scrapingStatus === 'succeeded' && job.scrapingAttemptedAt && new Date(job.scrapingAttemptedAt) > new Date(Date.now() - 5000) && retryingJobId !== job.id && (
+                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+                                <CheckCircle size={12} />
+                                <span>Sourcing complete</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1.5">

@@ -411,6 +411,16 @@ export class ScrapingService {
       maxResults: query.maxResults
     });
     
+    // Ensure location and experienceLevel are passed to Apify
+    if (!query.location && job.location && !job.remote) {
+      logger.warn(`⚠️ Location is missing in query but exists in job: ${job.location}. Adding it.`);
+      query.location = job.location;
+    }
+    if (!query.experienceLevel && job.experienceLevel) {
+      logger.warn(`⚠️ Experience level is missing in query but exists in job: ${job.experienceLevel}. Adding it.`);
+      query.experienceLevel = job.experienceLevel;
+    }
+    
     if (!this.apifyService) {
       throw new Error('ApifyService not initialized. Check server logs for initialization errors.');
     }
