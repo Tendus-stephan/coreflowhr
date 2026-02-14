@@ -1176,7 +1176,7 @@ const LandingPage: React.FC = () => {
             {/* Right Accordion */}
             <div className="lg:col-span-2 space-y-0">
                 {[
-                    { q: "What is CoreFlow and how does it work?", a: "CoreFlow is an end-to-end recruitment operating system. It centralizes your job postings, candidates, and interviews into one platform. Simply create an account, post a job, and start tracking candidates through our visual pipeline." },
+                    { q: "What is CoreFlow and how does it work?", a: "CoreFlow is a recruitment platform built for agencies. It centralizes job postings, candidates, and interviews in one place—with self-service registration, multi-client management, and AI-powered sourcing. Create an account, add clients, post jobs, and track candidates through the pipeline." },
                     { q: "How does CoreFlow use my data to build custom AI insights?", a: "We use your job descriptions and candidate resumes to generate match scores. Data is processed securely using enterprise-grade LLMs and is never shared with third parties or used to train public models." },
                     { q: "How do I get started with CoreFlow and what are the pricing options?", a: "You can start for free with our trial. We offer a Basic Plan for small teams and a Professional Plan for growing companies. See our Pricing section above for details." },
                     { q: "What payment methods do you accept?", a: "We accept all major credit cards, PayPal, and bank transfers for enterprise customers." }
