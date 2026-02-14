@@ -3,6 +3,11 @@
  * Provides API endpoints for jobs, scraping, and results
  */
 
+// Node 18.17 and earlier: polyfill global File so undici (used by apify-client/fetch) does not throw
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+require('./polyfill-file.cjs');
+
 import express from 'express';
 import cors from 'cors';
 import { ScrapingService } from '../../scraper/src/services/ScrapingService';

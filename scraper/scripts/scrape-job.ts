@@ -6,6 +6,11 @@
  *   npm run scraper:job -- --job-id <job-uuid> --sources linkedin,github --max-candidates 50
  */
 
+// Node 18.17: polyfill global File before any import that loads undici
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+require('../src/polyfill-node18-file.cjs');
+
 import { ScrapingService } from '../src/services/ScrapingService';
 import { logger } from '../src/utils/logger';
 
