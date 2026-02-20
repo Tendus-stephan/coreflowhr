@@ -90,7 +90,7 @@ export const CandidateSourcingNotification: React.FC = () => {
                         <Sparkles className="text-white" size={24} />
                     )}
                     {isSourcing && current > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-white">
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-gray-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-white">
                             {current}
                         </span>
                     )}
@@ -203,15 +203,15 @@ export const CandidateSourcingNotification: React.FC = () => {
                             )}
                         </>
                         ) : (
-                            <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
-                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <div className="flex items-center gap-3 p-4 bg-gray-100 rounded-xl border border-gray-200">
+                                <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center">
                                     <Users className="text-white" size={16} />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-sm font-bold text-green-900">
+                                    <p className="text-sm font-bold text-gray-900">
                                         Sourcing Complete!
                                     </p>
-                                    <p className="text-xs text-green-700 mt-0.5">
+                                    <p className="text-xs text-gray-700 mt-0.5">
                                         {total} candidates successfully sourced
                                     </p>
                                 </div>

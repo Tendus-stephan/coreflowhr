@@ -133,7 +133,7 @@ export const InterviewFeedbackCard: React.FC<InterviewFeedbackCardProps> = ({
             {feedback.strengths && (
                 <div className="mb-3">
                     <div className="flex items-center gap-1 mb-1">
-                        <TrendingUp size={14} className="text-green-600" />
+                        <TrendingUp size={14} className="text-gray-600" />
                         <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Strengths</p>
                     </div>
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap pl-5">

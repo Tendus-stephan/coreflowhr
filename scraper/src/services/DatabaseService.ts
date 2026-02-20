@@ -383,6 +383,10 @@ export class DatabaseService {
         resumeSummary += signalsText;
       }
 
+      // Persist scraper's match score (skills + experience + location) so UI shows varied scores per candidate
+      const matchScore = (candidate as { matchScore?: number }).matchScore;
+      const aiMatchScore = matchScore != null ? Math.min(100, Math.max(0, Math.round(matchScore))) : null;
+
       const insertData: any = {
         user_id: userId,
         job_id: job.id,
@@ -399,6 +403,9 @@ export class DatabaseService {
         is_test: false,
         applied_date: new Date().toISOString()
       };
+      if (aiMatchScore != null) {
+        insertData.ai_match_score = aiMatchScore;
+      }
 
       // Add profile_url, portfolio_urls, and linkedin_url (for dedup and cross-job "Also in Job X")
       if (candidate.profileUrl) {

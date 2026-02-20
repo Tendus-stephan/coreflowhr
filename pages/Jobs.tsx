@@ -106,8 +106,8 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
                     {saveMessage && (
                         <div className={`p-3 rounded-lg border ${
                             saveMessage.type === 'success' 
-                                ? 'bg-green-50 border-green-200 text-green-800' 
-                                : 'bg-red-50 border-red-200 text-red-800'
+                                ? 'bg-gray-100 border-gray-200 text-gray-800' 
+                                : 'bg-gray-100 border-gray-200 text-gray-800'
                         }`}>
                             <p className="text-sm font-medium">{saveMessage.text}</p>
                         </div>
@@ -465,7 +465,6 @@ const Jobs: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'Active' | 'Draft' | 'Closed' | 'All'>('Active');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('All Experience Levels');
   const [selectedJobType, setSelectedJobType] = useState<string>('All Job Types');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
@@ -555,19 +554,14 @@ const Jobs: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter jobs based on tab, search, experience level, and job type
+  // Filter jobs based on tab, search, and job type
   const filteredJobs = jobs.filter(job => {
       const matchesTab = activeTab === 'All' || job.status === activeTab;
       const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             job.location.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesExperience = selectedExperienceLevel === 'All Experience Levels' || 
-                                job.experienceLevel === selectedExperienceLevel ||
-                                (selectedExperienceLevel.includes('Entry') && job.experienceLevel?.includes('Entry')) ||
-                                (selectedExperienceLevel.includes('Mid') && job.experienceLevel?.includes('Mid')) ||
-                                (selectedExperienceLevel.includes('Senior') && job.experienceLevel?.includes('Senior'));
       const matchesJobType = selectedJobType === 'All Job Types' || 
                              job.type === selectedJobType;
-      return matchesTab && matchesSearch && matchesExperience && matchesJobType;
+      return matchesTab && matchesSearch && matchesJobType;
   });
 
   const counts = {
@@ -584,7 +578,7 @@ const Jobs: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
       setCurrentPage(1);
-  }, [activeTab, searchQuery, selectedExperienceLevel, selectedJobType]);
+  }, [activeTab, searchQuery, selectedJobType]);
 
   // Poll every 5 s while any job is actively scraping so the banners update live
   useEffect(() => {
@@ -980,18 +974,6 @@ const Jobs: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                   />
               </div>
-              <div className="relative flex-1">
-                  <select 
-                      value={selectedExperienceLevel}
-                      onChange={(e) => setSelectedExperienceLevel(e.target.value)}
-                      className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                      <option value="All Experience Levels">All Experience Levels</option>
-                      <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
-                      <option value="Mid Level (2-5 years)">Mid Level (2-5 years)</option>
-                      <option value="Senior Level (5+ years)">Senior Level (5+ years)</option>
-                  </select>
-              </div>
               <div className="relative flex-1" style={{ position: 'relative' }}>
                   <select 
                       value={selectedJobType}
@@ -1226,7 +1208,7 @@ const Jobs: React.FC = () => {
                                 </button>
                                 <button 
                                     onClick={() => handleAction('delete', job)}
-                                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 font-medium transition-colors flex items-center gap-2"
+                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-800 font-medium transition-colors flex items-center gap-2"
                                 >
                                     <Trash2 size={14} /> Delete Job
                                 </button>

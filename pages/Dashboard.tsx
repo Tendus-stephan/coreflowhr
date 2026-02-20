@@ -25,8 +25,8 @@ const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
             <div className="flex items-center gap-1 mt-1">
-                <TrendingUp size={12} className={trend.startsWith('+') ? 'text-green-600' : 'text-gray-400'} />
-                <span className={`text-[10px] font-medium ${trend.startsWith('+') ? 'text-green-600' : 'text-gray-500'}`}>
+                <TrendingUp size={12} className={trend.startsWith('+') ? 'text-gray-700' : 'text-gray-400'} />
+                <span className={`text-[10px] font-medium ${trend.startsWith('+') ? 'text-gray-700' : 'text-gray-500'}`}>
                     {trend} <span className="text-gray-400">{trendLabel}</span>
                 </span>
             </div>
@@ -128,7 +128,7 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
                     </div>
 
                     <div className="w-full bg-gray-50 rounded-xl p-4 border border-gray-200 flex items-center gap-4 text-left">
-                        <div className="bg-white p-2 rounded-lg border border-gray-200 text-red-500">
+                        <div className="bg-white p-2 rounded-lg border border-gray-200 text-gray-500">
                             <File size={20} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -860,17 +860,17 @@ const Dashboard: React.FC = () => {
       
       {/* Payment Success Message */}
       {showSuccessMessage && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-5">
-          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-gray-100 border border-gray-200 rounded-lg shadow-lg p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-5">
+          <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center">
             <CheckCircle className="text-white" size={20} />
           </div>
           <div>
-            <p className="font-semibold text-green-900">Payment Successful!</p>
-            <p className="text-sm text-green-700">Your subscription is now active. Welcome to CoreFlow!</p>
+            <p className="font-semibold text-gray-900">Payment Successful!</p>
+            <p className="text-sm text-gray-700">Your subscription is now active. Welcome to CoreFlow!</p>
           </div>
           <button
             onClick={() => setShowSuccessMessage(false)}
-            className="ml-4 text-green-600 hover:text-green-800"
+            className="ml-4 text-gray-600 hover:text-gray-800"
           >
             <X size={20} />
           </button>
@@ -945,7 +945,7 @@ const Dashboard: React.FC = () => {
                 >
                     <Bell size={18} />
                     {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-gray-500 rounded-full border border-white"></span>
                     )}
                 </button>
 
@@ -981,7 +981,7 @@ const Dashboard: React.FC = () => {
           <div className="flex-1 max-w-xs">
             <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${scrapeUsage.remaining === 0 ? 'bg-red-500' : scrapeUsage.remaining <= 5 ? 'bg-yellow-500' : 'bg-gray-900'}`}
+                className={`h-full rounded-full transition-all ${scrapeUsage.remaining === 0 ? 'bg-gray-500' : scrapeUsage.remaining <= 5 ? 'bg-gray-400' : 'bg-gray-900'}`}
                 style={{ width: `${Math.min(100, (scrapeUsage.used / scrapeUsage.limit) * 100)}%` }}
               />
             </div>
@@ -997,7 +997,7 @@ const Dashboard: React.FC = () => {
             )}
           </span>
           {scrapeUsage.remaining === 0 && (
-            <span className="text-red-600 text-xs">Upgrade to Pro or wait until renewal.</span>
+            <span className="text-gray-600 text-xs">Upgrade to Pro or wait until renewal.</span>
           )}
         </div>
       )}
@@ -1116,7 +1116,7 @@ const Dashboard: React.FC = () => {
                 <div key={candidate.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
                     <div className="relative">
                         <Avatar name={candidate.name} className="w-10 h-10 border border-gray-200" />
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-gray-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0"><p className="text-sm font-bold text-gray-900 truncate">{candidate.name}</p><p className="text-xs text-gray-500 truncate">{candidate.role}</p></div>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 font-medium">{candidate.stage}</span>

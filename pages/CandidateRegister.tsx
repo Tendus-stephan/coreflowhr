@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Button } from '../components/ui/Button';
-import { CheckCircle, AlertCircle, Mail } from 'lucide-react';
+import { CheckCircle, AlertCircle, Mail, Briefcase } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 const CandidateRegister: React.FC = () => {
@@ -17,7 +17,6 @@ const CandidateRegister: React.FC = () => {
   const [candidate, setCandidate] = useState<{ id: string; name: string; role: string; job_id: string } | null>(null);
   const [email, setEmail] = useState('');
 
-  // Validate token and load candidate data
   useEffect(() => {
     const validateTokenAndLoadCandidate = async () => {
       if (!candidateId) {
@@ -34,7 +33,6 @@ const CandidateRegister: React.FC = () => {
       }
 
       try {
-        // Load candidate data and validate token
         const { data: candidateData, error: candidateError } = await supabase
           .from('candidates')
           .select('id, name, role, job_id, registration_token, registration_token_expires_at, registration_token_used, email')
@@ -75,7 +73,6 @@ const CandidateRegister: React.FC = () => {
           return;
         }
 
-        // Token is valid - set candidate data
         setCandidate({
           id: candidateData.id,
           name: candidateData.name,
@@ -119,9 +116,6 @@ const CandidateRegister: React.FC = () => {
     try {
       await api.candidates.register(candidateId, token, email);
       setSuccess(true);
-      
-      // Don't redirect to CV upload page - candidate will receive Screening email with CV upload link
-      // They can upload CV via the link in the email
     } catch (err: any) {
       console.error('Error registering email:', err);
       setError(err.message || 'Failed to register email. Please try again.');
@@ -133,10 +127,10 @@ const CandidateRegister: React.FC = () => {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-md w-full mb-0">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 max-w-md w-full">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
-            <p className="text-gray-600">Validating registration link...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p className="text-sm text-gray-500">Validating registration link...</p>
           </div>
         </div>
       </div>
@@ -146,14 +140,16 @@ const CandidateRegister: React.FC = () => {
   if (success) {
     return (
       <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-md w-full mb-0">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 max-w-md w-full">
           <div className="text-center">
-            <CheckCircle size={48} className="text-green-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful!</h1>
-            <p className="text-gray-600 mb-4">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <CheckCircle size={28} className="text-gray-700" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Registration Complete</h1>
+            <p className="text-sm text-gray-600 leading-relaxed mb-4">
               Your email has been registered successfully. You'll receive an email shortly with instructions on how to upload your CV.
             </p>
-            <p className="text-sm text-gray-500">Please check your inbox for the next steps.</p>
+            <p className="text-xs text-gray-400">Please check your inbox for the next steps.</p>
           </div>
         </div>
       </div>
@@ -162,33 +158,47 @@ const CandidateRegister: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-md w-full mb-0">
-        <div className="mb-6">
-          <div className="flex items-center justify-center mb-4">
-            <Mail size={32} className="text-gray-700" />
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Mail size={24} className="text-gray-700" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">Register Your Email</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Register Your Email</h1>
           {candidate ? (
-            <p className="text-sm text-gray-600 text-center">
-              Hi <span className="font-semibold">{candidate.name}</span>, please register your email to continue.
+            <p className="text-sm text-gray-500">
+              Hi <span className="font-medium text-gray-700">{candidate.name}</span>, please register your email to continue.
             </p>
           ) : (
-            <p className="text-sm text-gray-600 text-center">
+            <p className="text-sm text-gray-500">
               Please register your email to continue.
             </p>
           )}
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <AlertCircle size={20} className="text-red-600 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-700 whitespace-normal">{error.trim()}</p>
+          <div className="mb-6 p-3.5 bg-gray-100 border border-gray-200 rounded-xl flex items-start gap-3">
+            <AlertCircle size={18} className="text-gray-500 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-gray-700 leading-relaxed">{error.trim()}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Position badge */}
+        {candidate?.role && (
+          <div className="mb-6 flex items-center gap-2.5 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl">
+            <Briefcase size={16} className="text-gray-400 flex-shrink-0" />
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Position</p>
+              <p className="text-sm font-medium text-gray-800">{candidate.role}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
               Email Address
             </label>
             <input
@@ -196,29 +206,26 @@ const CandidateRegister: React.FC = () => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition-colors"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all placeholder:text-gray-400"
               placeholder="your.email@example.com"
               required
               disabled={submitting || loading}
             />
           </div>
 
-          {candidate?.role && (
-            <div className="text-sm text-gray-600">
-              <p className="font-medium">Position:</p>
-              <p>{candidate.role}</p>
-            </div>
-          )}
-
           <Button
             type="submit"
             variant="black"
-            className="w-full"
+            className="w-full !py-3 !rounded-xl text-sm font-semibold"
             disabled={submitting || !email || loading}
           >
             {submitting ? 'Registering...' : 'Register Email'}
           </Button>
         </form>
+
+        <p className="text-[11px] text-gray-400 text-center mt-6 leading-relaxed">
+          By registering, you agree to receive communications regarding this position.
+        </p>
       </div>
     </div>
   );

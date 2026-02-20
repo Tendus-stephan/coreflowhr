@@ -107,7 +107,7 @@ const slides: Slide[] = [
         content: "Post jobs and manage job statuses. It's crucial to carefully cross-check all job details and input core skills required for the position. Once a job is created and set to Active, candidates will be automatically sourced from LinkedIn based on these skills.",
         detailedSteps: [
             "Click 'New Job' or go to Jobs page and click 'Create Job'",
-            "Fill in details: Title, Department, Location, Type, Experience Level",
+            "Fill in details: Title, Department, Location, Type",
             "⚠️ IMPORTANT: Carefully cross-check all job information for accuracy",
             "⚠️ CRITICAL: Input all core skills required for the job - this directly impacts candidate matching accuracy",
             "Review and verify all details before proceeding",

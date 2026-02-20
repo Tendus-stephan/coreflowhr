@@ -189,12 +189,12 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                 </div>
                 <div className="p-6 space-y-4 overflow-y-auto">
                     {saveMessage && (
-                        <div className={`p-3 rounded-lg border ${saveMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                        <div className={`p-3 rounded-lg border ${saveMessage.type === 'success' ? 'bg-gray-100 border-gray-200 text-gray-800' : 'bg-gray-100 border-gray-200 text-gray-800'}`}>
                             <p className="text-sm font-medium">{saveMessage.text}</p>
                         </div>
                     )}
                     {generateError && (
-                        <div className="p-3 rounded-lg border bg-red-50 border-red-200 text-red-800">
+                        <div className="p-3 rounded-lg border bg-gray-100 border-gray-200 text-gray-800">
                             <p className="text-sm font-medium">{generateError}</p>
                         </div>
                     )}
@@ -326,7 +326,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {(error || validationError) && (
-                        <div className="p-3 rounded-lg border bg-red-50 border-red-200 text-red-800">
+                        <div className="p-3 rounded-lg border bg-gray-100 border-gray-200 text-gray-800">
                             <p className="text-sm font-medium">{error || validationError}</p>
                         </div>
                     )}
@@ -453,7 +453,7 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
                 </div>
                 <div className="p-6 space-y-4">
                     {error && (
-                        <div className="p-3 rounded-lg border bg-red-50 border-red-200 text-red-800">
+                        <div className="p-3 rounded-lg border bg-gray-100 border-gray-200 text-gray-800">
                             <p className="text-sm font-medium">{error}</p>
                         </div>
                     )}
@@ -1559,8 +1559,8 @@ const Settings: React.FC = () => {
                             {saveMessage && (
                                 <div className={`p-4 rounded-xl border ${
                                     saveMessage.type === 'success' 
-                                        ? 'bg-green-50 border-green-200 text-green-800' 
-                                        : 'bg-red-50 border-red-200 text-red-800'
+                                        ? 'bg-gray-100 border-gray-200 text-gray-800' 
+                                        : 'bg-gray-100 border-gray-200 text-gray-800'
                                 }`}>
                                     <p className="text-sm font-medium">{saveMessage.text}</p>
                                 </div>
@@ -1591,7 +1591,7 @@ const Settings: React.FC = () => {
                                             <Button 
                                                 variant="ghost" 
                                                 size="sm" 
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                className="text-gray-600 hover:text-gray-700 hover:bg-gray-100"
                                                 onClick={handleDeleteAvatar}
                                             >
                                                 Delete
@@ -1661,9 +1661,9 @@ const Settings: React.FC = () => {
                             
                             {/* Error Message */}
                             {billingError && (
-                                <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-red-800">
+                                <div className="p-4 rounded-xl border border-gray-200 bg-gray-100 text-gray-800">
                                     <p className="text-sm font-medium whitespace-pre-line">{billingError}</p>
-                                    <p className="text-xs text-red-700 mt-2">
+                                    <p className="text-xs text-gray-700 mt-2">
                                         💡 Check Supabase Dashboard → Logs → Edge Functions → create-portal-session for detailed error logs.
                                     </p>
                                 </div>
@@ -1815,10 +1815,10 @@ const Settings: React.FC = () => {
                                                         </p>
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                                                             invoice.status === 'Paid' 
-                                                                ? 'bg-green-100 text-green-700' 
+                                                                ? 'bg-gray-100 text-gray-700' 
                                                                 : invoice.status === 'Pending'
-                                                                ? 'bg-yellow-100 text-yellow-700'
-                                                                : 'bg-red-100 text-red-700'
+                                                                ? 'bg-gray-100 text-gray-600'
+                                                                : 'bg-gray-100 text-gray-700'
                                                         }`}>
                                                             {invoice.status}
                                                         </span>
@@ -1872,7 +1872,7 @@ const Settings: React.FC = () => {
                                  <div className={`p-4 rounded-xl border ${
                                      saveMessage.type === 'success' 
                                          ? 'bg-green-50 border-green-200 text-green-800' 
-                                         : 'bg-red-50 border-red-200 text-red-800'
+                                         : 'bg-gray-100 border-gray-200 text-gray-800'
                                  }`}>
                                      <p className="text-sm font-medium">{saveMessage.text}</p>
                                  </div>
@@ -1968,7 +1968,7 @@ const Settings: React.FC = () => {
                         <div className="space-y-8">
                             <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4">Integrations</h2>
                             {saveMessage && (
-                                <div className={`p-4 rounded-lg border ${saveMessage.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                                <div className={`p-4 rounded-lg border ${saveMessage.type === 'success' ? 'bg-gray-100 border-gray-200 text-gray-800' : 'bg-gray-100 border-gray-200 text-gray-800'}`}>
                                     <p className="text-sm font-medium">{saveMessage.text}</p>
                                 </div>
                             )}
@@ -2044,7 +2044,7 @@ const Settings: React.FC = () => {
                                             <p className="text-sm text-gray-500 mt-1 max-w-sm">Add an extra layer of security to your account by requiring a code when signing in.</p>
                                             
                                             {twoFactorEnabled && (
-                                                <div className="flex items-center gap-2 mt-3 text-green-700 text-xs font-medium bg-green-50 w-fit px-2 py-1 rounded-md border border-green-100">
+                                                <div className="flex items-center gap-2 mt-3 text-gray-700 text-xs font-medium bg-gray-100 w-fit px-2 py-1 rounded-md border border-gray-200">
                                                     <CheckCircle size={12} />
                                                     Enabled
                                                 </div>

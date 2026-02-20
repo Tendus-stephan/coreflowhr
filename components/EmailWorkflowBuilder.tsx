@@ -229,7 +229,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                        <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                             {error}
                         </div>
                     )}
@@ -323,7 +323,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                             </p>
                         )}
                         {isCurrentTemplateInvalid() && (
-                            <p className="text-xs text-red-600 mt-1 font-medium">
+                            <p className="text-xs text-gray-600 mt-1 font-medium">
                                 ⚠️ This template is not appropriate for {triggerStage} stage. Please select a different template.
                             </p>
                         )}
@@ -394,7 +394,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                                             {source}
                                             <button
                                                 onClick={() => handleRemoveSource(source)}
-                                                className="hover:text-red-600"
+                                                className="hover:text-gray-700"
                                             >
                                                 <X size={12} />
                                             </button>

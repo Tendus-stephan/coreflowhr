@@ -135,8 +135,8 @@ const CandidateBoard: React.FC = () => {
               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
               <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
               <div className="flex items-center gap-1 mt-1">
-                  <TrendingUp size={12} className={trend.includes('+') ? 'text-green-600' : 'text-gray-400'} />
-                  <span className={`text-[10px] font-medium ${trend.includes('+') ? 'text-green-600' : 'text-gray-500'}`}>
+                  <TrendingUp size={12} className={trend.includes('+') ? 'text-gray-700' : 'text-gray-400'} />
+                  <span className={`text-[10px] font-medium ${trend.includes('+') ? 'text-gray-700' : 'text-gray-500'}`}>
                       {trend} <span className="text-gray-400">{subtext}</span>
                   </span>
               </div>

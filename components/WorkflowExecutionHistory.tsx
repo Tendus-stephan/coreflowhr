@@ -121,7 +121,7 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
                             <div className="text-sm text-gray-500">Loading history...</div>
                         </div>
                     ) : error ? (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                        <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                             {error}
                         </div>
                     ) : executions.length === 0 ? (
@@ -155,7 +155,7 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
                                                 {formatDate(execution.executedAt)}
                                             </div>
                                             {execution.errorMessage && (
-                                                <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                                                <div className="mt-2 text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded p-2">
                                                     {execution.errorMessage}
                                                 </div>
                                             )}

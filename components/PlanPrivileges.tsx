@@ -46,10 +46,10 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
               <tr className="border-b border-gray-100">
                 <td className="p-3 text-sm text-gray-700">AI Analysis</td>
                 <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-green-600 mx-auto" />
+                  <Check size={16} className="text-gray-600 mx-auto" />
                 </td>
                 <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-green-600 mx-auto" />
+                  <Check size={16} className="text-gray-600 mx-auto" />
                 </td>
               </tr>
               <tr className="border-b border-gray-100">
@@ -58,7 +58,7 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
                   <X size={16} className="text-gray-400 mx-auto" />
                 </td>
                 <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-green-600 mx-auto" />
+                  <Check size={16} className="text-gray-600 mx-auto" />
                 </td>
               </tr>
               <tr className="border-b border-gray-100">
@@ -67,7 +67,7 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
                   <X size={16} className="text-gray-400 mx-auto" />
                 </td>
                 <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-green-600 mx-auto" />
+                  <Check size={16} className="text-gray-600 mx-auto" />
                 </td>
               </tr>
               <tr>
@@ -76,7 +76,7 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
                   <X size={16} className="text-gray-400 mx-auto" />
                 </td>
                 <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-green-600 mx-auto" />
+                  <Check size={16} className="text-gray-600 mx-auto" />
                 </td>
               </tr>
             </tbody>
@@ -120,7 +120,7 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
         <ul className="space-y-2">
           {currentPlanLimits.features.map((feature, index) => (
             <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-              <Check size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+              <Check size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
               <span>{feature}</span>
             </li>
           ))}

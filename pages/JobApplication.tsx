@@ -61,7 +61,6 @@ const JobApplication: React.FC = () => {
           description: jobData.description || '',
           company: jobData.company,
           salaryRange: jobData.salary_range,
-          experienceLevel: jobData.experience_level,
           remote: jobData.remote || false,
           skills: jobData.skills || []
         };
@@ -299,16 +298,6 @@ const JobApplication: React.FC = () => {
                     <span className="font-medium">Salary</span>
                   </div>
                   <p className="text-gray-900">{job.salaryRange}</p>
-                </div>
-              )}
-
-              {job?.experienceLevel && (
-                <div>
-                  <div className="flex items-center gap-2 text-gray-500 mb-1">
-                    <Briefcase size={16} />
-                    <span className="font-medium">Experience</span>
-                  </div>
-                  <p className="text-gray-900">{job.experienceLevel}</p>
                 </div>
               )}
 

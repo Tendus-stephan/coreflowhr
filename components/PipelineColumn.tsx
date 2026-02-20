@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Candidate, CandidateStage } from '../types';
 import { Avatar } from './ui/Avatar';
-import { Briefcase, MapPin, BrainCircuit, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { Briefcase, MapPin, BrainCircuit, ChevronLeft, ChevronRight, Copy, ExternalLink } from 'lucide-react';
 
 /** One-line summary from AI analysis (first sentence or ~80 chars) */
 function oneLineSummary(aiAnalysis: string | undefined | null): string | null {
@@ -11,20 +11,6 @@ function oneLineSummary(aiAnalysis: string | undefined | null): string | null {
   const line = (firstSentence || trimmed).trim();
   if (line.length <= 85) return line;
   return line.slice(0, 82) + '...';
-}
-
-/** Tenure / experience line from workExperience or experience years */
-function tenureLine(candidate: Candidate): string | null {
-  if (candidate.experience != null && candidate.experience > 0) {
-    return `${candidate.experience}yr exp`;
-  }
-  const work = candidate.workExperience || [];
-  if (work.length === 0) return null;
-  const first = work[0];
-  const at = first.company ? ` at ${first.company}` : '';
-  const period = first.period || '';
-  if (period) return `${period}${at}`;
-  return first.company ? `at ${first.company}` : null;
 }
 
 interface PipelineColumnProps {
@@ -47,7 +33,6 @@ const DraggableCandidateCard: React.FC<{
     const [isDragging, setIsDragging] = useState(false);
     const requiredSet = jobRequiredSkills ? new Set(jobRequiredSkills.map(s => s.toLowerCase().trim())) : null;
     const summaryLine = oneLineSummary(candidate.aiAnalysis);
-    const tenure = tenureLine(candidate);
 
     const handleDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData('candidateId', candidate.id);
@@ -95,9 +80,6 @@ const DraggableCandidateCard: React.FC<{
                            <MapPin size={10} className="shrink-0" />
                            <p className="truncate">{candidate.location}</p>
                         </div>
-                        {tenure && (
-                            <p className="text-[10px] text-gray-500 mt-0.5 w-32 truncate" title={tenure}>{tenure}</p>
-                        )}
                     </div>
                 </div>
                 {candidate.aiMatchScore !== undefined && candidate.aiMatchScore !== null && (
@@ -133,7 +115,20 @@ const DraggableCandidateCard: React.FC<{
                     {summaryLine}
                 </p>
             )}
-            <p className="text-[10px] text-gray-400 mt-2 text-right pt-1 border-t border-gray-50">Sourced {new Date(candidate.appliedDate).toLocaleDateString()}</p>
+            <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-50">
+                <p className="text-[10px] text-gray-400">Sourced {new Date(candidate.appliedDate).toLocaleDateString()}</p>
+                {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
+                    <a
+                        href={candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-1"
+                    >
+                        LinkedIn <ExternalLink size={10} />
+                    </a>
+                )}
+            </div>
         </div>
     );
 };
@@ -216,7 +211,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
         isDragOver 
           ? 'bg-blue-50 border-blue-300 border-2' 
           : isInvalidDropTarget
-          ? 'bg-red-50/50 border-red-200 opacity-60'
+          ? 'bg-gray-100 border-gray-200 opacity-60'
           : 'bg-gray-50/50 border-border'
       }`}
       style={{ height: '100%' }}

@@ -460,17 +460,17 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const getScoreColor = (score?: number) => {
       if (!score) return 'text-gray-400';
       if (score >= 80) return 'text-gray-900';
-      if (score >= 60) return 'text-yellow-600';
-      if (score >= 40) return 'text-orange-600';
-      return 'text-red-600';
+      if (score >= 60) return 'text-gray-700';
+      if (score >= 40) return 'text-gray-600';
+      return 'text-gray-500';
   };
 
   const getScoreBgColor = (score?: number) => {
       if (!score) return 'bg-gray-100 text-gray-400';
       if (score >= 80) return 'bg-gray-900 text-white';
-      if (score >= 60) return 'bg-yellow-500 text-white';
-      if (score >= 40) return 'bg-orange-500 text-white';
-      return 'bg-red-500 text-white';
+      if (score >= 60) return 'bg-gray-600 text-white';
+      if (score >= 40) return 'bg-gray-500 text-white';
+      return 'bg-gray-400 text-white';
   };
 
   // Logic for Risk Level
@@ -633,7 +633,17 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             ))}
                         </div>
                     )}
-                    <div className="flex gap-3 mt-3">
+                    <div className="flex flex-wrap gap-3 mt-3">
+                         {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
+                             <a
+                                 href={candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="flex items-center gap-1.5 text-xs font-medium bg-gray-100 px-3 py-1 rounded-md text-gray-700 hover:bg-gray-200 transition-colors"
+                             >
+                                 <ExternalLink size={12} /> Open LinkedIn profile
+                             </a>
+                         )}
                          {candidate.cvFileUrl && (
                              <button 
                                  onClick={async () => {
@@ -973,8 +983,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </>
                     )}
 
-                    {/* Portfolio URLs */}
-                    {candidate.portfolioUrls && Object.keys(candidate.portfolioUrls).length > 0 && (
+                    {/* Portfolio URLs & LinkedIn */}
+                    {((candidate.profileUrl || candidate.portfolioUrls?.linkedin) || (candidate.portfolioUrls && Object.keys(candidate.portfolioUrls).length > 0)) && (
                         <>
                             {(experienceHistory.length > 0 || (candidate.projects && candidate.projects.length > 0)) && (
                                 <div className="h-px bg-gray-100"></div>
@@ -982,6 +992,19 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             <div className="space-y-3">
                                 <h3 className="text-sm font-bold text-gray-900">Portfolio & Links</h3>
                                 <div className="space-y-3">
+                                    {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
+                                            <a href={candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''} target="_blank" rel="noopener noreferrer" className="flex gap-3 items-center group">
+                                                <div className="p-2 bg-white rounded-lg border border-gray-200 group-hover:border-gray-300">
+                                                    <ExternalLink size={16} className="text-gray-600" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600">LinkedIn profile</h4>
+                                                    <p className="text-xs text-gray-500 truncate">{candidate.profileUrl || candidate.portfolioUrls?.linkedin}</p>
+                                                </div>
+                                            </a>
+                                        </div>
+                                    )}
                                     {candidate.portfolioUrls.github && (
                                         <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
                                             <a href={candidate.portfolioUrls.github} target="_blank" rel="noopener noreferrer" className="flex gap-3 items-center group">
@@ -1055,6 +1078,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     {/* Empty state */}
                     {experienceHistory.length === 0 && 
                      (!candidate.projects || candidate.projects.length === 0) && 
+                     !candidate.profileUrl && !candidate.portfolioUrls?.linkedin &&
                      (!candidate.portfolioUrls || Object.keys(candidate.portfolioUrls).length === 0) && (
                         <div className="text-center py-12">
                             <Briefcase size={48} className="mx-auto text-gray-300 mb-4" />
@@ -1157,13 +1181,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 </div>
                                             </div>
                                             {emailError && (
-                                                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                                                <div className="text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg p-2">
                                                     {emailError}
                                                 </div>
                                             )}
                                             {outreachCopied && (
-                                                <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
-                                                    <CheckCircle size={16} />
+                                                <div className="text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg p-2 flex items-center gap-2">
+                                                    <CheckCircle size={16} className="text-gray-600" />
                                                     Message copied to clipboard!
                                                 </div>
                                             )}
@@ -1223,7 +1247,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             variant="outline" 
                                             onClick={() => handleGenerateEmail('Rejection')} 
                                             disabled={loadingAI || disableRejection} 
-                                            className={`hover:text-red-600 hover:border-red-200 ${disableRejection ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            className={`hover:text-gray-700 hover:border-gray-300 ${disableRejection ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             Draft Rejection
                                         </Button>
@@ -1254,13 +1278,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             </div>
                                             <div className="space-y-2">
                                                 {emailError && (
-                                                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                                                    <div className="text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg p-2">
                                                         {emailError}
                                                     </div>
                                                 )}
                                                 {emailSent && (
-                                                    <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
-                                                        <CheckCircle size={16} />
+                                                    <div className="text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg p-2 flex items-center gap-2">
+                                                        <CheckCircle size={16} className="text-gray-600" />
                                                         Email sent successfully!
                                                     </div>
                                                 )}
@@ -1625,12 +1649,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               <p className="text-sm text-gray-600 mb-4">
                 Are you sure you want to send this email to <strong>{candidate.name}</strong>?
                 {currentEmailType === 'Rejection' && (
-                  <span className="block mt-2 text-red-600 font-medium">
+                  <span className="block mt-2 text-gray-700 font-medium">
                     The candidate will be moved to "Rejected" stage automatically.
                   </span>
                 )}
                 {currentEmailType === 'Hired' && (
-                  <span className="block mt-2 text-green-600 font-medium">
+                  <span className="block mt-2 text-gray-700 font-medium">
                     The candidate will be moved to "Hired" stage automatically.
                   </span>
                 )}

@@ -6,10 +6,10 @@ import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
 import type { JobTemplate } from '../types';
 
-const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string; location: string; type: 'Full-time' | 'Contract' | 'Part-time'; experience: string; skills: string; description: string; remote: boolean }> = [
-  { name: 'Software Engineer', title: 'Software Engineer', department: 'Engineering', location: '', type: 'Full-time', experience: 'Mid Level (2-5 years)', skills: 'JavaScript, TypeScript, React, Node.js', description: 'We are looking for a software engineer to build and maintain our products.', remote: false },
-  { name: 'Product Manager', title: 'Product Manager', department: 'Product', location: '', type: 'Full-time', experience: 'Mid Level (2-5 years)', skills: 'Product strategy, Roadmapping, Agile, User research', description: 'Drive product vision and work with engineering and design.', remote: false },
-  { name: 'Sales Representative', title: 'Sales Representative', department: 'Sales', location: '', type: 'Full-time', experience: 'Entry Level (0-2 years)', skills: 'Communication, CRM, Negotiation', description: 'Generate leads and close deals with new and existing clients.', remote: false },
+const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string; location: string; type: 'Full-time' | 'Contract' | 'Part-time'; skills: string; description: string; remote: boolean }> = [
+  { name: 'Software Engineer', title: 'Software Engineer', department: 'Engineering', location: '', type: 'Full-time', skills: 'JavaScript, TypeScript, React, Node.js', description: 'We are looking for a software engineer to build and maintain our products.', remote: false },
+  { name: 'Product Manager', title: 'Product Manager', department: 'Product', location: '', type: 'Full-time', skills: 'Product strategy, Roadmapping, Agile, User research', description: 'Drive product vision and work with engineering and design.', remote: false },
+  { name: 'Sales Representative', title: 'Sales Representative', department: 'Sales', location: '', type: 'Full-time', skills: 'Communication, CRM, Negotiation', description: 'Generate leads and close deals with new and existing clients.', remote: false },
 ];
 
 // --- Preview Modal Component ---
@@ -53,7 +53,7 @@ const PreviewModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose: () 
                     </div>
 
                     {/* Key Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl border border-gray-100">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-6 rounded-xl border border-gray-100">
                         <div className="space-y-1">
                             <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Location</span>
                             <div className="flex items-center gap-2 text-gray-900 font-medium">
@@ -66,13 +66,6 @@ const PreviewModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose: () 
                             <div className="flex items-center gap-2 text-gray-900 font-medium">
                                 <Briefcase size={16} className="text-gray-400" />
                                 {data.type}
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Experience</span>
-                            <div className="flex items-center gap-2 text-gray-900 font-medium">
-                                <Globe size={16} className="text-gray-400" />
-                                {data.experience}
                             </div>
                         </div>
                         <div className="space-y-1">
@@ -159,7 +152,6 @@ const AddJob: React.FC = () => {
       company: string;
       location: string;
       type: 'Full-time' | 'Contract' | 'Part-time';
-      experience: string;
       salary: string;
       remote: boolean;
       skills: string;
@@ -170,7 +162,6 @@ const AddJob: React.FC = () => {
       company: '',
       location: '',
       type: 'Full-time',
-      experience: 'Mid Level (2-5 years)',
       salary: '',
       remote: false,
       skills: '',
@@ -185,15 +176,13 @@ const AddJob: React.FC = () => {
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
 
-  /** Apply a built-in or user template to the form (title, location, type, experience, skills, description, remote). */
+  /** Apply a built-in or user template to the form (title, location, type, skills, description, remote). */
   const applyTemplate = (t: JobTemplate | typeof BUILTIN_TEMPLATES[number]) => {
-    const isBuiltin = 'name' in t && !('id' in t);
     setFormData(prev => ({
       ...prev,
       title: t.title,
       location: 'location' in t ? (t.location || '') : '',
       type: t.type,
-      experience: isBuiltin ? (t as typeof BUILTIN_TEMPLATES[number]).experience : ((t as JobTemplate).experienceLevel || prev.experience),
       skills: Array.isArray((t as JobTemplate).skills) ? (t as JobTemplate).skills.join(', ') : (t as typeof BUILTIN_TEMPLATES[number]).skills,
       description: t.description || '',
       remote: t.remote ?? false,
@@ -232,7 +221,6 @@ const AddJob: React.FC = () => {
                       company: job.company || '',
                       location: job.location || '',
                       type: job.type || 'Full-time',
-                      experience: job.experienceLevel || 'Mid Level (2-5 years)',
                       salary: job.salaryRange || '',
                       remote: job.remote || false,
                       skills: Array.isArray(job.skills) ? job.skills.join(', ') : (job.skills || ''),
@@ -279,7 +267,6 @@ const AddJob: React.FC = () => {
               // Update existing job as draft
               await api.jobs.update(id, {
                   ...formData,
-                  experienceLevel: formData.experience, // Map experience to experienceLevel
                   skills: skillsArray,
                   status: 'Draft' as const,
                   clientId: formData.clientId || undefined
@@ -288,7 +275,6 @@ const AddJob: React.FC = () => {
           // Create the job as draft (no candidates generated)
           await api.jobs.create({
               ...formData,
-              experienceLevel: formData.experience, // Map experience to experienceLevel
               skills: skillsArray,
               status: 'Draft' as const,
               clientId: formData.clientId || undefined
@@ -346,7 +332,6 @@ const AddJob: React.FC = () => {
               // Update existing job to Active
               await api.jobs.update(id, {
                   ...formData,
-                  experienceLevel: formData.experience, // Map experience to experienceLevel
                   skills: skillsArray,
                   status: 'Active' as const
               });
@@ -360,7 +345,6 @@ const AddJob: React.FC = () => {
               // Create the job with explicit Active status
               createdJob = await api.jobs.create({
                   ...formData,
-                  experienceLevel: formData.experience, // Map experience to experienceLevel
                   skills: skillsArray,
                   status: 'Active' as const
               });
@@ -561,24 +545,6 @@ const AddJob: React.FC = () => {
                           </div>
                       </div>
 
-                      {/* Custom Dropdown: Experience */}
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Experience Level *</label>
-                          <div className="relative">
-                            <select 
-                                name="experience"
-                                value={formData.experience}
-                                onChange={handleChange}
-                                className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none cursor-pointer"
-                                required
-                            >
-                                <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
-                                <option value="Mid Level (2-5 years)">Mid Level (2-5 years)</option>
-                                <option value="Senior Level (5+ years)">Senior Level (5+ years)</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                          </div>
-                      </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
@@ -640,12 +606,12 @@ const AddJob: React.FC = () => {
 
               {/* Error Message Display */}
               {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-                      <p className="text-sm text-red-800 font-medium">{error}</p>
+                  <div className="bg-gray-100 border border-gray-200 rounded-xl p-4 mb-4">
+                      <p className="text-sm text-gray-800 font-medium">{error}</p>
                       {error.includes('plan limit') && (
                           <a 
                               href="/settings?tab=billing" 
-                              className="text-sm text-red-600 underline mt-2 inline-block"
+                              className="text-sm text-gray-600 underline mt-2 inline-block"
                           >
                               Upgrade your plan →
                           </a>
