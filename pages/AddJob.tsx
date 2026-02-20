@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2 } from 'lucide-react';
+import { ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2, Save } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
-import { CandidateSourcingModal } from '../components/CandidateSourcingModal';
-import { scrapeCandidates } from '../services/scrapingApi';
-import { supabase } from '../services/supabase';
-import { useSourcing } from '../contexts/SourcingContext';
-import { canSourceCandidates, getAvailableSources, getPlanLimits } from '../services/planLimits';
-import { handleScrapingError, logScrapingError } from '../services/scrapingErrorHandler';
+import type { JobTemplate } from '../types';
+
+const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string; location: string; type: 'Full-time' | 'Contract' | 'Part-time'; experience: string; skills: string; description: string; remote: boolean }> = [
+  { name: 'Software Engineer', title: 'Software Engineer', department: 'Engineering', location: '', type: 'Full-time', experience: 'Mid Level (2-5 years)', skills: 'JavaScript, TypeScript, React, Node.js', description: 'We are looking for a software engineer to build and maintain our products.', remote: false },
+  { name: 'Product Manager', title: 'Product Manager', department: 'Product', location: '', type: 'Full-time', experience: 'Mid Level (2-5 years)', skills: 'Product strategy, Roadmapping, Agile, User research', description: 'Drive product vision and work with engineering and design.', remote: false },
+  { name: 'Sales Representative', title: 'Sales Representative', department: 'Sales', location: '', type: 'Full-time', experience: 'Entry Level (0-2 years)', skills: 'Communication, CRM, Negotiation', description: 'Generate leads and close deals with new and existing clients.', remote: false },
+];
 
 // --- Preview Modal Component ---
 const PreviewModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose: () => void; data: any }) => {
@@ -147,12 +148,10 @@ const AddJob: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const isEditing = !!id;
-  const { startSourcing, updateProgress, stopSourcing } = useSourcing();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userPlan, setUserPlan] = useState<string | null>(null);
   
   // Form State
   const [formData, setFormData] = useState<{
@@ -181,19 +180,29 @@ const AddJob: React.FC = () => {
   
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [templates, setTemplates] = useState<JobTemplate[]>([]);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
+
+  /** Apply a built-in or user template to the form (title, location, type, experience, skills, description, remote). */
+  const applyTemplate = (t: JobTemplate | typeof BUILTIN_TEMPLATES[number]) => {
+    const isBuiltin = 'name' in t && !('id' in t);
+    setFormData(prev => ({
+      ...prev,
+      title: t.title,
+      location: 'location' in t ? (t.location || '') : '',
+      type: t.type,
+      experience: isBuiltin ? (t as typeof BUILTIN_TEMPLATES[number]).experience : ((t as JobTemplate).experienceLevel || prev.experience),
+      skills: Array.isArray((t as JobTemplate).skills) ? (t as JobTemplate).skills.join(', ') : (t as typeof BUILTIN_TEMPLATES[number]).skills,
+      description: t.description || '',
+      remote: t.remote ?? false,
+    }));
+  };
 
   // Load user plan, clients, and job data
   useEffect(() => {
       const loadData = async () => {
-          // Load user plan
-          try {
-              const billingPlan = await api.settings.getPlan();
-              setUserPlan(billingPlan.name);
-          } catch (error) {
-              console.error('Failed to load billing plan:', error);
-              setUserPlan('Basic'); // Default to Basic if error
-          }
-
           // Load clients
           setLoadingClients(true);
           try {
@@ -206,7 +215,13 @@ const AddJob: React.FC = () => {
           }
 
           // Load job data if editing
-          if (!id) return;
+          if (!id) {
+              try {
+                  const list = await api.jobTemplates.list();
+                  setTemplates(list);
+              } catch (_) {}
+              return;
+          }
           
           setLoading(true);
           try {
@@ -351,347 +366,8 @@ const AddJob: React.FC = () => {
               });
           }
 
-          // Only source candidates if job is Active (same logic for both new and edited jobs)
-          if (createdJob.status === 'Active') {
-
-              // Clear any previous errors
-              setError(null);
-
-              // Get user's plan limits
-              const planLimits = getPlanLimits(userPlan);
-              const defaultCandidates = Math.min(10, planLimits.maxCandidatesPerJob);
-              
-              // Check if user can source this many candidates
-              const limitCheck = canSourceCandidates(userPlan, defaultCandidates);
-              
-              if (!limitCheck.allowed) {
-                  setError(limitCheck.message || 'You have reached your plan limit for candidate sourcing. Please upgrade your plan.');
-                  setIsSubmitting(false);
-                  return;
-              }
-
-              // Use the allowed limit (may be less than requested)
-              const maxCandidates = Math.min(defaultCandidates, limitCheck.maxAllowed);
-              
-              // Get available sources for this plan
-              const availableSources = getAvailableSources(userPlan) as any[];
-              
-              // Start sourcing with progress tracking
-              startSourcing(maxCandidates);
-
-          // Scrape real candidates using API
-          try {
-              // Update progress: Starting
-              updateProgress({ current: 0, total: maxCandidates, currentCandidateName: 'Initializing scraper...' });
-
-              // Scrape candidates - the API handles saving to database automatically
-              // Use available sources based on user's plan
-              const sourceNames = availableSources.length > 0 
-                ? availableSources.join(', ')
-                : 'LinkedIn';
-              updateProgress({ current: 0, total: maxCandidates, currentCandidateName: `Searching ${sourceNames} for candidates...` });
-              
-              const response = await scrapeCandidates(createdJob.id, {
-                  sources: availableSources.length > 0 ? availableSources : ['linkedin'], // Use plan-allowed sources
-                  maxCandidates: maxCandidates
-              });
-
-              if (!response.success) {
-                  throw new Error(response.error || 'Scraping failed');
-              }
-
-              // Calculate total candidates saved
-              const totalSaved = response.totalSaved || 0;
-              const totalFound = response.results.reduce((sum, result) => sum + result.candidatesFound, 0);
-              
-              // Get diagnostic information from results
-              const diagnostic = (response.results[0] as any)?.diagnostic;
-              
-              // Check if 0 candidates were saved but some were found
-              if (totalSaved === 0 && totalFound > 0) {
-                  // Get statistics from results
-                  const stats = (response.results[0] as any)?.statistics;
-                  const reasons: string[] = [];
-                  if (stats?.invalid) reasons.push(`${stats.invalid} invalid`);
-                  if (stats?.duplicates) reasons.push(`${stats.duplicates} duplicates`);
-                  if (stats?.saveErrors) reasons.push(`${stats.saveErrors} save errors`);
-                  
-                  const reasonText = reasons.length > 0 
-                      ? ` (${reasons.join(', ')})` 
-                      : '';
-                  
-                  // Update scraping status to failed with detailed error
-                  try {
-                      await supabase
-                          .from('jobs')
-                          .update({ 
-                              scraping_status: 'failed',
-                              scraping_error: `Found ${totalFound} candidates but none were saved${reasonText}. This may be due to strict validation criteria or all candidates being duplicates.`
-                          })
-                          .eq('id', createdJob.id);
-                  } catch (dbError: any) {
-                      // Handle missing column gracefully
-                      if (dbError.message?.includes('does not exist') || dbError.code === '42703') {
-                          console.warn('⚠️ scraping_status column does not exist. Please run the migration: RUN_SCRAPING_STATUS_MIGRATION.sql');
-                      } else if (dbError.message?.includes('check constraint') || dbError.code === '23514') {
-                          // Constraint error - try with simpler error message
-                          try {
-                              await supabase
-                                  .from('jobs')
-                                  .update({ 
-                                      scraping_status: 'failed',
-                                      scraping_error: `Found ${totalFound} candidates but none were saved.`
-                                  })
-                                  .eq('id', createdJob.id);
-                          } catch (retryError) {
-                              console.error('Failed to update scraping status on retry:', retryError);
-                          }
-                      } else {
-                          console.error('Failed to update scraping status:', dbError);
-                      }
-                  }
-                  
-                  // Show warning message
-                  setError(`Found ${totalFound} candidates but none were saved${reasonText}. Try adjusting your job requirements (location, skills, experience level) or check if candidates already exist.`);
-                  
-                  // Update progress
-                  updateProgress({ 
-                      current: 0, 
-                      total: maxCandidates, 
-                      currentCandidateName: `Found ${totalFound} candidates but none met the requirements${reasonText}` 
-                  });
-                  
-                  stopSourcing();
-                  
-                  // Navigate after showing error
-                  setTimeout(() => {
-                      navigate('/jobs');
-                  }, 5000);
-                  return;
-              }
-              
-              // Update scraping status to succeeded
-              try {
-                  await supabase
-                      .from('jobs')
-                      .update({ 
-                          scraping_status: 'succeeded',
-                          scraping_error: null
-                      })
-                      .eq('id', createdJob.id);
-              } catch (dbError: any) {
-                  // Handle missing column gracefully
-                  if (dbError.message?.includes('does not exist') || dbError.code === '42703') {
-                      console.warn('⚠️ scraping_status column does not exist. Please run the migration: RUN_SCRAPING_STATUS_MIGRATION.sql');
-                  } else {
-                      console.error('Failed to update scraping status:', dbError);
-                  }
-              }
-
-              // Update progress: Complete
-              updateProgress({ 
-                  current: totalSaved, 
-                  total: maxCandidates, 
-                  currentCandidateName: `Saved ${totalSaved} of ${totalFound} candidates found` 
-              });
-
-              // Play notification sound when sourcing completes
-              if (totalSaved > 0) {
-                  const { playNotificationSound } = await import('../utils/soundUtils');
-                  playNotificationSound();
-              }
-
-              // Update job applicants count with actual number created
-              // Note: The scraper already updates this via DatabaseService, but we'll ensure it's correct
-              try {
-                  // For edited jobs, add to existing count; for new jobs, set the count
-                  const currentCount = isEditing ? (createdJob.applicantsCount || 0) : 0;
-                  await supabase
-                      .from('jobs')
-                      .update({ applicants_count: currentCount + totalSaved })
-                      .eq('id', createdJob.id);
-              } catch (error) {
-                  console.error('Failed to update applicants count:', error);
-              }
-
-              // Log results with detailed statistics
-              console.group('📊 Scraping Completed');
-              console.log('Total Saved:', totalSaved);
-              console.log('Total Found:', totalFound);
-              console.log('Results:', response.results.map(r => {
-                  const stats = (r as any).statistics;
-                  if (stats) {
-                      return {
-                          source: r.source,
-                          found: r.candidatesFound,
-                          saved: r.candidatesSaved,
-                          invalid: stats.invalid,
-                          duplicates: stats.duplicates,
-                          saveErrors: stats.saveErrors,
-                          processed: stats.processed
-                      };
-                  }
-                  return {
-                      source: r.source,
-                      found: r.candidatesFound,
-                      saved: r.candidatesSaved
-                  };
-              }));
-              
-              // Detailed diagnostics if 0 results
-              if (totalFound === 0 && totalSaved === 0) {
-                  console.group('⚠️ WARNING: No Candidates Found!');
-                  console.warn('No candidates were found or saved.');
-                  console.log('');
-                  console.log('📋 Job Details:');
-                  console.log('   Title:', formData.title);
-                  console.log('   Location:', formData.location || 'Not specified');
-                  console.log('   Experience:', formData.experience);
-                  console.log('   Skills:', formData.skills || 'Not specified');
-                  console.log('');
-                  
-                  // Show diagnostic info if available
-                  if (diagnostic?.zeroResultsReason) {
-                      const reason = diagnostic.zeroResultsReason;
-                      console.log('🔍 Diagnostic Information:');
-                      console.log('   Search Query:', reason.searchQuery || 'Not available');
-                      console.log('   Actor Used:', reason.actorUsed || 'Not available');
-                      console.log('   Attempts:', reason.attempts || 0);
-                      console.log('   Consecutive Empty Fetches:', reason.consecutiveEmptyFetches || 0);
-                      console.log('');
-                      console.log('   Possible Reasons:');
-                      reason.possibleReasons.forEach((r: string, i: number) => {
-                          console.log(`   ${i + 1}. ${r}`);
-                      });
-                      console.log('');
-                  } else {
-                      console.log('🔍 Possible Reasons:');
-                      console.log('  1. Search query too specific');
-                      console.log('  2. Location filter too restrictive');
-                      console.log('  3. Apify free tier limit reached (10 runs/day)');
-                      console.log('  4. Actor limitations or rate limiting');
-                      console.log('  5. Apify not configured (missing APIFY_API_TOKEN)');
-                      console.log('  6. No LinkedIn profiles match the search criteria');
-                      console.log('');
-                  }
-                  
-                  console.log('💡 NEXT STEPS:');
-                  console.log('');
-                  console.log('📺 Check the SERVER TERMINAL where you ran "npm run scraper-ui:server"');
-                  console.log('   Look for these logs:');
-                  console.log('   - 📝 Search query: "..."');
-                  console.log('   - 📋 Query details: {...}');
-                  console.log('   - 📤 Actor input sent: {...}');
-                  console.log('   - 📊 Run created: ID=..., Status=...');
-                  console.log('   - ⚠️ WARNING: Apify returned 0 profiles');
-                  console.log('   - ❌ Error messages');
-                  console.log('');
-                  console.log('🔧 Quick Troubleshooting:');
-                  console.log('   1. Check diagnostic endpoint: http://localhost:3005/api/diagnostic');
-                  console.log('   2. Verify APIFY_API_TOKEN is set in .env.local');
-                  console.log('   3. Check if Apify free tier limit reached');
-                  console.log('   4. Try broader search (remove location/skills filters)');
-                  console.log('   5. Check Apify dashboard: https://console.apify.com/actors/runs');
-                  console.groupEnd();
-              }
-              console.groupEnd();
-
-                  // Keep notification visible for a few seconds to show completion, then navigate
-                  setTimeout(() => {
-                      navigate('/jobs');
-                      // Keep notification visible for a bit longer, then auto-close after navigation
-              setTimeout(() => {
-                          stopSourcing();
-                      }, 3000);
-                  }, 2000);
-          } catch (error: any) {
-              // Check for partial saves before showing error
-              let partialSaveCount = 0;
-              try {
-                  const { count } = await supabase
-                      .from('candidates')
-                      .select('*', { count: 'exact', head: true })
-                      .eq('job_id', createdJob.id)
-                      .eq('source', 'scraped');
-                  partialSaveCount = count || 0;
-              } catch (countError) {
-                  console.error('Failed to check partial saves:', countError);
-              }
-              
-              // Handle error gracefully - convert to user-friendly message
-              const errorInfo = handleScrapingError(error);
-              
-              // Log technical details internally (never show to user)
-              logScrapingError(createdJob.id, errorInfo, { error, partialSaveCount });
-              
-              // Update progress to show error (or partial success)
-              if (partialSaveCount > 0) {
-                  updateProgress({ 
-                      current: partialSaveCount, 
-                      total: maxCandidates, 
-                      currentCandidateName: `Saved ${partialSaveCount} candidates before connection error. ${errorInfo.userMessage}` 
-                  });
-              } else {
-                  updateProgress({ 
-                      current: 0, 
-                      total: maxCandidates, 
-                      currentCandidateName: errorInfo.userMessage 
-                  });
-              }
-              
-              // Store scraping status in job metadata (for retry functionality)
-              try {
-                  await supabase
-                      .from('jobs')
-                      .update({ 
-                          scraping_status: 'failed',
-                          scraping_error: partialSaveCount > 0 
-                              ? `${errorInfo.userMessage} (${partialSaveCount} candidates were saved before the error)`
-                              : errorInfo.userMessage,
-                          scraping_attempted_at: new Date().toISOString()
-                      })
-                      .eq('id', createdJob.id);
-              } catch (dbError: any) {
-                  // Handle missing column gracefully
-                  if (dbError.message?.includes('does not exist') || dbError.code === '42703') {
-                      console.warn('⚠️ scraping_status column does not exist. Please run the migration: RUN_SCRAPING_STATUS_MIGRATION.sql');
-                  } else if (dbError.message?.includes('check constraint') || dbError.code === '23514') {
-                      // Constraint error - try with simpler error message
-                      try {
-                          await supabase
-                              .from('jobs')
-                              .update({ 
-                                  scraping_status: 'failed',
-                                  scraping_error: partialSaveCount > 0 
-                                      ? `${errorInfo.userMessage} (${partialSaveCount} candidates saved)`
-                                      : errorInfo.userMessage,
-                                  scraping_attempted_at: new Date().toISOString()
-                              })
-                              .eq('id', createdJob.id);
-                      } catch (retryError) {
-                          console.error('Failed to update scraping status on retry:', retryError);
-                      }
-                  } else {
-                      console.error('Failed to store scraping status:', dbError);
-                  }
-              }
-              
-              // Show user-friendly error message with partial save info
-              const errorMessage = partialSaveCount > 0
-                  ? `${partialSaveCount} candidates were saved before the connection error. ${errorInfo.userMessage} You can retry sourcing to get the remaining candidates.`
-                  : errorInfo.userMessage;
-              setError(errorMessage);
-                  stopSourcing();
-              
-              // Navigate to jobs after showing error (job was created successfully)
-              setTimeout(() => {
-                  navigate('/jobs');
-              }, 5000); // Give user more time to read error with partial save info
-              }
-          } else {
-              // Job is not Active, navigate without sourcing
-              navigate('/jobs');
-          }
+          // Job created — navigate to Jobs page so user can click "Find candidates" when ready
+          navigate('/jobs');
       } catch (e) {
           console.error("Failed to post job", e);
           alert('Failed to save job. Please try again.');
@@ -719,7 +395,73 @@ const AddJob: React.FC = () => {
         </div>
       </div>
 
+      {!isEditing && (templates.length > 0 || BUILTIN_TEMPLATES.length > 0) && (
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+          <label className="block text-sm font-bold text-gray-900 mb-2">Start from a template</label>
+          <select
+            className="w-full max-w-md px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black"
+            value=""
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              if (v.startsWith('builtin-')) {
+                const i = parseInt(v.replace('builtin-', ''), 10);
+                if (!isNaN(i) && BUILTIN_TEMPLATES[i]) applyTemplate(BUILTIN_TEMPLATES[i]);
+              } else {
+                const t = templates.find(tpl => tpl.id === v);
+                if (t) applyTemplate(t);
+              }
+            }}
+          >
+            <option value="">Blank job</option>
+            {BUILTIN_TEMPLATES.map((b, i) => (
+              <option key={`builtin-${i}`} value={`builtin-${i}`}>{b.name} (built-in)</option>
+            ))}
+            {templates.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+          {/* Save as template (when editing) */}
+          {isEditing && id && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              {!showSaveAsTemplate ? (
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowSaveAsTemplate(true)}>
+                  <Save size={14} className="mr-1.5" /> Save as template
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    placeholder="Template name"
+                    value={saveAsTemplateName}
+                    onChange={e => setSaveAsTemplateName(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-48"
+                  />
+                  <Button variant="black" size="sm" disabled={savingAsTemplate || !saveAsTemplateName.trim()} onClick={async () => {
+                    if (!saveAsTemplateName.trim()) return;
+                    setSavingAsTemplate(true);
+                    try {
+                      await api.jobTemplates.createFromJob(id, saveAsTemplateName.trim());
+                      setShowSaveAsTemplate(false);
+                      setSaveAsTemplateName('');
+                    } catch (e: any) {
+                      alert(e.message || 'Failed to save template');
+                    } finally {
+                      setSavingAsTemplate(false);
+                    }
+                  }}>
+                    {savingAsTemplate ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setShowSaveAsTemplate(false); setSaveAsTemplateName(''); }}>Cancel</Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Candidate Count Display */}
           <div className="mb-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
               <div className="flex items-center justify-between">

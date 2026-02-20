@@ -18,6 +18,9 @@ export interface Job {
   skills?: string[];
   company?: string;
   userId: string;
+  retryCount?: number;
+  lastRetryAt?: string | null;
+  candidatesFound?: number;
 }
 
 export interface ScrapedCandidate {
@@ -58,7 +61,7 @@ export interface Education {
 export interface ScrapeOptions {
   maxCandidates?: number;
   minMatchScore?: number;
-  sources?: ('linkedin' | 'github' | 'mightyrecruiter' | 'jobspider')[]; // FREE sources with candidate profiles
+  sources?: ('profiles' | 'github' | 'mightyrecruiter' | 'jobspider')[]; // Sources with candidate profiles
 }
 
 export interface ScrapeResult {

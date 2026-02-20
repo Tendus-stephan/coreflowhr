@@ -120,6 +120,17 @@ serve(async (req) => {
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
     };
 
+    // Keep user_settings in sync with Stripe so scrape bar and RPC use current period end (fixes stale "resets Jan 26" after renewal)
+    await supabaseClient
+      .from('user_settings')
+      .update({
+        subscription_status: subscription.status,
+        subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        billing_plan_name: productName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
+
     return new Response(
       JSON.stringify({ 
         subscription: formattedSubscription,

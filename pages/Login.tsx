@@ -90,18 +90,13 @@ const Login: React.FC = () => {
         .eq('user_id', user.id)
         .single();
 
-      const isSubscribed = 
-        settings?.subscription_status === 'active' || 
-        (settings?.billing_plan_name && settings.billing_plan_name !== 'Basic' && settings.billing_plan_name !== 'Free') ||
-        settings?.subscription_stripe_id !== null;
-
-      if (!isSubscribed) {
-        // Not subscribed - redirect to landing page pricing section
+      const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+      if (!hasActiveSubscription(settings)) {
         navigate('/?pricing=true');
         return;
       }
 
-      // Email verified and subscribed - go to dashboard
+      // Email verified and has active/trialing subscription - go to dashboard
       // Set flag to show loader on dashboard entry
       sessionStorage.setItem('showDashboardLoader', 'true');
       navigate('/dashboard');

@@ -29,23 +29,18 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
             </thead>
             <tbody>
               <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Active Roles</td>
-                <td className="p-3 text-sm text-center text-gray-900">Up to 5</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">Up to 25 (base)</td>
+                <td className="p-3 text-sm text-gray-700">Jobs sourced per month</td>
+                <td className="p-3 text-sm text-center text-gray-900">10</td>
+                <td className="p-3 text-sm text-center text-gray-900 font-bold">50</td>
               </tr>
               <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">AI‑ranked candidates per role</td>
-                <td className="p-3 text-sm text-center text-gray-900">Up to 100</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">Up to 300</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Sourced candidates / month</td>
-                <td className="p-3 text-sm text-center text-gray-900">Up to 1,000</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">Up to 4,000 (base)</td>
+                <td className="p-3 text-sm text-gray-700">Candidates per sourcing run</td>
+                <td className="p-3 text-sm text-center text-gray-900">25</td>
+                <td className="p-3 text-sm text-center text-gray-900 font-bold">50</td>
               </tr>
               <tr className="border-b border-gray-100">
                 <td className="p-3 text-sm text-gray-700">Sourcing Sources</td>
-                <td className="p-3 text-sm text-center text-gray-900">LinkedIn (core)</td>
+                <td className="p-3 text-sm text-center text-gray-900">Professional profiles</td>
                 <td className="p-3 text-sm text-center text-gray-900 font-bold">All enabled sources</td>
               </tr>
               <tr className="border-b border-gray-100">
@@ -100,25 +95,17 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
         </h3>
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Candidates per Job</span>
+            <span className="text-sm text-gray-700">Jobs sourced per month</span>
             <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.maxCandidatesPerJob}
+              {currentPlanLimits.maxJobsPerMonth}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Active Jobs</span>
+            <span className="text-sm text-gray-700">Candidates per sourcing run</span>
             <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.maxActiveJobs}
+              {currentPlanLimits.candidatesPerScrape}
             </span>
           </div>
-          {currentPlanLimits.maxCandidatesPerMonth && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Candidates per Month</span>
-              <span className="text-sm font-bold text-gray-900">
-                {currentPlanLimits.maxCandidatesPerMonth}
-              </span>
-            </div>
-          )}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">Sourcing Sources</span>
             <span className="text-sm font-bold text-gray-900">

@@ -68,10 +68,22 @@ app.post('/api/scrape', async (req, res) => {
       minMatchScore
     });
 
+    const totalSaved = results.reduce((sum, r) => sum + r.candidatesSaved, 0);
+
+    // Surface any zero-results diagnosis so the Edge Function can relay it to the UI
+    let diagnostic: any = undefined;
+    for (const r of results) {
+      if (r.diagnostic?.zeroResultsReason) {
+        diagnostic = r.diagnostic;
+        break;
+      }
+    }
+
     res.json({
       success: true,
       results,
-      totalSaved: results.reduce((sum, r) => sum + r.candidatesSaved, 0)
+      totalSaved,
+      diagnostic,
     });
   } catch (error: any) {
     logger.error('Error scraping:', error);
@@ -82,16 +94,41 @@ app.post('/api/scrape', async (req, res) => {
       code: error.code
     });
     
-    // Return detailed error information
-    res.status(500).json({ 
-      error: error.message,
+    // Classify common error types so the Edge Function can decide on refunds / retries
+    const statusCode = (error as any).statusCode || (error as any).status || 500;
+    const message = error.message || 'Scraping failed';
+    const lower = message.toLowerCase();
+
+    let userMessage = (error as any).userMessage ?? message;
+    let suggestion = (error as any).suggestion ?? null;
+    let errorType: string = error.name || 'Error';
+
+    if (statusCode === 429 || lower.includes('rate limit')) {
+      errorType = 'RateLimitError';
+      userMessage =
+        'LinkedIn rate limit reached. Your search will automatically retry in 1 hour. Your scrape credit has been refunded.';
+    } else if (lower.includes('timeout') || lower.includes('timed out')) {
+      errorType = 'TimeoutError';
+      userMessage =
+        'Search timed out. LinkedIn might be slow right now. Your scrape credit has been refunded. Click Retry to try again.';
+    } else if (statusCode === 401 || lower.includes('auth')) {
+      errorType = 'AuthError';
+      userMessage =
+        'Service error – our team has been notified. Your scrape credit has been refunded.';
+    }
+
+    // Return detailed error information (include suggestion for UI to show actionable tips)
+    res.status(statusCode || 500).json({ 
+      error: message,
+      userMessage,
+      suggestion,
       success: false,
       results: [],
       totalSaved: 0,
       diagnostic: {
-        errorType: error.name,
-        errorCode: error.code,
-        message: error.message
+        errorType,
+        errorCode: (error as any).code,
+        message
       }
     });
   }

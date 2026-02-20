@@ -29,41 +29,23 @@ export class CandidateProcessor {
       validationErrors.push('Missing name');
     }
 
-    // STRICT LOCATION FILTERING: Only accept candidates in same city/state/country
+    // SOFT LOCATION CHECK: Only hard-reject if candidate is clearly in a different country.
+    // Suburb/borough mismatches (e.g. "Barking, England" for a "London" job) are handled
+    // by the match score, not by rejection.
     if (!job.remote && job.location && candidate.location) {
-      if (!this.isLocationMatch(candidate.location, job.location)) {
-        validationErrors.push(`Location mismatch: candidate in "${candidate.location}" but job requires "${job.location}"`);
+      if (this.isClearlyDifferentCountry(candidate.location, job.location)) {
+        validationErrors.push(`Location mismatch: candidate in "${candidate.location}" — different country from "${job.location}"`);
       }
     }
 
-    // STRICT EXPERIENCE LEVEL FILTERING: Match candidate experience with job requirements
-    if (job.experienceLevel && candidate.experience !== undefined) {
-      const jobExpLevel = this.parseExperienceLevel(job.experienceLevel);
-      
-      // Entry level jobs (0-2 years) - reject overqualified candidates
-      if (jobExpLevel.level === 'entry') {
-        if (candidate.experience > (jobExpLevel.maxYears || 2) + 2) {
-          // Reject candidates with more than 2 years over the max (overqualified)
-          validationErrors.push(`Experience mismatch: candidate has ${candidate.experience} years but job is entry level (0-${jobExpLevel.maxYears} years) - overqualified`);
-        }
-        // Allow candidates with 0-4 years for entry level (flexible)
-      } 
-      // Mid level jobs (2-5 years) - reject too junior or significantly overqualified
-      else if (jobExpLevel.level === 'mid') {
-        if (candidate.experience < jobExpLevel.minYears - 1) {
-          // Reject candidates with less than 1 year (too junior for mid-level)
-          validationErrors.push(`Experience mismatch: candidate has ${candidate.experience} years but job requires mid-level (${jobExpLevel.minYears}-${jobExpLevel.maxYears} years)`);
-        } else if (candidate.experience > (jobExpLevel.maxYears || 5) + 3) {
-          // Reject candidates with more than 3 years over the max (significantly overqualified)
-          validationErrors.push(`Experience mismatch: candidate has ${candidate.experience} years but job requires mid-level (${jobExpLevel.minYears}-${jobExpLevel.maxYears} years) - overqualified`);
-        }
-      } 
-      // Senior level jobs (5+ years) - reject underqualified candidates
-      else if (jobExpLevel.level === 'senior') {
-        if (candidate.experience < jobExpLevel.minYears) {
-          validationErrors.push(`Experience mismatch: candidate has ${candidate.experience} years but job requires ${jobExpLevel.minYears}+ years (${jobExpLevel.level})`);
-        }
-        // No upper limit for senior level - allow any experience >= minYears
+    // SOFT EXPERIENCE CHECK: Only hard-reject if experience data is clearly a parsing error
+    // (negative years or the 40-year cap was hit, suggesting bad data). Over/under-qualification
+    // is communicated to the user via the AI match score.
+    if (candidate.experience !== undefined) {
+      if (candidate.experience < 0) {
+        validationErrors.push(`Invalid experience: ${candidate.experience} years (negative)`);
+      } else if (candidate.experience >= 40) {
+        validationErrors.push(`Experience data likely invalid: ${candidate.experience} years (hit parsing cap — profile may have overlapping roles)`);
       }
     }
 
@@ -253,46 +235,77 @@ export class CandidateProcessor {
   }
 
   /**
+   * Hard-reject only when candidate and job are in clearly different countries.
+   * Suburb/borough mismatches within the same country are allowed through (scored lower).
+   */
+  private isClearlyDifferentCountry(candidateLoc: string, jobLoc: string): boolean {
+    const candLower = candidateLoc.toLowerCase().trim();
+    const jobLower = jobLoc.toLowerCase().trim();
+
+    // Country keyword sets — if both locations contain keywords but from different groups, reject
+    const countryGroups: string[][] = [
+      ['united states', 'usa', ', us', ' us ', 'new york', 'california', 'texas', 'chicago', 'los angeles', 'san francisco'],
+      ['united kingdom', 'england', 'scotland', 'wales', ', uk', 'london', 'manchester', 'birmingham', 'edinburgh'],
+      ['canada', 'toronto', 'vancouver', 'montreal', 'ontario', 'british columbia'],
+      ['australia', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide'],
+      ['germany', 'berlin', 'munich', 'hamburg', 'frankfurt', 'deutschland'],
+      ['france', 'paris', 'lyon', 'marseille'],
+      ['india', 'bangalore', 'mumbai', 'delhi', 'hyderabad', 'chennai', 'pune'],
+      ['netherlands', 'amsterdam', 'rotterdam', 'the hague'],
+      ['sweden', 'stockholm', 'gothenburg', 'malmö'],
+      ['singapore'],
+      ['dubai', 'uae', 'united arab emirates'],
+    ];
+
+    let candGroup = -1;
+    let jobGroup = -1;
+    for (let i = 0; i < countryGroups.length; i++) {
+      if (countryGroups[i].some(kw => candLower.includes(kw))) candGroup = i;
+      if (countryGroups[i].some(kw => jobLower.includes(kw))) jobGroup = i;
+    }
+
+    // Only reject if BOTH are identified AND they belong to different groups
+    if (candGroup !== -1 && jobGroup !== -1 && candGroup !== jobGroup) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Check if candidate location matches job location (strict - same city/state/country only)
    */
   private isLocationMatch(candidateLoc: string, jobLoc: string): boolean {
     const candidateLower = candidateLoc.toLowerCase().trim();
     const jobLower = jobLoc.toLowerCase().trim();
 
-    // Extract city, state, country from both locations
+    // Fast path: substring match (e.g. "London, England, UK" contains "london")
+    if (candidateLower.includes(jobLower) || jobLower.includes(candidateLower)) {
+      return true;
+    }
+
     const candidateParts = this.parseLocation(candidateLower);
     const jobParts = this.parseLocation(jobLower);
 
-    // Must match at least city OR (state AND country)
-    // For US locations: match city+state or at least state
-    // For international: match city+country or at least country
-    
-    // Check for city match (if both have cities)
-    if (candidateParts.city && jobParts.city) {
-      if (candidateParts.city === jobParts.city) {
-        // If cities match, check state/country
-        if (candidateParts.state && jobParts.state) {
-          return candidateParts.state === jobParts.state;
-        } else if (candidateParts.country && jobParts.country) {
-          return candidateParts.country === jobParts.country;
-        }
-        return true; // City match is sufficient if no state/country info
-      }
-      return false; // Cities don't match
+    // City match (either side)
+    if (candidateParts.city && jobParts.city && candidateParts.city === jobParts.city) {
+      return true;
     }
 
-    // Check for state match (US locations)
-    if (candidateParts.state && jobParts.state) {
-      return candidateParts.state === jobParts.state;
+    // State match
+    if (candidateParts.state && jobParts.state && candidateParts.state === jobParts.state) {
+      return true;
     }
 
-    // Check for country match (international locations)
-    if (candidateParts.country && jobParts.country) {
-      return candidateParts.country === jobParts.country;
+    // Country match
+    if (candidateParts.country && jobParts.country && candidateParts.country === jobParts.country) {
+      return true;
     }
 
-    // Fallback: check if locations contain each other (weak match)
-    if (candidateLower.includes(jobLower) || jobLower.includes(candidateLower)) {
+    // Lenient fallback: if candidate has no city (e.g. "United Kingdom, UK") and
+    // the job city is plausibly in the candidate's country/region, accept it.
+    // We can't confirm the exact city so we give benefit of the doubt.
+    if (!candidateParts.city && candidateParts.country) {
+      // Accept if job location could be in that country (no way to confirm otherwise)
       return true;
     }
 
@@ -334,8 +347,9 @@ export class CandidateProcessor {
         parts.country = segments[1];
       }
     } else if (segments.length === 1) {
-      // Single segment - could be country or city
-      parts.country = segments[0];
+      // Single segment - treat as city (e.g. "London", "Berlin")
+      // Most job postings use a city name; country-only jobs are rare
+      parts.city = segments[0];
     }
     
     return parts;

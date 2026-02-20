@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    UserPlus, FileText, Star, ArrowRight, Briefcase, CheckCircle, Clock, 
+    UserPlus, Users, FileText, Star, ArrowRight, Briefcase, CheckCircle, Clock, 
     AlertCircle, Zap, XCircle, TrendingUp, Search, Mail, FileCheck,
     Settings, Shield, Bell, Sparkles, Key, Link2, Calendar, CalendarX
 } from 'lucide-react';
@@ -41,6 +41,10 @@ export type NotificationType =
     | 'integration_disconnected'
     | 'interview_scheduled'
     | 'job_expired'
+    | 'sourcing_complete'
+    | 'sourcing_failed'
+    | 'inactivity_nudge'
+    | 'weekly_digest'
     | 'system';
 
 export type NotificationCategory = 
@@ -101,6 +105,30 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
         color: 'text-red-600',
         bgColor: 'bg-red-50',
         category: 'job'
+    },
+    sourcing_complete: {
+        icon: Users,
+        color: 'text-emerald-600',
+        bgColor: 'bg-emerald-50',
+        category: 'automation'
+    },
+    sourcing_failed: {
+        icon: AlertCircle,
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        category: 'automation'
+    },
+    inactivity_nudge: {
+        icon: Bell,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        category: 'system'
+    },
+    weekly_digest: {
+        icon: FileText,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-50',
+        category: 'system'
     },
     assessment_completed: {
         icon: CheckCircle,

@@ -80,6 +80,14 @@ Fetches billing history/invoices from Stripe.
 
 **Endpoint:** `POST /functions/v1/get-invoices`
 
+### 6. `send-weekly-digest`
+Creates in-app weekly digest notifications for users who have **Settings → Notifications → Weekly digest** enabled. Call this on a schedule (e.g. Monday 9am).
+
+**Endpoint:** `POST /functions/v1/send-weekly-digest`  
+**Auth:** Optional; use service role or a cron secret if you protect the endpoint.
+
+**To schedule:** Use Supabase pg_cron (Database → Extensions → pg_cron) or an external cron (e.g. `0 9 * * 1` for Monday 9am) that invokes the function URL with your project anon or service key in the `Authorization` header.
+
 **Response:**
 ```json
 {

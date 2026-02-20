@@ -115,13 +115,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           setIsSubscribed(false);
           setSubscriptionChecked(true);
         } else {
-          const subscribed = 
-            settings?.subscription_status === 'active' || 
-            (settings?.billing_plan_name && settings.billing_plan_name !== 'Basic' && settings.billing_plan_name !== 'Free') ||
-            settings?.subscription_stripe_id !== null;
-
-          setIsSubscribed(subscribed);
-          setSubscriptionChecked(true); // Mark that we've completed the check
+          const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+          setIsSubscribed(hasActiveSubscription(settings));
+          setSubscriptionChecked(true);
         }
       } catch (error) {
         console.error('Error checking subscription:', error);

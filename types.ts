@@ -36,7 +36,9 @@ export interface Client {
 export interface Job {
   scrapingStatus?: 'pending' | 'succeeded' | 'failed' | 'partial' | null;
   scrapingError?: string | null;
+  scrapingSuggestion?: string | null;
   scrapingAttemptedAt?: string | null;
+  candidatesFound?: number | null;
   id: string;
   title: string;
   department: string;
@@ -54,6 +56,22 @@ export interface Job {
   clientId?: string; // Link to client
   client?: Client; // Full client object (when joined)
   isTest?: boolean;
+}
+
+export interface JobTemplate {
+  id: string;
+  name: string;
+  title: string;
+  department: string;
+  location: string;
+  type: 'Full-time' | 'Contract' | 'Part-time';
+  description: string;
+  experienceLevel?: string;
+  remote: boolean;
+  skills: string[];
+  isBuiltin?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WorkExperience {
@@ -108,6 +126,10 @@ export interface Candidate {
   projects?: Project[];
   portfolioUrls?: PortfolioURLs;
   profileUrl?: string;
+  /** Normalized LinkedIn profile URL (for dedup and cross-job flagging) */
+  linkedInUrl?: string | null;
+  /** Other jobs (same user) that have a candidate with the same LinkedIn profile */
+  alsoInJobTitles?: { jobId: string; jobTitle: string }[];
 }
 
 export interface Interview {
@@ -221,9 +243,7 @@ export interface Invoice {
 }
 
 export interface RecruitmentSettings {
-  maxActiveJobs: number;
   defaultJobDuration: number;
-  maxCandidatesPerJob: number;
   autoDeleteJobs: boolean;
 }
 
@@ -353,9 +373,7 @@ export interface Invoice {
 }
 
 export interface RecruitmentSettings {
-  maxActiveJobs: number;
   defaultJobDuration: number;
-  maxCandidatesPerJob: number;
   autoDeleteJobs: boolean;
 }
 

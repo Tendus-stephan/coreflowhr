@@ -801,6 +801,12 @@ const Settings: React.FC = () => {
         emailNotifications: true,
         interviewScheduleUpdates: true,
         offerUpdates: true,
+        weeklyDigestEnabled: false,
+    } as {
+        emailNotifications: boolean;
+        interviewScheduleUpdates: boolean;
+        offerUpdates: boolean;
+        weeklyDigestEnabled: boolean;
     });
     
     // Compliance settings state
@@ -1404,6 +1410,7 @@ const Settings: React.FC = () => {
         emailNotifications?: boolean;
         interviewScheduleUpdates?: boolean;
         offerUpdates?: boolean;
+        weeklyDigestEnabled?: boolean;
     }) => {
         try {
             await api.settings.updateNotificationPreferences(updates);
@@ -1894,6 +1901,14 @@ const Settings: React.FC = () => {
                                      checked={notificationPrefs.offerUpdates}
                                      onChange={async (checked) => {
                                          await handleUpdateNotificationPrefs({ offerUpdates: checked });
+                                     }}
+                                 />
+                                 <NotificationToggle
+                                     label="Weekly digest"
+                                     description="Weekly summary of jobs and pipeline activity (in-app notification)"
+                                     checked={notificationPrefs.weeklyDigestEnabled}
+                                     onChange={async (checked) => {
+                                         await handleUpdateNotificationPrefs({ weeklyDigestEnabled: checked });
                                      }}
                                  />
                              </div>

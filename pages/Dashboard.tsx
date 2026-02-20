@@ -548,6 +548,7 @@ const Dashboard: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [scrapeUsage, setScrapeUsage] = useState<{ used: number; limit: number; remaining: number; resetDate?: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [flowTab, setFlowTab] = useState('New Candidates');
@@ -732,7 +733,22 @@ const Dashboard: React.FC = () => {
               setInterviews(i);
               setCandidates(candidatesResult.data || []);
               setNotifications(n);
-              
+
+              // Load scrape usage (Stripe-aware). If it fails, show bar from plan so subscribed users always see it.
+              try {
+                  const usage = await api.settings.getScrapeUsage();
+                  setScrapeUsage({ used: usage.used, limit: usage.limit, remaining: usage.remaining, resetDate: usage.resetDate });
+              } catch (_) {
+                  const plan = await api.settings.getPlan().catch(() => null);
+                  if (plan?.name) {
+                      const { getMonthlyScrapeLimit } = await import('../services/planLimits');
+                      const limit = getMonthlyScrapeLimit(plan.name);
+                      if (limit > 0) {
+                          setScrapeUsage({ used: 0, limit, remaining: limit, resetDate: undefined });
+                      }
+                  }
+              }
+
               // Check for expired jobs and refresh notifications if any were created
               // Note: checkJobExpirations has built-in debouncing (1 hour minimum between checks)
               // to prevent duplicate notifications
@@ -746,6 +762,11 @@ const Dashboard: React.FC = () => {
               } catch (expError) {
                   console.error('Error checking job expirations:', expError);
               }
+
+              // Inactivity nudge: update last_seen_at; create "Welcome back" if away 7+ days
+              try {
+                  await api.settings.recordSeen();
+              } catch (_) {}
           } catch (error) {
               console.error("Error loading dashboard", error);
           } finally {
@@ -953,6 +974,33 @@ const Dashboard: React.FC = () => {
         <StatCard title="Qualified Candidates" value={stats?.qualifiedCandidates || 0} trend={stats?.qualifiedTrend || '+0%'} icon={CheckCircle} />
         <StatCard title="Avg Time to Fill" value={stats?.avgTimeToFill || '0d'} trend={stats?.timeToFillTrend || '0d'} trendLabel="improvement" icon={Clock} />
       </div>
+
+      {/* Scrape usage: remaining scrapes this month */}
+      {scrapeUsage && scrapeUsage.limit > 0 && (
+        <div className="flex items-center gap-3 py-2 px-3 bg-gray-50 border border-gray-100 rounded-xl text-sm">
+          <div className="flex-1 max-w-xs">
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${scrapeUsage.remaining === 0 ? 'bg-red-500' : scrapeUsage.remaining <= 5 ? 'bg-yellow-500' : 'bg-gray-900'}`}
+                style={{ width: `${Math.min(100, (scrapeUsage.used / scrapeUsage.limit) * 100)}%` }}
+              />
+            </div>
+          </div>
+          <span className="text-gray-600 font-medium">
+            {scrapeUsage.remaining} of {scrapeUsage.limit} scrapes remaining this month
+            {scrapeUsage.resetDate && (
+              <span className="text-gray-400 font-normal">
+                · {new Date(scrapeUsage.resetDate).getTime() > Date.now()
+                  ? `resets ${new Date(scrapeUsage.resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                  : 'resets when your plan renews'}
+              </span>
+            )}
+          </span>
+          {scrapeUsage.remaining === 0 && (
+            <span className="text-red-600 text-xs">Upgrade to Pro or wait until renewal.</span>
+          )}
+        </div>
+      )}
 
       {/* Row 2: Chart & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

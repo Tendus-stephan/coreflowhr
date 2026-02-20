@@ -37,6 +37,14 @@ function parseArgs(): CliOptions {
     }
   }
 
+  // Fallback: npm on some setups drops flags; accept positional jobId [, sources [, maxCandidates]]
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!options.jobId && args[0] && uuidRegex.test(args[0])) {
+    options.jobId = args[0];
+    if (args[1]) options.sources = args[1];
+    if (args[2]) options.maxCandidates = parseInt(args[2], 10) || options.maxCandidates;
+  }
+
   return options;
 }
 

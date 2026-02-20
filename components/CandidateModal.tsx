@@ -608,6 +608,31 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             <span>{candidate.location}</span>
                         </div>
                     )}
+                    {(() => {
+                        const work = candidate.workExperience || [];
+                        const tenure = candidate.experience != null && candidate.experience > 0
+                            ? `${candidate.experience}yr exp`
+                            : work.length > 0 && work[0]
+                                ? (work[0].period ? `${work[0].period} at ${work[0].company || '—'}` : work[0].company ? `at ${work[0].company}` : null)
+                                : null;
+                        return tenure ? (
+                            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                                <Briefcase size={14} className="text-gray-400" />
+                                <span>{tenure}</span>
+                            </div>
+                        ) : null;
+                    })()}
+                    {candidate.alsoInJobTitles && candidate.alsoInJobTitles.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-x-1 mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 w-fit">
+                            <span className="font-medium">Also in pipeline:</span>
+                            {candidate.alsoInJobTitles.map((a, i) => (
+                                <span key={a.jobId}>
+                                    {i > 0 && ', '}
+                                    <a href={`/candidates?job=${a.jobId}`} className="underline hover:no-underline">{a.jobTitle}</a>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex gap-3 mt-3">
                          {candidate.cvFileUrl && (
                              <button 
@@ -970,19 +995,6 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             </a>
                                         </div>
                                     )}
-                                    {candidate.portfolioUrls.linkedin && (
-                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
-                                            <a href={candidate.portfolioUrls.linkedin} target="_blank" rel="noopener noreferrer" className="flex gap-3 items-center group">
-                                                <div className="p-2 bg-white rounded-lg border border-gray-200 group-hover:border-gray-300">
-                                                    <ExternalLink size={16} className="text-gray-600" />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600">LinkedIn</h4>
-                                                    <p className="text-xs text-gray-500 truncate">{candidate.portfolioUrls.linkedin}</p>
-                                                </div>
-                                            </a>
-                                        </div>
-                                    )}
                                     {candidate.portfolioUrls.portfolio && (
                                         <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
                                             <a href={candidate.portfolioUrls.portfolio} target="_blank" rel="noopener noreferrer" className="flex gap-3 items-center group">
@@ -1088,8 +1100,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                         <div className="flex items-start gap-3">
                                             <AlertCircle size={20} className="text-gray-600 mt-0.5" />
                                             <div className="flex-1">
-                                                <h3 className="text-sm font-semibold text-gray-900 mb-1">LinkedIn Outreach</h3>
-                                                <p className="text-sm text-gray-700">This candidate doesn't have an email. Generate an outreach message with a registration link to send via LinkedIn.</p>
+                                                <h3 className="text-sm font-semibold text-gray-900 mb-1">Outreach</h3>
+                                                <p className="text-sm text-gray-700">This candidate doesn't have an email. Generate an outreach message with a registration link to send via direct message.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1105,17 +1117,6 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             Generate Outreach Message
                                         </Button>
                                         
-                                        {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
-                                            <a 
-                                                href={candidate.profileUrl || candidate.portfolioUrls?.linkedin}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                            >
-                                                <ExternalLink size={14} />
-                                                Open LinkedIn Profile
-                                            </a>
-                                        )}
                                     </div>
 
                                     {loadingOutreach && (
@@ -1137,7 +1138,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-sm font-medium text-gray-700">LinkedIn Message</label>
+                                                <label className="text-sm font-medium text-gray-700">Outreach message</label>
                                                 <textarea 
                                                     className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-black focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
                                                     value={outreachDraft.content}
@@ -1181,7 +1182,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     {!outreachDraft && !loadingOutreach && (
                                         <div className="text-center py-12 text-gray-500">
                                             <Mail size={48} className="mx-auto mb-4 opacity-50" />
-                                            <p className="text-sm">Click "Generate Outreach Message" to create a LinkedIn message with registration link</p>
+                                            <p className="text-sm">Click "Generate Outreach Message" to create an outreach message with registration link</p>
                                         </div>
                                     )}
                                 </div>
