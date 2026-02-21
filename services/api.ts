@@ -2866,7 +2866,13 @@ export const api = {
                 })
                 .eq('id', candidateId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                // Unique constraint (job_id, email): this email is already registered for this job
+                if (updateError.code === '23505' || (updateError.message && updateError.message.includes('idx_candidates_job_email_unique'))) {
+                    throw new Error('This email is already registered for this position. Please use a different email or contact the recruiter if you believe this is an error.');
+                }
+                throw updateError;
+            }
 
             // Execute Screening workflow to send email with CV upload link
             // This happens after email is registered, so they can receive the workflow email

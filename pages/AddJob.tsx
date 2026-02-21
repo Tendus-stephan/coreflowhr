@@ -351,7 +351,7 @@ const AddJob: React.FC = () => {
           }
 
           // Job created — navigate to Jobs page so user can click "Find candidates" when ready
-          navigate('/jobs');
+                      navigate('/jobs');
       } catch (e) {
           console.error("Failed to post job", e);
           alert('Failed to save job. Please try again.');

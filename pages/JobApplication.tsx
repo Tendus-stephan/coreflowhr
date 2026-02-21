@@ -39,7 +39,7 @@ const JobApplication: React.FC = () => {
         // RLS policy "Public can view active jobs" allows anonymous access
         const { data: jobData, error: jobError } = await supabase
           .from('jobs')
-          .select('*')
+          .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills')
           .eq('id', jobId)
           .eq('status', 'Active')
           .single();
