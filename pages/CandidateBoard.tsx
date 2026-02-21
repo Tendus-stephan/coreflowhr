@@ -43,6 +43,13 @@ const CandidateBoard: React.FC = () => {
         setJobs(jobsResult.data || []);
         setNotifications(n);
         setLoading(false);
+        // Reminders: past interviews (feedback) and upcoming (coming soon)
+        try {
+            await api.interviews.ensureFeedbackReminders();
+            await api.interviews.ensureUpcomingInterviewReminders();
+            const updatedN = await api.notifications.list();
+            setNotifications(updatedN);
+        } catch (_) {}
         // Inactivity nudge: record visit so pipeline view counts as activity
         try { await api.settings.recordSeen(); } catch (_) {}
     };

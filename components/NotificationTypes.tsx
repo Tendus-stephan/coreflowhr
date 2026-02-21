@@ -40,6 +40,8 @@ export type NotificationType =
     | 'integration_connected'
     | 'integration_disconnected'
     | 'interview_scheduled'
+    | 'interview_feedback_reminder'
+    | 'interview_reminder'
     | 'job_expired'
     | 'sourcing_complete'
     | 'sourcing_failed'
@@ -96,6 +98,18 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     },
     interview_scheduled: {
         icon: Calendar,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        category: 'job'
+    },
+    interview_feedback_reminder: {
+        icon: FileCheck,
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        category: 'candidate'
+    },
+    interview_reminder: {
+        icon: Clock,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50',
         category: 'job'

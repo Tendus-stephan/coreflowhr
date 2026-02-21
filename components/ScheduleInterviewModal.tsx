@@ -75,8 +75,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 if (preSelectedCandidate.stage === 'Interview') {
                     setSelectedCandidate(preSelectedCandidate);
                 } else {
-                    alert('Only candidates in the Interview stage can have interviews scheduled.');
                     setSelectedCandidate(null);
+                    onClose();
+                    return;
                 }
             } else {
                 setSelectedCandidate(null);

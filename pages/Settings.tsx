@@ -781,6 +781,9 @@ const Settings: React.FC = () => {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [newEmail, setNewEmail] = useState('');
+    const [emailChangeMessage, setEmailChangeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
@@ -1612,14 +1615,57 @@ const Settings: React.FC = () => {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-bold text-gray-900">Email Address</label>
+                                    <label className="text-sm font-bold text-gray-900">Current email</label>
                                     <input 
                                         type="email" 
                                         value={profileData.email}
                                         disabled
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 cursor-not-allowed" 
+                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600" 
+                                        aria-readonly="true"
                                     />
-                                    <p className="text-xs text-gray-500">Email cannot be changed</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-gray-900">Change email address</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="email" 
+                                            value={newEmail}
+                                            onChange={(e) => {
+                                                setNewEmail(e.target.value);
+                                                setEmailChangeMessage(null);
+                                            }}
+                                            placeholder="New email address"
+                                            className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
+                                        />
+                                        <Button 
+                                            variant="outline" 
+                                            onClick={async () => {
+                                                if (!newEmail.trim()) return;
+                                                setIsUpdatingEmail(true);
+                                                setEmailChangeMessage(null);
+                                                const result = await api.auth.updateEmail(newEmail.trim());
+                                                setIsUpdatingEmail(false);
+                                                if (result.success) {
+                                                    setEmailChangeMessage({
+                                                        type: 'success',
+                                                        text: `Confirmation sent to ${newEmail.trim()}. Check that inbox and click the link to complete the change. Your sign-in email will update after you confirm.`
+                                                    });
+                                                    setNewEmail('');
+                                                } else {
+                                                    setEmailChangeMessage({ type: 'error', text: result.error || 'Failed to update email' });
+                                                }
+                                            }}
+                                            disabled={isUpdatingEmail || !newEmail.trim()}
+                                        >
+                                            {isUpdatingEmail ? 'Sending...' : 'Update email'}
+                                        </Button>
+                                    </div>
+                                    {emailChangeMessage && (
+                                        <p className={`text-xs ${emailChangeMessage.type === 'success' ? 'text-gray-700' : 'text-gray-700'}`}>
+                                            {emailChangeMessage.text}
+                                        </p>
+                                    )}
+                                    <p className="text-xs text-gray-500">We’ll send a confirmation link to the new address. Your sign-in email updates after you click it.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-gray-900">Job Title</label>

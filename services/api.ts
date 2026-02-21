@@ -381,6 +381,33 @@ export const api = {
                 }
             };
         },
+        /** Request an email change. Supabase sends a confirmation link to the new email; the change takes effect after the user confirms. */
+        updateEmail: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
+            const userId = await getUserId();
+            if (!userId) return { success: false, error: 'Not authenticated' };
+
+            const trimmed = newEmail.trim().toLowerCase();
+            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { success: false, error: 'Please enter a valid email address' };
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email?.toLowerCase() === trimmed) {
+                return { success: false, error: 'This is already your current email' };
+            }
+
+            const { error } = await supabase.auth.updateUser({ email: trimmed });
+
+            if (error) {
+                const msg = error.message || 'Failed to update email';
+                if (msg.includes('already registered') || msg.includes('already in use')) {
+                    return { success: false, error: 'This email is already used by another account' };
+                }
+                return { success: false, error: msg };
+            }
+
+            return { success: true };
+        },
         getSessions: async (): Promise<Session[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -2093,6 +2120,14 @@ export const api = {
                         throw updateError;
                     }
 
+                    // Notify job owner that a CV was submitted (apply is public so recruiter is job.user_id)
+                    try {
+                        const { notifyJobEvent } = await import('./notificationHelpers');
+                        await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
+                    } catch (notifError) {
+                        console.error('Error creating CV submitted notification:', notifError);
+                    }
+
                     // If moved to Screening, execute workflows if configured (optional - won't fail if no workflow)
                     // Skip if screening email was already sent to prevent duplicates
                     if (shouldMoveToScreening) {
@@ -2178,12 +2213,12 @@ export const api = {
                     }
                     // If re-upload fails, candidate still has temp URL - acceptable for MVP
 
-                    // Notify recruiter
+                    // Notify job owner that a CV was submitted (apply is public so recruiter is job.user_id)
                     try {
-                        const { logCandidateAdded } = await import('./activityLogger');
-                        await logCandidateAdded(applicationData.name);
-                    } catch (logError) {
-                        console.error('Error logging candidate addition:', logError);
+                        const { notifyJobEvent } = await import('./notificationHelpers');
+                        await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
+                    } catch (notifError) {
+                        console.error('Error creating CV submitted notification:', notifError);
                     }
 
                     // Execute workflows for Screening stage if workflow is configured (optional)
@@ -3552,6 +3587,116 @@ export const api = {
             const endDateStr = endDate.toISOString().split('T')[0];
 
             return api.interviews.getCalendar(today, endDateStr, { status: 'Scheduled' });
+        },
+        /** Create in-app notifications for past interviews that have no feedback yet (idempotent – skips if already notified). Call on app load to remind user to add feedback. */
+        ensureFeedbackReminders: async (): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            const { data: interviewsData } = await supabase
+                .from('interviews')
+                .select('id, date, time, duration_minutes, job_title, candidate_id')
+                .eq('user_id', userId)
+                .eq('status', 'Scheduled');
+
+            if (!interviewsData?.length) return;
+
+            const candidateIds = [...new Set(interviewsData.map((i: any) => i.candidate_id))];
+            const { data: candidatesData } = await supabase
+                .from('candidates')
+                .select('id, name')
+                .in('id', candidateIds);
+            const candidateMap = new Map((candidatesData || []).map((c: any) => [c.id, c]));
+
+            const { data: feedbackRows } = await supabase
+                .from('interview_feedback')
+                .select('interview_id')
+                .eq('user_id', userId);
+            const hasFeedbackIds = new Set((feedbackRows || []).map((r: any) => r.interview_id));
+
+            const { data: existingNotifs } = await supabase
+                .from('notifications')
+                .select('desc')
+                .eq('user_id', userId)
+                .eq('type', 'interview_feedback_reminder');
+            const alreadyNotifiedIds = new Set<string>();
+            (existingNotifs || []).forEach((n: any) => {
+                const match = (n.desc || '').match(/\[i:([^\]]+)\]/);
+                if (match) alreadyNotifiedIds.add(match[1]);
+            });
+
+            const now = Date.now();
+            const { createNotification } = await import('./notificationHelpers');
+
+            for (const inv of interviewsData as any[]) {
+                if (hasFeedbackIds.has(inv.id) || alreadyNotifiedIds.has(inv.id)) continue;
+                const durationMin = (inv.duration_minutes != null ? inv.duration_minutes : 60);
+                const start = new Date(`${inv.date}T${inv.time}`).getTime();
+                const end = start + durationMin * 60 * 1000;
+                if (end >= now) continue;
+
+                const candidateName = candidateMap.get(inv.candidate_id)?.name || 'Candidate';
+                const title = 'Add interview feedback';
+                const desc = `Add feedback for ${candidateName} – ${inv.job_title} [i:${inv.id}]`;
+                try {
+                    await createNotification(userId, 'interview_feedback_reminder', title, desc);
+                    alreadyNotifiedIds.add(inv.id);
+                } catch (e) {
+                    console.error('Error creating feedback reminder notification:', e);
+                }
+            }
+        },
+        /** Create in-app notifications for interviews starting soon (within next 24h). Idempotent – at most one reminder per interview. */
+        ensureUpcomingInterviewReminders: async (): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            const { data: interviewsData } = await supabase
+                .from('interviews')
+                .select('id, date, time, job_title, candidate_id')
+                .eq('user_id', userId)
+                .eq('status', 'Scheduled');
+
+            if (!interviewsData?.length) return;
+
+            const candidateIds = [...new Set(interviewsData.map((i: any) => i.candidate_id))];
+            const { data: candidatesData } = await supabase
+                .from('candidates')
+                .select('id, name')
+                .in('id', candidateIds);
+            const candidateMap = new Map((candidatesData || []).map((c: any) => [c.id, c]));
+
+            const { data: existingNotifs } = await supabase
+                .from('notifications')
+                .select('desc')
+                .eq('user_id', userId)
+                .eq('type', 'interview_reminder');
+            const alreadyRemindedIds = new Set<string>();
+            (existingNotifs || []).forEach((n: any) => {
+                const match = (n.desc || '').match(/\[upcoming:i:([^\]]+)\]/);
+                if (match) alreadyRemindedIds.add(match[1]);
+            });
+
+            const now = Date.now();
+            const in24h = now + 24 * 60 * 60 * 1000;
+            const { createNotification } = await import('./notificationHelpers');
+
+            for (const inv of interviewsData as any[]) {
+                if (alreadyRemindedIds.has(inv.id)) continue;
+                const start = new Date(`${inv.date}T${inv.time}`).getTime();
+                if (start <= now || start > in24h) continue;
+
+                const candidateName = candidateMap.get(inv.candidate_id)?.name || 'Candidate';
+                const atStr = new Date(`${inv.date}T${inv.time}`).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                const title = 'Interview coming up';
+                const desc = `${candidateName} – ${inv.job_title} at ${atStr} [upcoming:i:${inv.id}]`;
+                try {
+                    await createNotification(userId, 'interview_reminder', title, desc);
+                    alreadyRemindedIds.add(inv.id);
+                } catch (e) {
+                    console.error('Error creating upcoming interview reminder:', e);
+                }
+            }
         },
         // --- Interview Feedback ---
         getFeedback: async (interviewId: string): Promise<InterviewFeedback | null> => {

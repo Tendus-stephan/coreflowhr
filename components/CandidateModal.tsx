@@ -1629,7 +1629,19 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         {/* Actions Footer */}
         <div className="p-4 border-t border-border bg-gray-50 flex justify-end items-center">
                         <div className="flex gap-3">
-                <Button variant="outline" icon={<Calendar size={16} />} onClick={() => setIsScheduleOpen(true)}>Schedule</Button>
+                <Button
+                                variant="outline"
+                                icon={<Calendar size={16} />}
+                                onClick={() => {
+                                  if (candidate.stage !== CandidateStage.INTERVIEW) {
+                                    window.alert('Only candidates in the Interview stage can have interviews scheduled. Move this candidate to the Interview stage first.');
+                                    return;
+                                  }
+                                  setIsScheduleOpen(true);
+                                }}
+                              >
+                                Schedule
+                              </Button>
                 <Button variant="primary" onClick={onClose}>Save Changes</Button>
                              </div>
         </div>

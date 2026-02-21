@@ -21,7 +21,8 @@
     "scraper-ui:dev": "cd scraper-ui && vite",
     "scraper-ui": "concurrently \"npm run scraper-ui:server\" \"npm run scraper-ui:dev\"",
     "test:functions": "node scripts/test-edge-functions.mjs",
-    "test:functions:local": "node scripts/test-edge-functions.mjs --local"
+    "test:functions:local": "node scripts/test-edge-functions.mjs --local",
+    "update-email-template": "node scripts/update-change-email-template.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

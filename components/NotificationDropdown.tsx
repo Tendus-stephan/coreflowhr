@@ -128,7 +128,9 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                                                 <div className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0 mt-1.5"></div>
                                             )}
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{note.desc}</p>
+                                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                            {(note.desc || '').replace(/\s*\[(?:upcoming:)?i:[^\]]+\]$/, '')}
+                                        </p>
                                         <div className="flex items-center justify-between mt-2">
                                             <p className="text-[10px] text-gray-400 font-medium">{note.time}</p>
                                             {config.category !== 'system' && (

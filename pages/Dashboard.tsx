@@ -763,6 +763,14 @@ const Dashboard: React.FC = () => {
                   console.error('Error checking job expirations:', expError);
               }
 
+              // In-app reminders: past interviews (feedback) and upcoming (coming soon)
+              try {
+                  await api.interviews.ensureFeedbackReminders();
+                  await api.interviews.ensureUpcomingInterviewReminders();
+                  const updatedAfterReminders = await api.notifications.list();
+                  setNotifications(updatedAfterReminders);
+              } catch (_) {}
+
               // Inactivity nudge: update last_seen_at; create "Welcome back" if away 7+ days
               try {
                   await api.settings.recordSeen();
