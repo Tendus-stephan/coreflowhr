@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const ChangeEmail: React.FC = () => {
+    const { session, loading: authLoading } = useAuth();
+    const location = useLocation();
     const [currentEmail, setCurrentEmail] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [loading, setLoading] = useState(true);
@@ -12,6 +15,10 @@ const ChangeEmail: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     useEffect(() => {
+        if (!session) {
+            setLoading(false);
+            return;
+        }
         let cancelled = false;
         (async () => {
             try {
@@ -24,7 +31,7 @@ const ChangeEmail: React.FC = () => {
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+    }, [session]);
 
     // When landed from email-change link (success or error in hash), show message and clean URL
     useEffect(() => {
@@ -83,7 +90,7 @@ const ChangeEmail: React.FC = () => {
         }
     };
 
-    if (loading) {
+    if (authLoading || (session && loading)) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 size={24} className="animate-spin text-gray-400" />
@@ -91,10 +98,48 @@ const ChangeEmail: React.FC = () => {
         );
     }
 
+    const returnTo = { pathname: '/settings/change-email', search: location.search, hash: location.hash };
+
+    if (!session) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
+                <div className="mx-auto w-full max-w-md">
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6">
+                        <ArrowLeft size={16} />
+                        Back to Home
+                    </Link>
+                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 bg-gray-100 rounded-xl">
+                                <Mail size={24} className="text-gray-700" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-gray-900">Change email address</h1>
+                                <p className="text-sm text-gray-500">Sign in to update the email you use to sign in.</p>
+                            </div>
+                        </div>
+                        {message && (
+                            <div className={`mb-6 p-4 rounded-xl border text-sm ${
+                                message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+                            }`}>
+                                {message.text}
+                            </div>
+                        )}
+                        <Link to="/login" state={{ from: returnTo }}>
+                            <Button className="w-full">Sign in to change email</Button>
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="max-w-xl mx-auto">
+        <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
+        <div className="max-w-xl mx-auto w-full">
             <Link
                 to="/settings"
+                state={{ from: location }}
                 className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6"
             >
                 <ArrowLeft size={16} />
@@ -166,6 +211,7 @@ const ChangeEmail: React.FC = () => {
                     </p>
                 </div>
             </div>
+        </div>
         </div>
     );
 };

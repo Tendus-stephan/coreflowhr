@@ -97,6 +97,7 @@ const Layout = () => {
     '/terms',
     '/privacy',
     '/onboarding',
+    '/settings/change-email',
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond') ||
@@ -289,11 +290,7 @@ const AppRoutes: React.FC = () => {
         />
         <Route 
           path="/settings/change-email" 
-          element={
-            <ProtectedRoute>
-              <ChangeEmail />
-            </ProtectedRoute>
-          } 
+          element={<ChangeEmail />}
         />
         <Route 
           path="/calendar" 
