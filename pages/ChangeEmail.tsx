@@ -36,8 +36,9 @@ const ChangeEmail: React.FC = () => {
         return () => { cancelled = true; };
     }, [session]);
 
-    // When landed from email-change link (success or error in hash), parse and clean URL
+    // When landed from email-change link (success or error in hash), parse and set flag. Do NOT clear hash yet so Supabase can process tokens.
     const [confirmationHashPresent, setConfirmationHashPresent] = useState(false);
+    const confirmationDecided = useRef(false);
     useEffect(() => {
         const hash = window.location.hash || '';
         if (!hash) return;
@@ -60,49 +61,78 @@ const ChangeEmail: React.FC = () => {
             const msg = params.get('message');
             if (msg && (msg.includes('Confirmation') || msg.includes('link accepted'))) {
                 setConfirmationHashPresent(true);
-                window.history.replaceState(null, '', window.location.pathname + window.location.search);
             }
         } catch {
             // ignore
         }
     }, []);
 
-    // Only treat as "email change complete" when session email matches pending (i.e. they clicked link in NEW email)
+    // After hash is present, wait for auth to process tokens then decide: complete (new-email link) vs "check other email" (old-email link). Run once.
     useEffect(() => {
-        if (!confirmationHashPresent || authLoading) return;
+        if (!confirmationHashPresent || authLoading || confirmationDecided.current) return;
         const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
-        if (session) {
-            const currentEmail = (session.user?.email || '').toLowerCase();
-            const pendingEmail = (pending || '').toLowerCase();
-            if (pending && currentEmail === pendingEmail) {
-                try {
-                    sessionStorage.removeItem('pendingEmailChange');
-                } catch {
-                    // ignore
+        const decide = () => {
+            if (confirmationDecided.current) return;
+            confirmationDecided.current = true;
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            if (session) {
+                const currentEmail = (session.user?.email || '').toLowerCase();
+                const pendingEmail = (pending || '').toLowerCase();
+                if (pending && currentEmail === pendingEmail) {
+                    try {
+                        sessionStorage.removeItem('pendingEmailChange');
+                    } catch {
+                        // ignore
+                    }
+                    setEmailChangeJustConfirmed(true);
+                    setMessage({
+                        type: 'success',
+                        text: 'Your email has been updated successfully. Please sign in with your new email address.',
+                    });
+                } else {
+                    setMessage({
+                        type: 'success',
+                        text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change.',
+                    });
+                }
+            } else {
+                if (pending) {
+                    try {
+                        sessionStorage.removeItem('pendingEmailChange');
+                    } catch {
+                        // ignore
+                    }
                 }
                 setEmailChangeJustConfirmed(true);
                 setMessage({
                     type: 'success',
-                    text: 'Your email has been updated successfully. Please sign in with your new email address.',
-                });
-            } else {
-                setMessage({
-                    type: 'success',
-                    text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change.',
+                    text: 'If you\'ve confirmed the link in your new email, please sign in with your new email address.',
                 });
             }
-        } else {
-            if (pending) {
-                try {
-                    sessionStorage.removeItem('pendingEmailChange');
-                } catch {
-                    // ignore
-                }
+        };
+        const t = setTimeout(decide, 1500);
+        return () => clearTimeout(t);
+    }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
+
+    // When session updates to the new email (after Supabase processes hash), mark complete immediately
+    useEffect(() => {
+        if (!confirmationHashPresent || authLoading || !session) return;
+        const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
+        if (!pending) return;
+        const currentEmail = (session.user?.email || '').toLowerCase();
+        const pendingEmail = pending.toLowerCase();
+        if (currentEmail === pendingEmail) {
+            confirmationDecided.current = true;
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            try {
+                sessionStorage.removeItem('pendingEmailChange');
+            } catch {
+                // ignore
             }
             setEmailChangeJustConfirmed(true);
             setMessage({
                 type: 'success',
-                text: 'If you\'ve confirmed the link in your new email, please sign in with your new email address.',
+                text: 'Your email has been updated successfully. Please sign in with your new email address.',
             });
         }
     }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
