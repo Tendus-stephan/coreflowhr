@@ -96,24 +96,53 @@ export class DatabaseService {
   }
 
   /**
-   * Check if candidate already exists (by name + job_id, since email is null for scraped candidates)
+   * Normalize LinkedIn URL for dedup (lowercase, trim, strip trailing slash and fragment)
    */
-  async candidateExists(jobId: string, email?: string, name?: string): Promise<boolean> {
+  private normalizeLinkedInUrl(url: string | undefined): string | null {
+    if (!url || typeof url !== 'string') return null;
+    const u = url.trim().toLowerCase();
+    if (!u.includes('linkedin.com')) return null;
+    try {
+      const withoutFragment = u.split('#')[0];
+      return withoutFragment.replace(/\/+$/, '') || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Check if candidate already exists (by LinkedIn URL per job first, then by name + job_id)
+   */
+  async candidateExists(jobId: string, email?: string, name?: string, linkedinUrl?: string): Promise<boolean> {
+    const normalizedLinkedIn = this.normalizeLinkedInUrl(linkedinUrl);
+    if (normalizedLinkedIn) {
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('id')
+        .eq('job_id', jobId)
+        .eq('linkedin_url', normalizedLinkedIn)
+        .limit(1);
+      if (!error && (data?.length || 0) > 0) return true;
+      if (error) {
+        // Column might not exist yet
+        if (error.code === '42703' || error.message?.includes('linkedin_url')) return false;
+        logger.error('Error checking candidate existence by linkedin_url:', error);
+        return false;
+      }
+    }
+
     if (!name) return false;
 
-    // For scraped candidates, we only check by name (email is null)
-    const query = supabase
+    const { data, error } = await supabase
       .from('candidates')
       .select('id')
       .eq('job_id', jobId)
       .ilike('name', name.trim())
       .limit(1);
 
-    const { data, error } = await query;
-
     if (error) {
       logger.error('Error checking candidate existence:', error);
-      return false; // Assume doesn't exist on error
+      return false;
     }
 
     return (data?.length || 0) > 0;
@@ -180,9 +209,87 @@ export class DatabaseService {
       salaryRange: data.salary_range,
       experienceLevel: experienceLevel, // Use cleaned experienceLevel
       remote: data.remote || false,
-      skills: Array.isArray(data.skills) ? data.skills : (data.skills ? [data.skills] : []), // Ensure it's an array
-      userId: data.user_id
+      skills: Array.isArray(data.skills) ? data.skills : (data.skills ? [data.skills] : []),
+      userId: data.user_id,
+      retryCount: data.retry_count || 0,
+      lastRetryAt: data.last_retry_at || null,
+      candidatesFound: data.candidates_found || 0,
     };
+  }
+
+  /**
+   * Mark a scrape retry in the jobs table (increment retry_count, set last_retry_at)
+   */
+  async markScrapeRetry(jobId: string): Promise<void> {
+    try {
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('retry_count')
+        .eq('id', jobId)
+        .single();
+
+      await supabase
+        .from('jobs')
+        .update({
+          retry_count: (job?.retry_count || 0) + 1,
+          last_retry_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+    } catch (err: any) {
+      logger.warn(`Failed to mark scrape retry for job ${jobId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Update the job's scraping_error and scraping_suggestion fields with diagnosis info
+   */
+  async updateJobDiagnosis(
+    jobId: string,
+    message: string,
+    suggestion: string | string[] | undefined,
+    status: 'failed' | 'succeeded'
+  ): Promise<void> {
+    try {
+      const suggestionText = Array.isArray(suggestion)
+        ? suggestion.join(' | ')
+        : suggestion || null;
+
+      await supabase
+        .from('jobs')
+        .update({
+          scraping_status: status,
+          scraping_error: message,
+          scraping_suggestion: suggestionText,
+          scrape_completed_at: new Date().toISOString(),
+          scraping_attempted_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+    } catch (err: any) {
+      logger.warn(`Failed to update job diagnosis for ${jobId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Insert a notification row for a job owner
+   */
+  async insertNotification(
+    userId: string,
+    title: string,
+    desc: string,
+    type: string
+  ): Promise<void> {
+    try {
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        title,
+        desc,
+        type,
+        category: 'automation',
+        unread: true,
+      });
+    } catch (err: any) {
+      logger.warn(`Failed to insert notification: ${err.message}`);
+    }
   }
 
   /**
@@ -201,18 +308,11 @@ export class DatabaseService {
         return { success: false, error: 'Candidate already exists (duplicate name)' };
       }
 
-      // Get admin user ID for scraped candidates (tendusstephan@gmail.com)
-      // If admin account is not found, we'll use the job owner's account
-      // In production, ensure the admin account exists in the database
-      const adminUserId = await this.getAdminUserId('tendusstephan@gmail.com');
-      
-      // Use admin account for scraped candidates, fallback to job owner if admin not found
-      const userId = adminUserId || job.userId;
-      
-      if (adminUserId) {
-        logger.debug(`Using admin account (${adminUserId}) for scraped candidate`);
-      } else {
-        logger.warn(`Admin account not found, using job owner (${job.userId}) for scraped candidate`);
+      // Save candidates under the job owner so they see them in the app
+      const userId = job.userId;
+      if (!userId) {
+        logger.error('Job has no user_id — cannot save candidate');
+        return { success: false, error: 'Job has no owner' };
       }
 
       // Prepare data for insertion
@@ -283,6 +383,10 @@ export class DatabaseService {
         resumeSummary += signalsText;
       }
 
+      // Persist scraper's match score (skills + experience + location) so UI shows varied scores per candidate
+      const matchScore = (candidate as { matchScore?: number }).matchScore;
+      const aiMatchScore = matchScore != null ? Math.min(100, Math.max(0, Math.round(matchScore))) : null;
+
       const insertData: any = {
         user_id: userId,
         job_id: job.id,
@@ -299,13 +403,22 @@ export class DatabaseService {
         is_test: false,
         applied_date: new Date().toISOString()
       };
+      if (aiMatchScore != null) {
+        insertData.ai_match_score = aiMatchScore;
+      }
 
-      // Add profile_url and portfolio_urls (columns added via migration)
+      // Add profile_url, portfolio_urls, and linkedin_url (for dedup and cross-job "Also in Job X")
       if (candidate.profileUrl) {
         insertData.profile_url = candidate.profileUrl;
       }
       if (candidate.portfolioUrls && Object.keys(candidate.portfolioUrls).length > 0) {
         insertData.portfolio_urls = candidate.portfolioUrls;
+      }
+      const linkedinUrl = this.normalizeLinkedInUrl(
+        candidate.profileUrl || candidate.portfolioUrls?.linkedin
+      );
+      if (linkedinUrl) {
+        insertData.linkedin_url = linkedinUrl;
       }
       if (candidate.workExperience && candidate.workExperience.length > 0) {
         insertData.work_experience = candidate.workExperience;
@@ -362,14 +475,17 @@ export class DatabaseService {
       // Fallback to manual update if RPC doesn't exist
       const { data: job } = await supabase
         .from('jobs')
-        .select('applicants_count')
+        .select('applicants_count, candidates_found')
         .eq('id', jobId)
         .single();
 
       if (job) {
         await supabase
           .from('jobs')
-          .update({ applicants_count: (job.applicants_count || 0) + increment })
+          .update({
+            applicants_count: (job.applicants_count || 0) + increment,
+            candidates_found: (job.candidates_found || 0) + increment,
+          })
           .eq('id', jobId);
       }
     }

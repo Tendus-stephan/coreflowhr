@@ -201,28 +201,12 @@ const LandingPage: React.FC = () => {
           userId: user.id
         });
 
-        // Check if user has an active subscription
-        // Primary check: subscription_status is 'active'
-        const hasActiveStatus = settings.subscription_status === 'active';
-        
-        // Secondary check: has a Stripe subscription ID (from webhook)
-        const hasStripeId = settings.subscription_stripe_id !== null && 
-                           settings.subscription_stripe_id !== undefined && 
-                           settings.subscription_stripe_id !== '';
-        
-        // Tertiary check: has a paid plan name (not Basic/Free)
-        const planName = (settings.billing_plan_name || '').toLowerCase();
-        const hasPaidPlan = planName && 
-                           planName !== 'basic' && 
-                           planName !== 'free';
-
-        const subscribed = hasActiveStatus || hasStripeId || hasPaidPlan;
+        // Only active or trialing Stripe subscriptions can access the app (no access after cancel/expiry)
+        const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+        const subscribed = hasActiveSubscription(settings);
 
         console.log('Subscription check result:', {
-          hasActiveStatus,
-          hasStripeId,
-          hasPaidPlan,
-          planName,
+          subscription_status: settings.subscription_status,
           subscribed,
           finalDecision: subscribed ? '✅ SUBSCRIBED - Will redirect to dashboard' : '❌ NOT SUBSCRIBED - Will show pricing'
         });

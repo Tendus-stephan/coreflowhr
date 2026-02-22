@@ -321,7 +321,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                        <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                             {error}
                         </div>
                     )}
@@ -569,7 +569,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                         {benefit}
                                         <button
                                             onClick={() => handleRemoveBenefit(benefit)}
-                                            className="hover:text-red-600"
+                                            className="hover:text-gray-700"
                                         >
                                             <X size={12} />
                                         </button>

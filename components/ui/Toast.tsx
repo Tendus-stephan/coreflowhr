@@ -27,18 +27,13 @@ export const Toast: React.FC<ToastProps> = ({
 
   if (!isVisible) return null;
 
-  const bgColor = type === 'success' ? 'bg-green-50 border-green-200' 
-    : type === 'error' ? 'bg-red-50 border-red-200' 
-    : 'bg-blue-50 border-blue-200';
-  
-  const textColor = type === 'success' ? 'text-green-800' 
-    : type === 'error' ? 'text-red-800' 
-    : 'text-blue-800';
+  const bgColor = 'bg-gray-100 border-gray-300';
+  const textColor = 'text-gray-800';
 
   return (
     <div className="fixed top-4 right-4 z-[100] animate-in slide-in-from-top-5 fade-in duration-300">
       <div className={`${bgColor} border rounded-lg shadow-xl p-4 min-w-[300px] max-w-md flex items-start gap-3 transform transition-all`}>
-        {type === 'success' && <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+        {(type === 'success' || type === 'error' || type === 'info') && <CheckCircle className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />}
         <p className={`${textColor} text-sm font-medium flex-1`}>{message}</p>
         <button
           onClick={onClose}
@@ -51,20 +46,6 @@ export const Toast: React.FC<ToastProps> = ({
     </div>
   );
 };
-
-
-
-export interface ToastProps {
-  message: string;
-  type?: 'success' | 'info' | 'error';
-  isVisible: boolean;
-  onClose: () => void;
-  duration?: number;
-}
-
-
-
-
 
 
 

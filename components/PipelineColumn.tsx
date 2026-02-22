@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Candidate, CandidateStage } from '../types';
 import { Avatar } from './ui/Avatar';
-import { Briefcase, MapPin, BrainCircuit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Briefcase, MapPin, BrainCircuit, ChevronLeft, ChevronRight, Copy, ExternalLink } from 'lucide-react';
+
+/** One-line summary from AI analysis (first sentence or ~80 chars) */
+function oneLineSummary(aiAnalysis: string | undefined | null): string | null {
+  if (!aiAnalysis || !aiAnalysis.trim()) return null;
+  const trimmed = aiAnalysis.trim();
+  const firstSentence = trimmed.split(/[.!?]\s+/)[0];
+  const line = (firstSentence || trimmed).trim();
+  if (line.length <= 85) return line;
+  return line.slice(0, 82) + '...';
+}
 
 interface PipelineColumnProps {
     title: string;
@@ -10,14 +20,19 @@ interface PipelineColumnProps {
     onSelectCandidate: (candidate: Candidate) => void;
     onDropCandidate?: (candidateId: string, newStage: CandidateStage) => void;
     isValidDropTarget?: (sourceStage: CandidateStage, targetStage: CandidateStage) => boolean;
+    /** When filtering by one job, required skills for green/red match tags */
+    jobRequiredSkills?: string[];
 }
 
 // Separate component for draggable candidate card
 const DraggableCandidateCard: React.FC<{
     candidate: Candidate;
     onSelect: (candidate: Candidate) => void;
-}> = ({ candidate, onSelect }) => {
+    jobRequiredSkills?: string[];
+}> = ({ candidate, onSelect, jobRequiredSkills }) => {
     const [isDragging, setIsDragging] = useState(false);
+    const requiredSet = jobRequiredSkills ? new Set(jobRequiredSkills.map(s => s.toLowerCase().trim())) : null;
+    const summaryLine = oneLineSummary(candidate.aiAnalysis);
 
     const handleDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData('candidateId', candidate.id);
@@ -31,10 +46,13 @@ const DraggableCandidateCard: React.FC<{
     };
 
     const handleClick = (e: React.MouseEvent) => {
-        // Only open modal if we're not dragging (after a short delay to check)
         if (!isDragging) {
             onSelect(candidate);
         }
+    };
+
+    const skillClass = (_skill: string) => {
+        return 'text-[10px] px-2 py-1 bg-gray-100 rounded text-gray-600 border border-gray-200 font-medium';
     };
 
     return (
@@ -44,7 +62,7 @@ const DraggableCandidateCard: React.FC<{
             onDragEnd={handleDragEnd}
             onClick={handleClick}
             className={`bg-white p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-move group relative mb-2 ${
-                isDragging ? 'opacity-50 border-blue-300' : 'border-gray-200 cursor-pointer'
+                isDragging ? 'opacity-50 border-gray-400' : 'border-gray-200 cursor-pointer'
             }`}
         >
             <div className="flex items-start justify-between mb-2">
@@ -62,28 +80,29 @@ const DraggableCandidateCard: React.FC<{
                            <MapPin size={10} className="shrink-0" />
                            <p className="truncate">{candidate.location}</p>
                         </div>
-
                     </div>
                 </div>
                 {candidate.aiMatchScore !== undefined && candidate.aiMatchScore !== null && (
-                     <div className={`flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                         candidate.aiMatchScore >= 80 
-                             ? 'bg-black text-white' 
-                             : candidate.aiMatchScore >= 60 
-                             ? 'bg-yellow-500 text-white' 
-                             : candidate.aiMatchScore >= 40
-                             ? 'bg-orange-500 text-white'
-                             : 'bg-red-500 text-white'
-                     }`}>
+                     <div className="flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 bg-gray-100 text-gray-700 border border-gray-200">
                         <BrainCircuit size={10} />
                         {candidate.aiMatchScore}%
                      </div>
                 )}
             </div>
             
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            {/* Cross-job duplicate flag */}
+            {candidate.alsoInJobTitles && candidate.alsoInJobTitles.length > 0 && (
+                <div className="mb-2 flex items-center gap-1 flex-wrap">
+                    <Copy size={10} className="text-gray-400 shrink-0" />
+                    <span className="text-[10px] text-gray-500 font-medium">
+                        Also in: {candidate.alsoInJobTitles.map(a => a.jobTitle).join(', ')}
+                    </span>
+                </div>
+            )}
+
+            <div className="flex flex-wrap gap-1.5 mt-2">
                 {candidate.skills.slice(0, 3).map((skill) => (
-                    <span key={skill} className="text-[10px] px-2 py-1 bg-gray-50 rounded text-gray-600 border border-gray-100 font-medium">
+                    <span key={skill} className={skillClass(skill)}>
                         {skill}
                     </span>
                 ))}
@@ -91,12 +110,30 @@ const DraggableCandidateCard: React.FC<{
                     <span className="text-[10px] px-1.5 py-1 text-gray-400 font-medium">+{candidate.skills.length - 3}</span>
                 )}
             </div>
-            <p className="text-[10px] text-gray-400 mt-3 text-right pt-2 border-t border-gray-50">Sourced {new Date(candidate.appliedDate).toLocaleDateString()}</p>
+            {summaryLine && (
+                <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 border-t border-gray-50 pt-2" title={candidate.aiAnalysis || ''}>
+                    {summaryLine}
+                </p>
+            )}
+            <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-50">
+                <p className="text-[10px] text-gray-400">Sourced {new Date(candidate.appliedDate).toLocaleDateString()}</p>
+                {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
+                    <a
+                        href={candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-1"
+                    >
+                        LinkedIn <ExternalLink size={10} />
+                    </a>
+                )}
+            </div>
         </div>
     );
 };
 
-export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate, isValidDropTarget }) => {
+export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate, isValidDropTarget, jobRequiredSkills }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragSourceStage, setDragSourceStage] = useState<CandidateStage | null>(null);
@@ -174,7 +211,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
         isDragOver 
           ? 'bg-blue-50 border-blue-300 border-2' 
           : isInvalidDropTarget
-          ? 'bg-red-50/50 border-red-200 opacity-60'
+          ? 'bg-gray-100 border-gray-200 opacity-60'
           : 'bg-gray-50/50 border-border'
       }`}
       style={{ height: '100%' }}
@@ -195,6 +232,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
             key={candidate.id}
             candidate={candidate}
             onSelect={onSelectCandidate}
+            jobRequiredSkills={jobRequiredSkills}
           />
         ))}
         {candidates.length === 0 && (

@@ -14,6 +14,7 @@ import { buildLinkedInQuery, buildGitHubQuery, buildMightyRecruiterQuery, buildJ
 import { validateProviderConfig, providerConfig } from '../config/providers';
 import { logger } from '../utils/logger';
 import { recommendSources, isTechnicalJob, type SourceType } from '../utils/jobAnalyzer';
+import { diagnoseEmptyResults, makeBroaderSearchTitle } from './DiagnosisService';
 
 export class ScrapingService {
   private apifyService: ApifyService | null;
@@ -84,7 +85,7 @@ export class ScrapingService {
 
     // Intelligently determine sources based on job characteristics
     // FREE sources that provide candidate profiles: LinkedIn, GitHub, MightyRecruiter, JobSpider
-    const availableSources: SourceType[] = options.sources || ['linkedin', 'github', 'mightyrecruiter', 'jobspider'];
+    const availableSources: SourceType[] = options.sources || ['profiles', 'github', 'mightyrecruiter', 'jobspider'];
     const sourceRecommendations = recommendSources(job, maxCandidates, availableSources);
 
     if (sourceRecommendations.length === 0) {
@@ -107,7 +108,7 @@ export class ScrapingService {
         let candidates: ScrapedCandidate[] = [];
 
         // Scrape with source-specific quota
-        if (source === 'linkedin') {
+        if (source === 'profiles') {
           candidates = await this.scrapeLinkedIn(job, { ...options, maxCandidates: quota });
         } else if (source === 'github') {
           candidates = await this.scrapeGitHub(job, { ...options, maxCandidates: quota });
@@ -153,11 +154,11 @@ export class ScrapingService {
         let saved = 0;
         let attempts = 0;
         let apifyRunsUsed = 0; // Track Apify runs for cost tracking
-        const maxAttempts = 10; // Increased to ensure we can fetch enough candidates
+        const maxAttempts = 3; // Max 3 refetch loops to limit Apify run usage
         const fetchMultiplier = 2; // Fetch 2x to account for duplicates (reduced from 3 to save runs)
         
         // Track initial fetch
-        if (source === 'linkedin') {
+        if (source === 'profiles') {
           apifyRunsUsed++;
           logger.info(`📊 Apify run #${apifyRunsUsed} (initial fetch: ${candidates.length} candidates)`);
         }
@@ -167,7 +168,7 @@ export class ScrapingService {
           logger.info(`📥 Fetching larger batch (${quota * fetchMultiplier} candidates) to ensure enough unique results...`);
           try {
             let moreCandidates: ScrapedCandidate[] = [];
-            if (source === 'linkedin') {
+            if (source === 'profiles') {
               apifyRunsUsed++; // Track Apify run usage
               logger.info(`📊 Apify run #${apifyRunsUsed} (requesting ${quota * fetchMultiplier} candidates)`);
               moreCandidates = await this.scrapeLinkedIn(job, { ...options, maxCandidates: quota * fetchMultiplier });
@@ -223,6 +224,8 @@ export class ScrapingService {
               if (result.success) {
                 saved++;
                 logger.info(`✅ Saved candidate: ${processed.name} (match: ${processed.matchScore}%) - ${saved}/${quota}`);
+                // Increment job counters so UI can reflect progress in near real-time
+                await this.databaseService.updateJobApplicantsCount(job.id, 1);
               } else if (result.error?.includes('already exists')) {
                 // Duplicate - skip and continue to find more
                 duplicateCount++;
@@ -249,7 +252,7 @@ export class ScrapingService {
             
             try {
               let moreCandidates: ScrapedCandidate[] = [];
-              if (source === 'linkedin') {
+              if (source === 'profiles') {
                 apifyRunsUsed++; // Track Apify run usage
                 logger.info(`📊 Apify run #${apifyRunsUsed} (requesting ${Math.max((quota - saved) * fetchMultiplier, 10)} candidates)`);
                 moreCandidates = await this.scrapeLinkedIn(job, { ...options, maxCandidates: Math.max((quota - saved) * fetchMultiplier, 10) });
@@ -305,49 +308,134 @@ export class ScrapingService {
           processed: processedCount
         };
 
-        // Add diagnostic information if 0 candidates found
+        // Add diagnostic information if 0 candidates found, and try one auto-broaden retry
         const diagnostic: any = {};
         if (saved === 0 && allCandidates.length === 0) {
-          // Build search query string for diagnostic purposes
+          const title = job.title || '';
+          const location = job.location || '';
+          const diagnosis = diagnoseEmptyResults(job);
+
           const searchQueryParts: string[] = [];
-          if (job.title) {
-            searchQueryParts.push(`"${job.title}"`);
-          }
+          if (title) searchQueryParts.push(`"${title}"`);
           if (job.skills && job.skills.length > 0) {
-            const topSkills = job.skills.slice(0, 3).join(' OR ');
-            searchQueryParts.push(`(${topSkills})`);
+            searchQueryParts.push(`(${job.skills.slice(0, 3).join(' OR ')})`);
           }
-          if (job.location && !job.remote) {
-            searchQueryParts.push(job.location);
-          }
-          const searchQuery = searchQueryParts.join(' ');
-          
+          if (location && !job.remote) searchQueryParts.push(location);
+
           diagnostic.zeroResultsReason = {
             noCandidatesFound: true,
-            possibleReasons: [
-              'No LinkedIn profiles match the search criteria',
-              'Search query too specific',
-              'Location filter too restrictive',
-              'Apify actor returned empty results',
-              'Apify free tier limit reached'
-            ],
-            searchQuery: searchQuery || 'N/A',
+            message: diagnosis.message,
+            suggestion: diagnosis.suggestion,
+            action: diagnosis.action,
+            searchQuery: searchQueryParts.join(' ') || 'N/A',
             actorUsed: source || 'none',
-            attempts: attempts,
-            consecutiveEmptyFetches: consecutiveEmptyFetches
+            attempts,
+            consecutiveEmptyFetches,
           };
+
+          // Auto-broaden: if LinkedIn and retry_count < 1, try once with simplified title
+          if (source === 'profiles' && (job.retryCount ?? 0) < 1) {
+            const { makeBroaderSearchTitle } = await import('./DiagnosisService');
+            const broaderTitle = makeBroaderSearchTitle(title);
+
+            if (broaderTitle && broaderTitle !== title) {
+              logger.info(`🔁 No results for "${title}". Auto-retrying with broader title "${broaderTitle}"...`);
+
+              await this.databaseService.markScrapeRetry(job.id);
+
+              try {
+                apifyRunsUsed++;
+                const broaderCandidates = await this.scrapeLinkedIn(
+                  { ...job, title: broaderTitle },
+                  { ...options, maxCandidates: quota }
+                );
+
+                if (broaderCandidates.length > 0) {
+                  logger.info(`✅ Broader search found ${broaderCandidates.length} candidates for "${broaderTitle}"`);
+                  // Process and save broader results
+                  for (const candidate of broaderCandidates) {
+                    try {
+                      const processed = this.candidateProcessor.processCandidate(candidate, job);
+                      if (!processed.isValid) continue;
+                      const result = await this.databaseService.saveCandidate(job, processed);
+                      if (result.success) {
+                        saved++;
+                        await this.databaseService.updateJobApplicantsCount(job.id, 1);
+                      }
+                    } catch (procErr: any) {
+                      logger.warn(`Error processing broader candidate: ${procErr.message}`);
+                    }
+                  }
+
+                  if (saved > 0) {
+                    const broadenMsg = `Found ${saved} candidate${saved === 1 ? '' : 's'} using broader search criteria (simplified title: "${broaderTitle}").`;
+                    await this.databaseService.updateJobDiagnosis(job.id, broadenMsg, diagnosis.suggestion, 'succeeded');
+                    diagnostic.zeroResultsReason.broadened = true;
+                    diagnostic.zeroResultsReason.broaderTitle = broaderTitle;
+                    diagnostic.zeroResultsReason.broadenedSaved = saved;
+                  }
+                } else {
+                  logger.info(`❌ Broader search also found 0 candidates for "${broaderTitle}"`);
+                  // Still no results after retry – mark as failed with diagnosis
+                  await this.databaseService.updateJobDiagnosis(
+                    job.id,
+                    diagnosis.message,
+                    diagnosis.suggestion,
+                    'failed'
+                  );
+                  // Send "No candidates found" notification
+                  await this.databaseService.insertNotification(
+                    job.userId,
+                    'No candidates found',
+                    `${job.title}: ${diagnosis.message}`,
+                    'sourcing_failed'
+                  );
+                }
+              } catch (broaderErr: any) {
+                logger.warn(`⚠️ Broader retry failed: ${broaderErr.message}`);
+                await this.databaseService.updateJobDiagnosis(
+                  job.id,
+                  diagnosis.message,
+                  diagnosis.suggestion,
+                  'failed'
+                );
+              }
+            } else {
+              // Title couldn't be simplified; mark as failed immediately
+              await this.databaseService.updateJobDiagnosis(
+                job.id,
+                diagnosis.message,
+                diagnosis.suggestion,
+                'failed'
+              );
+              await this.databaseService.insertNotification(
+                job.userId,
+                'No candidates found',
+                `${job.title}: ${diagnosis.message}`,
+                'sourcing_failed'
+              );
+            }
+          } else if (source !== 'profiles') {
+            // Non-profile source with no results – just record the diagnosis
+            await this.databaseService.updateJobDiagnosis(
+              job.id,
+              diagnosis.message,
+              diagnosis.suggestion,
+              'failed'
+            );
+          }
         }
 
         results.push({
-          success: true,
+          success: saved > 0,
           candidatesFound: allCandidates.length,
           candidatesSaved: saved,
           source,
           statistics: stats,
-          diagnostic: Object.keys(diagnostic).length > 0 ? diagnostic : undefined
+          diagnostic: Object.keys(diagnostic).length > 0 ? diagnostic : undefined,
         });
 
-        if (source === 'linkedin' && apifyRunsUsed > 0) {
+        if (source === 'profiles' && apifyRunsUsed > 0) {
           logger.info(`✅ ${source.toUpperCase()}: Found ${allCandidates.length}, Saved ${saved} unique candidates (target: ${quota})`);
           logger.info(`📊 Statistics: ${stats.invalid} invalid, ${stats.duplicates} duplicates, ${stats.saveErrors} save errors`);
           logger.info(`📊 Apify runs used: ${apifyRunsUsed} (Free tier: 10 runs/day, ${10 - apifyRunsUsed} remaining today)`);
@@ -372,12 +460,8 @@ export class ScrapingService {
       }
     }
 
-    // Update job applicants count
+    // Summarize for logs (job counters are already updated incrementally)
     const totalSaved = results.reduce((sum, r) => sum + r.candidatesSaved, 0);
-    if (totalSaved > 0) {
-      await this.databaseService.updateJobApplicantsCount(jobId, totalSaved);
-    }
-
     logger.info(`Scraping completed for job ${jobId}. Total saved: ${totalSaved}`);
 
     return results;
@@ -387,82 +471,142 @@ export class ScrapingService {
    * Scrape LinkedIn profiles using Apify
    * Apify is our ONLY provider now - cost-effective, reliable, and has FREE tier!
    */
+  private stripSeniorityPrefix(title: string): string {
+    const prefixes = ['Senior', 'Sr.', 'Sr', 'Lead', 'Principal', 'Staff', 'Junior', 'Jr.', 'Jr', 'Head of', 'Chief', 'VP of', 'Director of'];
+    let stripped = title;
+    for (const prefix of prefixes) {
+      const regex = new RegExp(`^${prefix}\\s+`, 'i');
+      stripped = stripped.replace(regex, '');
+    }
+    return stripped.trim();
+  }
+
   private async scrapeLinkedIn(job: Job, options: ScrapeOptions): Promise<ScrapedCandidate[]> {
-    // Use the requested maxCandidates, but ensure it's at least 1
     const maxResults = Math.max(options.maxCandidates || 50, 1);
     
-    // Log job data to verify location and experienceLevel are present
-    logger.info(`📋 Job data for LinkedIn scraping:`, {
+    logger.info(`📋 Job data for profile scraping:`, {
       title: job.title,
       location: job.location,
       experienceLevel: job.experienceLevel,
       remote: job.remote,
-      skills: job.skills?.slice(0, 3) // Log first 3 skills
+      skills: job.skills?.slice(0, 3)
     });
-    
-    const query = buildLinkedInQuery(job, maxResults);
-    
-    // Log built query to verify location and experienceLevel are included
-    logger.info(`📝 LinkedIn query built:`, {
-      jobTitle: query.jobTitle,
-      location: query.location,
-      experienceLevel: query.experienceLevel,
-      skills: query.skills?.slice(0, 3),
-      maxResults: query.maxResults
-    });
-    
-    // Ensure location and experienceLevel are passed to Apify
-    if (!query.location && job.location && !job.remote) {
-      logger.warn(`⚠️ Location is missing in query but exists in job: ${job.location}. Adding it.`);
-      query.location = job.location;
-    }
-    if (!query.experienceLevel && job.experienceLevel) {
-      logger.warn(`⚠️ Experience level is missing in query but exists in job: ${job.experienceLevel}. Adding it.`);
-      query.experienceLevel = job.experienceLevel;
-    }
     
     if (!this.apifyService) {
       throw new Error('ApifyService not initialized. Check server logs for initialization errors.');
     }
 
-    try {
-      // Check if token exists in config
-      const hasToken = !!providerConfig.apify?.apiToken;
-      logger.info(`[Apify Check] Token exists in config: ${hasToken}`);
-      
-      const isConfigured = await this.apifyService.isConfigured();
-      logger.info(`[Apify Check] isConfigured() returned: ${isConfigured}`);
-      
-      if (isConfigured) {
-        logger.info('✅ Using Apify for LinkedIn scraping (FREE tier: 5 compute units/month, then ~$0.25/unit)');
-        return await this.apifyService.scrapeLinkedIn(query);
-      } else {
-        logger.warn(`[Apify Debug] Token in providerConfig: ${providerConfig.apify?.apiToken ? 'EXISTS (length: ' + providerConfig.apify.apiToken.length + ')' : 'MISSING'}`);
-        throw new Error(
-          'Apify not configured. Please set APIFY_API_TOKEN in .env.local\n\n' +
-          'Setup:\n' +
-          '1. Sign up at https://apify.com (FREE)\n' +
-          '2. Go to Settings → Integrations → API tokens\n' +
-          '3. Copy your API token\n' +
-          '4. Add to .env.local: APIFY_API_TOKEN=your_token_here\n' +
-          '5. Restart scraper UI server'
-        );
-      }
-    } catch (error: any) {
-      logger.error('Apify LinkedIn scraping failed:', error);
-      logger.error(`[Apify Error] ${error.message}`);
-      
-      // Check if it's a free tier limit error - stop immediately
-      if (error.message && error.message.includes('Free Tier Limit')) {
-        logger.error('🚫 STOPPING: Apify free tier limit reached. No more runs will be attempted.');
-        throw error; // Re-throw to stop the entire scraping process
-      }
-      
-      if (error.stack) {
-        logger.error(`[Apify Error Stack] ${error.stack}`);
-      }
-      throw error;
+    const isConfigured = await this.apifyService.isConfigured();
+    if (!isConfigured) {
+      throw new Error(
+        'Apify not configured. Please set APIFY_API_TOKEN in .env.local\n\n' +
+        'Setup:\n' +
+        '1. Sign up at https://apify.com (FREE)\n' +
+        '2. Go to Settings → Integrations → API tokens\n' +
+        '3. Copy your API token\n' +
+        '4. Add to .env.local: APIFY_API_TOKEN=your_token_here\n' +
+        '5. Restart scraper UI server'
+      );
     }
+
+    // Progressive broadening: try increasingly broader queries when results are empty
+    // Each step costs 1 compute unit, so we only broaden if we got 0 results.
+    const broadenSteps = this.buildBroadeningSteps(job, maxResults);
+
+    let lastError: any = null;
+    let lastSuggestion = '';
+
+    for (let step = 0; step < broadenSteps.length; step++) {
+      const { query, label, suggestion } = broadenSteps[step];
+      lastSuggestion = suggestion;
+
+      try {
+        logger.info(`🔍 [Broadening ${step + 1}/${broadenSteps.length}] ${label}`);
+        const candidates = await this.apifyService.scrapeLinkedIn(query);
+
+        if (candidates.length > 0) {
+          logger.info(`✅ Got ${candidates.length} candidates at broadening step ${step + 1}: ${label}`);
+          return candidates;
+        }
+
+        logger.warn(`⚠️ 0 candidates at step ${step + 1}: ${label}. ${step < broadenSteps.length - 1 ? 'Broadening query...' : 'No more broadening steps.'}`);
+      } catch (error: any) {
+        lastError = error;
+        // Quota / free-tier errors should stop immediately
+        const msg = error.message || '';
+        if (msg.includes('Free Tier Limit') || msg.includes('quota') || msg.includes('No available Apify tokens')) {
+          logger.error('🚫 Token/quota limit reached — stopping broadening.');
+          throw error;
+        }
+        logger.warn(`⚠️ Step ${step + 1} error: ${msg}`);
+      }
+    }
+
+    // All broadening steps returned 0 — attach suggestion for the UI
+    if (lastError) throw lastError;
+
+    const err = new Error(`No candidates found after ${broadenSteps.length} query broadening attempts.`);
+    (err as any).suggestion = lastSuggestion;
+    (err as any).broadeningSteps = broadenSteps.length;
+    throw err;
+  }
+
+  private buildBroadeningSteps(job: Job, maxResults: number) {
+    const baseQuery = buildLinkedInQuery(job, maxResults);
+
+    // Ensure location/experienceLevel pass through
+    if (!baseQuery.location && job.location && !job.remote) baseQuery.location = job.location;
+    if (!baseQuery.experienceLevel && job.experienceLevel) baseQuery.experienceLevel = job.experienceLevel;
+
+    const steps: Array<{ query: typeof baseQuery; label: string; suggestion: string }> = [];
+
+    // Step 1: full query (title + location + skills)
+    steps.push({
+      query: { ...baseQuery },
+      label: `Full query: "${baseQuery.jobTitle}" + location + skills`,
+      suggestion: 'Your job title or criteria may be very specific. Try a shorter title (e.g. "React Developer" instead of "Senior React TypeScript Developer with Fintech Experience") or broaden location/skills.'
+    });
+
+    // Step 2: title + location, no skills
+    if (baseQuery.skills && baseQuery.skills.length > 0) {
+      steps.push({
+        query: { ...baseQuery, skills: [] },
+        label: `Title + location only (dropped ${baseQuery.skills.length} skill filters)`,
+        suggestion: 'Your skills filter may be too restrictive. Try broadening the required skills.'
+      });
+    }
+
+    // Step 3: title only (no location, no skills)
+    if (baseQuery.location) {
+      steps.push({
+        query: { ...baseQuery, skills: [], location: undefined, experienceLevel: undefined },
+        label: `Title only: "${baseQuery.jobTitle}" (no location/skills)`,
+        suggestion: `Location "${baseQuery.location}" may be too specific. Try a larger city or remove the location.`
+      });
+    }
+
+    // Step 4: stripped title (remove seniority prefix)
+    const strippedTitle = this.stripSeniorityPrefix(baseQuery.jobTitle);
+    if (strippedTitle !== baseQuery.jobTitle) {
+      steps.push({
+        query: { ...baseQuery, jobTitle: strippedTitle, skills: [], location: undefined, experienceLevel: undefined },
+        label: `Stripped title: "${strippedTitle}" (removed seniority prefix)`,
+        suggestion: `Your title "${baseQuery.jobTitle}" is very specific. Try "${strippedTitle}" instead.`
+      });
+    }
+
+    // Ensure we always have a title-only fallback when we have no location (e.g. remote jobs skip step 3)
+    const last = steps[steps.length - 1];
+    const lastIsTitleOnly = !last?.query.location && (!last?.query.skills || last.query.skills.length === 0);
+    if (!lastIsTitleOnly) {
+      steps.push({
+        query: { ...baseQuery, jobTitle: baseQuery.jobTitle, skills: [], location: undefined, experienceLevel: undefined },
+        label: `Title only: "${baseQuery.jobTitle}" (no location/skills)`,
+        suggestion: 'Your criteria returned no matches. Try a shorter job title or remove location/education requirements.'
+      });
+    }
+
+    return steps;
   }
 
   /**

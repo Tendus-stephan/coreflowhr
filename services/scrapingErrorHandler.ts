@@ -9,6 +9,8 @@ export interface ScrapingError {
   category: 'network' | 'no_results' | 'configuration' | 'unknown';
   canRetry: boolean;
   technicalDetails?: string; // For internal logging only
+  /** Actionable suggestion for the user (e.g. "Try 'React Developer' instead of 'Senior React TypeScript Developer'") */
+  suggestion?: string;
 }
 
 /**
@@ -18,6 +20,7 @@ export interface ScrapingError {
 export function handleScrapingError(error: any): ScrapingError {
   const errorMessage = error?.message || String(error) || 'Unknown error';
   const errorCode = error?.code || '';
+  const serverSuggestion = error?.suggestion ?? undefined;
 
   // Never expose Apify-specific errors to users
   if (
@@ -29,12 +32,12 @@ export function handleScrapingError(error: any): ScrapingError {
     errorMessage.includes('APIFY') ||
     errorCode === 'APIFY_LIMIT'
   ) {
-    // Apify limit reached - show generic "sourcing unavailable" message
     return {
       userMessage: 'Candidate sourcing is temporarily unavailable. Please try again in a few moments.',
       category: 'network',
       canRetry: true,
-      technicalDetails: `Apify limit: ${errorMessage}` // Internal only
+      technicalDetails: `Apify limit: ${errorMessage}`,
+      suggestion: serverSuggestion,
     };
   }
 
@@ -53,23 +56,26 @@ export function handleScrapingError(error: any): ScrapingError {
       userMessage: 'Connection error while sourcing candidates. Please check your internet connection and try again.',
       category: 'network',
       canRetry: true,
-      technicalDetails: `Network error: ${errorMessage}`
+      technicalDetails: `Network error: ${errorMessage}`,
+      suggestion: serverSuggestion,
     };
   }
 
-  // No candidates found
+  // No candidates found — keep userMessage short; actionable guidance goes in suggestion
   if (
     errorMessage.includes('No candidates found') ||
     errorMessage.includes('0 candidates') ||
     errorMessage.includes('no results') ||
     errorMessage.includes('empty') ||
-    errorMessage.includes('not found')
+    errorMessage.includes('not found') ||
+    errorMessage.includes('broadening attempts')
   ) {
     return {
-      userMessage: 'No candidates found matching your job requirements. Try adjusting the location, skills, or experience level.',
+      userMessage: 'No candidates found matching your job requirements.',
       category: 'no_results',
       canRetry: true,
-      technicalDetails: `No results: ${errorMessage}`
+      technicalDetails: `No results: ${errorMessage}`,
+      suggestion: serverSuggestion || "Your job title may be very specific — try a shorter title (e.g. \"React Developer\" instead of \"Senior React TypeScript Developer with Fintech Experience\"). Use just the city name for location, or try removing the education requirement.",
     };
   }
 
@@ -85,16 +91,18 @@ export function handleScrapingError(error: any): ScrapingError {
       userMessage: 'Candidate sourcing service is temporarily unavailable. Please try again later.',
       category: 'configuration',
       canRetry: true,
-      technicalDetails: `Config error: ${errorMessage}` // Internal only
+      technicalDetails: `Config error: ${errorMessage}`,
+      suggestion: serverSuggestion,
     };
   }
 
-  // Generic error - never expose technical details
+  // Generic error - never expose technical details; pass through server suggestion if any
   return {
     userMessage: 'Unable to source candidates at this time. Please try again later or contact support if the issue persists.',
     category: 'unknown',
     canRetry: true,
-    technicalDetails: `Generic error: ${errorMessage}` // Internal only
+    technicalDetails: `Generic error: ${errorMessage}`,
+    suggestion: serverSuggestion,
   };
 }
 

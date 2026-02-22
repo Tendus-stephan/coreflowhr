@@ -124,7 +124,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     return (
         <div className="space-y-4">
             {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                     {error}
                 </div>
             )}
@@ -242,7 +242,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                         <button
                                             onClick={() => handleDeleteNote(note.id)}
                                             disabled={deletingId === note.id}
-                                            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50 disabled:opacity-50"
+                                            className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded hover:bg-gray-100 disabled:opacity-50"
                                             title="Delete note"
                                         >
                                             <Trash2 size={14} />

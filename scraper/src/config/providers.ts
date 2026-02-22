@@ -61,13 +61,13 @@ export const providerConfig: ProviderConfig = {
 export function validateProviderConfig(sources: string[]): { valid: boolean; missing: string[] } {
   const missing: string[] = [];
 
-  if (sources.includes('linkedin')) {
-    // LinkedIn requires Apify (only provider that works)
-    const hasTokens = (providerConfig.apify?.apiTokens && providerConfig.apify.apiTokens.length > 0) || 
+  if (sources.includes('profiles')) {
+    // Profile sourcing requires Apify
+    const hasTokens = (providerConfig.apify?.apiTokens && providerConfig.apify.apiTokens.length > 0) ||
                      providerConfig.apify?.apiToken;
     if (!hasTokens) {
       missing.push(
-        'LinkedIn scraping requires APIFY_API_TOKEN or APIFY_API_TOKENS. ' +
+        'Profile sourcing requires APIFY_API_TOKEN or APIFY_API_TOKENS. ' +
         'Setup: https://apify.com → Sign up (FREE) → Get API token(s) → Set APIFY_API_TOKEN or APIFY_API_TOKENS in .env.local\n' +
         'For multiple tokens (rotation): APIFY_API_TOKENS=token1,token2,token3'
       );

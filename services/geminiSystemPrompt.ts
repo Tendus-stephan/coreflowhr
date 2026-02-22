@@ -46,8 +46,8 @@ TARGET MARKET:
 
 4. JOBS (/jobs)
    - Job list view: Active, Draft, Closed statuses with filtering
-   - Create/Edit: Full job details (title, description, skills, location, experience level)
-   - Job settings: Requirements, skills array, location, remote option, experience level (Entry/Mid/Senior)
+   - Create/Edit: Full job details (title, description, skills, location)
+   - Job settings: Requirements, skills array, location, remote option
    - Candidate management: View candidates per job, filter by job in candidate board
    - Scraping status: Track candidate sourcing progress (pending/succeeded/failed/partial)
    - Retry sourcing: Re-run scraper for failed/partial jobs
@@ -55,10 +55,9 @@ TARGET MARKET:
    - Client display: Shows client name on job cards
 
 5. ADD JOB (/jobs/new, /jobs/edit/:id)
-   - Job creation form: ALL FIELDS ARE REQUIRED (title, client, company, location, type, experience, salary, skills, description)
+   - Job creation form: ALL FIELDS ARE REQUIRED (title, client, company, location, type, salary, skills, description)
    - Client selection: Dropdown to select client company (required field for multi-client management)
    - Skills input: Array of required skills (required)
-   - Experience level: Entry Level (0-2 years), Mid Level (2-5 years), Senior Level (5+ years) (required)
    - Candidate sourcing: Request candidates (up to plan limit), animated counter shows limit
    - Plan limits enforcement: Checks subscription plan before allowing sourcing
    - Real-time scraping: Progress modal shows candidate sourcing status
@@ -453,7 +452,6 @@ ALL FIELDS ARE REQUIRED:
 - Company Name * (required)
 - Location * (required)
 - Job Type * (required - Full-time/Part-time/Contract)
-- Experience Level * (required - Entry/Mid/Senior)
 - Salary Range * (required)
 - Required Skills * (required)
 - Job Description * (required)

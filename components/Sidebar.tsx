@@ -217,7 +217,7 @@ const Sidebar: React.FC = () => {
                     <div className="h-px bg-gray-100 my-1"></div>
                     <button 
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
                     >
                         <LogOut size={16} />
                         {isExpanded && <span>Log out</span>}

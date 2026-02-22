@@ -58,14 +58,14 @@ export const EmailHistory: React.FC<EmailHistoryProps> = ({ candidateId }) => {
             case 'sent':
                 return <Clock size={14} className="text-blue-500" />;
             case 'delivered':
-                return <CheckCircle size={14} className="text-green-500" />;
+                return <CheckCircle size={14} className="text-gray-600" />;
             case 'opened':
                 return <Mail size={14} className="text-blue-600" />;
             case 'clicked':
                 return <ExternalLink size={14} className="text-purple-500" />;
             case 'bounced':
             case 'failed':
-                return <AlertCircle size={14} className="text-red-500" />;
+                return <AlertCircle size={14} className="text-gray-500" />;
             default:
                 return <Clock size={14} className="text-gray-400" />;
         }
@@ -86,7 +86,7 @@ export const EmailHistory: React.FC<EmailHistoryProps> = ({ candidateId }) => {
     return (
         <div className="space-y-4">
             {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                     {error}
                 </div>
             )}

@@ -92,13 +92,13 @@ export const CandidateSourcingModal: React.FC<CandidateSourcingModalProps> = ({
                     )}
 
                     {isComplete && (
-                        <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
-                            <CheckCircle className="text-green-600" size={20} />
+                        <div className="flex items-center gap-3 p-4 bg-gray-100 rounded-xl border border-gray-200">
+                            <CheckCircle className="text-gray-600" size={20} />
                             <div className="flex-1">
-                                <p className="text-sm font-medium text-green-900">
+                                <p className="text-sm font-medium text-gray-900">
                                     Successfully sourced {current} candidates
                                 </p>
-                                <p className="text-xs text-green-700 mt-0.5">
+                                <p className="text-xs text-gray-700 mt-0.5">
                                     Candidates are now available in your candidate board
                                 </p>
                             </div>

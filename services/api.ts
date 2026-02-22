@@ -1,6 +1,6 @@
 import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate, Client } from "../types";
 import { supabase } from "./supabase";
-import { getPlanLimits, hasFeature } from "./planLimits";
+import { getPlanLimits, hasFeature, getMonthlyScrapeLimit, canScrapeThisMonth } from "./planLimits";
 
 // Helper to get current user ID
 const getUserId = async (): Promise<string | null> => {
@@ -109,11 +109,18 @@ export const trackSession = async (): Promise<void> => {
       .maybeSingle();
 
     if (existingSessionByFingerprint) {
-      // Update existing session on same device (update session token in case it changed)
+      // Avoid 409: only one row per user can have is_current=true (unique partial index).
+      // First clear is_current on all other sessions, then set it on this one.
+      await supabase
+        .from('user_sessions')
+        .update({ is_current: false })
+        .eq('user_id', userId)
+        .neq('id', existingSessionByFingerprint.id);
+
       const { error: updateError } = await supabase
         .from('user_sessions')
         .update({
-          session_token: sessionToken, // Update token in case it changed
+          session_token: sessionToken,
           last_active_at: new Date().toISOString(),
           is_current: true,
           device_name: deviceName,
@@ -126,15 +133,11 @@ export const trackSession = async (): Promise<void> => {
         .eq('id', existingSessionByFingerprint.id);
 
       if (updateError) {
-        console.error('Error updating session by fingerprint:', updateError);
+        if (updateError.code !== '409' && (updateError as any).status !== 409) {
+          console.warn('Error updating session by fingerprint:', updateError);
+        }
         // Fall through to try by session token
       } else {
-        // Successfully updated, mark other sessions as not current
-        await supabase
-          .from('user_sessions')
-          .update({ is_current: false })
-          .eq('user_id', userId)
-          .neq('id', existingSessionByFingerprint.id);
         return;
       }
     }
@@ -148,11 +151,17 @@ export const trackSession = async (): Promise<void> => {
       .maybeSingle();
 
     if (existingSessionByToken) {
-      // Update existing session
+      // Clear is_current on others first to avoid 409 (unique partial index)
+      await supabase
+        .from('user_sessions')
+        .update({ is_current: false })
+        .eq('user_id', userId)
+        .neq('id', existingSessionByToken.id);
+
       const { error: updateError } = await supabase
         .from('user_sessions')
         .update({
-          device_fingerprint: deviceFingerprint, // Add fingerprint if missing
+          device_fingerprint: deviceFingerprint,
           last_active_at: new Date().toISOString(),
           is_current: true,
           device_name: deviceName,
@@ -165,7 +174,9 @@ export const trackSession = async (): Promise<void> => {
         .eq('id', existingSessionByToken.id);
 
       if (updateError) {
-        console.error('Error updating session:', updateError);
+        if (updateError.code !== '409' && (updateError as any).status !== 409) {
+          console.warn('Error updating session:', updateError);
+        }
         return;
       }
     } else {
@@ -177,7 +188,12 @@ export const trackSession = async (): Promise<void> => {
       if (insertError) {
         // If insert fails (e.g., 409 conflict), try to update instead
         if (insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('409')) {
-          // Try updating by device fingerprint
+          // Try updating by device fingerprint (clear is_current on others first to avoid 409)
+          await supabase
+            .from('user_sessions')
+            .update({ is_current: false })
+            .eq('user_id', userId);
+
           const { error: updateError } = await supabase
             .from('user_sessions')
             .update({
@@ -188,8 +204,8 @@ export const trackSession = async (): Promise<void> => {
             .eq('device_fingerprint', deviceFingerprint)
             .eq('user_id', userId);
 
-          if (updateError) {
-            console.error('Error updating session after conflict:', updateError);
+          if (updateError && updateError.code !== '409' && (updateError as any).status !== 409) {
+            console.warn('Error updating session after conflict:', updateError);
           }
         } else {
           console.error('Error inserting session:', {
@@ -364,6 +380,33 @@ export const api = {
                     weeklyReport: updated.weekly_report ?? true,
                 }
             };
+        },
+        /** Request an email change. Supabase sends a confirmation link to the new email; the change takes effect after the user confirms. */
+        updateEmail: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
+            const userId = await getUserId();
+            if (!userId) return { success: false, error: 'Not authenticated' };
+
+            const trimmed = newEmail.trim().toLowerCase();
+            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { success: false, error: 'Please enter a valid email address' };
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email?.toLowerCase() === trimmed) {
+                return { success: false, error: 'This is already your current email' };
+            }
+
+            const { error } = await supabase.auth.updateUser({ email: trimmed });
+
+            if (error) {
+                const msg = error.message || 'Failed to update email';
+                if (msg.includes('already registered') || msg.includes('already in use')) {
+                    return { success: false, error: 'This email is already used by another account' };
+                }
+                return { success: false, error: msg };
+            }
+
+            return { success: true };
         },
         getSessions: async (): Promise<Session[]> => {
             const userId = await getUserId();
@@ -1326,7 +1369,9 @@ export const api = {
                 isTest: job.is_test || false,
                 scrapingStatus: job.scraping_status || null,
                 scrapingError: job.scraping_error || null,
-                scrapingAttemptedAt: job.scraping_attempted_at || null
+                scrapingSuggestion: job.scraping_suggestion || null,
+                scrapingAttemptedAt: job.scraping_attempted_at || null,
+                candidatesFound: job.candidates_found ?? 0,
             }));
 
             return {
@@ -1388,7 +1433,9 @@ export const api = {
                 isTest: data.is_test || false,
                 scrapingStatus: data.scraping_status || null,
                 scrapingError: data.scraping_error || null,
-                scrapingAttemptedAt: data.scraping_attempted_at || null
+                scrapingSuggestion: data.scraping_suggestion || null,
+                scrapingAttemptedAt: data.scraping_attempted_at || null,
+                candidatesFound: data.candidates_found ?? 0,
             };
         },
         create: async (jobData: Partial<Job>) => {
@@ -1410,22 +1457,7 @@ export const api = {
                     .eq('user_id', userId)
                     .single();
                 
-                const planName = settings?.billing_plan_name || 'Basic Plan';
-                const limits = getPlanLimits(planName);
-                
-                // Get current active jobs count
-                const { count: activeJobsCount } = await supabase
-                    .from('jobs')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('user_id', userId)
-                    .eq('status', 'Active');
-                
-                const currentActiveJobs = activeJobsCount ?? 0;
-                const maxActiveJobs = limits.maxActiveJobs;
-                
-                if (currentActiveJobs >= maxActiveJobs) {
-                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs. Please close or archive existing jobs before creating new active ones, or upgrade your plan.`);
-                }
+                // No active job limit — users can have unlimited active jobs.
             }
             
             const postedDate = jobStatus === 'Active' ? new Date().toISOString() : null;
@@ -1519,39 +1551,9 @@ export const api = {
                 }
             }
 
-            // If status is being changed to Active, check active jobs limit
-            if (updateData.status === 'Active' && oldStatus !== 'Active') {
-                const { getPlanLimits } = await import('./planLimits');
-                
-                // Get user's plan
-                const { data: settings } = await supabase
-                    .from('user_settings')
-                    .select('billing_plan_name')
-                    .eq('user_id', userId)
-                    .single();
-                
-                const planName = settings?.billing_plan_name || 'Basic Plan';
-                const limits = getPlanLimits(planName);
-                
-                // Get current active jobs count (excluding the current job being updated)
-                const { count: activeJobsCount } = await supabase
-                    .from('jobs')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('user_id', userId)
-                    .eq('status', 'Active')
-                    .neq('id', id); // Exclude current job
-                
-                const currentActiveJobs = (activeJobsCount ?? 0) + 1; // +1 for the job being activated
-                const maxActiveJobs = limits.maxActiveJobs;
-                
-                if (currentActiveJobs > maxActiveJobs) {
-                    throw new Error(`Your ${limits.name} plan allows up to ${limits.maxActiveJobs} active jobs. Please close or archive existing jobs before activating this one, or upgrade your plan.`);
-                }
-                
-                // Set posted_date if not set
-                if (!oldPostedDate) {
-                    updateData.posted_date = new Date().toISOString();
-                }
+            // Set posted_date when job is activated
+            if (updateData.status === 'Active' && oldStatus !== 'Active' && !oldPostedDate) {
+                updateData.posted_date = new Date().toISOString();
             }
 
             const { data, error } = await supabase
@@ -1641,6 +1643,131 @@ export const api = {
                 }
             }
         }
+    },
+    jobTemplates: {
+        list: async (): Promise<import('../types').JobTemplate[]> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { data, error } = await supabase
+                .from('job_templates')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return (data || []).map((r: any) => ({
+                id: r.id,
+                name: r.name,
+                title: r.title,
+                department: r.department || 'General',
+                location: r.location || '',
+                type: r.type || 'Full-time',
+                description: r.description || '',
+                experienceLevel: r.experience_level,
+                remote: r.remote ?? false,
+                skills: r.skills || [],
+                isBuiltin: r.is_builtin ?? false,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at,
+            }));
+        },
+        get: async (id: string): Promise<import('../types').JobTemplate | null> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { data, error } = await supabase
+                .from('job_templates')
+                .select('*')
+                .eq('id', id)
+                .eq('user_id', userId)
+                .single();
+            if (error || !data) return null;
+            const r = data as any;
+            return {
+                id: r.id,
+                name: r.name,
+                title: r.title,
+                department: r.department || 'General',
+                location: r.location || '',
+                type: r.type || 'Full-time',
+                description: r.description || '',
+                experienceLevel: r.experience_level,
+                remote: r.remote ?? false,
+                skills: r.skills || [],
+                isBuiltin: r.is_builtin ?? false,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at,
+            };
+        },
+        create: async (payload: { name: string; title: string; department?: string; location?: string; type?: 'Full-time' | 'Contract' | 'Part-time'; description?: string; experienceLevel?: string; remote?: boolean; skills?: string[] }): Promise<import('../types').JobTemplate> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { data, error } = await supabase
+                .from('job_templates')
+                .insert({
+                    user_id: userId,
+                    name: payload.name,
+                    title: payload.title,
+                    department: payload.department || 'General',
+                    location: payload.location || null,
+                    type: payload.type || 'Full-time',
+                    description: payload.description || '',
+                    experience_level: payload.experienceLevel || null,
+                    remote: payload.remote ?? false,
+                    skills: payload.skills || [],
+                    is_builtin: false,
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            const r = data as any;
+            return {
+                id: r.id,
+                name: r.name,
+                title: r.title,
+                department: r.department || 'General',
+                location: r.location || '',
+                type: r.type || 'Full-time',
+                description: r.description || '',
+                experienceLevel: r.experience_level,
+                remote: r.remote ?? false,
+                skills: r.skills || [],
+                isBuiltin: r.is_builtin ?? false,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at,
+            };
+        },
+        createFromJob: async (jobId: string, templateName: string): Promise<import('../types').JobTemplate> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { data: job, error: jobErr } = await supabase
+                .from('jobs')
+                .select('title, department, location, type, description, experience_level, remote, skills')
+                .eq('id', jobId)
+                .eq('user_id', userId)
+                .single();
+            if (jobErr || !job) throw new Error('Job not found');
+            const j = job as any;
+            return api.jobTemplates.create({
+                name: templateName,
+                title: j.title,
+                department: j.department,
+                location: j.location,
+                type: j.type,
+                description: j.description,
+                experienceLevel: j.experience_level,
+                remote: j.remote,
+                skills: j.skills || [],
+            });
+        },
+        delete: async (id: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { error } = await supabase
+                .from('job_templates')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', userId);
+            if (error) throw error;
+        },
     },
     candidates: {
         create: async (jobId: string, candidateData: {
@@ -1993,6 +2120,14 @@ export const api = {
                         throw updateError;
                     }
 
+                    // Notify job owner that a CV was submitted (apply is public so recruiter is job.user_id)
+                    try {
+                        const { notifyJobEvent } = await import('./notificationHelpers');
+                        await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
+                    } catch (notifError) {
+                        console.error('Error creating CV submitted notification:', notifError);
+                    }
+
                     // If moved to Screening, execute workflows if configured (optional - won't fail if no workflow)
                     // Skip if screening email was already sent to prevent duplicates
                     if (shouldMoveToScreening) {
@@ -2078,12 +2213,12 @@ export const api = {
                     }
                     // If re-upload fails, candidate still has temp URL - acceptable for MVP
 
-                    // Notify recruiter
+                    // Notify job owner that a CV was submitted (apply is public so recruiter is job.user_id)
                     try {
-                        const { logCandidateAdded } = await import('./activityLogger');
-                        await logCandidateAdded(applicationData.name);
-                    } catch (logError) {
-                        console.error('Error logging candidate addition:', logError);
+                        const { notifyJobEvent } = await import('./notificationHelpers');
+                        await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
+                    } catch (notifError) {
+                        console.error('Error creating CV submitted notification:', notifError);
                     }
 
                     // Execute workflows for Screening stage if workflow is configured (optional)
@@ -2137,11 +2272,11 @@ export const api = {
 
             if (error) throw error;
 
-            // Get unique job IDs to fetch job skills (exclude closed jobs)
+            // Get unique job IDs to fetch job skills and titles (exclude closed jobs)
             const jobIds = [...new Set((data || []).map(c => c.job_id))];
             const { data: jobs } = await supabase
                 .from('jobs')
-                .select('id, skills, status')
+                .select('id, title, skills, status')
                 .in('id', jobIds)
                 .neq('status', 'Closed');
             
@@ -2151,12 +2286,51 @@ export const api = {
             
             const jobsMap = new Map((jobs || []).map(j => [j.id, j]));
 
+            // Cross-job duplicate flagging: for candidates with linkedin_url, find other jobs (same user) with same profile
+            const linkedinUrls = [...new Set((filteredCandidates as any[]).map(c => c.linkedin_url).filter(Boolean))] as string[];
+            let alsoInMap = new Map<string, { jobId: string; jobTitle: string }[]>();
+            if (linkedinUrls.length > 0) {
+                const { data: dupRows } = await supabase
+                    .from('candidates')
+                    .select('id, job_id, linkedin_url')
+                    .eq('user_id', userId)
+                    .in('linkedin_url', linkedinUrls);
+                if (dupRows && dupRows.length > 0) {
+                    const otherJobIds = [...new Set((dupRows as any[]).map((r: any) => r.job_id))];
+                    const missingJobIds = otherJobIds.filter(jid => !jobsMap.has(jid));
+                    if (missingJobIds.length > 0) {
+                        const { data: extraJobs } = await supabase
+                            .from('jobs')
+                            .select('id, title')
+                            .in('id', missingJobIds);
+                        (extraJobs || []).forEach((j: any) => jobsMap.set(j.id, j));
+                    }
+                    const byUrl = new Map<string, { id: string; jobId: string }[]>();
+                    for (const row of dupRows as any[]) {
+                        const list = byUrl.get(row.linkedin_url) || [];
+                        list.push({ id: row.id, jobId: row.job_id });
+                        byUrl.set(row.linkedin_url, list);
+                    }
+                    for (const c of filteredCandidates as any[]) {
+                        if (!c.linkedin_url) continue;
+                        const list = byUrl.get(c.linkedin_url) || [];
+                        const other = list.filter(x => x.jobId !== c.job_id);
+                        if (other.length === 0) continue;
+                        const titles = other.map(x => ({
+                            jobId: x.jobId,
+                            jobTitle: (jobsMap.get(x.jobId) as any)?.title || 'Other job'
+                        }));
+                        alsoInMap.set(c.id, titles);
+                    }
+                }
+            }
+
             // Calculate scores for candidates without scores but with skills
             // Fix N+1 query: Batch calculate scores instead of individual queries
             // Import cvParser once at the top level
             const { calculateBasicMatchScore } = await import('./cvParser');
             
-            const candidatesWithScores = (filteredCandidates || []).map((candidate) => {
+            const candidatesWithScores = (filteredCandidates || []).map((candidate: any) => {
                 let aiMatchScore = candidate.ai_match_score;
                 
                 // If no score but has skills, calculate one using already-fetched job data
@@ -2194,7 +2368,9 @@ export const api = {
                 workExperience: candidate.work_experience || [],
                 projects: candidate.projects || [],
                 portfolioUrls: candidate.portfolio_urls || {},
-                profileUrl: candidate.profile_url
+                profileUrl: candidate.profile_url,
+                linkedInUrl: candidate.linkedin_url || undefined,
+                alsoInJobTitles: alsoInMap.get(candidate.id) || undefined
             };
             });
             
@@ -2725,7 +2901,13 @@ export const api = {
                 })
                 .eq('id', candidateId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+                // Unique constraint (job_id, email): this email is already registered for this job
+                if (updateError.code === '23505' || (updateError.message && updateError.message.includes('idx_candidates_job_email_unique'))) {
+                    throw new Error('This email is already registered for this position. Please use a different email or contact the recruiter if you believe this is an error.');
+                }
+                throw updateError;
+            }
 
             // Execute Screening workflow to send email with CV upload link
             // This happens after email is registered, so they can receive the workflow email
@@ -3406,6 +3588,116 @@ export const api = {
 
             return api.interviews.getCalendar(today, endDateStr, { status: 'Scheduled' });
         },
+        /** Create in-app notifications for past interviews that have no feedback yet (idempotent – skips if already notified). Call on app load to remind user to add feedback. */
+        ensureFeedbackReminders: async (): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            const { data: interviewsData } = await supabase
+                .from('interviews')
+                .select('id, date, time, duration_minutes, job_title, candidate_id')
+                .eq('user_id', userId)
+                .eq('status', 'Scheduled');
+
+            if (!interviewsData?.length) return;
+
+            const candidateIds = [...new Set(interviewsData.map((i: any) => i.candidate_id))];
+            const { data: candidatesData } = await supabase
+                .from('candidates')
+                .select('id, name')
+                .in('id', candidateIds);
+            const candidateMap = new Map((candidatesData || []).map((c: any) => [c.id, c]));
+
+            const { data: feedbackRows } = await supabase
+                .from('interview_feedback')
+                .select('interview_id')
+                .eq('user_id', userId);
+            const hasFeedbackIds = new Set((feedbackRows || []).map((r: any) => r.interview_id));
+
+            const { data: existingNotifs } = await supabase
+                .from('notifications')
+                .select('desc')
+                .eq('user_id', userId)
+                .eq('type', 'interview_feedback_reminder');
+            const alreadyNotifiedIds = new Set<string>();
+            (existingNotifs || []).forEach((n: any) => {
+                const match = (n.desc || '').match(/\[i:([^\]]+)\]/);
+                if (match) alreadyNotifiedIds.add(match[1]);
+            });
+
+            const now = Date.now();
+            const { createNotification } = await import('./notificationHelpers');
+
+            for (const inv of interviewsData as any[]) {
+                if (hasFeedbackIds.has(inv.id) || alreadyNotifiedIds.has(inv.id)) continue;
+                const durationMin = (inv.duration_minutes != null ? inv.duration_minutes : 60);
+                const start = new Date(`${inv.date}T${inv.time}`).getTime();
+                const end = start + durationMin * 60 * 1000;
+                if (end >= now) continue;
+
+                const candidateName = candidateMap.get(inv.candidate_id)?.name || 'Candidate';
+                const title = 'Add interview feedback';
+                const desc = `Add feedback for ${candidateName} – ${inv.job_title} [i:${inv.id}]`;
+                try {
+                    await createNotification(userId, 'interview_feedback_reminder', title, desc);
+                    alreadyNotifiedIds.add(inv.id);
+                } catch (e) {
+                    console.error('Error creating feedback reminder notification:', e);
+                }
+            }
+        },
+        /** Create in-app notifications for interviews starting soon (within next 24h). Idempotent – at most one reminder per interview. */
+        ensureUpcomingInterviewReminders: async (): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            const { data: interviewsData } = await supabase
+                .from('interviews')
+                .select('id, date, time, job_title, candidate_id')
+                .eq('user_id', userId)
+                .eq('status', 'Scheduled');
+
+            if (!interviewsData?.length) return;
+
+            const candidateIds = [...new Set(interviewsData.map((i: any) => i.candidate_id))];
+            const { data: candidatesData } = await supabase
+                .from('candidates')
+                .select('id, name')
+                .in('id', candidateIds);
+            const candidateMap = new Map((candidatesData || []).map((c: any) => [c.id, c]));
+
+            const { data: existingNotifs } = await supabase
+                .from('notifications')
+                .select('desc')
+                .eq('user_id', userId)
+                .eq('type', 'interview_reminder');
+            const alreadyRemindedIds = new Set<string>();
+            (existingNotifs || []).forEach((n: any) => {
+                const match = (n.desc || '').match(/\[upcoming:i:([^\]]+)\]/);
+                if (match) alreadyRemindedIds.add(match[1]);
+            });
+
+            const now = Date.now();
+            const in24h = now + 24 * 60 * 60 * 1000;
+            const { createNotification } = await import('./notificationHelpers');
+
+            for (const inv of interviewsData as any[]) {
+                if (alreadyRemindedIds.has(inv.id)) continue;
+                const start = new Date(`${inv.date}T${inv.time}`).getTime();
+                if (start <= now || start > in24h) continue;
+
+                const candidateName = candidateMap.get(inv.candidate_id)?.name || 'Candidate';
+                const atStr = new Date(`${inv.date}T${inv.time}`).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                const title = 'Interview coming up';
+                const desc = `${candidateName} – ${inv.job_title} at ${atStr} [upcoming:i:${inv.id}]`;
+                try {
+                    await createNotification(userId, 'interview_reminder', title, desc);
+                    alreadyRemindedIds.add(inv.id);
+                } catch (e) {
+                    console.error('Error creating upcoming interview reminder:', e);
+                }
+            }
+        },
         // --- Interview Feedback ---
         getFeedback: async (interviewId: string): Promise<InterviewFeedback | null> => {
             const userId = await getUserId();
@@ -3724,17 +4016,56 @@ export const api = {
                 subscriptionPeriodEnd: data?.subscription_current_period_end || null
             };
         },
+        getScrapeUsage: async (): Promise<{ used: number; limit: number; remaining: number; resetDate: string; allowed: boolean; message?: string }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const [{ data: usageData, error: usageError }, { data: settingsData }] = await Promise.all([
+                supabase.rpc('get_scrape_usage', { p_user_id: userId }),
+                supabase.from('user_settings').select('billing_plan_name').eq('user_id', userId).single(),
+            ]);
+            if (usageError) throw usageError;
+            let used = usageData?.[0]?.used ?? 0;
+            let resetDate = usageData?.[0]?.reset_date ?? new Date().toISOString();
+            const planName = settingsData?.billing_plan_name || 'Basic Plan';
+            const limit = getMonthlyScrapeLimit(planName);
+
+            // If stored reset date is in the past, refresh from Stripe so UI shows current period end (fixes stale "resets Jan 26" after renewal)
+            const resetAsDate = new Date(resetDate);
+            if (resetAsDate.getTime() < Date.now() && settingsData?.billing_plan_name) {
+                try {
+                    const { data: billingData } = await supabase.functions.invoke('get-billing-details', { body: {} });
+                    const sub = (typeof billingData === 'string' ? (() => { try { return JSON.parse(billingData); } catch { return null; } })() : billingData)?.subscription;
+                    if (sub?.currentPeriodEnd) {
+                        const periodEnd = new Date(sub.currentPeriodEnd);
+                        if (periodEnd.getTime() > Date.now()) resetDate = sub.currentPeriodEnd;
+                    }
+                } catch (_) {
+                    // Keep existing resetDate if refresh fails
+                }
+            }
+
+            const check = canScrapeThisMonth(planName, used, resetDate);
+            return {
+                used,
+                limit,
+                remaining: check.remaining,
+                resetDate,
+                allowed: check.allowed,
+                message: check.message,
+            };
+        },
         getNotificationPreferences: async (): Promise<{
             emailNotifications: boolean;
             interviewScheduleUpdates: boolean;
             offerUpdates: boolean;
+            weeklyDigestEnabled: boolean;
         }> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
             const { data, error } = await supabase
                 .from('user_settings')
-                .select('email_notifications, interview_schedule_updates, offer_updates')
+                .select('email_notifications, interview_schedule_updates, offer_updates, weekly_digest_enabled')
                 .eq('user_id', userId)
                 .single();
 
@@ -3744,12 +4075,14 @@ export const api = {
                 emailNotifications: data?.email_notifications ?? true,
                 interviewScheduleUpdates: data?.interview_schedule_updates ?? true,
                 offerUpdates: data?.offer_updates ?? true,
+                weeklyDigestEnabled: data?.weekly_digest_enabled ?? false,
             };
         },
         updateNotificationPreferences: async (preferences: {
             emailNotifications?: boolean;
             interviewScheduleUpdates?: boolean;
             offerUpdates?: boolean;
+            weeklyDigestEnabled?: boolean;
         }): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -3764,6 +4097,9 @@ export const api = {
             if (preferences.offerUpdates !== undefined) {
                 updateData.offer_updates = preferences.offerUpdates;
             }
+            if (preferences.weeklyDigestEnabled !== undefined) {
+                updateData.weekly_digest_enabled = preferences.weeklyDigestEnabled;
+            }
 
             const { error } = await supabase
                 .from('user_settings')
@@ -3775,6 +4111,51 @@ export const api = {
                 });
 
             if (error) throw error;
+        },
+        /** Update last_seen_at; create inactivity nudge if user was away 7+ days. Silently no-op if migration not run (e.g. 400). */
+        recordSeen: async (): Promise<void> => {
+            try {
+                const userId = await getUserId();
+                if (!userId) return;
+
+                const { data: prev } = await supabase
+                    .from('user_settings')
+                    .select('last_seen_at')
+                    .eq('user_id', userId)
+                    .single();
+
+                const now = new Date().toISOString();
+                const { error: upsertError } = await supabase
+                    .from('user_settings')
+                    .upsert({ user_id: userId, last_seen_at: now }, { onConflict: 'user_id' });
+                if (upsertError) return; // e.g. column last_seen_at missing
+
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                const prevSeen = prev?.last_seen_at ? new Date(prev.last_seen_at) : null;
+                if (prevSeen && prevSeen < sevenDaysAgo) {
+                    const { data: existing } = await supabase
+                        .from('notifications')
+                        .select('id')
+                        .eq('user_id', userId)
+                        .eq('type', 'inactivity_nudge')
+                        .gte('created_at', sevenDaysAgo.toISOString())
+                        .limit(1)
+                        .maybeSingle();
+                    if (!existing) {
+                        await supabase.from('notifications').insert({
+                            user_id: userId,
+                            title: 'Welcome back',
+                            desc: "You haven't been active for a while. Check your pipeline and jobs to catch up.",
+                            type: 'inactivity_nudge',
+                            category: 'system',
+                            unread: true,
+                        });
+                    }
+                }
+            } catch (_) {
+                // Column or table missing (migration not run) – avoid breaking dashboard
+            }
         },
         getComplianceSettings: async (): Promise<{
             dataRetentionPeriod: string;
@@ -3917,9 +4298,7 @@ export const api = {
             if (error && error.code !== 'PGRST116') throw error;
 
             return {
-                maxActiveJobs: data?.max_active_jobs || 10,
                 defaultJobDuration: data?.default_job_duration || 30,
-                maxCandidatesPerJob: data?.max_candidates_per_job || 50,
                 autoDeleteJobs: data?.auto_delete_jobs || false
             };
         },
@@ -4145,59 +4524,17 @@ export const api = {
         /**
          * Check if user has AI analysis quota remaining
          */
-        hasAiAnalysisQuota: async (usedThisMonth: number): Promise<{ allowed: boolean; maxAllowed: number; remaining: number; message?: string }> => {
-            const plan = await api.settings.getPlan();
-            const limits = getPlanLimits(plan.name);
-            const maxAllowed = limits.maxAiAnalysisPerMonth;
-            const remaining = maxAllowed - usedThisMonth;
-            
-            if (remaining > 0) {
-                return { allowed: true, maxAllowed, remaining };
-            }
-            
-            const isTopPlan = limits.name === 'Professional';
-            const message = isTopPlan
-                ? `You've reached your monthly limit of ${maxAllowed} AI analyses. Your quota will reset next month.`
-                : `Your ${limits.name} plan allows ${maxAllowed} AI analyses per month. Upgrade to Professional for ${getPlanLimits('Professional').maxAiAnalysisPerMonth} AI analyses per month.`;
-            
-            return {
-                allowed: false,
-                maxAllowed,
-                remaining: 0,
-                message
-            };
+        hasAiAnalysisQuota: async (_usedThisMonth: number): Promise<{ allowed: boolean; maxAllowed: number; remaining: number; message?: string }> => {
+            // AI analysis is unlimited — no quota enforced
+            return { allowed: true, maxAllowed: Infinity, remaining: Infinity };
         },
         
         /**
          * Get user's AI analysis usage for current month
          */
         getAiAnalysisUsage: async (): Promise<{ used: number; max: number; remaining: number }> => {
-            const userId = await getUserId();
-            if (!userId) throw new Error('Not authenticated');
-            
-            const plan = await api.settings.getPlan();
-            const limits = getPlanLimits(plan.name);
-            
-            // Get current month's usage from user_settings
-            const { data } = await supabase
-                .from('user_settings')
-                .select('ai_analysis_count, ai_analysis_reset_date')
-                .eq('user_id', userId)
-                .single();
-            
-            const resetDate = data?.ai_analysis_reset_date ? new Date(data.ai_analysis_reset_date) : null;
-            const now = new Date();
-            
-            // Reset if it's a new month
-            let used = 0;
-            if (resetDate && resetDate.getMonth() === now.getMonth() && resetDate.getFullYear() === now.getFullYear()) {
-                used = data?.ai_analysis_count || 0;
-            }
-            
-            const max = limits.maxAiAnalysisPerMonth;
-            const remaining = Math.max(0, max - used);
-            
-            return { used, max, remaining };
+            // AI analysis is unlimited — return a placeholder
+            return { used: 0, max: Infinity, remaining: Infinity };
         }
     },
     workflows: {

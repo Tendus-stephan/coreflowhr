@@ -75,8 +75,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 if (preSelectedCandidate.stage === 'Interview') {
                     setSelectedCandidate(preSelectedCandidate);
                 } else {
-                    alert('Only candidates in the Interview stage can have interviews scheduled.');
                     setSelectedCandidate(null);
+                    onClose();
+                    return;
                 }
             } else {
                 setSelectedCandidate(null);
@@ -461,7 +462,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     </div>
                                 </div>
                                 {!preSelectedCandidate && (
-                                    <button onClick={() => setSelectedCandidate(null)} className="text-xs font-medium text-gray-500 hover:text-red-600 transition-colors">Change</button>
+                                    <button onClick={() => setSelectedCandidate(null)} className="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">Change</button>
                                 )}
                             </div>
                         ) : (

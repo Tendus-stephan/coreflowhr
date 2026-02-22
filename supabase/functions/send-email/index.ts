@@ -231,8 +231,10 @@ serve(async (req) => {
       );
     }
 
-    // Check if content already contains HTML tags (more robust detection)
-    const contentStr = String(content);
+    // Normalize literal \n and \t (e.g. from templates or AI) so they render as line breaks
+    const contentStr = String(content)
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t');
     // Match common HTML tags: <a>, <p>, <br>, <div>, <span>, <strong>, <em>, <b>, <i>, <u>, <ul>, <ol>, <li>, <h1-6>, <img>, etc.
     // Also match tags with attributes like <a href=...> or <p style=...>
     const htmlTagPattern = /<(a|p|br|div|span|strong|em|b|i|u|ul|ol|li|h[1-6]|img|table|tr|td|th|thead|tbody|style|link|script)[\s>\/]|<\/[a-z]+>/i;

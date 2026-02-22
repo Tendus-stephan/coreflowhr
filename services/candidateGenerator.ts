@@ -267,7 +267,7 @@ export function generateCandidate(job: {
   title: string;
   skills: string[];
   location: string;
-  experienceLevel: string;
+  experienceLevel?: string;
   company?: string;
   description?: string;
 }): GeneratedCandidate {
@@ -282,13 +282,13 @@ export function generateCandidate(job: {
   // Generate location (use job location or random city)
   const location = job.location || CITIES[Math.floor(Math.random() * CITIES.length)];
   
-  // Generate experience based on job requirements
-  let experience = 2;
+  // Generate experience (experience level removed from site; use mid-level range as default)
+  let experience = 2 + Math.floor(Math.random() * 4); // 2-6 years default
   if (job.experienceLevel?.includes('Senior') || job.experienceLevel?.includes('5+')) {
     experience = 5 + Math.floor(Math.random() * 5); // 5-10 years
   } else if (job.experienceLevel?.includes('Mid') || job.experienceLevel?.includes('2-5')) {
     experience = 2 + Math.floor(Math.random() * 4); // 2-6 years
-  } else {
+  } else if (job.experienceLevel?.includes('Entry') || job.experienceLevel?.includes('0-2')) {
     experience = Math.floor(Math.random() * 3); // 0-3 years
   }
   
@@ -367,7 +367,7 @@ export async function generateCandidates(
     title: string;
     skills: string[];
     location: string;
-    experienceLevel: string;
+    experienceLevel?: string;
     company?: string;
     description?: string;
   },

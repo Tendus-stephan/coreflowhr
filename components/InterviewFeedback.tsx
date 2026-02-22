@@ -129,7 +129,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
     return (
         <div className="space-y-4">
             {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                     {error}
                 </div>
             )}

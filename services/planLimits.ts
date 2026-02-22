@@ -1,150 +1,109 @@
 /**
  * Plan-based limits and privileges configuration
- * Defines sourcing limits, features, and privileges for each subscription plan
+ * Two limits only: how many jobs can be sourced per month, and how many candidates per scrape.
  */
 
 export type PlanName = 'Basic' | 'Professional';
 
 export interface PlanLimits {
   name: PlanName;
-  maxCandidatesPerJob: number;
-  maxActiveJobs: number;
-  maxCandidatesPerMonth: number;
-  maxAiAnalysisPerMonth: number;
-  maxEmailWorkflows: number;
-  maxExportCandidates: number;
-  features: string[];
-  sourcingSources: string[]; // Which sources are available
+  /** How many sourcing actions (scrapes) the user can trigger per month */
+  maxJobsPerMonth: number;
+  /** How many candidates are fetched per single scrape action */
+  candidatesPerScrape: number;
+  sourcingSources: string[];
   aiAnalysis: boolean;
   aiEmailGeneration: boolean;
   advancedAnalytics: boolean;
   integrationsEnabled: boolean;
   prioritySupport: boolean;
   customEmailTemplates: boolean;
+  features: string[];
 }
 
 export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
   Basic: {
     name: 'Basic',
-    maxCandidatesPerJob: 100,
-    maxActiveJobs: 5,
-    maxCandidatesPerMonth: 1000,
-    maxAiAnalysisPerMonth: 30,
-    maxEmailWorkflows: 3,
-    maxExportCandidates: 50,
-    features: [
-      '5 active jobs',
-      'AI-ranked shortlists up to 100 candidates per role',
-      'Up to 1,000 sourced candidates per month',
-      '30 AI analyses per month',
-      '3 email workflows',
-      'AI-powered candidate matching',
-      'Email templates',
-      'Basic analytics',
-      'Email support',
-    ],
-    sourcingSources: ['linkedin'],
+    maxJobsPerMonth: 10,
+    candidatesPerScrape: 25,
+    sourcingSources: ['profiles'],
     aiAnalysis: true,
     aiEmailGeneration: false,
     advancedAnalytics: false,
     integrationsEnabled: false,
     prioritySupport: false,
     customEmailTemplates: false,
+    features: [
+      'Source candidates for up to 10 jobs per month',
+      '25 candidates per sourcing run',
+      'AI-powered candidate matching',
+      'Email templates',
+      'Basic analytics',
+      'Email support',
+    ],
   },
   Professional: {
     name: 'Professional',
-    maxCandidatesPerJob: 300,
-    maxActiveJobs: 25,
-    maxCandidatesPerMonth: 4000,
-    maxAiAnalysisPerMonth: 100,
-    maxEmailWorkflows: 10,
-    maxExportCandidates: 500,
-    features: [
-      '15 active jobs',
-      '100 candidates per job',
-      '2,000 candidates per month',
-      '100 AI analyses per month',
-      '10 email workflows',
-      'AI email generation',
-      'Advanced analytics & reports',
-      'Integrations (Google Calendar, Meet, Teams)',
-      'Priority support',
-    ],
-    sourcingSources: ['linkedin'],
+    maxJobsPerMonth: 50,
+    candidatesPerScrape: 50,
+    sourcingSources: ['profiles'],
     aiAnalysis: true,
     aiEmailGeneration: true,
     advancedAnalytics: true,
     integrationsEnabled: true,
     prioritySupport: true,
     customEmailTemplates: true,
+    features: [
+      'Source candidates for up to 50 jobs per month',
+      '50 candidates per sourcing run',
+      'AI email generation',
+      'Advanced analytics & reports',
+      'Integrations (Google Calendar, Meet, Teams)',
+      'Priority support',
+    ],
   },
 };
 
-/**
- * Get plan limits for a given plan name
- */
 export function getPlanLimits(planName: string | null | undefined): PlanLimits {
-  // Normalize plan name
   const normalized = planName?.toLowerCase() || 'basic';
-  
   if (normalized.includes('professional') || normalized.includes('pro')) {
     return PLAN_LIMITS.Professional;
-  } else {
-    // Default to Basic plan
-    return PLAN_LIMITS.Basic;
   }
+  return PLAN_LIMITS.Basic;
 }
 
-/**
- * Check if a plan allows a certain number of candidates per job
- */
-export function canSourceCandidates(
-  planName: string | null | undefined,
-  requestedCount: number
-): { allowed: boolean; maxAllowed: number; message?: string } {
-  const limits = getPlanLimits(planName);
-  const maxAllowed = limits.maxCandidatesPerJob;
-
-  if (requestedCount <= maxAllowed) {
-    return { allowed: true, maxAllowed };
-  }
-
-  return {
-    allowed: false,
-    maxAllowed,
-    message: `Your ${limits.name} plan allows up to ${maxAllowed} candidates per job. Upgrade to Professional for up to ${PLAN_LIMITS.Professional.maxCandidatesPerJob} candidates per job.`,
-  };
-}
-
-/**
- * Get available sourcing sources for a plan
- */
 export function getAvailableSources(planName: string | null | undefined): string[] {
-  const limits = getPlanLimits(planName);
-  return limits.sourcingSources;
+  return getPlanLimits(planName).sourcingSources;
 }
 
-/**
- * Check if plan has a specific feature
- */
 export function hasFeature(
   planName: string | null | undefined,
-  feature: keyof Omit<PlanLimits, 'name' | 'maxCandidatesPerJob' | 'maxActiveJobs' | 'maxCandidatesPerMonth' | 'maxAiAnalysisPerMonth' | 'maxEmailWorkflows' | 'maxExportCandidates' | 'features' | 'sourcingSources'>
+  feature: keyof Omit<PlanLimits, 'name' | 'maxJobsPerMonth' | 'candidatesPerScrape' | 'features' | 'sourcingSources'>
 ): boolean {
-  const limits = getPlanLimits(planName);
-  return limits[feature] === true;
+  return getPlanLimits(planName)[feature] === true;
 }
 
-/**
- * Get plan upgrade message
- */
-export function getUpgradeMessage(
-  currentPlan: string | null | undefined,
-  targetPlan: PlanName = 'Professional'
-): string {
-  const current = getPlanLimits(currentPlan);
-  const target = PLAN_LIMITS[targetPlan];
-
-  return `Upgrade to ${target.name} to unlock ${target.maxCandidatesPerJob} candidates per job and more features.`;
+export function getMonthlyScrapeLimit(planName: string | null | undefined): number {
+  return getPlanLimits(planName).maxJobsPerMonth;
 }
 
+export function canScrapeThisMonth(
+  planName: string | null | undefined,
+  scrapesUsed: number,
+  renewalDate?: string | null
+): { allowed: boolean; remaining: number; limit: number; message?: string } {
+  const limit = getMonthlyScrapeLimit(planName);
+  const remaining = Math.max(0, limit - scrapesUsed);
+  if (scrapesUsed < limit) {
+    return { allowed: true, remaining, limit };
+  }
+  const renewalText = renewalDate
+    ? new Date(renewalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'your cycle renews';
+  return {
+    allowed: false,
+    remaining: 0,
+    limit,
+    message: `You've used your ${limit} sourcing runs this month. Upgrade to Pro or wait until ${renewalText}.`,
+  };
+}

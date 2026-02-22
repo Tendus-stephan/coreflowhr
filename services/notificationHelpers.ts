@@ -141,6 +141,23 @@ export const notifySystemEvent = async (
     await createNotification(userId, event, title, desc);
 };
 
+/**
+ * Sourcing (scrape) complete or failed – for in-app notification after candidate sourcing runs
+ */
+export const notifySourcingEvent = async (
+    userId: string,
+    event: 'complete' | 'failed',
+    jobTitle: string,
+    additionalInfo?: string
+): Promise<void> => {
+    const type: NotificationType = event === 'complete' ? 'sourcing_complete' : 'sourcing_failed';
+    const title = event === 'complete' ? 'Sourcing complete' : 'Sourcing failed';
+    const desc = event === 'complete'
+        ? `${jobTitle}: ${additionalInfo || 'Candidates added to pipeline.'}`
+        : `${jobTitle}: ${additionalInfo || 'Check the job for suggestions.'}`;
+    await createNotification(userId, type, title, desc);
+};
+
 
 
 

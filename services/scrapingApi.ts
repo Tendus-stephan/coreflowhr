@@ -4,6 +4,38 @@
  */
 
 import { supabase } from './supabase';
+import { getMonthlyScrapeLimit, canScrapeThisMonth } from './planLimits';
+
+export interface ScrapeUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  resetDate: string;
+}
+
+export async function getScrapeUsage(planName: string | null | undefined): Promise<ScrapeUsage> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .rpc('get_scrape_usage', { p_user_id: user.id });
+
+  const used = data?.[0]?.used ?? 0;
+  const resetDate = data?.[0]?.reset_date ?? new Date().toISOString();
+  const limit = getMonthlyScrapeLimit(planName);
+
+  return { used, limit, remaining: Math.max(0, limit - used), resetDate };
+}
+
+export async function incrementScrapeCount(): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .rpc('increment_scrape_count', { p_user_id: user.id });
+
+  return data ?? 0;
+}
 
 export interface ScrapeOptions {
   sources: string[];
@@ -98,10 +130,18 @@ export async function scrapeCandidates(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Scraping failed' }));
-          throw new Error(errorData.userMessage || errorData.error || 'Scraping failed');
+          const err = new Error(errorData.userMessage || errorData.error || 'Scraping failed');
+          (err as any).suggestion = errorData.suggestion ?? null;
+          throw err;
         }
 
         const data = await response.json();
+        // In dev we call the local scraper; edge function does not run, so increment count here
+        if (isDevelopment) {
+          try {
+            await incrementScrapeCount();
+          } catch (_) {}
+        }
         return data;
       } catch (fetchError: any) {
         clearTimeout(timeoutId);

@@ -8,9 +8,9 @@ import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { CandidateModal } from '../components/CandidateModal';
 import { api, Notification } from '../services/api';
-import { scrapeCandidates } from '../services/scrapingApi';
+import { scrapeCandidates, getScrapeUsage } from '../services/scrapingApi';
 import { handleScrapingError, logScrapingError } from '../services/scrapingErrorHandler';
-import { getAvailableSources } from '../services/planLimits';
+import { getAvailableSources, canScrapeThisMonth, getPlanLimits } from '../services/planLimits';
 import { supabase } from '../services/supabase';
 
 // --- Job Settings Modal ---
@@ -106,8 +106,8 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
                     {saveMessage && (
                         <div className={`p-3 rounded-lg border ${
                             saveMessage.type === 'success' 
-                                ? 'bg-green-50 border-green-200 text-green-800' 
-                                : 'bg-red-50 border-red-200 text-red-800'
+                                ? 'bg-gray-100 border-gray-200 text-gray-800' 
+                                : 'bg-gray-100 border-gray-200 text-gray-800'
                         }`}>
                             <p className="text-sm font-medium">{saveMessage.text}</p>
                         </div>
@@ -465,7 +465,6 @@ const Jobs: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'Active' | 'Draft' | 'Closed' | 'All'>('Active');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedExperienceLevel, setSelectedExperienceLevel] = useState<string>('All Experience Levels');
   const [selectedJobType, setSelectedJobType] = useState<string>('All Job Types');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
@@ -474,6 +473,7 @@ const Jobs: React.FC = () => {
   const [jobToClose, setJobToClose] = useState<Job | null>(null);
   const [closingJob, setClosingJob] = useState(false);
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
+  const [scrapeUsage, setScrapeUsage] = useState<{ used: number; limit: number; remaining: number; resetDate?: string; allowed: boolean; message?: string } | null>(null);
   
   // Pagination & Actions State
   const [currentPage, setCurrentPage] = useState(1);
@@ -493,9 +493,10 @@ const Jobs: React.FC = () => {
         try {
             // Load all jobs including closed ones for the Jobs page
             // Fetch with large page size to get all jobs, then paginate client-side
-            const [jobsResult, n] = await Promise.all([
+            const [jobsResult, n, billingPlan] = await Promise.all([
                 api.jobs.list({ excludeClosed: false, page: 1, pageSize: API_PAGE_SIZE }), 
-                api.notifications.list()
+                api.notifications.list(),
+                api.settings.getPlan().catch(() => null)
             ]);
             // Handle paginated response
             const jobsData = jobsResult && typeof jobsResult === 'object' && 'data' in jobsResult 
@@ -505,6 +506,12 @@ const Jobs: React.FC = () => {
                     : [];
             setJobs(jobsData);
             setNotifications(n);
+
+            // Load scrape usage for display (remaining scrapes this billing cycle)
+            try {
+                const usage = await api.settings.getScrapeUsage();
+                setScrapeUsage({ used: usage.used, limit: usage.limit, remaining: usage.remaining, resetDate: usage.resetDate, allowed: usage.allowed, message: usage.message });
+            } catch (_) {}
             setLoading(false);
         } catch (error: any) {
             console.error('Error loading jobs:', {
@@ -547,19 +554,14 @@ const Jobs: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter jobs based on tab, search, experience level, and job type
+  // Filter jobs based on tab, search, and job type
   const filteredJobs = jobs.filter(job => {
       const matchesTab = activeTab === 'All' || job.status === activeTab;
       const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             job.location.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesExperience = selectedExperienceLevel === 'All Experience Levels' || 
-                                job.experienceLevel === selectedExperienceLevel ||
-                                (selectedExperienceLevel.includes('Entry') && job.experienceLevel?.includes('Entry')) ||
-                                (selectedExperienceLevel.includes('Mid') && job.experienceLevel?.includes('Mid')) ||
-                                (selectedExperienceLevel.includes('Senior') && job.experienceLevel?.includes('Senior'));
       const matchesJobType = selectedJobType === 'All Job Types' || 
                              job.type === selectedJobType;
-      return matchesTab && matchesSearch && matchesExperience && matchesJobType;
+      return matchesTab && matchesSearch && matchesJobType;
   });
 
   const counts = {
@@ -576,7 +578,21 @@ const Jobs: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
       setCurrentPage(1);
-  }, [activeTab, searchQuery, selectedExperienceLevel, selectedJobType]);
+  }, [activeTab, searchQuery, selectedJobType]);
+
+  // Poll every 5 s while any job is actively scraping so the banners update live
+  useEffect(() => {
+      const hasPending = jobs.some(j => j.scrapingStatus === 'pending');
+      if (!hasPending) return;
+      const id = setInterval(async () => {
+          try {
+              const result = await api.jobs.list({ excludeClosed: false, page: 1, pageSize: API_PAGE_SIZE });
+              const updated: Job[] = result?.data || (Array.isArray(result) ? result : []);
+              setJobs(updated);
+          } catch (_) {}
+      }, 5000);
+      return () => clearInterval(id);
+  }, [jobs]);
 
   // Actions
   const toggleActionMenu = (e: React.MouseEvent, jobId: string) => {
@@ -619,11 +635,22 @@ const Jobs: React.FC = () => {
       try {
           // Get user's plan to determine max candidates
           const billingPlan = await api.settings.getPlan();
-          const maxCandidates = billingPlan.candidatesLimit === 'Unlimited' 
-              ? 10 
-              : typeof billingPlan.candidatesLimit === 'number' 
-                  ? Math.min(10, billingPlan.candidatesLimit) 
-                  : 10;
+          const planLimits = getPlanLimits(billingPlan.name);
+          const maxCandidates = planLimits.candidatesPerScrape;
+
+          // Check monthly scrape limit (cap per billing cycle)
+          try {
+              const usage = await getScrapeUsage(billingPlan.name);
+              const monthlyCheck = canScrapeThisMonth(billingPlan.name, usage.used, usage.resetDate);
+              if (!monthlyCheck.allowed) {
+                  throw new Error(monthlyCheck.message || 'Monthly scrape limit reached.');
+              }
+          } catch (usageErr: any) {
+              if (usageErr?.message?.includes('Monthly scrape limit') || usageErr?.message?.includes('monthly scrapes') || usageErr?.message?.includes('Upgrade to Pro or wait')) {
+                  throw usageErr;
+              }
+              console.warn('Could not check monthly scrape usage:', usageErr);
+          }
 
           // Update scraping status to pending
           try {
@@ -653,7 +680,7 @@ const Jobs: React.FC = () => {
 
           // Scrape candidates
           const response = await scrapeCandidates(job.id, {
-              sources: availableSources.length > 0 ? availableSources : ['linkedin'],
+              sources: availableSources.length > 0 ? availableSources : ['profiles'],
               maxCandidates: maxCandidates
           });
 
@@ -715,18 +742,25 @@ const Jobs: React.FC = () => {
               const { playNotificationSound } = await import('../utils/soundUtils');
               playNotificationSound();
           }
+
+          // Refetch scrape usage so dashboard stays in sync
+          try {
+              const usage = await api.settings.getScrapeUsage();
+              setScrapeUsage({ used: usage.used, limit: usage.limit, remaining: usage.remaining, resetDate: usage.resetDate, allowed: usage.allowed, message: usage.message });
+          } catch (_) {}
       } catch (error: any) {
           // Handle error gracefully - never show Apify-specific errors
           const errorInfo = handleScrapingError(error);
           logScrapingError(job.id, errorInfo, { error });
 
-          // Update scraping status to failed
+          const suggestion = (error as any)?.suggestion ?? errorInfo.suggestion ?? null;
           try {
               await supabase
                   .from('jobs')
                   .update({ 
                       scraping_status: 'failed',
                       scraping_error: errorInfo.userMessage,
+                      scraping_suggestion: suggestion,
                       scraping_attempted_at: new Date().toISOString()
                   })
                   .eq('id', job.id);
@@ -739,12 +773,20 @@ const Jobs: React.FC = () => {
           // Update local state
           setJobs(prev => prev.map(j => 
               j.id === job.id 
-                  ? { ...j, scrapingStatus: 'failed' as const, scrapingError: errorInfo.userMessage }
+                  ? { ...j, scrapingStatus: 'failed' as const, scrapingError: errorInfo.userMessage, scrapingSuggestion: suggestion }
                   : j
           ));
 
-          // Show user-friendly error (never mentions Apify)
-          alert(errorInfo.userMessage);
+          // Show user-friendly error (preserve monthly limit message; include suggestion when present)
+          const isLimitError = error?.message?.includes('monthly scrapes') || error?.message?.includes('Upgrade to Pro or wait');
+          const alertMsg = isLimitError ? error.message : (errorInfo.userMessage + (errorInfo.suggestion ? '\n\nWhat to try: ' + errorInfo.suggestion : ''));
+          alert(alertMsg);
+          if (isLimitError) {
+              try {
+                  const usage = await api.settings.getScrapeUsage();
+                  setScrapeUsage(prev => prev ? { ...prev, ...usage } : { ...usage });
+              } catch (_) {}
+          }
       } finally {
           setRetryingJobId(null);
       }
@@ -837,6 +879,29 @@ const Jobs: React.FC = () => {
         <div>
             <h1 className="text-2xl font-bold text-gray-900">Your Active Job Postings</h1>
             <p className="text-gray-500 mt-1">Manage and source candidates for open roles.</p>
+            {scrapeUsage && (
+                <div className="flex flex-col gap-1 mt-2">
+                    <div className="flex items-center gap-2">
+                        <div className="h-1 w-32 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-gray-400 transition-all"
+                                style={{ width: `${Math.min(100, (scrapeUsage.used / scrapeUsage.limit) * 100)}%` }}
+                            />
+                        </div>
+                        <span className="text-xs text-gray-400">
+                            {scrapeUsage.used} / {scrapeUsage.limit} sourcing runs used
+                            {scrapeUsage.resetDate && new Date(scrapeUsage.resetDate).getTime() > Date.now() && (
+                                <span> · resets {new Date(scrapeUsage.resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            )}
+                        </span>
+                    </div>
+                    {!scrapeUsage.allowed && scrapeUsage.message && (
+                        <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-1 max-w-md">
+                            {scrapeUsage.message}
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
         <div className="flex gap-3 items-center">
             <div className="relative" ref={notificationRef}>
@@ -909,18 +974,6 @@ const Jobs: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                   />
               </div>
-              <div className="relative flex-1">
-                  <select 
-                      value={selectedExperienceLevel}
-                      onChange={(e) => setSelectedExperienceLevel(e.target.value)}
-                      className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                      <option value="All Experience Levels">All Experience Levels</option>
-                      <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
-                      <option value="Mid Level (2-5 years)">Mid Level (2-5 years)</option>
-                      <option value="Senior Level (5+ years)">Senior Level (5+ years)</option>
-                  </select>
-              </div>
               <div className="relative flex-1" style={{ position: 'relative' }}>
                   <select 
                       value={selectedJobType}
@@ -946,11 +999,7 @@ const Jobs: React.FC = () => {
       {/* Job List */}
       <div className="grid gap-4 flex-1 content-start">
         {currentJobs.map(job => (
-            <div key={job.id} className={`bg-white border rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 hover:shadow-md transition-all group relative ${
-                retryingJobId === job.id 
-                    ? 'border-blue-300 bg-blue-50/30' 
-                    : 'border-gray-200'
-            }`}>
+            <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 hover:shadow-md transition-all group relative">
                 <div className="flex-1 cursor-pointer" onClick={() => setSelectedJob(job)}>
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-black transition-colors">{job.title}</h3>
@@ -959,18 +1008,11 @@ const Jobs: React.FC = () => {
                         }`}>
                             {job.status}
                         </span>
-                        {/* Sourcing Loader Indicator */}
+                        {/* Sourcing Loader Indicator – shown only while the request is in-flight */}
                         {retryingJobId === job.id && (
-                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
                                 <Loader2 size={12} className="animate-spin" />
-                                <span>Sourcing...</span>
-                            </div>
-                        )}
-                        {/* Success Indicator */}
-                        {job.scrapingStatus === 'succeeded' && job.scrapingAttemptedAt && new Date(job.scrapingAttemptedAt) > new Date(Date.now() - 5000) && retryingJobId !== job.id && (
-                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
-                                <CheckCircle size={12} />
-                                <span>Sourcing complete</span>
+                                <span>Starting search…</span>
                             </div>
                         )}
                     </div>
@@ -991,25 +1033,109 @@ const Jobs: React.FC = () => {
                             <span>•</span>
                             Posted {new Date(job.postedDate).toLocaleDateString()}
                         </div>
+                        <div className="flex items-center gap-1.5 text-gray-600 font-medium">
+                            <Users size={14} />
+                            {job.candidatesFound != null && job.candidatesFound > 0
+                                ? `${job.candidatesFound} candidate${job.candidatesFound !== 1 ? 's' : ''}`
+                                : 'No candidates yet'}
+                        </div>
                     </div>
                     
-                    {/* Scraping Error Message */}
+                    {/* Pending: live progress banner */}
+                    {job.scrapingStatus === 'pending' && (
+                        <div className="mt-3 flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs border bg-gray-50 border-gray-200 text-gray-600">
+                            <Loader2 size={13} className="animate-spin flex-shrink-0" />
+                            <span>
+                                <span className="font-semibold">Searching for candidates…</span>{' '}
+                                {(job.candidatesFound ?? 0) > 0
+                                    ? <><span className="font-bold">{job.candidatesFound}</span>{' found so far'}</>
+                                    : 'Finding candidates…'}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Succeeded: summary banner with count + pipeline link */}
+                    {job.scrapingStatus === 'succeeded' && retryingJobId !== job.id && (
+                        <div className="mt-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-xs border bg-gray-50 border-gray-200 text-gray-700">
+                            <span className="flex items-center gap-1.5">
+                                <CheckCircle size={13} className="flex-shrink-0" />
+                                <span className="font-medium">
+                                    {job.candidatesFound ?? 0} candidate{(job.candidatesFound ?? 0) !== 1 ? 's' : ''} found
+                                </span>
+                                {job.scrapingError && (
+                                    <span className="opacity-70">· {job.scrapingError}</span>
+                                )}
+                            </span>
+                            <Link
+                                to={`/candidates?job=${job.id}`}
+                                className="flex-shrink-0 font-semibold hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                View Pipeline →
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* Failed / Partial: error banner with suggestion */}
                     {(job.scrapingStatus === 'failed' || job.scrapingStatus === 'partial') && job.scrapingError && (
-                        <div className={`mt-3 px-3 py-2 rounded-lg text-xs border ${
-                            job.scrapingStatus === 'partial' 
-                                ? 'bg-yellow-50 border-yellow-200 text-yellow-700' 
-                                : 'bg-red-50 border-red-200 text-red-700'
-                        }`}>
+                        <div className="mt-3 px-3 py-2 rounded-lg text-xs border bg-gray-50 border-gray-200 text-gray-700">
                             <span className="font-medium">
                                 {job.scrapingStatus === 'partial' ? 'Partial sourcing:' : 'Sourcing failed:'}
                             </span> {job.scrapingError}
+                            {job.scrapingSuggestion && (
+                                <div className="mt-2 pt-2 border-t border-current/20 rounded-md bg-white/50 px-2 py-1.5">
+                                    <span className="font-medium">What to try:</span> {job.scrapingSuggestion}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 <div className="flex items-center gap-6 mt-4 md:mt-0 w-full md:w-auto justify-between md:justify-end relative" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2 relative">
-                        {/* Retry Button for Failed/Partial Scraping */}
+                        {/* Idle: primary Find candidates CTA */}
+                        {!job.scrapingStatus && (
+                            <Button
+                                variant="black"
+                                size="sm"
+                                className="h-9"
+                                disabled={retryingJobId === job.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleRetryScraping(job);
+                                }}
+                            >
+                                {retryingJobId === job.id ? 'Starting…' : 'Find candidates'}
+                            </Button>
+                        )}
+
+                        {/* Pending: disabled in-progress indicator */}
+                        {job.scrapingStatus === 'pending' && retryingJobId !== job.id && (
+                            <Button variant="outline" size="sm" className="h-9 text-gray-500" disabled>
+                                <Loader2 size={13} className="animate-spin mr-1.5" />
+                                Searching…
+                            </Button>
+                        )}
+
+                        {/* Succeeded: secondary search-again option */}
+                        {job.scrapingStatus === 'succeeded' && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9"
+                                disabled={retryingJobId === job.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleRetryScraping(job);
+                                }}
+                            >
+                                {retryingJobId === job.id ? 'Starting…' : 'Search again'}
+                            </Button>
+                        )}
+
+                        {/* Failed / Partial: retry button */}
                         {(job.scrapingStatus === 'failed' || job.scrapingStatus === 'partial') && (
                             <Button 
                                 variant="outline" 
@@ -1082,7 +1208,7 @@ const Jobs: React.FC = () => {
                                 </button>
                                 <button 
                                     onClick={() => handleAction('delete', job)}
-                                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 font-medium transition-colors flex items-center gap-2"
+                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-800 font-medium transition-colors flex items-center gap-2"
                                 >
                                     <Trash2 size={14} /> Delete Job
                                 </button>

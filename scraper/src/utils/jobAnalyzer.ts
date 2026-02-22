@@ -6,7 +6,7 @@
 import { Job } from '../types';
 import { logger } from './logger';
 
-export type SourceType = 'linkedin' | 'github' | 'mightyrecruiter' | 'jobspider';
+export type SourceType = 'profiles' | 'github' | 'mightyrecruiter' | 'jobspider';
 
 export interface SourceRecommendation {
   source: SourceType;
@@ -123,7 +123,7 @@ export function isTechnicalJob(job: Job): boolean {
 export function recommendSources(
   job: Job,
   maxCandidates: number,
-  availableSources: SourceType[] = ['linkedin', 'github', 'mightyrecruiter', 'jobspider']
+  availableSources: SourceType[] = ['profiles', 'github', 'mightyrecruiter', 'jobspider']
 ): SourceRecommendation[] {
   const recommendations: SourceRecommendation[] = [];
   const isTechnical = isTechnicalJob(job);
@@ -138,7 +138,7 @@ export function recommendSources(
       return false;
     }
     // All other sources work for both technical and non-technical (resume databases)
-    return src === 'linkedin' || src === 'github' || src === 'mightyrecruiter' || src === 'jobspider';
+    return src === 'profiles' || src === 'github' || src === 'mightyrecruiter' || src === 'jobspider';
   });
 
   if (sources.length === 0) {
@@ -146,15 +146,14 @@ export function recommendSources(
     return [];
   }
 
-  // Calculate weighted distribution (LinkedIn gets more for comprehensive profiles)
+  // Weighted distribution: primary profile source gets most quota
   let totalWeight = 0;
   const sourceWeights: { source: SourceType; weight: number }[] = [];
   
   if (isTechnical) {
-    // Technical: LinkedIn (60%), GitHub (30%), Others (10%)
     sources.forEach(source => {
       let weight: number;
-      if (source === 'linkedin') {
+      if (source === 'profiles') {
         weight = 6;
       } else if (source === 'github') {
         weight = 3;
@@ -165,10 +164,9 @@ export function recommendSources(
       totalWeight += weight;
     });
   } else {
-    // Non-technical: LinkedIn (70%), Others (30%)
     sources.forEach(source => {
       let weight: number;
-      if (source === 'linkedin') {
+      if (source === 'profiles') {
         weight = 7;
       } else {
         weight = 3;
@@ -186,31 +184,29 @@ export function recommendSources(
     let reason: string;
 
     if (isTechnical) {
-      // Technical jobs: LinkedIn > GitHub > MightyRecruiter > JobSpider
-      if (source === 'linkedin') {
+      if (source === 'profiles') {
         priority = 4;
-        reason = 'LinkedIn provides comprehensive professional profiles with full work history, education, and skills (MOST comprehensive for tech roles)';
+        reason = 'Professional profile search with work history, education, and skills';
       } else if (source === 'github') {
         priority = 3;
-        reason = 'GitHub provides developer profiles with actual code and contributions (complementary to LinkedIn)';
+        reason = 'Developer profiles with code and contributions';
       } else if (source === 'mightyrecruiter') {
         priority = 2;
-        reason = 'MightyRecruiter has 21M+ resumes including technical professionals (FREE)';
+        reason = 'Resume database including technical professionals';
       } else if (source === 'jobspider') {
         priority = 1;
-        reason = 'JobSpider resume database includes technical job seekers (FREE)';
+        reason = 'Resume database with technical job seekers';
       }
     } else {
-      // Non-technical jobs: LinkedIn > MightyRecruiter > JobSpider (GitHub skipped)
-      if (source === 'linkedin') {
+      if (source === 'profiles') {
         priority = 3;
-        reason = 'LinkedIn is the primary source for non-technical roles - covers all industries';
+        reason = 'Professional profiles across all industries';
       } else if (source === 'mightyrecruiter') {
         priority = 2;
-        reason = 'MightyRecruiter has 21M+ resumes from all industries (FREE)';
+        reason = 'Resume database from all industries';
       } else if (source === 'jobspider') {
         priority = 1;
-        reason = 'JobSpider resume database includes job seekers from all industries (FREE)';
+        reason = 'Resume database with job seekers from all industries';
       }
     }
 
@@ -242,16 +238,16 @@ export function recommendSources(
 /**
  * Get the priority order of sources for a job (for fallback logic)
  */
-export function getSourcePriority(job: Job, availableSources: SourceType[] = ['linkedin', 'github', 'mightyrecruiter', 'jobspider']): SourceType[] {
+export function getSourcePriority(job: Job, availableSources: SourceType[] = ['profiles', 'github', 'mightyrecruiter', 'jobspider']): SourceType[] {
   const isTechnical = isTechnicalJob(job);
   
   if (isTechnical) {
     // Technical: LinkedIn → GitHub → MightyRecruiter → JobSpider
     // LinkedIn first because it's more comprehensive (work history, education, skills)
-    return (['linkedin', 'github', 'mightyrecruiter', 'jobspider'] as SourceType[]).filter(src => availableSources.includes(src));
+    return (['profiles', 'github', 'mightyrecruiter', 'jobspider'] as SourceType[]).filter(src => availableSources.includes(src));
   } else {
     // Non-technical: LinkedIn → MightyRecruiter → JobSpider (no GitHub)
-    return (['linkedin', 'mightyrecruiter', 'jobspider'] as SourceType[]).filter(src => availableSources.includes(src));
+    return (['profiles', 'mightyrecruiter', 'jobspider'] as SourceType[]).filter(src => availableSources.includes(src));
   }
 }
 

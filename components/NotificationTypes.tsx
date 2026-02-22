@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    UserPlus, FileText, Star, ArrowRight, Briefcase, CheckCircle, Clock, 
+    UserPlus, Users, FileText, Star, ArrowRight, Briefcase, CheckCircle, Clock, 
     AlertCircle, Zap, XCircle, TrendingUp, Search, Mail, FileCheck,
     Settings, Shield, Bell, Sparkles, Key, Link2, Calendar, CalendarX
 } from 'lucide-react';
@@ -40,7 +40,13 @@ export type NotificationType =
     | 'integration_connected'
     | 'integration_disconnected'
     | 'interview_scheduled'
+    | 'interview_feedback_reminder'
+    | 'interview_reminder'
     | 'job_expired'
+    | 'sourcing_complete'
+    | 'sourcing_failed'
+    | 'inactivity_nudge'
+    | 'weekly_digest'
     | 'system';
 
 export type NotificationCategory = 
@@ -67,8 +73,8 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     },
     cv_parsed: {
         icon: FileText,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'candidate'
     },
     candidate_graded: {
@@ -96,16 +102,52 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
         bgColor: 'bg-blue-50',
         category: 'job'
     },
+    interview_feedback_reminder: {
+        icon: FileCheck,
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        category: 'candidate'
+    },
+    interview_reminder: {
+        icon: Clock,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        category: 'job'
+    },
     job_expired: {
         icon: CalendarX,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'job'
+    },
+    sourcing_complete: {
+        icon: Users,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        category: 'automation'
+    },
+    sourcing_failed: {
+        icon: AlertCircle,
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        category: 'automation'
+    },
+    inactivity_nudge: {
+        icon: Bell,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        category: 'system'
+    },
+    weekly_digest: {
+        icon: FileText,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-50',
+        category: 'system'
     },
     assessment_completed: {
         icon: CheckCircle,
-        color: 'text-emerald-600',
-        bgColor: 'bg-emerald-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'job'
     },
     recruitment_reminder: {
@@ -123,14 +165,14 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     // Automation Activity
     workflow_success: {
         icon: Zap,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'automation'
     },
     workflow_failed: {
         icon: XCircle,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'automation'
     },
     ranking_updated: {
@@ -154,8 +196,8 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     },
     cv_inbound_parsed: {
         icon: FileCheck,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'communication'
     },
     candidate_replied: {
@@ -167,14 +209,14 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     // Offer Events
     offer_accepted: {
         icon: CheckCircle,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'job'
     },
     offer_declined: {
         icon: XCircle,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'job'
     },
     counter_offer_received: {
@@ -198,20 +240,20 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     },
     password_expiry: {
         icon: AlertCircle,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'system'
     },
     password_changed: {
         icon: Key,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'system'
     },
     '2fa_enabled': {
         icon: Shield,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'system'
     },
     '2fa_disabled': {
@@ -222,8 +264,8 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
     },
     integration_connected: {
         icon: Link2,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
         category: 'system'
     },
     integration_disconnected: {

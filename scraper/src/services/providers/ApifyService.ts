@@ -1128,7 +1128,7 @@ export class ApifyService {
       }
       
       if (totalYearsFromDuration > 0) {
-        return Math.round(totalYearsFromDuration * 10) / 10; // Round to 1 decimal
+        return Math.round(Math.min(totalYearsFromDuration, 40) * 10) / 10; // Cap at 40 yrs career max
       }
       
       // Last fallback: Estimate from number of positions (conservative estimate)
