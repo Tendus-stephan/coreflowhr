@@ -910,6 +910,28 @@ const Settings: React.FC = () => {
         load();
     }, []);
 
+    // When landed from email-change confirmation link (redirected from / with hash), show message and switch to profile
+    useEffect(() => {
+        const hash = window.location.hash || '';
+        if (hash.includes('link+accepted') || hash.includes('message=')) {
+            try {
+                const params = new URLSearchParams(hash.replace(/^#?/, ''));
+                const message = params.get('message');
+                if (message && (message.includes('Confirmation') || message.includes('link accepted'))) {
+                    setActiveTab('profile');
+                    setEmailChangeMessage({
+                        type: 'success',
+                        text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change.',
+                    });
+                    // Clean hash so URL is tidy (preserve sb= in history if Supabase needs it; clearing is safe after we've read it)
+                    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+            } catch {
+                // ignore
+            }
+        }
+    }, []);
+
     const refreshBillingData = async () => {
         setIsLoadingBilling(true);
         try {

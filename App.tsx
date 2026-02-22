@@ -150,8 +150,37 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Detect email-change confirmation redirect from Supabase and send user to Settings
+function isEmailChangeConfirmationHash(hash: string): boolean {
+  if (!hash || !hash.includes('message=')) return false;
+  try {
+    const decoded = decodeURIComponent(hash);
+    return (
+      decoded.includes('link+accepted') ||
+      decoded.includes('link accepted') ||
+      (decoded.includes('Confirmation') && decoded.includes('other email'))
+    );
+  } catch {
+    return hash.includes('link+accepted') || hash.includes('Confirmation');
+  }
+}
+
 // AppRoutes component that uses AuthProvider context
 const AppRoutes: React.FC = () => {
+  const location = useLocation();
+
+  // When user lands on / with email-change confirmation hash, redirect to Settings (preserve hash for session).
+  // Use full-page redirect so it works even before auth state is restored from the hash.
+  useEffect(() => {
+    const hash = window.location.hash || '';
+    const pathname = window.location.pathname || '/';
+    const isRoot = pathname === '/' || pathname === '';
+    if (isRoot && isEmailChangeConfirmationHash(hash)) {
+      const base = window.location.origin;
+      window.location.replace(`${base}/settings${hash}`);
+    }
+  }, [location.pathname]);
+
   return (
     <Routes>
       <Route element={<Layout />}>
