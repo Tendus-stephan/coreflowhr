@@ -16,8 +16,10 @@ const ChangeEmail: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [emailChangeJustConfirmed, setEmailChangeJustConfirmed] = useState(false);
     const [waitingForSecondConfirmation, setWaitingForSecondConfirmation] = useState(false);
+    const [sentToNewAddress, setSentToNewAddress] = useState(false); // after confirming from current email
     const didSendSuccessEmail = useRef(false);
     const initialEmailRef = useRef<string | null>(null);
+    const didHandleConfirmCurrent = useRef(false);
 
     useEffect(() => {
         if (!session) {
@@ -37,6 +39,50 @@ const ChangeEmail: React.FC = () => {
         })();
         return () => { cancelled = true; };
     }, [session]);
+
+    // Step "confirm current": user clicked link in current-email message; verify token then send to new address.
+    const searchParams = new URLSearchParams(location.search);
+    const confirmCurrentToken = searchParams.get('token');
+    const stepConfirmCurrent = searchParams.get('step') === 'confirm_current';
+    useEffect(() => {
+        if (!stepConfirmCurrent || !confirmCurrentToken || didHandleConfirmCurrent.current) return;
+        if (authLoading) return;
+        if (!session) {
+            navigate('/login', { state: { from: { pathname: '/change-email', search: location.search } }, replace: true });
+            return;
+        }
+        didHandleConfirmCurrent.current = true;
+        (async () => {
+            try {
+                const verify = await api.auth.verifyEmailChangeToken(confirmCurrentToken);
+                if (!verify.success || !verify.newEmail) {
+                    setMessage({ type: 'error', text: verify.error || 'Invalid or expired link. Request a new one from the change-email form.' });
+                    window.history.replaceState(null, '', window.location.pathname);
+                    return;
+                }
+                const update = await api.auth.updateEmail(verify.newEmail);
+                if (update.success) {
+                    try {
+                        sessionStorage.setItem('pendingEmailChange', verify.newEmail);
+                    } catch {
+                        // ignore
+                    }
+                    setSentToNewAddress(true);
+                    setMessage({
+                        type: 'success',
+                        text: `We've sent a confirmation link to ${verify.newEmail}. Click it to complete the change.`,
+                    });
+                    window.history.replaceState(null, '', window.location.pathname);
+                } else {
+                    setMessage({ type: 'error', text: update.error || 'Failed to send to new address' });
+                    window.history.replaceState(null, '', window.location.pathname);
+                }
+            } catch (err) {
+                setMessage({ type: 'error', text: (err as Error).message || 'Something went wrong' });
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        })();
+    }, [stepConfirmCurrent, confirmCurrentToken, session, authLoading, navigate, location.search]);
 
     // When landed from email-change link (success or error in hash), parse and set flag. Do NOT clear hash yet so Supabase can process tokens.
     const [confirmationHashPresent, setConfirmationHashPresent] = useState(false);
@@ -194,20 +240,15 @@ const ChangeEmail: React.FC = () => {
         setIsUpdating(true);
         setMessage(null);
         try {
-            const result = await api.auth.updateEmail(email);
+            const result = await api.auth.requestEmailChange(email);
             if (result.success) {
-                try {
-                    sessionStorage.setItem('pendingEmailChange', email);
-                } catch {
-                    // ignore
-                }
                 setMessage({
                     type: 'success',
-                    text: `Confirmation sent to ${email}. Click the link there to complete the change.`,
+                    text: 'Sending confirmation to your current email address. Click the link there; we\'ll then send a link to your new address to complete the change.',
                 });
                 setNewEmail('');
             } else {
-                setMessage({ type: 'error', text: result.error || 'Failed to update email' });
+                setMessage({ type: 'error', text: result.error || 'Failed to send confirmation' });
             }
         } catch (err) {
             setMessage({ type: 'error', text: (err as Error).message || 'Something went wrong' });
@@ -225,6 +266,31 @@ const ChangeEmail: React.FC = () => {
     }
 
     const returnTo = { pathname: '/change-email', search: location.search, hash: location.hash };
+
+    // After confirming from current email we sent to new address; show short message.
+    if (session && sentToNewAddress) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
+                <div className="mx-auto w-full max-w-md">
+                    <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6">
+                        <ArrowLeft size={16} />
+                        Back to dashboard
+                    </Link>
+                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-gray-100 rounded-xl">
+                                <Mail size={24} className="text-gray-700" />
+                            </div>
+                            <h1 className="text-xl font-bold text-gray-900">Check your new email</h1>
+                        </div>
+                        <p className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
+                            {message?.text}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (emailChangeJustConfirmed && session) {
         return (
@@ -256,6 +322,12 @@ const ChangeEmail: React.FC = () => {
                         <p className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
                             {message?.text}
                         </p>
+                        <p className="mt-4 text-sm text-gray-600">
+                            If you didn&apos;t receive an email, the change may already be complete—try signing in with your new email.
+                        </p>
+                        <Link to="/login" className="mt-4 block">
+                            <Button variant="outline" className="w-full">Sign in with new email</Button>
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -364,7 +436,7 @@ const ChangeEmail: React.FC = () => {
                         )}
                     </Button>
                     <p className="text-xs text-gray-500">
-                        We’ll send a confirmation link to the new address. Click it to complete the change.
+                        We’ll send a confirmation link to your current address first; after you click it, we'll send a link to your new address to complete the change.
                     </p>
                 </div>
             </div>

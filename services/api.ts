@@ -381,7 +381,39 @@ export const api = {
                 }
             };
         },
-        /** Request an email change. Supabase sends a confirmation link to the new email; the change takes effect after the user confirms. */
+        /** Step 1: Send confirmation to current email. User clicks link there; then we send to new address (step 2). */
+        requestEmailChange: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
+            const userId = await getUserId();
+            if (!userId) return { success: false, error: 'Not authenticated' };
+
+            const trimmed = newEmail.trim().toLowerCase();
+            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { success: false, error: 'Please enter a valid email address' };
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email?.toLowerCase() === trimmed) {
+                return { success: false, error: 'This is already your current email' };
+            }
+
+            const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('request-email-change', {
+                body: { newEmail: trimmed },
+            });
+            if (error) return { success: false, error: error.message };
+            if (data?.error) return { success: false, error: data.error };
+            return { success: true };
+        },
+        /** Verify token from "confirm current email" link; returns newEmail so caller can call updateEmail. */
+        verifyEmailChangeToken: async (token: string): Promise<{ success: boolean; newEmail?: string; error?: string }> => {
+            const { data, error } = await supabase.functions.invoke<{ success?: boolean; newEmail?: string; error?: string }>('verify-email-change-token', {
+                body: { token },
+            });
+            if (error) return { success: false, error: error.message };
+            if (data?.error) return { success: false, error: data.error };
+            if (data?.success && data?.newEmail) return { success: true, newEmail: data.newEmail };
+            return { success: false, error: 'Invalid response' };
+        },
+        /** Step 2: After user confirmed from current email, send Supabase confirmation to new email. */
         updateEmail: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
             const userId = await getUserId();
             if (!userId) return { success: false, error: 'Not authenticated' };

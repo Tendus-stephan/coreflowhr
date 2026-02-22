@@ -27,6 +27,16 @@ The script updates the **Change email address** template (subject + HTML body wi
 
 3. Supabase Dashboard → **Authentication** → **Email Templates** → **Change email address**. Paste the full contents of `change-email.html` into the body and save.
 
+## Single-step email change (recommended)
+
+By default Supabase can send **two** confirmation emails (old address + new address). If the second email never arrives, users get stuck on "Check your new email."
+
+For **one email to the new address and one click = done**:
+
+1. Supabase Dashboard → **Authentication** → **Providers** → **Email**.
+2. Disable **Secure email change** (or set "Confirm email change" so only the new address receives the link).
+3. Save. After that, only one confirmation email is sent to the new address; clicking it completes the change.
+
 ## Template variables (do not remove)
 
 - `{{ .ConfirmationURL }}` – link to confirm the change  

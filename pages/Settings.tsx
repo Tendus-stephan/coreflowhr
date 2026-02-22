@@ -1665,16 +1665,16 @@ const Settings: React.FC = () => {
                                                 if (!newEmail.trim()) return;
                                                 setIsUpdatingEmail(true);
                                                 setEmailChangeMessage(null);
-                                                const result = await api.auth.updateEmail(newEmail.trim());
+                                                const result = await api.auth.requestEmailChange(newEmail.trim());
                                                 setIsUpdatingEmail(false);
                                                 if (result.success) {
                                                     setEmailChangeMessage({
                                                         type: 'success',
-                                                        text: `Confirmation sent to ${newEmail.trim()}. Check that inbox and click the link to complete the change. Your sign-in email will update after you confirm.`
+                                                        text: 'Sending confirmation to your current email address. Click the link there; we\'ll then send a link to your new address to complete the change.'
                                                     });
                                                     setNewEmail('');
                                                 } else {
-                                                    setEmailChangeMessage({ type: 'error', text: result.error || 'Failed to update email' });
+                                                    setEmailChangeMessage({ type: 'error', text: result.error || 'Failed to send confirmation' });
                                                 }
                                             }}
                                             disabled={isUpdatingEmail || !newEmail.trim()}
@@ -1687,7 +1687,7 @@ const Settings: React.FC = () => {
                                             {emailChangeMessage.text}
                                         </p>
                                     )}
-                                    <p className="text-xs text-gray-500">We’ll send a confirmation link to the new address. Your sign-in email updates after you click it.</p>
+                                    <p className="text-xs text-gray-500">We’ll send a confirmation link to your current address first; after you click it, we'll send a link to your new address to complete the change.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-gray-900">Job Title</label>
