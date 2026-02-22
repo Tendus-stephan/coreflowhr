@@ -100,7 +100,14 @@ serve(async (req) => {
     `;
 
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const serviceClient = createClient(supabaseUrl, supabaseServiceKey!);
+    if (!supabaseServiceKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not set');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
     const { error: invokeError } = await serviceClient.functions.invoke('send-email', {
       body: {
         to: user.email,
