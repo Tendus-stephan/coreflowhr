@@ -15,6 +15,7 @@ const ChangeEmail: React.FC = () => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [emailChangeJustConfirmed, setEmailChangeJustConfirmed] = useState(false);
+    const [waitingForSecondConfirmation, setWaitingForSecondConfirmation] = useState(false);
     const didSendSuccessEmail = useRef(false);
 
     useEffect(() => {
@@ -90,9 +91,10 @@ const ChangeEmail: React.FC = () => {
                         text: 'Your email has been updated successfully. Please sign in with your new email address.',
                     });
                 } else {
+                    setWaitingForSecondConfirmation(true);
                     setMessage({
                         type: 'success',
-                        text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change.',
+                        text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change. Do not request another change—just open the link in your new inbox.',
                     });
                 }
             } else {
@@ -208,6 +210,34 @@ const ChangeEmail: React.FC = () => {
         );
     }
 
+    if (session && waitingForSecondConfirmation) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
+                <div className="mx-auto w-full max-w-md">
+                    <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6">
+                        <ArrowLeft size={16} />
+                        Back to dashboard
+                    </Link>
+                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 bg-gray-100 rounded-xl">
+                                <Mail size={24} className="text-gray-700" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-gray-900">Check your new email</h1>
+                                <p className="text-sm text-gray-500">One more step to complete the change.</p>
+                            </div>
+                        </div>
+                        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
+                            {message?.text}
+                        </div>
+                        <p className="mt-4 text-xs text-gray-500">No form or button here—just open the confirmation link in the email we sent to your <strong>new</strong> address.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!session) {
         return (
             <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
@@ -289,7 +319,7 @@ const ChangeEmail: React.FC = () => {
                         />
                     </div>
                     {message && (
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
+                        <div className={`p-4 rounded-xl border text-sm ${message.type === 'error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-gray-200 bg-gray-50 text-gray-800'}`}>
                             {message.text}
                         </div>
                     )}

@@ -1683,7 +1683,7 @@ const Settings: React.FC = () => {
                                         </Button>
                                     </div>
                                     {emailChangeMessage && (
-                                        <p className={`text-xs ${emailChangeMessage.type === 'success' ? 'text-gray-700' : 'text-gray-700'}`}>
+                                        <p className={`text-sm ${emailChangeMessage.type === 'error' ? 'text-red-600' : 'text-gray-700'}`}>
                                             {emailChangeMessage.text}
                                         </p>
                                     )}
