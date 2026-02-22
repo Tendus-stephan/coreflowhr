@@ -17,7 +17,8 @@ const Login: React.FC = () => {
   const { signIn, verifyMFA } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string; search?: string; hash?: string } })?.from;
+  const from = (location.state as { from?: { pathname: string; search?: string; hash?: string }; emailChanged?: boolean })?.from;
+  const emailChanged = (location.state as { emailChanged?: boolean })?.emailChanged;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,6 +141,11 @@ const Login: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-[0_0_50px_-12px_rgb(0,0,0,0.12)] sm:rounded-2xl sm:px-10 border border-gray-100">
+          {emailChanged && (
+            <div className="mb-4 p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
+              Your email was updated. Sign in with your new email to access your dashboard.
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
               {error}

@@ -213,7 +213,7 @@ const ChangeEmail: React.FC = () => {
         }
     }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
 
-    // After confirmation: send success email if logged in, then sign out and redirect to login
+    // After confirmation: send success email if logged in, then sign out and redirect to login (user must log in with new email before dashboard).
     useEffect(() => {
         if (!emailChangeJustConfirmed) return;
         if (session && !didSendSuccessEmail.current) {
@@ -221,15 +221,15 @@ const ChangeEmail: React.FC = () => {
             (async () => {
                 await api.auth.sendEmailChangeSuccessNotification();
                 await signOut();
-                navigate('/login', { replace: true });
+                navigate('/login', { replace: true, state: { emailChanged: true } });
             })();
         }
     }, [emailChangeJustConfirmed, session, signOut, navigate]);
 
-    // When not logged in but confirmation just happened, redirect to login after a short delay
+    // When not logged in but confirmation just happened, redirect to login (user must log in with new email).
     useEffect(() => {
         if (!emailChangeJustConfirmed || session || authLoading) return;
-        const t = setTimeout(() => navigate('/login', { replace: true }), 3000);
+        const t = setTimeout(() => navigate('/login', { replace: true, state: { emailChanged: true } }), 3000);
         return () => clearTimeout(t);
     }, [emailChangeJustConfirmed, session, authLoading, navigate]);
 
