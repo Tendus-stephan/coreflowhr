@@ -18,7 +18,7 @@ const shouldRedirectToChangeEmail =
   })();
 
 if (shouldRedirectToChangeEmail && typeof window !== 'undefined') {
-  window.location.replace(window.location.origin + '/settings/change-email' + window.location.hash);
+  window.location.replace(window.location.origin + '/change-email' + window.location.hash);
 } else {
   const rootElement = document.getElementById('root');
   if (!rootElement) {

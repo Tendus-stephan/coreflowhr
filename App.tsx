@@ -97,7 +97,7 @@ const Layout = () => {
     '/terms',
     '/privacy',
     '/onboarding',
-    '/settings/change-email',
+    '/change-email',
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond') ||
@@ -184,7 +184,7 @@ const AppRoutes: React.FC = () => {
     if (!isRoot) return;
     if (isEmailChangeConfirmationHash(hash) || isEmailChangeErrorHash(hash)) {
       const base = window.location.origin;
-      window.location.replace(`${base}/settings/change-email${hash}`);
+      window.location.replace(`${base}/change-email${hash}`);
     }
   }, [location.pathname]);
 
@@ -289,7 +289,7 @@ const AppRoutes: React.FC = () => {
           } 
         />
         <Route 
-          path="/settings/change-email" 
+          path="/change-email" 
           element={<ChangeEmail />}
         />
         <Route 

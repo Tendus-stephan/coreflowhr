@@ -98,7 +98,7 @@ const ChangeEmail: React.FC = () => {
         );
     }
 
-    const returnTo = { pathname: '/settings/change-email', search: location.search, hash: location.hash };
+    const returnTo = { pathname: '/change-email', search: location.search, hash: location.hash };
 
     if (!session) {
         return (
@@ -138,12 +138,11 @@ const ChangeEmail: React.FC = () => {
         <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
         <div className="max-w-xl mx-auto w-full">
             <Link
-                to="/settings"
-                state={{ from: location }}
+                to="/dashboard"
                 className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6"
             >
                 <ArrowLeft size={16} />
-                Back to Settings
+                Back to dashboard
             </Link>
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
                 <div className="flex items-center gap-3 mb-6">
