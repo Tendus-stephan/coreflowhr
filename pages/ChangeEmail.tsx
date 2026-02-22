@@ -17,6 +17,7 @@ const ChangeEmail: React.FC = () => {
     const [emailChangeJustConfirmed, setEmailChangeJustConfirmed] = useState(false);
     const [waitingForSecondConfirmation, setWaitingForSecondConfirmation] = useState(false);
     const didSendSuccessEmail = useRef(false);
+    const initialEmailRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!session) {
@@ -68,62 +69,80 @@ const ChangeEmail: React.FC = () => {
         }
     }, []);
 
-    // After hash is present, wait for auth to process tokens then decide: complete (new-email link) vs "check other email" (old-email link). Run once.
+    // Capture initial session email when we have confirmation hash (so we can detect "email changed" on first click).
+    useEffect(() => {
+        if (!confirmationHashPresent || !session?.user?.email) return;
+        if (initialEmailRef.current === null) initialEmailRef.current = (session.user.email || '').toLowerCase();
+    }, [confirmationHashPresent, session, session?.user?.email]);
+
+    // After hash is present, wait for auth to process tokens then decide: success if session email changed or matches pending.
     useEffect(() => {
         if (!confirmationHashPresent || authLoading || confirmationDecided.current) return;
         const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
         const decide = () => {
             if (confirmationDecided.current) return;
-            confirmationDecided.current = true;
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
-            if (session) {
-                const currentEmail = (session.user?.email || '').toLowerCase();
-                const pendingEmail = (pending || '').toLowerCase();
-                if (pending && currentEmail === pendingEmail) {
-                    try {
-                        sessionStorage.removeItem('pendingEmailChange');
-                    } catch {
-                        // ignore
-                    }
-                    setEmailChangeJustConfirmed(true);
-                    setMessage({
-                        type: 'success',
-                        text: 'Your email has been updated successfully. Please sign in with your new email address.',
-                    });
-                } else {
-                    setWaitingForSecondConfirmation(true);
-                    setMessage({
-                        type: 'success',
-                        text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change. Do not request another change—just open the link in your new inbox.',
-                    });
-                }
-            } else {
-                if (pending) {
-                    try {
-                        sessionStorage.removeItem('pendingEmailChange');
-                    } catch {
-                        // ignore
-                    }
+            const currentSessionEmail = (session?.user?.email || '').toLowerCase();
+            const pendingEmail = (pending || '').toLowerCase();
+            const initialEmail = (initialEmailRef.current || '').toLowerCase();
+
+            // First click = success: session email changed from initial (Supabase already updated).
+            if (session && currentSessionEmail && initialEmail && currentSessionEmail !== initialEmail) {
+                confirmationDecided.current = true;
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                try {
+                    sessionStorage.removeItem('pendingEmailChange');
+                } catch {
+                    // ignore
                 }
                 setEmailChangeJustConfirmed(true);
-                setMessage({
-                    type: 'success',
-                    text: 'If you\'ve confirmed the link in your new email, please sign in with your new email address.',
-                });
+                setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
+                return;
             }
+            // Or session already shows new email (matches pending).
+            if (session && pending && currentSessionEmail === pendingEmail) {
+                confirmationDecided.current = true;
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                try {
+                    sessionStorage.removeItem('pendingEmailChange');
+                } catch {
+                    // ignore
+                }
+                setEmailChangeJustConfirmed(true);
+                setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
+                return;
+            }
+            if (session) {
+                confirmationDecided.current = true;
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                setWaitingForSecondConfirmation(true);
+                setMessage({ type: 'success', text: 'Check your new inbox for the confirmation link.' });
+                return;
+            }
+            if (pending) {
+                try {
+                    sessionStorage.removeItem('pendingEmailChange');
+                } catch {
+                    // ignore
+                }
+            }
+            confirmationDecided.current = true;
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            setEmailChangeJustConfirmed(true);
+            setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
         };
         const t = setTimeout(decide, 1500);
         return () => clearTimeout(t);
     }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
 
-    // When session updates to the new email (after Supabase processes hash), mark complete immediately
+    // When session updates to the new email (after Supabase processes hash), mark complete immediately.
     useEffect(() => {
         if (!confirmationHashPresent || authLoading || !session) return;
+        const currentSessionEmail = (session.user?.email || '').toLowerCase();
+        const initialEmail = (initialEmailRef.current || '').toLowerCase();
         const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
-        if (!pending) return;
-        const currentEmail = (session.user?.email || '').toLowerCase();
-        const pendingEmail = pending.toLowerCase();
-        if (currentEmail === pendingEmail) {
+        const pendingEmail = (pending || '').toLowerCase();
+
+        if (currentSessionEmail && initialEmail && currentSessionEmail !== initialEmail) {
             confirmationDecided.current = true;
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
             try {
@@ -132,10 +151,19 @@ const ChangeEmail: React.FC = () => {
                 // ignore
             }
             setEmailChangeJustConfirmed(true);
-            setMessage({
-                type: 'success',
-                text: 'Your email has been updated successfully. Please sign in with your new email address.',
-            });
+            setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
+            return;
+        }
+        if (pending && currentSessionEmail === pendingEmail) {
+            confirmationDecided.current = true;
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            try {
+                sessionStorage.removeItem('pendingEmailChange');
+            } catch {
+                // ignore
+            }
+            setEmailChangeJustConfirmed(true);
+            setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
         }
     }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
 
@@ -175,7 +203,7 @@ const ChangeEmail: React.FC = () => {
                 }
                 setMessage({
                     type: 'success',
-                    text: `Confirmation sent to ${email}. Check that inbox and click the link to complete the change. Your sign-in email will update after you confirm.`,
+                    text: `Confirmation sent to ${email}. Click the link there to complete the change.`,
                 });
                 setNewEmail('');
             } else {
@@ -203,8 +231,8 @@ const ChangeEmail: React.FC = () => {
             <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
                 <div className="mx-auto w-full max-w-md text-center">
                     <Loader2 size={32} className="animate-spin text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-800 font-medium">Your email has been updated.</p>
-                    <p className="text-sm text-gray-500 mt-1">Sending confirmation email and redirecting to login…</p>
+                    <p className="text-gray-800 font-medium">Email changed. Sign in with your new email.</p>
+                    <p className="text-sm text-gray-500 mt-1">Sending confirmation to your new email and redirecting to login…</p>
                 </div>
             </div>
         );
@@ -219,19 +247,15 @@ const ChangeEmail: React.FC = () => {
                         Back to dashboard
                     </Link>
                     <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
-                        <div className="flex items-center gap-3 mb-6">
+                        <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-gray-100 rounded-xl">
                                 <Mail size={24} className="text-gray-700" />
                             </div>
-                            <div>
-                                <h1 className="text-xl font-bold text-gray-900">Check your new email</h1>
-                                <p className="text-sm text-gray-500">One more step to complete the change.</p>
-                            </div>
+                            <h1 className="text-xl font-bold text-gray-900">Check your new email</h1>
                         </div>
-                        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
+                        <p className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
                             {message?.text}
-                        </div>
-                        <p className="mt-4 text-xs text-gray-500">No form or button here—just open the confirmation link in the email we sent to your <strong>new</strong> address.</p>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -340,7 +364,7 @@ const ChangeEmail: React.FC = () => {
                         )}
                     </Button>
                     <p className="text-xs text-gray-500">
-                        We’ll send a confirmation link to the new address. Your sign-in email updates after you click it.
+                        We’ll send a confirmation link to the new address. Click it to complete the change.
                     </p>
                 </div>
             </div>
