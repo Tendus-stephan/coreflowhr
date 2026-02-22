@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const ChangeEmail: React.FC = () => {
-    const { session, loading: authLoading } = useAuth();
+    const { session, loading: authLoading, signOut } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     const [currentEmail, setCurrentEmail] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [loading, setLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [emailChangeJustConfirmed, setEmailChangeJustConfirmed] = useState(false);
+    const didSendSuccessEmail = useRef(false);
 
     useEffect(() => {
         if (!session) {
@@ -55,9 +58,10 @@ const ChangeEmail: React.FC = () => {
             }
             const msg = params.get('message');
             if (msg && (msg.includes('Confirmation') || msg.includes('link accepted'))) {
+                setEmailChangeJustConfirmed(true);
                 setMessage({
                     type: 'success',
-                    text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change.',
+                    text: 'Your email has been updated successfully. Please sign in with your new email address.',
                 });
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
             }
@@ -65,6 +69,26 @@ const ChangeEmail: React.FC = () => {
             // ignore
         }
     }, []);
+
+    // After confirmation: send success email if logged in, then sign out and redirect to login
+    useEffect(() => {
+        if (!emailChangeJustConfirmed) return;
+        if (session && !didSendSuccessEmail.current) {
+            didSendSuccessEmail.current = true;
+            (async () => {
+                await api.auth.sendEmailChangeSuccessNotification();
+                await signOut();
+                navigate('/login', { replace: true });
+            })();
+        }
+    }, [emailChangeJustConfirmed, session, signOut, navigate]);
+
+    // When not logged in but confirmation just happened, redirect to login after a short delay
+    useEffect(() => {
+        if (!emailChangeJustConfirmed || session || authLoading) return;
+        const t = setTimeout(() => navigate('/login', { replace: true }), 3000);
+        return () => clearTimeout(t);
+    }, [emailChangeJustConfirmed, session, authLoading, navigate]);
 
     const handleUpdateEmail = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -100,6 +124,18 @@ const ChangeEmail: React.FC = () => {
 
     const returnTo = { pathname: '/change-email', search: location.search, hash: location.hash };
 
+    if (emailChangeJustConfirmed && session) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
+                <div className="mx-auto w-full max-w-md text-center">
+                    <Loader2 size={32} className="animate-spin text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-800 font-medium">Your email has been updated.</p>
+                    <p className="text-sm text-gray-500 mt-1">Sending confirmation email and redirecting to login…</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!session) {
         return (
             <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
@@ -119,14 +155,15 @@ const ChangeEmail: React.FC = () => {
                             </div>
                         </div>
                         {message && (
-                            <div className={`mb-6 p-4 rounded-xl border text-sm ${
-                                message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
-                            }`}>
+                            <div className="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
                                 {message.text}
                             </div>
                         )}
+                        {emailChangeJustConfirmed && (
+                            <p className="mb-4 text-xs text-gray-500">Redirecting to login in 3 seconds…</p>
+                        )}
                         <Link to="/login" state={{ from: returnTo }}>
-                            <Button className="w-full">Sign in to change email</Button>
+                            <Button className="w-full">{emailChangeJustConfirmed ? 'Sign in with your new email' : 'Sign in to change email'}</Button>
                         </Link>
                     </div>
                 </div>
@@ -180,18 +217,13 @@ const ChangeEmail: React.FC = () => {
                         />
                     </div>
                     {message && (
-                        <div
-                            className={`p-4 rounded-xl border text-sm ${
-                                message.type === 'success'
-                                    ? 'bg-green-50 border-green-200 text-green-800'
-                                    : 'bg-red-50 border-red-200 text-red-800'
-                            }`}
-                        >
+                        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
                             {message.text}
                         </div>
                     )}
                     <Button
                         type="button"
+                        variant="outline"
                         onClick={handleUpdateEmail}
                         disabled={isUpdating || !newEmail.trim()}
                         className="flex items-center gap-2"

@@ -408,6 +408,19 @@ export const api = {
 
             return { success: true };
         },
+        /** Send a "your email was updated successfully" notification to the current user (new email). Call after email change is confirmed. */
+        sendEmailChangeSuccessNotification: async (): Promise<{ success: boolean; error?: string }> => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.email) return { success: false, error: 'Not authenticated' };
+            const to = user.email;
+            const subject = 'Your email was updated successfully';
+            const content = `<p>Your CoreflowHR sign-in email has been updated successfully.</p><p>You can now sign in with this email address.</p><p>If you didn't make this change, please contact support.</p>`;
+            const { error } = await supabase.functions.invoke('send-email', {
+                body: { to, subject, content, emailType: 'EmailChangeSuccess' },
+            });
+            if (error) return { success: false, error: error.message };
+            return { success: true };
+        },
         getSessions: async (): Promise<Session[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
