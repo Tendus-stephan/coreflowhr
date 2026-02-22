@@ -18,6 +18,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import AddJob from './pages/AddJob';
 import Settings from './pages/Settings';
+import ChangeEmail from './pages/ChangeEmail';
 import JobApplication from './pages/JobApplication';
 import Calendar from './pages/Calendar';
 import Offers from './pages/Offers';
@@ -96,6 +97,7 @@ const Layout = () => {
     '/terms',
     '/privacy',
     '/onboarding',
+    '/change-email',
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond') ||
@@ -150,7 +152,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Detect email-change confirmation redirect from Supabase and send user to Settings
+// Detect email-change confirmation redirect from Supabase and send user to change-email page
 function isEmailChangeConfirmationHash(hash: string): boolean {
   if (!hash || !hash.includes('message=')) return false;
   try {
@@ -165,19 +167,24 @@ function isEmailChangeConfirmationHash(hash: string): boolean {
   }
 }
 
+// Supabase can redirect with error= in hash when link expired/invalid
+function isEmailChangeErrorHash(hash: string): boolean {
+  return !!(hash && (hash.includes('error=') || hash.includes('error_code=')));
+}
+
 // AppRoutes component that uses AuthProvider context
 const AppRoutes: React.FC = () => {
   const location = useLocation();
 
-  // When user lands on / with email-change confirmation hash, redirect to Settings (preserve hash for session).
-  // Use full-page redirect so it works even before auth state is restored from the hash.
+  // When user lands on / with email-change hash (success or error), redirect to change-email page.
   useEffect(() => {
     const hash = window.location.hash || '';
     const pathname = window.location.pathname || '/';
     const isRoot = pathname === '/' || pathname === '';
-    if (isRoot && isEmailChangeConfirmationHash(hash)) {
+    if (!isRoot) return;
+    if (isEmailChangeConfirmationHash(hash) || isEmailChangeErrorHash(hash)) {
       const base = window.location.origin;
-      window.location.replace(`${base}/settings${hash}`);
+      window.location.replace(`${base}/change-email${hash}`);
     }
   }, [location.pathname]);
 
@@ -280,6 +287,10 @@ const AppRoutes: React.FC = () => {
               <Settings />
             </ProtectedRoute>
           } 
+        />
+        <Route 
+          path="/change-email" 
+          element={<ChangeEmail />}
         />
         <Route 
           path="/calendar" 
