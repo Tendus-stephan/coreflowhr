@@ -36,7 +36,8 @@ const ChangeEmail: React.FC = () => {
         return () => { cancelled = true; };
     }, [session]);
 
-    // When landed from email-change link (success or error in hash), show message and clean URL
+    // When landed from email-change link (success or error in hash), parse and clean URL
+    const [confirmationHashPresent, setConfirmationHashPresent] = useState(false);
     useEffect(() => {
         const hash = window.location.hash || '';
         if (!hash) return;
@@ -58,17 +59,53 @@ const ChangeEmail: React.FC = () => {
             }
             const msg = params.get('message');
             if (msg && (msg.includes('Confirmation') || msg.includes('link accepted'))) {
-                setEmailChangeJustConfirmed(true);
-                setMessage({
-                    type: 'success',
-                    text: 'Your email has been updated successfully. Please sign in with your new email address.',
-                });
+                setConfirmationHashPresent(true);
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
             }
         } catch {
             // ignore
         }
     }, []);
+
+    // Only treat as "email change complete" when session email matches pending (i.e. they clicked link in NEW email)
+    useEffect(() => {
+        if (!confirmationHashPresent || authLoading) return;
+        const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
+        if (session) {
+            const currentEmail = (session.user?.email || '').toLowerCase();
+            const pendingEmail = (pending || '').toLowerCase();
+            if (pending && currentEmail === pendingEmail) {
+                try {
+                    sessionStorage.removeItem('pendingEmailChange');
+                } catch {
+                    // ignore
+                }
+                setEmailChangeJustConfirmed(true);
+                setMessage({
+                    type: 'success',
+                    text: 'Your email has been updated successfully. Please sign in with your new email address.',
+                });
+            } else {
+                setMessage({
+                    type: 'success',
+                    text: 'Confirmation link accepted. Please check the other email and click the link there to complete the change.',
+                });
+            }
+        } else {
+            if (pending) {
+                try {
+                    sessionStorage.removeItem('pendingEmailChange');
+                } catch {
+                    // ignore
+                }
+            }
+            setEmailChangeJustConfirmed(true);
+            setMessage({
+                type: 'success',
+                text: 'If you\'ve confirmed the link in your new email, please sign in with your new email address.',
+            });
+        }
+    }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
 
     // After confirmation: send success email if logged in, then sign out and redirect to login
     useEffect(() => {
@@ -99,6 +136,11 @@ const ChangeEmail: React.FC = () => {
         try {
             const result = await api.auth.updateEmail(email);
             if (result.success) {
+                try {
+                    sessionStorage.setItem('pendingEmailChange', email);
+                } catch {
+                    // ignore
+                }
                 setMessage({
                     type: 'success',
                     text: `Confirmation sent to ${email}. Check that inbox and click the link to complete the change. Your sign-in email will update after you confirm.`,
