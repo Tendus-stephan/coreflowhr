@@ -399,7 +399,13 @@ export const api = {
             const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('request-email-change', {
                 body: { newEmail: trimmed },
             });
-            if (error) return { success: false, error: error.message };
+            if (error) {
+                const msg = error.message || '';
+                if (/edge function|failed to send a request/i.test(msg)) {
+                    return { success: false, error: 'We couldn\'t send the confirmation email right now. Please try again in a moment or contact support if it keeps happening.' };
+                }
+                return { success: false, error: msg || 'Something went wrong. Please try again.' };
+            }
             if (data?.error) return { success: false, error: data.error };
             return { success: true };
         },
@@ -408,7 +414,13 @@ export const api = {
             const { data, error } = await supabase.functions.invoke<{ success?: boolean; newEmail?: string; error?: string }>('verify-email-change-token', {
                 body: { token },
             });
-            if (error) return { success: false, error: error.message };
+            if (error) {
+                const msg = error.message || '';
+                if (/edge function|failed to send a request/i.test(msg)) {
+                    return { success: false, error: 'We couldn\'t verify the link right now. Please try again or request a new confirmation email.' };
+                }
+                return { success: false, error: msg || 'Something went wrong. Please try again.' };
+            }
             if (data?.error) return { success: false, error: data.error };
             if (data?.success && data?.newEmail) return { success: true, newEmail: data.newEmail };
             return { success: false, error: 'Invalid response' };

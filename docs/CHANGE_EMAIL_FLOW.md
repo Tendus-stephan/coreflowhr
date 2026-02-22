@@ -13,6 +13,14 @@ This document describes the full flow from “request email change” to “sign
 
 Required Edge Function secrets: `EMAIL_CHANGE_SECRET`, `SITE_URL`.
 
+### Why you might see "We couldn't send the confirmation email right now"
+
+This friendly message replaces the raw "Failed to send a request to the Edge Function" when the **request-email-change** function can't be reached. Common causes:
+
+1. **Function not deployed** – Deploy the Edge Functions to your Supabase project (e.g. `supabase functions deploy request-email-change`, `supabase functions deploy verify-email-change-token`).
+2. **Secrets not set** – In Supabase Dashboard → Project Settings → Edge Functions (or Secrets), set `EMAIL_CHANGE_SECRET` (any long random string) and `SITE_URL` (your app URL, e.g. `https://coreflowhr.com`). If `EMAIL_CHANGE_SECRET` is missing, the function returns "Server configuration error".
+3. **Network / timeout** – Temporary failure; asking the user to try again is appropriate.
+
 ---
 
 ## Overview
