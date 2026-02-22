@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,8 @@ const Login: React.FC = () => {
   const [verifyingMFA, setVerifyingMFA] = useState(false);
   const { signIn, verifyMFA } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname: string; search?: string; hash?: string } })?.from;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +98,11 @@ const Login: React.FC = () => {
         return;
       }
 
-      // Email verified and has active/trialing subscription - go to dashboard
-      // Set flag to show loader on dashboard entry
+      // Email verified and has active/trialing subscription - go to dashboard or return path (e.g. change-email)
+      if (from?.pathname) {
+        navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
+        return;
+      }
       sessionStorage.setItem('showDashboardLoader', 'true');
       navigate('/dashboard');
     } catch (settingsError) {

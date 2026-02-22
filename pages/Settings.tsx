@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { 
   User as UserIcon, CreditCard, Mail, AlertCircle, Monitor, Smartphone, X, Sparkles,
   Save, MessageSquare, FileText, Layers, Plus, Shield, CheckCircle, Lock, Key, LogOut, Upload,
@@ -1647,7 +1647,10 @@ const Settings: React.FC = () => {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-bold text-gray-900">Change email address</label>
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-bold text-gray-900">Change email address</label>
+                                        <Link to="/settings/change-email" className="text-sm text-gray-600 hover:text-gray-900 underline">Open change email page</Link>
+                                    </div>
                                     <div className="flex gap-2">
                                         <input 
                                             type="email" 
