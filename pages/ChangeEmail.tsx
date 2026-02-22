@@ -53,8 +53,16 @@ const ChangeEmail: React.FC = () => {
         }
         didHandleConfirmCurrent.current = true;
         (async () => {
+            // Brief delay so session is attached to the client after login redirect.
+            await new Promise((r) => setTimeout(r, 800));
+            const doVerify = () => api.auth.verifyEmailChangeToken(confirmCurrentToken);
+            let verify = await doVerify();
+            // Retry once after a short delay (session may not be attached yet after login redirect).
+            if (!verify.success && verify.error?.includes("couldn't verify the link right now")) {
+                await new Promise((r) => setTimeout(r, 2000));
+                verify = await doVerify();
+            }
             try {
-                const verify = await api.auth.verifyEmailChangeToken(confirmCurrentToken);
                 if (!verify.success || !verify.newEmail) {
                     setMessage({ type: 'error', text: verify.error || 'Invalid or expired link. Request a new one from the change-email form.' });
                     window.history.replaceState(null, '', window.location.pathname);

@@ -417,7 +417,7 @@ export const api = {
             if (error) {
                 const msg = error.message || '';
                 if (/edge function|failed to send a request/i.test(msg)) {
-                    return { success: false, error: 'We couldn\'t verify the link right now. Please try again or request a new confirmation email.' };
+                    return { success: false, error: 'We couldn\'t verify the link right now. If you just signed in, wait a moment and click the link in the email again—or request a new confirmation email below.' };
                 }
                 return { success: false, error: msg || 'Something went wrong. Please try again.' };
             }
