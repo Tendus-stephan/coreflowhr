@@ -72,6 +72,22 @@ serve(async (req) => {
       );
     }
 
+    // Check if new email is already used by another account (before sending confirmation).
+    const supabaseServiceKeyForCheck = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (supabaseServiceKeyForCheck) {
+      const adminClient = createClient(supabaseUrl, supabaseServiceKeyForCheck);
+      const { data: listData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const existing = listData?.users?.find(
+        (u) => u.email?.toLowerCase() === newEmail && u.id !== user.id
+      );
+      if (existing) {
+        return new Response(
+          JSON.stringify({ error: 'This email is already used by another account' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const secret = Deno.env.get('EMAIL_CHANGE_SECRET');
     if (!secret) {
       console.error('EMAIL_CHANGE_SECRET not set');
