@@ -1040,32 +1040,32 @@ export const getAIChatResponse = async (userPrompt: string, history: ChatMessage
     
     return resultText;
   } catch (error: any) {
-    const code = error?.error?.code ?? error?.status ?? error?.statusCode;
-    const status = String(error?.error?.status ?? error?.status ?? '').toUpperCase();
+    // SDK may put payload in error.error or in error.message as JSON string
+    let errPayload = error?.error;
+    if (!errPayload && typeof error?.message === 'string' && (error.message.includes('"error"') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED'))) {
+      try {
+        const match = error.message.match(/\{[\s\S]*"error"[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          errPayload = parsed?.error || parsed;
+        }
+      } catch (_) {}
+    }
+    const code = errPayload?.code ?? error?.error?.code ?? error?.status ?? error?.statusCode;
+    const status = String(errPayload?.status ?? error?.error?.status ?? error?.status ?? '').toUpperCase();
     const msg = (error?.message || '').toLowerCase();
+    const is429 = code === 429 || status === 'RESOURCE_EXHAUSTED';
     const is503 = code === 503 || code === 502 || code === 504 || status === 'UNAVAILABLE' || status === 'DEADLINE_EXCEEDED';
     const is500 = code === 500 || status === 'INTERNAL';
     const isNetwork = msg.includes('network') || msg.includes('fetch') || msg.includes('econnreset') || msg.includes('failed to fetch');
-    console.error("AI Chat Error:", { code, status, message: error?.message, is503, is500, isNetwork }, error);
+    console.error("AI Chat Error:", { code, status, is429, is503, is500, isNetwork, message: error?.message }, error);
     
-    // Check for quota/rate limit error (429 RESOURCE_EXHAUSTED)
-    if (error?.error?.code === 429 || error?.error?.status === 'RESOURCE_EXHAUSTED') {
-      const errorMessage = error?.error?.message || '';
-      if (errorMessage.includes('quota') || errorMessage.includes('rate limit') || errorMessage.includes('free tier')) {
-        // Extract retry delay if available
-        const retryDelay = error?.error?.details?.find((detail: any) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo')?.retryDelay;
-        const delaySeconds = retryDelay ? Math.ceil(parseFloat(retryDelay.replace('s', ''))) : 60;
-        
-        // Check if it's a daily quota (limit: 0 means quota exhausted)
-        const isDailyQuota = errorMessage.includes('PerDay') || errorMessage.includes('limit: 0');
-        
-        if (isDailyQuota) {
-          return `⚠️ Daily quota exhausted: You've used all free tier requests for today. The quota resets in 24 hours, or you can upgrade to a paid plan at https://aistudio.google.com/ for unlimited usage.`;
-        }
-        
-        return `⚠️ Rate limit reached: Please wait ${delaySeconds} seconds before trying again. To avoid this, upgrade to a paid plan at https://aistudio.google.com/ for higher limits.`;
-      }
-      return "Rate limit exceeded. Please wait a moment and try again.";
+    // Check for quota/rate limit error (429 RESOURCE_EXHAUSTED) — from error.error or parsed message
+    if (is429) {
+      const errorMessage = (errPayload?.message || error?.error?.message || error?.message || '').toLowerCase();
+      const isDailyQuota = errorMessage.includes('perday') || errorMessage.includes('limit: 0') || errorMessage.includes('quota');
+      if (isDailyQuota) return "You've hit the daily request limit. Please try again tomorrow.";
+      return "Rate limit reached. Please wait a minute and try again.";
     }
     
     // Check for leaked API key error (403 PERMISSION_DENIED)
