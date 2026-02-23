@@ -1099,10 +1099,19 @@ const Settings: React.FC = () => {
                 // Integration connection successful - reload integrations
                 // Always switch to integrations tab for integration success
                 setActiveTab('integrations');
+                setSaveMessage({ type: 'success', text: 'Integration connected successfully!' });
                 try {
-                    const updatedIntegrations = await api.settings.getIntegrations();
+                    // Brief delay so the callback's DB write is visible before we refetch
+                    await new Promise(r => setTimeout(r, 600));
+                    let updatedIntegrations = await api.settings.getIntegrations();
+                    // If the new integration isn't in the list yet (replication lag), retry once
+                    const expectedName = integrationSuccess === 'meet' ? 'Google Meet' : integrationSuccess === 'gcal' ? 'Google Calendar' : null;
+                    const hasNew = expectedName && updatedIntegrations.some(i => i.name === expectedName && i.active);
+                    if (expectedName && !hasNew) {
+                        await new Promise(r => setTimeout(r, 400));
+                        updatedIntegrations = await api.settings.getIntegrations();
+                    }
                     setIntegrations(updatedIntegrations);
-                    setSaveMessage({ type: 'success', text: 'Integration connected successfully!' });
                     
                     // Create notification for integration connected
                     const connectedIntegration = updatedIntegrations.find(i => i.active);
