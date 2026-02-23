@@ -142,7 +142,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
             const { data, error } = await supabase.functions.invoke('create-meeting', {
                 body: {
-                    platform: selectedPlatform,
+                    // Only Google Meet is supported by the Edge Function today,
+                    // so always send the canonical platform key expected by the backend.
+                    platform: 'meet',
                     title: selectedCandidate?.role || 'Interview',
                     startIso: startDateTime.toISOString(),
                     durationMinutes: parseInt(duration) || 30,
