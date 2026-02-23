@@ -1040,7 +1040,13 @@ export const getAIChatResponse = async (userPrompt: string, history: ChatMessage
     
     return resultText;
   } catch (error: any) {
-    console.error("AI Chat Error:", error);
+    const code = error?.error?.code ?? error?.status ?? error?.statusCode;
+    const status = String(error?.error?.status ?? error?.status ?? '').toUpperCase();
+    const msg = (error?.message || '').toLowerCase();
+    const is503 = code === 503 || code === 502 || code === 504 || status === 'UNAVAILABLE' || status === 'DEADLINE_EXCEEDED';
+    const is500 = code === 500 || status === 'INTERNAL';
+    const isNetwork = msg.includes('network') || msg.includes('fetch') || msg.includes('econnreset') || msg.includes('failed to fetch');
+    console.error("AI Chat Error:", { code, status, message: error?.message, is503, is500, isNetwork }, error);
     
     // Check for quota/rate limit error (429 RESOURCE_EXHAUSTED)
     if (error?.error?.code === 429 || error?.error?.status === 'RESOURCE_EXHAUSTED') {
@@ -1097,7 +1103,7 @@ export const getAIChatResponse = async (userPrompt: string, history: ChatMessage
       }
       
       if (errorMessage.includes('leaked') || errorMessage.includes('reported')) {
-        return "Your API key has been reported as leaked and needs to be replaced. Please generate a new API key from Google AI Studio and update your VITE_API_KEY environment variable.";
+        return "Your API key has been reported as leaked and needs to be replaced. Please generate a new API key and update your VITE_API_KEY environment variable.";
       }
       
       return "API access denied. Please check your API key permissions and ensure it's valid.";
@@ -1105,26 +1111,14 @@ export const getAIChatResponse = async (userPrompt: string, history: ChatMessage
     
     // Check if it's an API key configuration error
     if (error?.message?.includes('API key') || error?.message?.includes('apiKey') || error?.message?.includes('not configured')) {
-      return "I'm having trouble connecting. Please ensure your Gemini API key is configured correctly in your environment variables (VITE_API_KEY).";
+      return "I'm having trouble connecting. Please ensure your API key is configured correctly in your environment (VITE_API_KEY).";
     }
     
-    // Google service unavailable (503) or server error (500) - often during Google outages
-    const code = error?.error?.code ?? error?.status ?? error?.statusCode;
-    const status = String(error?.error?.status ?? error?.status ?? '').toUpperCase();
-    if (code === 503 || code === 502 || code === 504 || status === 'UNAVAILABLE' || status === 'DEADLINE_EXCEEDED') {
-      return "⚠️ Google's AI service is temporarily unavailable. This often happens during brief outages on Google's side. Please try again in a few minutes. You can check status at https://status.cloud.google.com/";
-    }
-    if (code === 500 || status === 'INTERNAL') {
-      return "⚠️ Google's AI service returned an error. If this keeps happening, Google may be experiencing issues—try again later or check https://status.cloud.google.com/";
-    }
+    // Service unavailable / server error / network — reason logged above for debugging
+    if (is503) return "Service temporarily unavailable. Please try again in a few minutes.";
+    if (is500) return "Something went wrong on our side. Please try again in a moment.";
+    if (isNetwork) return "Could not reach the service. Check your connection and try again.";
     
-    // Network/connection errors
-    const msg = (error?.message || '').toLowerCase();
-    if (msg.includes('network') || msg.includes('fetch') || msg.includes('econnreset') || msg.includes('failed to fetch')) {
-      return "⚠️ Could not reach Google's AI service (network error). Check your internet connection and try again.";
-    }
-    
-    // Generic error message
-    return "I apologize, but I'm having trouble processing your request right now. This can happen when Google's AI service is busy or briefly unavailable. Please try again in a moment.";
+    return "I'm having trouble processing your request right now. Please try again in a moment.";
   }
 };
