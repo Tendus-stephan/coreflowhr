@@ -31,11 +31,17 @@ serve(async (req) => {
       return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent('Missing code or state')}`, 302);
     }
 
-    // Parse state: userId:integrationId:randomState
-    const [userId, integrationId] = state.split(':');
-    if (!userId || !integrationId) {
+    // Parse state: userId:integrationIdOrFullId:randomState
+    // Frontend sends integration.id which can be full row id (userId_meet) or short key (meet)
+    const parts = state.split(':');
+    const userId = parts[0];
+    const integrationIdOrFullId = parts[1];
+    if (!userId || !integrationIdOrFullId) {
       return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent('Invalid state parameter')}`, 302);
     }
+    const isFullId = integrationIdOrFullId.includes('_');
+    const userSpecificId = isFullId ? integrationIdOrFullId : `${userId}_${integrationIdOrFullId}`;
+    const shortKey = isFullId ? integrationIdOrFullId.split('_').pop() : integrationIdOrFullId;
 
     // Get OAuth credentials
     const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
@@ -87,13 +93,12 @@ serve(async (req) => {
       token_type: tokens.token_type || 'Bearer',
     };
 
-    // Map integration ID to name for lookup
+    // Map short key to display name
     const integrationNameMap: Record<string, string> = {
       'gcal': 'Google Calendar',
       'meet': 'Google Meet'
     };
-    const integrationName = integrationNameMap[integrationId] || 'Google Integration';
-    const userSpecificId = `${userId}_${integrationId}`;
+    const integrationName = integrationNameMap[shortKey] || 'Google Integration';
 
     // First check if integration exists
     const { data: existingIntegration, error: checkError } = await supabase
@@ -144,8 +149,8 @@ serve(async (req) => {
       }
     }
 
-    // Success - redirect to frontend
-    return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_success=${integrationId}`, 302);
+    // Success - redirect to frontend (shortKey so UI knows which one: meet or gcal)
+    return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_success=${shortKey}`, 302);
   } catch (error: any) {
     console.error('Error in connect-google-callback:', error);
     let frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';

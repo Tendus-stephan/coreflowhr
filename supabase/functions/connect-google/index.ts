@@ -41,8 +41,9 @@ serve(async (req) => {
       );
     }
 
-    // Get request body
-    const { integrationId } = await req.json();
+    // Get request body - can be full row id (userId_meet) or short key (meet)
+    const { integrationId: rawId } = await req.json();
+    const integrationId = typeof rawId === 'string' && rawId.includes('_') ? rawId.split('_').pop() : rawId;
 
     // Get Google OAuth credentials from environment
     const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
@@ -58,10 +59,11 @@ serve(async (req) => {
       );
     }
 
-    // Generate state parameter for CSRF protection
+    // Generate state parameter for CSRF protection (pass full id so callback updates correct row)
     const state = crypto.randomUUID();
+    const stateParam = typeof rawId === 'string' && rawId.includes('_') ? rawId : `${user.id}_${integrationId}`;
     
-    // Determine scopes based on integration
+    // Determine scopes based on integration (use short key)
     const scopes = integrationId === 'gcal' 
       ? 'https://www.googleapis.com/auth/calendar'
       : integrationId === 'meet'
@@ -77,10 +79,11 @@ serve(async (req) => {
     oauthUrl.searchParams.set('scope', scopes);
     oauthUrl.searchParams.set('access_type', 'offline');
     oauthUrl.searchParams.set('prompt', 'consent');
-    oauthUrl.searchParams.set('state', `${user.id}:${integrationId}:${state}`);
+    oauthUrl.searchParams.set('state', `${user.id}:${stateParam}:${state}`);
 
     console.log('Google OAuth URL generated:', {
       integrationId,
+      stateParam,
       userId: user.id,
       redirectUri,
     });
@@ -88,7 +91,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         url: oauthUrl.toString(),
-        state: `${user.id}:${integrationId}:${state}`
+        state: `${user.id}:${stateParam}:${state}`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
