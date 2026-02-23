@@ -2158,7 +2158,7 @@ const Settings: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-4">
-                                    {integrations.filter(integration => integration.id !== 'teams').map((integration) => (
+                                    {integrations.filter(integration => integration.id !== 'teams' && integration.name !== 'Google Integration').map((integration) => (
                                         <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
