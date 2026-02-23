@@ -420,6 +420,15 @@ export const api = {
                     { onConflict: 'user_id' }
                 );
             if (insertError) {
+                console.error('email_change_pending upsert failed', insertError.code, insertError.message, insertError.details);
+                const msg = insertError.message || '';
+                const missingTable = insertError.code === '42P01' || /relation.*does not exist|table.*not found/i.test(msg);
+                if (missingTable) {
+                    return { success: false, error: 'Email change is not fully set up yet. The database migration for email change may not have been run. Please contact support or try again later.' };
+                }
+                if (insertError.code === '42501' || /permission denied|policy/i.test(msg)) {
+                    return { success: false, error: 'You don\'t have permission to request an email change. Please contact support.' };
+                }
                 return { success: false, error: 'Could not save email-change request. Please try again.' };
             }
 
