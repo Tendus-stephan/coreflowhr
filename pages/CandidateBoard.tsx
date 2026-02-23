@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Candidate, CandidateStage, Job } from '../types';
 import { PipelineColumn } from '../components/PipelineColumn';
@@ -11,6 +12,15 @@ import { CandidateModal } from '../components/CandidateModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { Toast } from '../components/ui/Toast';
 import { api, Notification } from '../services/api';
+
+const stageDisplayName: Record<CandidateStage, string> = {
+  [CandidateStage.NEW]: 'Waitlist',
+  [CandidateStage.SCREENING]: 'Screening',
+  [CandidateStage.INTERVIEW]: 'Interview',
+  [CandidateStage.OFFER]: 'Offer',
+  [CandidateStage.HIRED]: 'Hired',
+  [CandidateStage.REJECTED]: 'Rejected',
+};
 
 const CandidateBoard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,6 +36,15 @@ const CandidateBoard: React.FC = () => {
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+
+  // Move confirmation (after drag)
+  const [pendingMove, setPendingMove] = useState<{
+    candidateId: string;
+    candidateName: string;
+    fromStage: CandidateStage;
+    toStage: CandidateStage;
+  } | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
 
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
@@ -289,21 +308,32 @@ const CandidateBoard: React.FC = () => {
           return;
       }
 
-      try {
-          // Update candidate stage via API
-          const updatedCandidate = await api.candidates.update(candidateId, {
-              stage: newStage
-          });
+      // Show confirmation before moving (like draft email send)
+      setPendingMove({
+          candidateId,
+          candidateName: candidate.name,
+          fromStage: candidate.stage,
+          toStage: newStage
+      });
+  };
 
-          // Update local state
+  const confirmMoveCandidate = async () => {
+      if (!pendingMove) return;
+      setIsMoving(true);
+      try {
+          const updatedCandidate = await api.candidates.update(pendingMove.candidateId, {
+              stage: pendingMove.toStage
+          });
           await handleCandidateUpdate(updatedCandidate);
+          setPendingMove(null);
       } catch (error: any) {
           console.error('Error moving candidate:', error);
-          const errorMessage = error?.message || 'Failed to move candidate. Please try again.';
-          setToastMessage(errorMessage);
+          setToastMessage(error?.message || 'Failed to move candidate. Please try again.');
           setToastType('error');
           setShowToast(true);
           setTimeout(() => setShowToast(false), 5000);
+      } finally {
+          setIsMoving(false);
       }
   };
 
@@ -651,6 +681,36 @@ const CandidateBoard: React.FC = () => {
             }}
             onUpdate={handleCandidateUpdate}
           />
+      )}
+
+      {/* Move candidate confirmation (after drag) */}
+      {pendingMove && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-gray-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Move candidate?</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Are you sure you want to move <strong>{pendingMove.candidateName}</strong> from{' '}
+                  <strong>{stageDisplayName[pendingMove.fromStage]}</strong> to{' '}
+                  <strong>{stageDisplayName[pendingMove.toStage]}</strong>?
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <Button variant="outline" onClick={() => setPendingMove(null)} disabled={isMoving}>
+                    Cancel
+                  </Button>
+                  <Button variant="black" onClick={confirmMoveCandidate} disabled={isMoving}>
+                    {isMoving ? 'Moving...' : 'Yes, move'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Toast Notification */}
