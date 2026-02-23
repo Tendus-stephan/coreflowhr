@@ -71,28 +71,44 @@ serve(async (req) => {
       );
     }
 
-    // Load integration config for Google Meet
-    const { data: integration, error: integrationError } = await supabase
-      .from('integrations')
-      .select('id, config')
-      .eq('user_id', user.id)
-      .eq('name', 'Google Meet')
-      .eq('active', true)
-      .maybeSingle();
-
-    if (integrationError) {
-      console.error('Error loading integration:', integrationError);
+    // Load integration config with service role so RLS cannot block (callback writes with service role)
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!serviceRoleKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not set');
       return new Response(
-        JSON.stringify({ error: 'Failed to load integration settings' }),
+        JSON.stringify({ error: 'Server configuration error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    let integration: { id: string; config: unknown } | null = null;
+    for (const name of ['Google Meet', 'Google Calendar']) {
+      const { data, error: integrationError } = await admin
+        .from('integrations')
+        .select('id, config')
+        .eq('user_id', user.id)
+        .eq('name', name)
+        .eq('active', true)
+        .maybeSingle();
+      if (integrationError) {
+        console.error('Error loading integration:', integrationError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to load integration settings' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      if (data?.config) {
+        integration = data;
+        break;
+      }
     }
 
     if (!integration || !integration.config) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Integration not connected',
-          details: `Google Meet integration not found or not active for user ${user.id}. Please connect it in Settings → Integrations.`
+          details: 'Google Meet or Google Calendar not found for your account. Connect one in Settings → Integrations, then try again.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
