@@ -1756,12 +1756,10 @@ const Settings: React.FC = () => {
                                                     const result = await api.auth.requestEmailChangeWithPassword(newEmail.trim(), currentPassword.trim());
                                                     setIsUpdatingEmail(false);
                                                     if (result.success) {
-                                                        setEmailChangeMessage({
-                                                            type: 'success',
-                                                            text: 'Check your new email inbox for a verification link. You can still sign in with your current email until you confirm the change.'
-                                                        });
+                                                        // Email-change request accepted: immediately sign the user out so they must log in again with the new email after confirmation.
                                                         setNewEmail('');
                                                         setCurrentPassword('');
+                                                        await signOut();
                                                     } else {
                                                         setEmailChangeMessage({ type: 'error', text: result.error || 'Failed to request email change' });
                                                     }
@@ -1778,7 +1776,7 @@ const Settings: React.FC = () => {
                                         </p>
                                     )}
                                     <p className="text-xs text-gray-500">
-                                        We’ll send a verification link to your new email. Your current email will keep working until you confirm the change. After clicking that link, sign in with your new email. If login with the new email fails, in Supabase turn off &quot;Secure email change&quot; (Authentication → Email) or click the link in both emails.
+                                        We’ll send a verification link to your new email. After you confirm it, you must sign in again with your new email address. If login with the new email ever fails, in Supabase turn off &quot;Secure email change&quot; (Authentication → Email) or click the link in both emails.
                                     </p>
                                 </div>
                                 <div className="space-y-2">
