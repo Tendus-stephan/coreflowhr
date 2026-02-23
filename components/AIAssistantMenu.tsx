@@ -14,7 +14,7 @@ export const AIAssistantMenu: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastRequestTime = useRef<number>(0);
-  const MIN_REQUEST_INTERVAL = 3000; // 3 seconds minimum between requests
+  const MIN_REQUEST_INTERVAL = 8000; // 8 seconds — keeps under free-tier ~15 req/min so you hit rate limit less
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -35,7 +35,7 @@ export const AIAssistantMenu: React.FC = () => {
       const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
       setMessages(prev => [...prev, { 
         role: 'model', 
-        text: `Please wait ${Math.ceil(waitTime / 1000)} seconds before sending another message. This helps prevent rate limit errors.` 
+        text: `Please wait ${Math.ceil(waitTime / 1000)} seconds before sending again. The AI has a free-tier limit (about 15 messages per minute); waiting helps avoid hitting it.` 
       }]);
       return;
     }
@@ -173,7 +173,8 @@ export const AIAssistantMenu: React.FC = () => {
             </button>
           </div>
           <div className="mt-2 text-center">
-            <span className="text-[7px] font-black text-gray-300 uppercase tracking-[0.4em]">CoreFlow v3.0</span>
+            <span className="text-[9px] text-gray-400">Free tier: wait a few seconds between messages.</span>
+            <span className="block text-[7px] font-black text-gray-300 uppercase tracking-[0.4em] mt-0.5">CoreFlow v3.0</span>
           </div>
         </div>
       </div>

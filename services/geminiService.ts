@@ -1064,8 +1064,8 @@ export const getAIChatResponse = async (userPrompt: string, history: ChatMessage
     if (is429) {
       const errorMessage = (errPayload?.message || error?.error?.message || error?.message || '').toLowerCase();
       const isDailyQuota = errorMessage.includes('perday') || errorMessage.includes('limit: 0') || errorMessage.includes('quota');
-      if (isDailyQuota) return "You've hit the daily request limit. Please try again tomorrow.";
-      return "Rate limit reached. Please wait a minute and try again.";
+      if (isDailyQuota) return "You've hit the daily request limit for the free tier. Try again tomorrow, or use a paid API key for higher limits.";
+      return "Rate limit reached (free tier allows about 15 messages per minute). Wait about 60 seconds and try again. For more messages, switch to a paid API key in your project settings.";
     }
     
     // Check for leaked API key error (403 PERMISSION_DENIED)
