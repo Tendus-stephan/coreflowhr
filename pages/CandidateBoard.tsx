@@ -46,9 +46,22 @@ const CandidateBoard: React.FC = () => {
   } | null>(null);
   const [isMoving, setIsMoving] = useState(false);
 
+  // Job dropdown open state (for scrollable list)
+  const [jobDropdownOpen, setJobDropdownOpen] = useState(false);
+  const jobDropdownRef = useRef<HTMLDivElement>(null);
+
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  // Close job dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (jobDropdownRef.current && !jobDropdownRef.current.contains(e.target as Node)) setJobDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -531,17 +544,23 @@ const CandidateBoard: React.FC = () => {
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                       />
                   </div>
-                  <div className="relative">
-                      <select 
-                        value={selectedJob}
-                        onChange={(e) => setSelectedJob(e.target.value)}
-                        className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
+                  <div className="relative min-w-[200px]" ref={jobDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setJobDropdownOpen(!jobDropdownOpen)}
+                        className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors text-left flex items-center justify-between"
                       >
-                          <option value="all">All jobs</option>
+                          <span className="truncate">{selectedJob === 'all' ? 'All jobs' : jobs.find(j => j.id === selectedJob)?.title ?? 'All jobs'}</span>
+                          <ChevronDown size={16} className={`text-gray-400 flex-shrink-0 ml-2 transition-transform ${jobDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {jobDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 max-h-60 overflow-y-auto">
+                          <button type="button" onClick={() => { setSelectedJob('all'); setJobDropdownOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">All jobs</button>
                           {jobs.map(job => (
-                              <option key={job.id} value={job.id}>{job.title}</option>
+                            <button key={job.id} type="button" onClick={() => { setSelectedJob(job.id); setJobDropdownOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm truncate hover:bg-gray-50 ${selectedJob === job.id ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-700'}`}>{job.title}</button>
                           ))}
-                      </select>
+                        </div>
+                      )}
                   </div>
               </div>
           </div>

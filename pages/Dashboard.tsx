@@ -502,7 +502,7 @@ const QuickActions = ({
                     </button>
                     
                     {openDropdown === 'bulk' && (
-                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden" style={{ zIndex: 1000 }}>
+                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden max-h-60 overflow-y-auto" style={{ zIndex: 1000 }}>
                             <button onClick={() => { onBulkReject(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Bulk Reject</button>
                             <button onClick={() => { onBulkMove(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Move to Next Stage</button>
                             <button onClick={() => { onExport(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors">Export Selected</button>
@@ -523,7 +523,7 @@ const QuickActions = ({
                     </button>
 
                     {openDropdown === 'report' && (
-                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-[100] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+                        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-[100] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden max-h-60 overflow-y-auto">
                             <button onClick={() => { onGenerateReport('weekly'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Weekly Performance</button>
                             <button onClick={() => { onGenerateReport('job'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Job Posting Analysis</button>
                             <button onClick={() => { onGenerateReport('time'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors">Time to Hire Analysis</button>
