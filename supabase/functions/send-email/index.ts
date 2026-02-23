@@ -260,13 +260,39 @@ serve(async (req) => {
         return part.replace(/\n/g, '<br>');
       }).join('');
     } else {
-      // Plain text content - escape and convert to HTML
-      htmlContent = contentStr
-      .split('\n')
-      .map((line) => (line.trim().length ? escapeHtml(line) : '<br>'))
-      .join('<br>');
-    
-      // Convert plain URLs to clickable links
+      // Plain text content – normalize spacing into professional paragraphs
+      const normalized = contentStr.replace(/\r\n/g, '\n').trim();
+      const lines = normalized.split('\n');
+
+      const paragraphs: string[] = [];
+      let current: string[] = [];
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+          if (current.length) {
+            paragraphs.push(current.join(' '));
+            current = [];
+          }
+        } else {
+          current.push(line);
+        }
+      }
+      if (current.length) {
+        paragraphs.push(current.join(' '));
+      }
+
+      // If everything was blank, fall back to a single empty paragraph
+      if (paragraphs.length === 0) {
+        paragraphs.push('');
+      }
+
+      // Wrap paragraphs with consistent spacing; email clients ignore extra <p> margins nicely
+      htmlContent = paragraphs
+        .map((p) => `<p style="margin: 0 0 16px 0;">${escapeHtml(p)}</p>`)
+        .join('');
+
+      // Convert plain URLs to clickable links inside the escaped content
       htmlContent = htmlContent.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" style="color: #2563eb; text-decoration: underline;">$1</a>');
     }
 

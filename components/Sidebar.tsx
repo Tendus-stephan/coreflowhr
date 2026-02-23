@@ -14,12 +14,13 @@ const Sidebar: React.FC = () => {
   const profileRef = useRef<HTMLDivElement>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('User');
+  const [userEmail, setUserEmail] = useState<string>(() => '');
 
   // Don't render sidebar if user is not authenticated
   // This check must be AFTER all hooks to maintain hook order
   const isAuthenticated = user && session;
 
-  // Load user profile data
+  // Load user profile data (name, avatar, email from current auth so sidebar always shows latest e.g. after email change)
   useEffect(() => {
     if (!isAuthenticated) return;
     
@@ -29,10 +30,11 @@ const Sidebar: React.FC = () => {
           const profile = await api.auth.me();
           setUserName(profile.name);
           setUserAvatar(profile.avatar || null);
+          setUserEmail(profile.email || user.email || '');
         } catch (error) {
           console.error('Error loading profile:', error);
-          // Fallback to user metadata
           setUserName(user.user_metadata?.name || user.email?.split('@')[0] || 'User');
+          setUserEmail(user.email || '');
         }
       }
     };
@@ -77,8 +79,6 @@ const Sidebar: React.FC = () => {
     // Don't await - signOut handles redirect immediately
     signOut();
   };
-
-  const userEmail = user?.email || '';
 
   // Don't render sidebar if user is not authenticated
   if (!isAuthenticated) {
@@ -171,7 +171,7 @@ const Sidebar: React.FC = () => {
             className={`flex items-center ${isExpanded ? 'gap-3' : 'justify-center'} p-2 rounded-lg cursor-pointer transition-colors group relative ${
                 isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-50'
             }`}
-            title={!isExpanded ? `${userName} (${userEmail})` : ''}
+            title={!isExpanded ? `${userName} (${userEmail || user?.email || ''})` : ''}
         >
             {user ? (
                 <>
@@ -179,13 +179,13 @@ const Sidebar: React.FC = () => {
                     {isExpanded && (
                         <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-gray-900 group-hover:text-black truncate">{userName}</span>
-                            <span className="text-[10px] text-gray-500 truncate">{userEmail}</span>
+                            <span className="text-[10px] text-gray-500 truncate">{userEmail || user?.email || ''}</span>
                         </div>
                     )}
                     {!isExpanded && (
                         <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                             <div className="font-bold">{userName}</div>
-                            <div className="text-[10px]">{userEmail}</div>
+                            <div className="text-[10px]">{userEmail || user?.email || ''}</div>
                         </div>
                     )}
                 </>

@@ -150,23 +150,43 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             });
 
             if (error) {
-                console.error('Error creating meeting link:', error);
-                const errorMessage = error.message || data?.error || 'Failed to generate meeting link. Please check your integration settings.';
-                const errorDetails = data?.details ? `\n\nDetails: ${data.details}` : '';
-                alert(`${errorMessage}${errorDetails}`);
+                console.error('Error creating meeting link:', error, data);
+                const rawMessage = error.message || '';
+                const edgeFunctionGeneric = rawMessage.includes('Edge Function returned a non-2xx status code');
+                let friendly = data?.error || rawMessage || 'Failed to generate meeting link.';
+
+                // Map common server errors to user-friendly guidance
+                if (data?.error?.includes('Integration not connected')) {
+                    friendly = 'Google Meet is not connected. Go to Settings → Integrations and connect Google Meet, then try again.';
+                } else if (
+                    data?.error?.includes('Google integration not fully configured') ||
+                    data?.error?.includes('No valid Google access token') ||
+                    data?.error?.includes('token has expired') ||
+                    data?.error?.includes('Please reconnect your Google account')
+                ) {
+                    friendly = 'Your Google integration needs to be reconnected. Go to Settings → Integrations, disconnect Google, then connect it again.';
+                } else if (edgeFunctionGeneric && data?.error) {
+                    // Use the backend message instead of the generic Supabase client text
+                    friendly = data.error;
+                }
+
+                alert(friendly);
             } else if (data?.meetingUrl) {
                 setMeetingLink(data.meetingUrl);
             } else if (data?.error) {
                 console.warn('Error returned from create-meeting function:', data);
-                const errorDetails = data.details ? `\n\nDetails: ${data.details}` : '';
-                alert(`${data.error}${errorDetails}`);
+                let friendly = data.error;
+                if (data.error.includes('Integration not connected')) {
+                    friendly = 'Google Meet is not connected. Go to Settings → Integrations and connect Google Meet, then try again.';
+                }
+                alert(friendly);
             } else {
                 console.warn('No meetingUrl returned from create-meeting function:', data);
                 alert('Meeting was created but no join link was returned.');
             }
         } catch (err) {
             console.error('Unexpected error generating meeting link:', err);
-            alert('Unexpected error generating meeting link.');
+            alert('Unexpected error generating meeting link. Please try again or check your integration settings.');
         } finally {
             setIsGenerating(false);
         }
@@ -200,7 +220,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 duration: duration,
             };
 
-            // If editingInterviewId is provided, use reschedule API (which sends email)
+            // If editingInterviewId is provided, or an existing scheduled interview is found,
+            // treat this as a reschedule (so the Reschedule template / email is used).
             let interview;
             if (editingInterviewId) {
                 // Convert duration string to minutes
@@ -241,26 +262,32 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     .maybeSingle();
 
                 if (existingInterview) {
-                    // Update existing interview (for non-reschedule updates)
-                    const { data: updatedInterview, error: updateError } = await supabase
-                        .from('interviews')
-                        .update({
-                            job_title: interviewData.jobTitle,
-                            date: interviewData.date,
-                            time: interviewData.time,
-                            type: interviewData.dbType,
-                            interviewer: interviewData.interviewer,
-                            meeting_link: interviewData.meetingLink,
-                            notes: interviewData.address ? `Address: ${interviewData.address}` : null,
-                            status: 'Scheduled',
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', existingInterview.id)
-                        .select()
-                        .single();
+                    // Existing scheduled interview for this candidate → treat as reschedule
+                    const durationMinutes = duration === '30 min' ? 30 : duration === '60 min' ? 60 : 45;
                     
-                    if (updateError) throw updateError;
-                    interview = updatedInterview;
+                    interview = await api.interviews.reschedule(
+                        existingInterview.id,
+                        interviewData.date,
+                        interviewData.time,
+                        durationMinutes
+                    );
+
+                    // Update additional fields (type, meeting link, address) on the same interview
+                    if (interviewData.dbType || interviewData.meetingLink || interviewData.address) {
+                        const updateData: any = {
+                            updated_at: new Date().toISOString()
+                        };
+                        if (interviewData.dbType) updateData.type = interviewData.dbType;
+                        if (interviewData.meetingLink) updateData.meeting_link = interviewData.meetingLink;
+                        if (interviewData.address) {
+                            updateData.notes = `Address: ${interviewData.address}`;
+                        }
+                        
+                        await supabase
+                            .from('interviews')
+                            .update(updateData)
+                            .eq('id', existingInterview.id);
+                    }
                 } else {
                     // Insert new interview
                     const { data: newInterview, error: insertError } = await supabase

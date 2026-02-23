@@ -1686,15 +1686,6 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       document.body
     )}
 
-    {/* Schedule Interview Modal */}
-    {isScheduleOpen && (
-      <ScheduleInterviewModal
-        isOpen={isScheduleOpen}
-        onClose={() => setIsScheduleOpen(false)}
-        preSelectedCandidate={candidate}
-      />
-    )}
-
     {/* Offer Modal */}
     {isOfferModalOpen && (
       <OfferModal
