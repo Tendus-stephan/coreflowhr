@@ -28,9 +28,10 @@ interface CandidateModalProps {
 export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpen, onClose, onUpdate }) => {
   const { setCandidateModalOpen } = useModal();
   
-  // Update modal context when modal opens/closes
+  // Update modal context when modal opens/closes (and reset when unmounting so AI button shows on other pages)
   useEffect(() => {
     setCandidateModalOpen(isOpen);
+    return () => setCandidateModalOpen(false);
   }, [isOpen, setCandidateModalOpen]);
   
   const [loadingAI, setLoadingAI] = useState(false);
