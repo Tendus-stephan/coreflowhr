@@ -925,7 +925,7 @@ const Settings: React.FC = () => {
         load();
     }, []);
 
-    // Handle Supabase email-change confirmation: send notifications and sign out.
+    // Handle Supabase email-change confirmation: verify change really completed, then send notifications and sign out.
     useEffect(() => {
         const hash = window.location.hash || '';
         if (!hash || emailChangeHandledRef.current) return;
@@ -946,17 +946,40 @@ const Settings: React.FC = () => {
 
         (async () => {
             // Give Supabase time to process tokens and refresh session
-            await new Promise((r) => setTimeout(r, 1200));
-
-            const pending = await api.auth.getPendingEmailChange();
-            if (!pending) {
-                window.history.replaceState(null, '', window.location.pathname + window.location.search);
-                return;
-            }
-
             try {
-                await api.auth.notifyOldEmailAndClearPending();
-                await api.auth.sendEmailChangeSuccessNotification();
+                await new Promise((r) => setTimeout(r, 1200));
+
+                const pending = await api.auth.getPendingEmailChange();
+                if (!pending) {
+                    // No pending record anymore – nothing to finalize
+                    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                    return;
+                }
+
+                // Double-check that Supabase has actually switched the auth email
+                const { data: { user } } = await supabase.auth.getUser();
+                const authEmail = user?.email?.toLowerCase() || '';
+                const expectedNew = pending.new_email.toLowerCase();
+
+                if (authEmail !== expectedNew) {
+                    // Supabase hasn't finished the email change yet (e.g. secure email-change requires another confirmation).
+                    setEmailChangeMessage({
+                        type: 'error',
+                        text: 'We found a pending email change, but your new email is not active yet. Please follow all confirmation links in the emails we sent to finish the change, then try again.',
+                    });
+                    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                    return;
+                }
+
+                // At this point auth email matches the pending new email – finalize our side
+                const notifyResult = await api.auth.notifyOldEmailAndClearPending();
+                if (!notifyResult.success) {
+                    console.error('notifyOldEmailAndClearPending failed', notifyResult.error);
+                }
+                const successResult = await api.auth.sendEmailChangeSuccessNotification();
+                if (!successResult.success) {
+                    console.error('sendEmailChangeSuccessNotification failed', successResult.error);
+                }
             } catch (e) {
                 console.error('email change completion error', e);
             } finally {
