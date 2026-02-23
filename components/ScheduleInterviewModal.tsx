@@ -475,7 +475,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900">Schedule Interview</h2>
+                    <h2 className="text-xl font-bold text-gray-900">{editingInterviewId ? 'Reschedule Interview' : 'Schedule Interview'}</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
                         <X size={20} />
                     </button>
@@ -707,7 +707,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         }
                         onClick={handleScheduleInterview}
                     >
-                        {isScheduling ? 'Scheduling...' : 'Schedule Interview'}
+                        {isScheduling ? (editingInterviewId ? 'Rescheduling...' : 'Scheduling...') : (editingInterviewId ? 'Reschedule Interview' : 'Schedule Interview')}
                     </Button>
                 </div>
             </div>

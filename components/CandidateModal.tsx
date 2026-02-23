@@ -70,6 +70,21 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       if (isOpen) fetchJob();
   }, [candidate.jobId, isOpen]);
 
+  // Load candidate interviews when modal opens (for Reschedule vs Schedule and scheduled badge)
+  useEffect(() => {
+    if (!isOpen || !candidate.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await api.interviews.getCandidateInterviews(candidate.id);
+        if (!cancelled) setCandidateInterviews(list);
+      } catch {
+        if (!cancelled) setCandidateInterviews([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, candidate.id]);
+
   // Silently regenerate AI analysis in background if missing or incomplete (no loading messages)
   useEffect(() => {
       const regenerateAnalysisSilently = async () => {
@@ -576,6 +591,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   // Use real work experience from candidate data
   const experienceHistory = candidate.workExperience || [];
+  const scheduledUpcoming = candidateInterviews.filter((i: { date: string; time?: string }) => {
+    const t = (i.time || '00:00').slice(0, 5);
+    return new Date(i.date + 'T' + t) > new Date();
+  });
 
   return (
     <>
@@ -583,6 +602,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         isOpen={isScheduleOpen} 
         onClose={() => setIsScheduleOpen(false)} 
         preSelectedCandidate={candidate} 
+        editingInterviewId={scheduledUpcoming[0]?.id ?? undefined}
     />
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-sm" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
       <div className="w-[800px] h-full bg-white border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
@@ -744,6 +764,24 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
             {activeTab === 'overview' && (
                 <div className="space-y-6">
+                    {/* Upcoming interview notice */}
+                    {scheduledUpcoming.length > 0 && (() => {
+                      const inv = scheduledUpcoming[0];
+                      const d = new Date(inv.date + 'T' + (inv.time || '00:00').slice(0, 5));
+                      const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                      const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                      return (
+                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
+                          <div className="flex items-center gap-2 text-green-800">
+                            <CheckCircle size={18} />
+                            <span className="text-sm font-medium">Interview scheduled on {dateStr} at {timeStr}{inv.jobTitle ? ` · ${inv.jobTitle}` : ''}</span>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => setIsScheduleOpen(true)}>
+                            Reschedule
+                          </Button>
+                        </div>
+                      );
+                    })()}
                     {/* Top Row: AI Summary & Score - Only show for candidates with CVs */}
                     {candidate.cvFileUrl && (
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
@@ -1640,7 +1678,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                   setIsScheduleOpen(true);
                                 }}
                               >
-                                Schedule
+                                {scheduledUpcoming.length > 0 ? 'Reschedule' : 'Schedule'}
                               </Button>
                 <Button variant="primary" onClick={onClose}>Save Changes</Button>
                              </div>
