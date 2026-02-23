@@ -168,6 +168,9 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 } else if (edgeFunctionGeneric && data?.error) {
                     // Use the backend message instead of the generic Supabase client text
                     friendly = data.error;
+                } else if (edgeFunctionGeneric && !data?.error) {
+                    // Fall back to a clear, non-technical message
+                    friendly = 'We could not generate a Google Meet link. This usually means the integration is not connected or needs to be reconnected in Settings → Integrations.';
                 }
 
                 alert(friendly);
