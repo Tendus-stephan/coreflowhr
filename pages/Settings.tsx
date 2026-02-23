@@ -945,27 +945,31 @@ const Settings: React.FC = () => {
         emailChangeHandledRef.current = true;
 
         (async () => {
-            // Give Supabase time to process tokens and refresh session
             try {
-                await new Promise((r) => setTimeout(r, 1200));
+                // Let Supabase consume the confirmation token from the URL hash (do not clear hash yet)
+                await new Promise((r) => setTimeout(r, 800));
+                // Force session refresh so we get the latest user (new email) from the server
+                const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+                if (refreshError) {
+                    console.warn('email-change refreshSession', refreshError);
+                }
+                await new Promise((r) => setTimeout(r, 400));
 
                 const pending = await api.auth.getPendingEmailChange();
                 if (!pending) {
-                    // No pending record anymore – nothing to finalize
                     window.history.replaceState(null, '', window.location.pathname + window.location.search);
                     return;
                 }
 
-                // Double-check that Supabase has actually switched the auth email
-                const { data: { user } } = await supabase.auth.getUser();
-                const authEmail = user?.email?.toLowerCase() || '';
+                // Use the session we just refreshed so we see the new email if Supabase applied it
+                const currentUser = sessionData?.user ?? (await supabase.auth.getUser()).data?.user;
+                const authEmail = currentUser?.email?.toLowerCase() || '';
                 const expectedNew = pending.new_email.toLowerCase();
 
                 if (authEmail !== expectedNew) {
-                    // Supabase hasn't finished the email change yet (e.g. secure email-change requires another confirmation).
                     setEmailChangeMessage({
                         type: 'error',
-                        text: 'We found a pending email change, but your new email is not active yet. Please follow all confirmation links in the emails we sent to finish the change, then try again.',
+                        text: 'Your new email is not active yet. In Supabase Dashboard go to Authentication → Settings → Email and turn OFF "Secure email change", then request the change again and click only the link we send to your new email. Or click the link in both emails if you keep Secure email change on.',
                     });
                     window.history.replaceState(null, '', window.location.pathname + window.location.search);
                     return;
@@ -1774,7 +1778,7 @@ const Settings: React.FC = () => {
                                         </p>
                                     )}
                                     <p className="text-xs text-gray-500">
-                                        We’ll send a verification link to your new email. Your current email will keep working until you confirm the change.
+                                        We’ll send a verification link to your new email. Your current email will keep working until you confirm the change. After clicking that link, sign in with your new email. If login with the new email fails, in Supabase turn off &quot;Secure email change&quot; (Authentication → Email) or click the link in both emails.
                                     </p>
                                 </div>
                                 <div className="space-y-2">
