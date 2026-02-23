@@ -953,7 +953,7 @@ const Dashboard: React.FC = () => {
                 >
                     <Bell size={18} />
                     {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-gray-500 rounded-full border border-white"></span>
+                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                     )}
                 </button>
 

@@ -125,7 +125,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                                                 {note.title}
                                             </p>
                                             {note.unread && (
-                                                <div className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0 mt-1.5"></div>
+                                                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 mt-1.5"></div>
                                             )}
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1 leading-relaxed">
