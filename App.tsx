@@ -18,7 +18,6 @@ import ForgotPassword from './pages/ForgotPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import AddJob from './pages/AddJob';
 import Settings from './pages/Settings';
-import ChangeEmail from './pages/ChangeEmail';
 import JobApplication from './pages/JobApplication';
 import Calendar from './pages/Calendar';
 import Offers from './pages/Offers';
@@ -152,7 +151,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Detect email-change confirmation redirect from Supabase and send user to change-email page
+// Detect email-change confirmation redirect from Supabase and send user to settings page
 function isEmailChangeConfirmationHash(hash: string): boolean {
   if (!hash || !hash.includes('message=')) return false;
   try {
@@ -176,7 +175,7 @@ function isEmailChangeErrorHash(hash: string): boolean {
 const AppRoutes: React.FC = () => {
   const location = useLocation();
 
-  // When user lands on / with email-change hash (success or error), redirect to change-email page.
+  // When user lands on / with email-change hash (success or error), redirect to settings page.
   useEffect(() => {
     const hash = window.location.hash || '';
     const pathname = window.location.pathname || '/';
@@ -184,7 +183,7 @@ const AppRoutes: React.FC = () => {
     if (!isRoot) return;
     if (isEmailChangeConfirmationHash(hash) || isEmailChangeErrorHash(hash)) {
       const base = window.location.origin;
-      window.location.replace(`${base}/change-email${hash}`);
+      window.location.replace(`${base}/settings${hash}`);
     }
   }, [location.pathname]);
 
@@ -287,10 +286,6 @@ const AppRoutes: React.FC = () => {
               <Settings />
             </ProtectedRoute>
           } 
-        />
-        <Route 
-          path="/change-email" 
-          element={<ChangeEmail />}
         />
         <Route 
           path="/calendar" 

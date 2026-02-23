@@ -381,75 +381,82 @@ export const api = {
                 }
             };
         },
-        /** Step 1: Send confirmation to current email. User clicks link there; then we send to new address (step 2). */
-        requestEmailChange: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
-            const userId = await getUserId();
-            if (!userId) return { success: false, error: 'Not authenticated' };
+        /** Request email change from Settings: verify password, record pending (old/new), then Supabase sends verification to the new email. */
+        requestEmailChangeWithPassword: async (newEmail: string, password: string): Promise<{ success: boolean; error?: string }> => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.email) return { success: false, error: 'Not authenticated' };
 
             const trimmed = newEmail.trim().toLowerCase();
             if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
                 return { success: false, error: 'Please enter a valid email address' };
             }
-
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email?.toLowerCase() === trimmed) {
+            if (user.email.toLowerCase() === trimmed) {
                 return { success: false, error: 'This is already your current email' };
             }
 
-            const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('request-email-change', {
-                body: { newEmail: trimmed },
+            // Re-authenticate with current password
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: user.email,
+                password: password.trim(),
             });
-            if (error) {
-                const msg = error.message || '';
-                if (/edge function|failed to send a request/i.test(msg)) {
-                    return { success: false, error: 'We couldn\'t send the confirmation email right now. Please try again in a moment or contact support if it keeps happening.' };
+            if (signInError) {
+                const msg = signInError.message || '';
+                if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('wrong')) {
+                    return { success: false, error: 'Current password is incorrect' };
                 }
-                return { success: false, error: msg || 'Something went wrong. Please try again.' };
-            }
-            if (data?.error) return { success: false, error: data.error };
-            return { success: true };
-        },
-        /** Verify token from "confirm current email" link; returns newEmail so caller can call updateEmail. */
-        verifyEmailChangeToken: async (token: string): Promise<{ success: boolean; newEmail?: string; error?: string }> => {
-            const { data, error } = await supabase.functions.invoke<{ success?: boolean; newEmail?: string; error?: string }>('verify-email-change-token', {
-                body: { token },
-            });
-            if (error) {
-                const msg = error.message || '';
-                if (/edge function|failed to send a request/i.test(msg)) {
-                    return { success: false, error: 'We couldn\'t verify the link right now. If you just signed in, wait a moment and click the link in the email again—or request a new confirmation email below.' };
-                }
-                return { success: false, error: msg || 'Something went wrong. Please try again.' };
-            }
-            if (data?.error) return { success: false, error: data.error };
-            if (data?.success && data?.newEmail) return { success: true, newEmail: data.newEmail };
-            return { success: false, error: 'Invalid response' };
-        },
-        /** Step 2: After user confirmed from current email, send Supabase confirmation to new email. */
-        updateEmail: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
-            const userId = await getUserId();
-            if (!userId) return { success: false, error: 'Not authenticated' };
-
-            const trimmed = newEmail.trim().toLowerCase();
-            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-                return { success: false, error: 'Please enter a valid email address' };
+                return { success: false, error: msg || 'Failed to verify your password' };
             }
 
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email?.toLowerCase() === trimmed) {
-                return { success: false, error: 'This is already your current email' };
+            // Record pending change so we can notify old email after confirmation
+            const { error: insertError } = await supabase
+                .from('email_change_pending')
+                .upsert(
+                    {
+                        user_id: user.id,
+                        old_email: user.email.toLowerCase(),
+                        new_email: trimmed,
+                        created_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'user_id' }
+                );
+            if (insertError) {
+                return { success: false, error: 'Could not save email-change request. Please try again.' };
             }
 
-            const { error } = await supabase.auth.updateUser({ email: trimmed });
-
-            if (error) {
-                const msg = error.message || 'Failed to update email';
+            const { error: updateError } = await supabase.auth.updateUser({ email: trimmed });
+            if (updateError) {
+                const msg = updateError.message || 'Failed to update email';
                 if (msg.includes('already registered') || msg.includes('already in use')) {
+                    await supabase.from('email_change_pending').delete().eq('user_id', user.id);
                     return { success: false, error: 'This email is already used by another account' };
                 }
+                await supabase.from('email_change_pending').delete().eq('user_id', user.id);
                 return { success: false, error: msg };
             }
 
+            return { success: true };
+        },
+        /** Get pending email change for the current user (if any). */
+        getPendingEmailChange: async (): Promise<{ old_email: string; new_email: string; created_at: string } | null> => {
+            const userId = await getUserId();
+            if (!userId) return null;
+            const { data, error } = await supabase
+                .from('email_change_pending')
+                .select('old_email, new_email, created_at')
+                .eq('user_id', userId)
+                .maybeSingle();
+            if (error) {
+                if (error.code === 'PGRST116') return null; // no rows
+                console.warn('getPendingEmailChange error', error.message);
+                return null;
+            }
+            return data || null;
+        },
+        /** Ask Edge Function to notify old email (if pending) and clear row. Used after Supabase confirms new email. */
+        notifyOldEmailAndClearPending: async (): Promise<{ success: boolean; error?: string }> => {
+            const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('notify-old-email-after-change');
+            if (error) return { success: false, error: error.message };
+            if (data?.error) return { success: false, error: data.error };
             return { success: true };
         },
         /** Send a "your email was updated successfully" notification to the current user (new email). Call after email change is confirmed. */

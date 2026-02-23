@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { 
   User as UserIcon, CreditCard, Mail, AlertCircle, Monitor, Smartphone, X, Sparkles,
   Save, MessageSquare, FileText, Layers, Plus, Shield, CheckCircle, Lock, Key, LogOut, Upload,
@@ -11,6 +11,7 @@ import { Avatar } from '../components/ui/Avatar';
 import { api, Session } from '../services/api';
 import { User, BillingPlan, EmailTemplate, Integration, Invoice, EmailWorkflow } from '../types';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { createCheckoutSession, createPortalSession, PLANS } from '../services/stripe';
 import { WorkflowList } from '../components/WorkflowList';
 import { EmailWorkflowBuilder } from '../components/EmailWorkflowBuilder';
@@ -740,6 +741,9 @@ const TestWorkflowModal: React.FC<{
 
 const Settings: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { signOut } = useAuth();
     const [user, setUser] = useState<User | null>(null);
     const [activeTab, setActiveTab] = useState('profile');
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -782,7 +786,9 @@ const Settings: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [newEmail, setNewEmail] = useState('');
+    const [currentPassword, setCurrentPassword] = useState('');
     const [emailChangeMessage, setEmailChangeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const emailChangeHandledRef = useRef(false);
     const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -918,6 +924,48 @@ const Settings: React.FC = () => {
         };
         load();
     }, []);
+
+    // Handle Supabase email-change confirmation: send notifications and sign out.
+    useEffect(() => {
+        const hash = window.location.hash || '';
+        if (!hash || emailChangeHandledRef.current) return;
+        if (!hash.includes('message=')) return;
+        let looksLikeEmailChange = false;
+        try {
+            const decoded = decodeURIComponent(hash);
+            looksLikeEmailChange =
+                decoded.includes('link+accepted') ||
+                decoded.includes('link accepted') ||
+                (decoded.includes('Confirmation') && decoded.includes('email'));
+        } catch {
+            looksLikeEmailChange = hash.includes('link+accepted') || hash.includes('Confirmation');
+        }
+        if (!looksLikeEmailChange) return;
+
+        emailChangeHandledRef.current = true;
+
+        (async () => {
+            // Give Supabase time to process tokens and refresh session
+            await new Promise((r) => setTimeout(r, 1200));
+
+            const pending = await api.auth.getPendingEmailChange();
+            if (!pending) {
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                return;
+            }
+
+            try {
+                await api.auth.notifyOldEmailAndClearPending();
+                await api.auth.sendEmailChangeSuccessNotification();
+            } catch (e) {
+                console.error('email change completion error', e);
+            } finally {
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                await signOut();
+                navigate('/login', { replace: true, state: { emailChanged: true } });
+            }
+        })();
+    }, [location.hash, navigate, signOut, emailChangeHandledRef]);
 
     // When landed from email-change confirmation link (redirected from / with hash), show message and switch to profile
     useEffect(() => {
@@ -1648,46 +1696,63 @@ const Settings: React.FC = () => {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-gray-900">Change email address</label>
-                                    <div className="flex gap-2">
-                                        <input 
-                                            type="email" 
-                                            value={newEmail}
-                                            onChange={(e) => {
-                                                setNewEmail(e.target.value);
-                                                setEmailChangeMessage(null);
-                                            }}
-                                            placeholder="New email address"
-                                            className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
-                                        />
-                                        <Button 
-                                            variant="outline" 
-                                            onClick={async () => {
-                                                if (!newEmail.trim()) return;
-                                                setIsUpdatingEmail(true);
-                                                setEmailChangeMessage(null);
-                                                const result = await api.auth.requestEmailChange(newEmail.trim());
-                                                setIsUpdatingEmail(false);
-                                                if (result.success) {
-                                                    setEmailChangeMessage({
-                                                        type: 'success',
-                                                        text: 'Sending confirmation to your current email address. Click the link there; we\'ll then send a link to your new address to complete the change.'
-                                                    });
-                                                    setNewEmail('');
-                                                } else {
-                                                    setEmailChangeMessage({ type: 'error', text: result.error || 'Failed to send confirmation' });
-                                                }
-                                            }}
-                                            disabled={isUpdatingEmail || !newEmail.trim()}
-                                        >
-                                            {isUpdatingEmail ? 'Sending...' : 'Update email'}
-                                        </Button>
+                                    <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                            <input 
+                                                type="email" 
+                                                value={newEmail}
+                                                onChange={(e) => {
+                                                    setNewEmail(e.target.value);
+                                                    setEmailChangeMessage(null);
+                                                }}
+                                                placeholder="New email address"
+                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="password"
+                                                value={currentPassword}
+                                                onChange={(e) => {
+                                                    setCurrentPassword(e.target.value);
+                                                    setEmailChangeMessage(null);
+                                                }}
+                                                placeholder="Current password (for security)"
+                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                                            />
+                                            <Button 
+                                                variant="outline" 
+                                                onClick={async () => {
+                                                    if (!newEmail.trim() || !currentPassword.trim()) return;
+                                                    setIsUpdatingEmail(true);
+                                                    setEmailChangeMessage(null);
+                                                    const result = await api.auth.requestEmailChangeWithPassword(newEmail.trim(), currentPassword.trim());
+                                                    setIsUpdatingEmail(false);
+                                                    if (result.success) {
+                                                        setEmailChangeMessage({
+                                                            type: 'success',
+                                                            text: 'Check your new email inbox for a verification link. You can still sign in with your current email until you confirm the change.'
+                                                        });
+                                                        setNewEmail('');
+                                                        setCurrentPassword('');
+                                                    } else {
+                                                        setEmailChangeMessage({ type: 'error', text: result.error || 'Failed to request email change' });
+                                                    }
+                                                }}
+                                                disabled={isUpdatingEmail || !newEmail.trim() || !currentPassword.trim()}
+                                            >
+                                                {isUpdatingEmail ? 'Sending...' : 'Update email'}
+                                            </Button>
+                                        </div>
                                     </div>
                                     {emailChangeMessage && (
                                         <p className={`text-sm ${emailChangeMessage.type === 'error' ? 'text-red-600' : 'text-gray-700'}`}>
                                             {emailChangeMessage.text}
                                         </p>
                                     )}
-                                    <p className="text-xs text-gray-500">We’ll send a confirmation link to your current address first; after you click it, we'll send a link to your new address to complete the change.</p>
+                                    <p className="text-xs text-gray-500">
+                                        We’ll send a verification link to your new email. Your current email will keep working until you confirm the change.
+                                    </p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-gray-900">Job Title</label>

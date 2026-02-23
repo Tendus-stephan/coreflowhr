@@ -3,8 +3,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Redirect to change-email page before any render when URL has email-change/auth hash (avoids landing → login)
-const shouldRedirectToChangeEmail =
+// Redirect to settings page before any render when URL has email-change/auth hash (avoids landing → login)
+const shouldRedirectToSettingsForEmailChange =
   typeof window !== 'undefined' &&
   (() => {
     const pathname = window.location.pathname || '/';
@@ -17,8 +17,8 @@ const shouldRedirectToChangeEmail =
     return isRootOrLogin && (looksLikeEmailChange || looksLikeAuthError || hasError);
   })();
 
-if (shouldRedirectToChangeEmail && typeof window !== 'undefined') {
-  window.location.replace(window.location.origin + '/change-email' + window.location.hash);
+if (shouldRedirectToSettingsForEmailChange && typeof window !== 'undefined') {
+  window.location.replace(window.location.origin + '/settings' + window.location.hash);
 } else {
   const rootElement = document.getElementById('root');
   if (!rootElement) {
