@@ -71,7 +71,17 @@ serve(async (req) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error('Error exchanging Google OAuth code:', errorData);
-      return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent('Failed to exchange authorization code')}`, 302);
+      let userMessage = 'Failed to exchange authorization code';
+      try {
+        const err = JSON.parse(errorData);
+        const code = err?.error;
+        const desc = (err?.error_description || '').toLowerCase();
+        if (code === 'invalid_client') userMessage = 'Invalid client ID or secret. Check Supabase Edge Function secrets (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) and redeploy.';
+        else if (code === 'invalid_grant') userMessage = 'Authorization expired or already used. Try connecting again from Settings → Integrations.';
+        else if (code === 'redirect_uri_mismatch') userMessage = 'Redirect URI mismatch. In Google Console set the redirect URI to exactly: ' + redirectUri;
+        else if (desc.includes('redirect')) userMessage = 'Redirect URI mismatch. In Google Console add: ' + redirectUri;
+      } catch (_) {}
+      return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent(userMessage)}`, 302);
     }
 
     const tokens = await tokenResponse.json();
