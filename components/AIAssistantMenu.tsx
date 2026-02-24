@@ -4,6 +4,30 @@ import { Send, X, Sparkles, Command, ChevronDown, Zap, Loader2 } from 'lucide-re
 import { useSourcing } from '../contexts/SourcingContext';
 import { getAIChatResponse, ChatMessage } from '../services/geminiService';
 
+/** Renders AI message with paragraphs, **bold**, and line breaks */
+function FormattedMessage({ text }: { text: string }) {
+  const paragraphs = text.split(/\n\n+/).filter(Boolean);
+  return (
+    <div className="space-y-2">
+      {paragraphs.map((p, i) => (
+        <div key={i} className={i > 0 ? 'mt-2' : ''}>
+          {p.split('\n').map((line, j) => (
+            <p key={j} className={j > 0 ? 'mt-1' : ''}>
+              {line.split(/(\*\*[^*]+\*\*)/g).map((part, k) =>
+                part.startsWith('**') && part.endsWith('**') ? (
+                  <strong key={k}>{part.slice(2, -2)}</strong>
+                ) : (
+                  <span key={k}>{part}</span>
+                )
+              )}
+            </p>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const AIAssistantMenu: React.FC = () => {
   const { isSourcing, sourcingProgress } = useSourcing();
   const [isOpen, setIsOpen] = useState(false);
@@ -71,9 +95,9 @@ export const AIAssistantMenu: React.FC = () => {
   return createPortal(
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4" style={{ pointerEvents: 'none' }}>
       
-      {/* Chat Panel */}
+      {/* Chat Panel - larger so structured answers fit */}
       <div 
-        className={`w-[340px] h-[450px] max-h-[calc(100vh-120px)] bg-white border border-gray-200 rounded-[28px] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] origin-bottom-right ${
+        className={`w-[420px] h-[560px] max-h-[calc(100vh-100px)] bg-white border border-gray-200 rounded-[28px] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] origin-bottom-right ${
           isOpen ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' : 'opacity-0 translate-y-8 scale-95 pointer-events-none'
         }`}
         style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
@@ -130,12 +154,12 @@ export const AIAssistantMenu: React.FC = () => {
         >
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] px-4 py-2.5 text-[13px] leading-relaxed ${
+              <div className={`max-w-[90%] px-4 py-2.5 text-[13px] leading-relaxed ${
                 m.role === 'user' 
                 ? 'bg-black text-white rounded-[18px] rounded-tr-none shadow-sm font-medium' 
                 : 'bg-white text-gray-800 rounded-[18px] rounded-tl-none border border-gray-100 shadow-sm'
               }`}>
-                {m.text}
+                {m.role === 'user' ? m.text : <FormattedMessage text={m.text} />}
               </div>
             </div>
           ))}

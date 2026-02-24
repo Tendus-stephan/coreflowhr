@@ -1004,14 +1004,23 @@ export interface ChatMessage {
   text: string;
 }
 
+const CHAT_RESPONSE_FORMAT = `
+
+RESPONSE FORMAT (always follow when answering):
+- Start with one short sentence that directly answers the question.
+- Then use clear structure: **Section name:** for subheadings (e.g. **Purpose:**, **How to use:**).
+- Use bullet points for lists (start lines with - or •).
+- Keep paragraphs short (2–3 sentences max).
+- Use blank lines between sections so the reply is easy to scan.`;
+
 /**
  * Get AI chat response for general conversation
  */
 export const getAIChatResponse = async (userPrompt: string, history: ChatMessage[] = []): Promise<string> => {
   const modelId = "gemini-2.0-flash";
   
-  // Use the comprehensive system prompt with full platform knowledge
-  const SYSTEM_PROMPT = COMPREHENSIVE_SYSTEM_PROMPT;
+  // Use the comprehensive system prompt + structured response format for chat
+  const SYSTEM_PROMPT = COMPREHENSIVE_SYSTEM_PROMPT + CHAT_RESPONSE_FORMAT;
 
   try {
     const ai = getAiClient();
