@@ -197,8 +197,7 @@ export const AIAssistantMenu: React.FC = () => {
             </button>
           </div>
           <div className="mt-2 text-center">
-            <span className="text-[9px] text-gray-400">Free tier: wait a few seconds between messages.</span>
-            <span className="block text-[7px] font-black text-gray-300 uppercase tracking-[0.4em] mt-0.5">CoreFlow v3.0</span>
+            <span className="block text-[7px] font-black text-gray-300 uppercase tracking-[0.4em]">CoreFlow v3.0</span>
           </div>
         </div>
       </div>
