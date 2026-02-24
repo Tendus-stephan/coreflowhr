@@ -25,6 +25,15 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            const prev = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => { document.body.style.overflow = prev; };
+        }
+    }, [isOpen]);
+
     // Load settings when modal opens
     useEffect(() => {
         if (isOpen && job) {

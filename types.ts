@@ -477,6 +477,7 @@ export interface Offer {
   negotiationHistory?: any;
   createdAt: string;
   updatedAt: string;
+  archived?: boolean;
 }
 
 export interface OfferTemplate {

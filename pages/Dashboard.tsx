@@ -156,6 +156,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [sourceStage, setSourceStage] = useState<CandidateStage>(CandidateStage.NEW);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [isProcessing, setIsProcessing] = useState(false);
     
     // Prevent body scroll when modal is open
     useEffect(() => {
@@ -346,8 +347,10 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button 
                         variant="black" 
-                        disabled={selectedIds.length === 0}
+                        disabled={selectedIds.length === 0 || isProcessing}
                         onClick={async () => {
+                            if (isProcessing) return;
+                            setIsProcessing(true);
                             try {
                                 if (type === 'export') {
                                     // Export selected candidates to CSV
@@ -431,6 +434,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                 console.error(`Error performing ${type}:`, error);
                                 alert(`Failed to ${type} candidates. Please try again.`);
                             }
+                            setIsProcessing(false);
                         }}
                     >
                         {type === 'move' ? `Move ${selectedIds.length} Candidates` : 

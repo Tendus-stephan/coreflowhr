@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Offer, Candidate, Job } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
@@ -38,6 +38,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const actionInFlightRef = useRef(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -155,70 +156,54 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     };
 
     const handleSave = async () => {
+        // Prevent rapid repeat clicks while a save/send is already in progress
+        if (actionInFlightRef.current) return;
+        actionInFlightRef.current = true;
+
+        // Synchronous validation – always reset the in-flight flag before returning
         if (!positionTitle.trim()) {
             setError('Position title is required');
+            actionInFlightRef.current = false;
             return;
         }
 
         if (!jobId) {
             setError('Job is required');
+            actionInFlightRef.current = false;
             return;
         }
 
         if (!salaryAmount || salaryAmount <= 0) {
             setError('Salary amount is required');
+            actionInFlightRef.current = false;
             return;
         }
 
         if (!startDate) {
             setError('Start date is required');
+            actionInFlightRef.current = false;
             return;
         }
 
         if (!expiresAt) {
             setError('Expiration date is required');
+            actionInFlightRef.current = false;
             return;
         }
 
         if (!benefits || benefits.length === 0) {
             setError('At least one benefit is required');
+            actionInFlightRef.current = false;
             return;
         }
 
         // Candidate is optional for general offers
         const candidateToUse = candidate || selectedCandidate;
 
+        setSaving(true);
+        setError(null);
         try {
-            setSaving(true);
-            setError(null);
-
             if (offer) {
-                // Update existing offer - still validate required fields
-                if (!positionTitle.trim()) {
-                    setError('Position title is required');
-                    return;
-                }
-                if (!jobId) {
-                    setError('Job is required');
-                    return;
-                }
-                if (!salaryAmount || salaryAmount <= 0) {
-                    setError('Salary amount is required');
-                    return;
-                }
-                if (!startDate) {
-                    setError('Start date is required');
-                    return;
-                }
-                if (!expiresAt) {
-                    setError('Expiration date is required');
-                    return;
-                }
-                if (!benefits || benefits.length === 0) {
-                    setError('At least one benefit is required');
-                    return;
-                }
-
                 await api.offers.update(offer.id, {
                     positionTitle: positionTitle.trim(),
                     startDate: startDate,
@@ -230,9 +215,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     expiresAt: expiresAt
                 });
             } else {
-                // Create new offer (candidate is optional for general offers)
-                const candidateToUse = candidate || selectedCandidate;
-                
                 await api.offers.create({
                     candidateId: candidateToUse?.id || null, // null for general offers
                     jobId: jobId,
@@ -254,10 +236,15 @@ export const OfferModal: React.FC<OfferModalProps> = ({
             setError(err.message || 'Failed to save offer');
         } finally {
             setSaving(false);
+            actionInFlightRef.current = false;
         }
     };
 
     const handleSendOffer = async () => {
+        // Prevent double‑clicks / repeated submissions while an action is already in progress
+        if (actionInFlightRef.current) return;
+        actionInFlightRef.current = true;
+
         if (!offer) {
             // Save first, then send
             await handleSave();
@@ -283,6 +270,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
             }
             await sendOfferEmail(offer.id);
         }
+        // Note: actionInFlightRef is reset in sendOfferEmail / handleSave finally blocks
     };
 
     const sendOfferEmail = async (offerId: string) => {
@@ -297,6 +285,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
             setError(err.message || 'Failed to send offer email');
         } finally {
             setSending(false);
+            actionInFlightRef.current = false;
         }
     };
 

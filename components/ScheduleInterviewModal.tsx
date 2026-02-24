@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, Integration, CandidateStage } from '../types';
 import { X, Search, Users, Clock, Video, Link as LinkIcon, ChevronDown, MapPin, ExternalLink } from 'lucide-react';
@@ -37,6 +37,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('30 min');
     const [isScheduling, setIsScheduling] = useState(false);
+    const actionInFlightRef = useRef(false);
 
     // Load integrations when modal opens
     useEffect(() => {
@@ -198,12 +199,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     };
 
     const handleScheduleInterview = async () => {
+        if (actionInFlightRef.current) return;
         if (!selectedCandidate || !date || !time) return;
         // For video calls, require a meeting link only when an integration is connected.
         // If there are no integrations, allow manual video interviews without an auto-generated link.
         if (interviewType === 'Video Call' && integrations.length > 0 && (!selectedPlatform || !meetingLink)) return;
         if (interviewType === 'In Person' && !address) return;
 
+        actionInFlightRef.current = true;
         setIsScheduling(true);
         try {
             // Get user info for interviewer name
@@ -468,6 +471,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             alert(`Failed to schedule interview: ${error.message}`);
         } finally {
             setIsScheduling(false);
+            actionInFlightRef.current = false;
         }
     };
 

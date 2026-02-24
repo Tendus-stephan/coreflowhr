@@ -339,6 +339,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   };
 
   const handleConfirmSend = async () => {
+      if (sendingEmail) return;
       setShowConfirmSend(false);
       
       if (!emailDraft || !candidate.email) {

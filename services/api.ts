@@ -3719,10 +3719,20 @@ export const api = {
                 }
             }
         },
-        /** Create in-app notifications for interviews starting soon (within next 24h). Idempotent – at most one reminder per interview. */
+        /** Create in-app notifications for interviews starting soon (within next 24h). Idempotent – at most one reminder per interview. Optionally send email if user preference is on. */
         ensureUpcomingInterviewReminders: async (): Promise<void> => {
             const userId = await getUserId();
             if (!userId) return;
+
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const userEmail = authUser?.email ?? null;
+
+            const { data: prefRow } = await supabase
+                .from('user_settings')
+                .select('interview_schedule_updates')
+                .eq('user_id', userId)
+                .single();
+            const sendEmail = prefRow?.interview_schedule_updates !== false;
 
             const { data: interviewsData } = await supabase
                 .from('interviews')
@@ -3766,6 +3776,13 @@ export const api = {
                 try {
                     await createNotification(userId, 'interview_reminder', title, desc);
                     alreadyRemindedIds.add(inv.id);
+
+                    if (sendEmail && userEmail) {
+                        const emailContent = `<p><strong>Reminder:</strong> ${candidateName} – ${inv.job_title}</p><p>${atStr}</p>`;
+                        await supabase.functions.invoke('send-email', {
+                            body: { to: userEmail, subject: title, content: emailContent, emailType: 'InterviewReminder' },
+                        });
+                    }
                 } catch (e) {
                     console.error('Error creating upcoming interview reminder:', e);
                 }
@@ -4926,7 +4943,7 @@ export const api = {
         }
     },
     offers: {
-        list: async (filters?: { status?: Offer['status']; candidateId?: string; jobId?: string; generalOnly?: boolean }): Promise<Offer[]> => {
+        list: async (filters?: { status?: Offer['status'] | 'archived'; candidateId?: string; jobId?: string; generalOnly?: boolean }): Promise<Offer[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
@@ -4934,10 +4951,12 @@ export const api = {
                 .from('offers')
                 .select('*')
                 .eq('user_id', userId)
+                // By default, hide archived offers unless status === 'archived'
+                .eq('archived', filters?.status === 'archived')
                 .order('created_at', { ascending: false });
 
-            if (filters?.status) {
-                query = query.eq('status', filters.status);
+            if (filters?.status && filters.status !== 'archived') {
+                query = query.eq('status', filters.status as Offer['status']);
             }
             if (filters?.candidateId) {
                 query = query.eq('candidate_id', filters.candidateId);
@@ -4973,7 +4992,8 @@ export const api = {
                 response: offer.response || undefined,
                 negotiationHistory: offer.negotiation_history || undefined,
                 createdAt: offer.created_at,
-                updatedAt: offer.updated_at
+                updatedAt: offer.updated_at,
+                archived: offer.archived ?? false,
             }));
         },
         get: async (offerId: string): Promise<Offer> => {
@@ -5009,7 +5029,8 @@ export const api = {
                 response: data.response || undefined,
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
-                updatedAt: data.updated_at
+                updatedAt: data.updated_at,
+                archived: data.archived ?? false
             };
         },
         create: async (offerData: {
@@ -5125,6 +5146,7 @@ export const api = {
             notes: string;
             expiresAt: string;
             candidateId?: string | null; // Allow updating candidate_id
+            archived?: boolean;
         }>): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -5139,6 +5161,7 @@ export const api = {
             if (updates.notes !== undefined) updateData.notes = updates.notes || null;
             if (updates.expiresAt !== undefined) updateData.expires_at = updates.expiresAt || null;
             if (updates.candidateId !== undefined) updateData.candidate_id = updates.candidateId || null;
+            if (updates.archived !== undefined) updateData.archived = updates.archived;
 
             const { data, error } = await supabase
                 .from('offers')
@@ -5170,7 +5193,8 @@ export const api = {
                 response: data.response || undefined,
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
-                updatedAt: data.updated_at
+                updatedAt: data.updated_at,
+                archived: data.archived ?? false
             };
         },
         send: async (offerId: string): Promise<Offer> => {
@@ -5217,6 +5241,9 @@ export const api = {
             // Get job
             const job = await api.jobs.get(offer.jobId);
             const companyName = job.company || 'Our Company';
+            const employmentType = job.type || 'Full-time';
+            const jobLocation = job.location || 'Not specified';
+            const remoteType = job.remote ? 'Remote' : 'On-site';
 
             // Get offer email template
             let template;
@@ -5294,6 +5321,9 @@ export const api = {
                 .replace(/{salary_period}/g, salaryPeriodText)
                 .replace(/{start_date}/g, startDateText)
                 .replace(/{expires_at}/g, expiresAtText)
+                .replace(/{employment_type}/g, employmentType)
+                .replace(/{job_location}/g, jobLocation)
+                .replace(/{remote_type}/g, remoteType)
                 .replace(/{your_name}/g, userName);
 
             // Generate secure token for offer response
@@ -5326,6 +5356,9 @@ export const api = {
                 .replace(/{expires_at}/g, expiresAtText)
                 .replace(/{benefits}/g, benefitsText)
                 .replace(/{benefits_list}/g, benefitsList)
+                .replace(/{employment_type}/g, employmentType)
+                .replace(/{job_location}/g, jobLocation)
+                .replace(/{remote_type}/g, remoteType)
                 .replace(/{notes}/g, offer.notes || '') // Notes placeholder still works if user adds it to template
                 .replace(/{your_name}/g, userName);
             
@@ -6309,6 +6342,21 @@ export const api = {
                 // Don't fail the offer acceptance if notification fails
             }
 
+            // Email recruiter about offer update (if they have email and offer_updates enabled)
+            try {
+                await supabase.functions.invoke('send-offer-update-email', {
+                    body: {
+                        userId: updated.user_id,
+                        event: 'offer_accepted',
+                        candidateName,
+                        positionTitle: updated.position_title,
+                        response,
+                    },
+                });
+            } catch (emailErr) {
+                console.error('Error sending offer update email:', emailErr);
+            }
+
             // Candidate stage is already updated atomically by the RPC function
             // Execute workflows for Hired stage if candidate was moved
             if (updated.candidate_id && result.candidate_id) {
@@ -6400,6 +6448,21 @@ export const api = {
             } catch (notifError) {
                 console.error('Error creating notification:', notifError);
                 // Don't fail the offer decline if notification fails
+            }
+
+            // Email recruiter about offer update (if they have email and offer_updates enabled)
+            try {
+                await supabase.functions.invoke('send-offer-update-email', {
+                    body: {
+                        userId: updated.user_id,
+                        event: 'offer_declined',
+                        candidateName,
+                        positionTitle: updated.position_title,
+                        response,
+                    },
+                });
+            } catch (emailErr) {
+                console.error('Error sending offer update email:', emailErr);
             }
 
             // Candidate stage is already updated atomically by the RPC function
@@ -6531,6 +6594,24 @@ export const api = {
             } catch (notifError) {
                 console.error('Error creating notification:', notifError);
                 // Don't fail the counter offer if notification fails
+            }
+
+            // Email recruiter about offer update (if they have email and offer_updates enabled)
+            const counterDetailsStr = counterOfferDetails.length > 0
+                ? counterOfferDetails.join(' | ') + (counterOffer.notes ? ` Notes: ${counterOffer.notes}` : '')
+                : counterOffer.notes || undefined;
+            try {
+                await supabase.functions.invoke('send-offer-update-email', {
+                    body: {
+                        userId: updated.user_id,
+                        event: 'counter_offer_received',
+                        candidateName,
+                        positionTitle: updated.position_title,
+                        counterOfferDetails: counterDetailsStr,
+                    },
+                });
+            } catch (emailErr) {
+                console.error('Error sending offer update email:', emailErr);
             }
 
             return {

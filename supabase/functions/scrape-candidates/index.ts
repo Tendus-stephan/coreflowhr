@@ -23,6 +23,8 @@ serve(async (req) => {
 
   let jobId: string | undefined;
   let userId: string | undefined;
+  let userEmail: string | null = null;
+  let sendScrapingEmail = true;
   try {
     const body = await req.json();
     jobId = body.jobId;
@@ -67,10 +69,12 @@ serve(async (req) => {
     const resetDate = usageRows?.[0]?.reset_date ?? null;
     const { data: settings } = await supabase
       .from('user_settings')
-      .select('billing_plan_name')
+      .select('billing_plan_name, email_notifications')
       .eq('user_id', user.id)
       .single();
     const planName = (settings?.billing_plan_name || 'Basic Plan').toLowerCase();
+    sendScrapingEmail = settings?.email_notifications !== false;
+    userEmail = user.email ?? null;
     const limit = planName.includes('professional') || planName.includes('pro') ? 100 : 30;
     if (used >= limit) {
       const renewalText = resetDate
@@ -209,6 +213,17 @@ serve(async (req) => {
         unread: true,
       });
 
+      if (sendScrapingEmail && userEmail) {
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: userEmail,
+            subject: `Sourcing failed – ${jobTitle}`,
+            content: `<p>${jobTitle}: ${userMessage}. Check the job for suggestions.</p>`,
+            emailType: 'ScrapingComplete',
+          },
+        }).catch((err) => console.error('send-email (scrape failed):', err));
+      }
+
       // Classify error type for targeted refund decisions
       const rawMsg = (errorData?.error || '').toLowerCase();
       const isRateLimited = scrapeResponse.status === 429 || rawMsg.includes('rate limit') || rawMsg.includes('too many');
@@ -280,6 +295,17 @@ serve(async (req) => {
         unread: true,
       });
 
+      if (sendScrapingEmail && userEmail) {
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: userEmail,
+            subject: `No candidates found – ${jobTitle}`,
+            content: `<p>${jobTitle}: ${zr.message}</p>`,
+            emailType: 'ScrapingComplete',
+          },
+        }).catch((err) => console.error('send-email (scrape zero results):', err));
+      }
+
       await supabase.rpc('upsert_scrape_metrics', {
         p_user_id: user.id,
         p_failed: false,
@@ -326,6 +352,17 @@ serve(async (req) => {
       category: 'automation',
       unread: true,
     });
+
+    if (sendScrapingEmail && userEmail) {
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: userEmail,
+          subject: `Sourcing complete – ${jobTitle}`,
+          content: `<p>${jobTitle}: ${totalSaved} candidate${totalSaved !== 1 ? 's' : ''} added to your pipeline.</p>`,
+          emailType: 'ScrapingComplete',
+        },
+      }).catch((err) => console.error('send-email (scrape success):', err));
+    }
 
     await supabase.rpc('upsert_scrape_metrics', {
       p_user_id: user.id,
@@ -386,6 +423,16 @@ serve(async (req) => {
         // Refund the scrape credit for unexpected / infra errors
         if (userId) {
           await supabaseClient.rpc('decrement_scrape_count', { p_user_id: userId, p_by: 1 }).catch(() => null);
+        }
+        if (userId && userEmail && sendScrapingEmail) {
+          await supabaseClient.functions.invoke('send-email', {
+            body: {
+              to: userEmail,
+              subject: 'Sourcing failed',
+              content: `<p>Candidate sourcing failed. ${error.message || 'Something went wrong.'} Your scrape credit has been refunded.</p>`,
+              emailType: 'ScrapingComplete',
+            },
+          }).catch((err) => console.error('send-email (scrape error):', err));
         }
       }
     } catch (updateError) {

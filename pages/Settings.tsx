@@ -242,9 +242,36 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                             disabled={isSaving || isGenerating}
                         />
                         <p className="text-xs text-gray-500 mt-2">
-                            Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{company_name}'}, {'{interview_date}'}, {'{interview_time}'}, {'{interview_duration}'}, {'{interview_type}'}, {'{interviewer_name}'}, {'{meeting_link}'}, {'{address}'}, {'{interview_details}'}
+                            {formData.type === 'Interview' && (
+                                <>
+                                    Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{company_name}'}, {'{interview_date}'}, {'{interview_time}'}, {'{interview_duration}'}, {'{interview_type}'}, {'{interviewer_name}'}, {'{meeting_link}'}, {'{address}'}, {'{interview_details}'}
+                                </>
+                            )}
                             {formData.type === 'Reschedule' && (
-                                <> • Reschedule-specific: {'{old_interview_date}'}, {'{old_interview_time}'}, {'{previous_interview_time}'}, {'{new_interview_time}'}</>
+                                <>
+                                    Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{company_name}'}, {'{interview_date}'}, {'{interview_time}'}, {'{interview_duration}'}, {'{interview_type}'}, {'{interviewer_name}'}, {'{meeting_link}'}, {'{address}'}, {'{interview_details}'}
+                                    {' '}• Reschedule-specific: {'{old_interview_date}'}, {'{old_interview_time}'}, {'{previous_interview_time}'}, {'{new_interview_time}'}
+                                </>
+                            )}
+                            {formData.type === 'Sourcing' && (
+                                <>
+                                    Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{company_name}'}, {'{your_name}'}, {'{cv_upload_link}'}
+                                </>
+                            )}
+                            {formData.type === 'Rejection' && (
+                                <>
+                                    Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{company_name}'}, {'{your_name}'}
+                                </>
+                            )}
+                            {formData.type === 'Offer' && (
+                                <>
+                                    Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{position_title}'}, {'{company_name}'}, {'{salary}'}, {'{salary_amount}'}, {'{salary_currency}'}, {'{salary_period}'}, {'{start_date}'}, {'{expires_at}'}, {'{benefits_list}'}, {'{employment_type}'}, {'{job_location}'}, {'{remote_type}'}, {'{notes}'}, {'{your_name}'}, {'{offer_response_link}'}
+                                </>
+                            )}
+                            {formData.type === 'Hired' && (
+                                <>
+                                    Available variables: {'{candidate_name}'}, {'{company_name}'}, {'{job_title}'}, {'{your_name}'}
+                                </>
                             )}
                         </p>
                     </div>

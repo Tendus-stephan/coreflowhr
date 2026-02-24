@@ -12,7 +12,7 @@ const Offers: React.FC = () => {
     const [filteredOffers, setFilteredOffers] = useState<Offer[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<Offer['status'] | 'all'>('all');
+    const [statusFilter, setStatusFilter] = useState<Offer['status'] | 'all' | 'archived'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +59,7 @@ const Offers: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            const data = await api.offers.list();
+            const data = await api.offers.list(statusFilter === 'all' ? {} : { status: statusFilter });
             setOffers(data);
 
             // Load candidate and job names
@@ -99,17 +99,22 @@ const Offers: React.FC = () => {
         }
     };
 
+    const [sendingOfferId, setSendingOfferId] = useState<string | null>(null);
+    const [archivingOfferId, setArchivingOfferId] = useState<string | null>(null);
+
     const handleEdit = (offer: Offer) => {
         setEditingOffer(offer);
         setIsModalOpen(true);
     };
 
     const handleSend = async (offer: Offer) => {
+        if (sendingOfferId) return;
         if (!offer.candidateId) {
             alert('Cannot send a general offer. Please link it to a candidate first from the candidate profile.');
             return;
         }
         try {
+            setSendingOfferId(offer.id);
             await api.offers.send(offer.id);
             // Play notification sound
             const { playNotificationSound } = await import('../utils/soundUtils');
@@ -117,6 +122,35 @@ const Offers: React.FC = () => {
             await loadOffers();
         } catch (err: any) {
             alert(err.message || 'Failed to send offer');
+        } finally {
+            setSendingOfferId(null);
+        }
+    };
+
+    const handleArchive = async (offer: Offer) => {
+        if (archivingOfferId) return;
+        if (!confirm('Archive this offer? It will be hidden from the main list but kept for history.')) return;
+        try {
+            setArchivingOfferId(offer.id);
+            await api.offers.update(offer.id, { archived: true });
+            await loadOffers();
+        } catch (err: any) {
+            alert(err.message || 'Failed to archive offer');
+        } finally {
+            setArchivingOfferId(null);
+        }
+    };
+
+    const handleUnarchive = async (offer: Offer) => {
+        if (archivingOfferId) return;
+        try {
+            setArchivingOfferId(offer.id);
+            await api.offers.update(offer.id, { archived: false });
+            await loadOffers();
+        } catch (err: any) {
+            alert(err.message || 'Failed to restore offer');
+        } finally {
+            setArchivingOfferId(null);
         }
     };
 
@@ -151,7 +185,7 @@ const Offers: React.FC = () => {
         setIsNegotiateModalOpen(true);
     };
 
-    const statusOptions: Array<{ value: Offer['status'] | 'all'; label: string }> = [
+    const statusOptions: Array<{ value: Offer['status'] | 'all' | 'archived'; label: string }> = [
         { value: 'all', label: 'All Statuses' },
         { value: 'draft', label: 'Draft' },
         { value: 'sent', label: 'Sent' },
@@ -159,7 +193,8 @@ const Offers: React.FC = () => {
         { value: 'negotiating', label: 'Negotiating' },
         { value: 'accepted', label: 'Accepted' },
         { value: 'declined', label: 'Declined' },
-        { value: 'expired', label: 'Expired' }
+        { value: 'expired', label: 'Expired' },
+        { value: 'archived', label: 'Archived' }
     ];
 
     if (loading) {
@@ -271,6 +306,10 @@ const Offers: React.FC = () => {
                                     onAcceptCounterOffer={handleAcceptCounterOffer}
                                     onDeclineCounterOffer={handleDeclineCounterOffer}
                                     onNegotiateCounterOffer={handleNegotiateCounterOffer}
+                                    isSending={sendingOfferId === offer.id}
+                                    onArchive={handleArchive}
+                                    onUnarchive={handleUnarchive}
+                                    isArchiving={archivingOfferId === offer.id}
                                 />
                             ))}
                     </div>

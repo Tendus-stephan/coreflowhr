@@ -632,7 +632,9 @@ export const generateEmailTemplate = async (templateType: 'interview' | 'screeni
             name: 'Offer Letter',
             purpose: 'extend a job offer to a selected candidate',
             tone: 'excited, professional, and welcoming',
-            variables: '{candidate_name}, {job_title}, {position_title}, {company_name}, {salary}, {salary_amount}, {salary_currency}, {salary_period}, {start_date}, {expires_at}, {benefits}, {benefits_list}, {notes}, {your_name}, {offer_response_link}'
+            // For offers, we standardize on {benefits_list} only (never {benefits}) and do NOT use {interview_details}
+            // Extra context placeholders describe the role and terms more completely.
+            variables: '{candidate_name}, {job_title}, {position_title}, {company_name}, {salary}, {salary_amount}, {salary_currency}, {salary_period}, {start_date}, {expires_at}, {benefits_list}, {employment_type}, {job_location}, {remote_type}, {notes}, {your_name}, {offer_response_link}'
         },
         hired: {
             name: 'Hired/Onboarding Letter',
@@ -833,8 +835,17 @@ STYLE SPECIFICATIONS (Follow these EXACTLY - they are different from the example
 CONTENT REQUIREMENTS:
 - Professional and polished, but with distinct personality
 - Clear and concise, yet engaging and memorable
-- Include ALL required placeholders: ${templateInfo.variables}
-- For interview template: Include a section with {interview_details} placeholder
+- Include ALL required placeholders from this list exactly as needed: ${templateInfo.variables}
+- For **interview** templates only: include a section with {interview_details}.
+- For **offer** templates:
+  - Use **only** {benefits_list} for benefits (do NOT use {benefits}).
+  - Do NOT include {interview_details} anywhere.
+  - When mentioning salary, choose ONE of these formats, never both in the same sentence:
+    - \"{salary}\"
+    - \"{salary_amount} {salary_currency} {salary_period}\"
+  - Include clear employment context using {employment_type}, {job_location}, and {remote_type}.
+  - Include a brief at-will employment & confidentiality note (plain text, no extra variables needed).
+  - Clearly explain how to accept the offer and return a signed copy or respond, using {offer_response_link} where appropriate.
 - Variables must be in {variable_name} format
 - Use specific, concrete language - avoid vague or generic phrases
 - Vary sentence structure and length throughout
@@ -843,6 +854,7 @@ CONTENT REQUIREMENTS:
 - Apply this variation technique: ${selectedVariation}
 
 STRUCTURE & FORMATTING REQUIREMENTS:
+- Use plain text only (no Markdown like **bold**, headings, or bullet syntax with asterisks).
 - Use proper paragraph breaks (\\n\\n between paragraphs for clear separation)
 - Structure content with clear sections when appropriate (greeting, body, closing)
 - Use line breaks strategically to create visual hierarchy and readability
@@ -949,7 +961,41 @@ Format your response as JSON with "subject" and "content" fields. The content sh
             }
         }
         
-        return result;
+        // Post-process to enforce standardization and clean formatting
+        let cleanedContent = result.content || '';
+
+        if (templateType === 'offer') {
+            // 1) Never use both {benefits} and {benefits_list} – prefer benefits_list.
+            // If both are present, drop {benefits} completely.
+            if (cleanedContent.includes('{benefits_list}')) {
+                cleanedContent = cleanedContent.replace(/{benefits}/g, '');
+            }
+            // 2) Offers must NOT contain {interview_details}
+            cleanedContent = cleanedContent.replace(/{interview_details}/g, '');
+
+            // 3) Normalize salary placeholders to avoid duplicated phrases like
+            //    \"{salary} of {salary_amount} {salary_currency} per {salary_period}\".
+            // If a sentence contains both {salary} and the breakdown, keep only {salary}.
+            cleanedContent = cleanedContent.replace(
+                /\{salary\}[^.\n]*\{salary_amount\}[^.\n]*\{salary_currency\}[^.\n]*\{salary_period\}[^.\n]*[.\n]/g,
+                (match) => {
+                    // Preserve trailing punctuation or newline, but collapse content to just {salary}
+                    const trailing = match.endsWith('\n') ? '\n' : match.endsWith('.') ? '.' : '';
+                    return `{salary}${trailing}`;
+                }
+            );
+        }
+
+        // 4) Remove markdown-style bold (**text**) and stray asterisks at line starts
+        // Strip **...**
+        cleanedContent = cleanedContent.replace(/\*\*(.*?)\*\*/g, '$1');
+        // Replace markdown bullet "* " with plain "- " (or just keep text)
+        cleanedContent = cleanedContent.replace(/^\s*\*\s+/gm, '- ');
+
+        return {
+            subject: result.subject,
+            content: cleanedContent,
+        };
     } catch (error: any) {
         console.error("Gemini Template Generation Failed:", error);
         
@@ -985,7 +1031,7 @@ const getFallbackTemplate = (templateType: string): EmailTemplateGeneration => {
         },
         offer: {
             subject: 'Formal Job Offer – {position_title} at {company_name}',
-            content: 'Dear {candidate_name},\n\nWe are delighted to extend a formal job offer for the {position_title} position at {company_name}.\n\nOffer Details:\nPosition: {position_title}\nSalary: {salary}\nStart Date: {start_date}\nExpires: {expires_at}\n\n{benefits}\n\nWe were impressed with your qualifications and believe you will be a valuable addition to our team.\n\nPlease review the offer details and let us know if you have any questions. We look forward to welcoming you to {company_name}!\n\nBest regards,\n{company_name}'
+            content: 'Dear {candidate_name},\n\nWe are delighted to extend a formal job offer for the {position_title} position at {company_name}.\n\nOffer Details:\nPosition: {position_title}\nEmployment Type: {employment_type}\nLocation: {job_location} ({remote_type})\nSalary: {salary}\nStart Date: {start_date}\nExpires: {expires_at}\n\nBenefits:\n{benefits_list}\n\nThis offer is for at-will employment, which means either you or {company_name} may end the employment relationship at any time, with or without cause, subject to applicable law.\n\nWe expect you to keep the terms of this offer and any proprietary information about {company_name} confidential.\n\nTo accept this offer, please review the details and respond using the secure link below or sign and return a copy of this letter:\n{offer_response_link}\n\nWe look forward to welcoming you to {company_name}.\n\nBest regards,\n{your_name}\n{company_name}'
         },
         hired: {
             subject: 'Welcome to {company_name} – Onboarding Information',

@@ -37,6 +37,30 @@ const CandidateBoard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
+  // Horizontal scroll container for pipeline columns
+  const boardRef = useRef<HTMLDivElement | null>(null);
+
+  const handleBoardDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!boardRef.current) return;
+    e.preventDefault();
+
+    const container = boardRef.current;
+    const rect = container.getBoundingClientRect();
+    const edgeThreshold = 120; // px from edge to start scrolling
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    const scrollSpeed = 40; // px per event
+
+    // Scroll right
+    if (e.clientX > rect.right - edgeThreshold && container.scrollLeft < maxScrollLeft) {
+      container.scrollLeft = Math.min(container.scrollLeft + scrollSpeed, maxScrollLeft);
+    }
+
+    // Scroll left
+    if (e.clientX < rect.left + edgeThreshold && container.scrollLeft > 0) {
+      container.scrollLeft = Math.max(container.scrollLeft - scrollSpeed, 0);
+    }
+  };
+
   // Move confirmation (after drag)
   const [pendingMove, setPendingMove] = useState<{
     candidateId: string;
@@ -628,7 +652,12 @@ const CandidateBoard: React.FC = () => {
       )}
 
       {/* Flexible Board Area with Horizontal Scroll */}
-      <div className="flex-1 bg-white px-8" style={{ overflowX: 'auto', overflowY: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
+      <div
+        ref={boardRef}
+        onDragOver={handleBoardDragOver}
+        className="flex-1 bg-white px-8"
+        style={{ overflowX: 'auto', overflowY: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}
+      >
           <div className="flex gap-6 w-max snap-x snap-mandatory pb-4" style={{ height: '100%' }}>
             <PipelineColumn 
                 title="Waitlist" 
