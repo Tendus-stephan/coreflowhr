@@ -50,6 +50,11 @@ export const OfferCard: React.FC<OfferCardProps> = ({
         return format(new Date(dateString), 'MMM d, yyyy');
     };
 
+    const formatDateTime = (dateString?: string) => {
+        if (!dateString) return 'Not set';
+        return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+    };
+
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors">
             <div className="flex items-start justify-between mb-4">
@@ -104,7 +109,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                 {offer.sentAt && (
                     <div>
                         <span className="text-gray-500">Sent:</span>
-                        <p className="font-medium text-gray-900">{formatDate(offer.sentAt)}</p>
+                        <p className="font-medium text-gray-900">{formatDateTime(offer.sentAt)}</p>
                     </div>
                 )}
             </div>

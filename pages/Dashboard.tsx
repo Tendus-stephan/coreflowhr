@@ -16,6 +16,7 @@ import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { api, Notification } from '../services/api';
+import { getNotificationLink } from '../utils/notificationLinks';
 
 // --- Helper Components ---
 
@@ -969,6 +970,13 @@ const Dashboard: React.FC = () => {
                             await api.notifications.markRead();
                             const updated = await api.notifications.list();
                             setNotifications(updated);
+                        }}
+                        onNotificationClick={(note) => {
+                            const path = getNotificationLink(note.type, note.desc);
+                            if (path) {
+                                navigate(path);
+                                setShowNotifications(false);
+                            }
                         }}
                     />
                 )}

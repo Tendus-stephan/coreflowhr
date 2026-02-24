@@ -232,7 +232,7 @@ const OfferResponse: React.FC = () => {
                         </>
                     ) : success === 'counter_offered' ? (
                         <>
-                            <CheckCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                            <CheckCircle className="w-16 h-16 text-gray-900 mx-auto mb-4" />
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Counter Offer Submitted</h2>
                             <p className="text-gray-600 mb-6">
                                 Your counter offer has been submitted. The recruiter will review it and get back to you soon.
@@ -448,13 +448,12 @@ const OfferResponse: React.FC = () => {
                                 />
                             </div>
 
-                                    <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="flex flex-col sm:flex-row gap-3">
                                 <Button
                                     variant="black"
                                     onClick={handleAccept}
                                     disabled={submitting}
-                                    icon={<CheckCircle size={16} />}
-                                    className="flex-1"
+                                    className="flex-1 text-sm sm:text-base font-semibold tracking-tight"
                                 >
                                     {submitting ? 'Processing...' : 'Accept Offer'}
                                 </Button>
@@ -462,8 +461,7 @@ const OfferResponse: React.FC = () => {
                                             variant="outline"
                                             onClick={() => setShowCounterOffer(true)}
                                             disabled={submitting}
-                                            icon={<Edit2 size={16} />}
-                                            className="flex-1"
+                                            className="flex-1 text-sm sm:text-base font-semibold tracking-tight"
                                         >
                                             Counter Offer
                                         </Button>
@@ -471,8 +469,7 @@ const OfferResponse: React.FC = () => {
                                     variant="outline"
                                     onClick={handleDecline}
                                     disabled={submitting}
-                                    icon={<XCircle size={16} />}
-                                    className="flex-1"
+                                    className="flex-1 text-sm sm:text-base font-semibold tracking-tight"
                                 >
                                     {submitting ? 'Processing...' : 'Decline Offer'}
                                 </Button>

@@ -1,19 +1,35 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Notification } from '../services/api';
 import { getNotificationConfig, getCategoryLabel, NotificationCategory } from './NotificationTypes';
+import { getNotificationLink } from '../utils/notificationLinks';
 
 interface NotificationDropdownProps {
     notifications: Notification[];
     onMarkAllRead?: () => void;
     onViewAll?: () => void;
+    onNotificationClick?: (notification: Notification) => void;
 }
 
 export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     notifications,
     onMarkAllRead,
-    onViewAll
+    onViewAll,
+    onNotificationClick
 }) => {
+    const navigate = useNavigate();
     const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all');
+
+    const handleNotificationClick = (note: Notification) => {
+        const path = getNotificationLink(note.type, note.desc);
+        if (path) {
+            if (onNotificationClick) {
+                onNotificationClick(note);
+            } else {
+                navigate(path);
+            }
+        }
+    };
 
     // Group notifications by category
     const groupedNotifications = useMemo(() => {
@@ -108,10 +124,15 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         const config = getNotificationConfig(note.type);
                         const Icon = config.icon;
                         
+                        const linkPath = getNotificationLink(note.type, note.desc);
                         return (
                             <div
                                 key={note.id}
-                                className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer ${
+                                role={linkPath ? 'button' : undefined}
+                                tabIndex={linkPath ? 0 : undefined}
+                                onClick={linkPath ? () => handleNotificationClick(note) : undefined}
+                                onKeyDown={linkPath ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(note); } } : undefined}
+                                className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${linkPath ? 'cursor-pointer' : ''} ${
                                     note.unread ? 'bg-blue-50/30' : ''
                                 }`}
                             >
