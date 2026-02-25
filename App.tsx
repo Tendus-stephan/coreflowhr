@@ -27,6 +27,7 @@ import Onboarding from './pages/Onboarding';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
+import Invite from './pages/Invite';
 
 const Layout = () => {
   const location = useLocation();
@@ -100,7 +101,8 @@ const Layout = () => {
   ].some(path => location.pathname === path || 
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond') ||
-    location.pathname.startsWith('/candidates/register'));
+    location.pathname.startsWith('/candidates/register') ||
+    location.pathname.startsWith('/invite'));
 
   if (isStandalonePage) {
     return <Outlet />;
@@ -230,6 +232,14 @@ const AppRoutes: React.FC = () => {
         <Route 
           path="/privacy" 
           element={<PrivacyPolicy />}
+        />
+        <Route 
+          path="/invite" 
+          element={
+            <PublicRoute>
+              <Invite />
+            </PublicRoute>
+          }
         />
         <Route 
           path="/onboarding" 

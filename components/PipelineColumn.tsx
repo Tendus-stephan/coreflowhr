@@ -29,12 +29,14 @@ const DraggableCandidateCard: React.FC<{
     candidate: Candidate;
     onSelect: (candidate: Candidate) => void;
     jobRequiredSkills?: string[];
-}> = ({ candidate, onSelect, jobRequiredSkills }) => {
+    draggable?: boolean;
+}> = ({ candidate, onSelect, jobRequiredSkills, draggable = true }) => {
     const [isDragging, setIsDragging] = useState(false);
     const requiredSet = jobRequiredSkills ? new Set(jobRequiredSkills.map(s => s.toLowerCase().trim())) : null;
     const summaryLine = oneLineSummary(candidate.aiAnalysis);
 
     const handleDragStart = (e: React.DragEvent) => {
+        if (!draggable) return;
         e.dataTransfer.setData('candidateId', candidate.id);
         e.dataTransfer.setData('sourceStage', candidate.stage);
         e.dataTransfer.effectAllowed = 'move';
@@ -57,13 +59,14 @@ const DraggableCandidateCard: React.FC<{
 
     return (
         <div 
-            draggable
+            draggable={draggable}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onClick={handleClick}
-            className={`bg-white p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-move group relative mb-2 ${
-                isDragging ? 'opacity-50 border-gray-400' : 'border-gray-200 cursor-pointer'
-            }`}
+            className={`bg-white p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-gray-300 transition-all group relative mb-2 ${
+                draggable ? 'cursor-move' : 'cursor-pointer'
+            } ${isDragging ? 'opacity-50 border-gray-400' : 'border-gray-200'}
+            `}
         >
             <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-3">
@@ -233,6 +236,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
             candidate={candidate}
             onSelect={onSelectCandidate}
             jobRequiredSkills={jobRequiredSkills}
+            draggable={stage !== CandidateStage.NEW}
           />
         ))}
         {candidates.length === 0 && (

@@ -4,7 +4,8 @@ import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { 
   User as UserIcon, CreditCard, Mail, AlertCircle, Monitor, Smartphone, X, Sparkles,
   Save, MessageSquare, FileText, Layers, Plus, Shield, CheckCircle, Lock, Key, LogOut, Upload,
-  Download, ExternalLink, Loader2, Calendar, DollarSign, Image as ImageIcon, Copy, Eye, EyeOff, Zap
+  Download, ExternalLink, Loader2, Calendar, DollarSign, Image as ImageIcon, Copy, Eye, EyeOff, Zap,
+  Users as UsersIcon
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Avatar } from '../components/ui/Avatar';
@@ -787,6 +788,15 @@ const Settings: React.FC = () => {
     const [stripePaymentMethod, setStripePaymentMethod] = useState<any>(null);
     const [isConnectingIntegration, setIsConnectingIntegration] = useState<string | null>(null);
 
+    // Team / workspace state
+    const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; role: User['role']; isCurrentUser: boolean }[]>([]);
+    const [isLoadingTeam, setIsLoadingTeam] = useState(false);
+    const [teamError, setTeamError] = useState<string | null>(null);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState<User['role']>('Recruiter');
+    const [isSendingInvite, setIsSendingInvite] = useState(false);
+    const [inviteMessage, setInviteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
     // Security State
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -873,60 +883,47 @@ const Settings: React.FC = () => {
             } catch (error) {
                 console.error('Error loading security settings:', error);
             }
+            const isAdmin = u.role === 'Admin';
             try {
-                const [p, inv, billingDetails] = await Promise.all([
-                    api.settings.getPlan(),
-                    api.settings.getInvoices().catch(() => []), // Gracefully handle if function not deployed
-                    api.settings.getBillingDetails().catch(() => ({ subscription: null, paymentMethod: null })) // Gracefully handle if function not deployed
-                ]);
+                const p = await api.settings.getPlan();
                 setPlan(p);
-                setInvoices(inv);
-                
-                // Use Stripe subscription data if available, otherwise fallback to database subscription data
-                if (billingDetails.subscription) {
-                    setStripeSubscription(billingDetails.subscription);
-                    setStripePaymentMethod(billingDetails.paymentMethod);
-                } else if (p.subscriptionStatus === 'active' && p.subscriptionStripeId) {
-                    // Create subscription object from database data as fallback
-                    setStripeSubscription({
-                        id: p.subscriptionStripeId,
-                        status: p.subscriptionStatus,
-                        planName: p.name,
-                        amount: p.price,
-                        currency: p.currency === '$' ? 'USD' : p.currency,
-                        interval: p.interval === 'monthly' ? 'month' : 'year',
-                        currentPeriodEnd: p.subscriptionPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                        cancelAtPeriodEnd: false
-                    });
-                    setStripePaymentMethod(null); // Payment method not available from database
+                if (isAdmin) {
+                    const [inv, billingDetails] = await Promise.all([
+                        api.settings.getInvoices().catch(() => []),
+                        api.settings.getBillingDetails().catch(() => ({ subscription: null, paymentMethod: null }))
+                    ]);
+                    setInvoices(inv);
+                    if (billingDetails.subscription) {
+                        setStripeSubscription(billingDetails.subscription);
+                        setStripePaymentMethod(billingDetails.paymentMethod);
+                    } else if (p.subscriptionStatus === 'active' && p.subscriptionStripeId) {
+                        setStripeSubscription({
+                            id: p.subscriptionStripeId,
+                            status: p.subscriptionStatus,
+                            planName: p.name,
+                            amount: p.price,
+                            currency: p.currency === '$' ? 'USD' : p.currency,
+                            interval: p.interval === 'monthly' ? 'month' : 'year',
+                            currentPeriodEnd: p.subscriptionPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                            cancelAtPeriodEnd: false
+                        });
+                        setStripePaymentMethod(null);
+                    } else {
+                        setStripeSubscription(null);
+                        setStripePaymentMethod(null);
+                    }
                 } else {
+                    setInvoices([]);
                     setStripeSubscription(null);
                     setStripePaymentMethod(null);
                 }
             } catch (error) {
-                // If billing functions aren't deployed yet, just load plan from database
                 const p = await api.settings.getPlan();
                 setPlan(p);
                 setInvoices([]);
-                
-                // Use database subscription data if available
-                if (p.subscriptionStatus === 'active' && p.subscriptionStripeId) {
-                    setStripeSubscription({
-                        id: p.subscriptionStripeId,
-                        status: p.subscriptionStatus,
-                        planName: p.name,
-                        amount: p.price,
-                        currency: p.currency === '$' ? 'USD' : p.currency,
-                        interval: p.interval === 'monthly' ? 'month' : 'year',
-                        currentPeriodEnd: p.subscriptionPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                        cancelAtPeriodEnd: false
-                    });
-                    setStripePaymentMethod(null);
-                } else {
-                    setStripeSubscription(null);
-                    setStripePaymentMethod(null);
-                }
-                console.warn('Billing Edge Functions may not be deployed yet. Using database subscription data as fallback.');
+                setStripeSubscription(null);
+                setStripePaymentMethod(null);
+                if (isAdmin) console.warn('Billing Edge Functions may not be deployed yet. Using database subscription data as fallback.');
             }
             const t = await api.settings.getTemplates();
             setTemplates(t);
@@ -1631,8 +1628,9 @@ const Settings: React.FC = () => {
         }
     };
 
-    const tabs = [
+    const allTabs = [
         { id: 'profile', label: 'My Profile', icon: UserIcon },
+        { id: 'team', label: 'Team', icon: UsersIcon },
         { id: 'billing', label: 'Billing & Plan', icon: CreditCard },
         { id: 'notifications', label: 'Notifications', icon: Mail },
         { id: 'templates', label: 'Email Templates', icon: FileText },
@@ -1640,6 +1638,20 @@ const Settings: React.FC = () => {
         { id: 'integrations', label: 'Integrations', icon: Layers, requiresProfessional: true },
         { id: 'security', label: 'Security', icon: AlertCircle },
     ];
+    const role = user?.role ?? 'Admin';
+    const tabs = allTabs.filter(tab => {
+        if (tab.requiresProfessional && plan?.name === 'Basic Plan') return false;
+        if (role !== 'Admin' && tab.id === 'team') return false;
+        if (role !== 'Admin' && (tab.id === 'billing' || tab.id === 'integrations')) return false;
+        if (role === 'HiringManager' && (tab.id === 'templates' || tab.id === 'workflows')) return false;
+        return true;
+    });
+    const firstVisibleTabId = tabs[0]?.id ?? 'profile';
+
+    useEffect(() => {
+        if (!user || !tabs.length) return;
+        if (!tabs.some(t => t.id === activeTab)) setActiveTab(firstVisibleTabId);
+    }, [user?.id, user?.role, tabs, activeTab, firstVisibleTabId]);
 
     if (!user) return (
         <div className="min-h-screen bg-white">
@@ -1665,15 +1677,7 @@ const Settings: React.FC = () => {
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar */}
                 <div className="w-full md:w-64 flex-shrink-0 space-y-1">
-                    {tabs
-                        .filter(tab => {
-                            // Hide integrations tab for Basic plan
-                            if (tab.requiresProfessional && plan?.name === 'Basic Plan') {
-                                return false;
-                            }
-                            return true;
-                        })
-                        .map((tab) => (
+                    {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -1845,6 +1849,189 @@ const Settings: React.FC = () => {
                                 >
                                     {isSaving ? 'Saving...' : 'Save Changes'}
                                 </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'team' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">Team & Access</h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Manage who has access to this workspace and their roles.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {teamError && (
+                                <div className="p-3 rounded-xl border border-red-100 bg-red-50 text-sm text-red-700">
+                                    {teamError}
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-gray-900">Members</h3>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            try {
+                                                setIsLoadingTeam(true);
+                                                setTeamError(null);
+                                                const workspace = await api.workspaces.getWorkspaceWithMembers();
+                                                setTeamMembers(workspace.members);
+                                            } catch (error: any) {
+                                                console.error('Error loading team:', error);
+                                                setTeamError(error.message || 'Failed to load team members.');
+                                            } finally {
+                                                setIsLoadingTeam(false);
+                                            }
+                                        }}
+                                        className="text-xs text-gray-500 hover:text-gray-900"
+                                        disabled={isLoadingTeam}
+                                    >
+                                        {isLoadingTeam ? 'Refreshing…' : 'Refresh'}
+                                    </button>
+                                </div>
+
+                                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                                    <table className="min-w-full text-sm">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-medium text-gray-500">Name</th>
+                                                <th className="px-4 py-2 text-left font-medium text-gray-500">Role</th>
+                                                <th className="px-4 py-2 text-right font-medium text-gray-500">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {teamMembers.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                                                        No team members yet. Invite someone using the form below.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {teamMembers.map(member => {
+                                                const isSelf = member.isCurrentUser;
+                                                const canChangeRole = role === 'Admin' && !isSelf;
+                                                return (
+                                                    <tr key={member.userId} className="border-t border-gray-100">
+                                                        <td className="px-4 py-3 text-gray-900">
+                                                            {member.name}
+                                                            {isSelf && <span className="ml-2 text-xs text-gray-500">(You)</span>}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-gray-900">
+                                                            <select
+                                                                value={member.role}
+                                                                disabled={!canChangeRole}
+                                                                onChange={async (e) => {
+                                                                    const newRole = e.target.value as User['role'];
+                                                                    try {
+                                                                        await api.workspaces.updateMemberRole(member.userId, newRole);
+                                                                        setTeamMembers(prev =>
+                                                                            prev.map(m =>
+                                                                                m.userId === member.userId ? { ...m, role: newRole } : m
+                                                                            )
+                                                                        );
+                                                                    } catch (error: any) {
+                                                                        console.error('Error updating member role:', error);
+                                                                        setTeamError(error.message || 'Failed to update member role.');
+                                                                    }
+                                                                }}
+                                                                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                                                            >
+                                                                <option value="Admin">Admin</option>
+                                                                <option value="Recruiter">Recruiter</option>
+                                                                <option value="HiringManager">Hiring Manager</option>
+                                                            </select>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right text-xs text-gray-400">
+                                                            {!canChangeRole && 'Role managed automatically'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-100 space-y-4">
+                                <h3 className="text-sm font-bold text-gray-900">Invite a team member</h3>
+                                {inviteMessage && (
+                                    <div className={`p-3 rounded-xl border text-sm ${
+                                        inviteMessage.type === 'success'
+                                            ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                                            : 'bg-red-50 border-red-100 text-red-700'
+                                    }`}>
+                                        {inviteMessage.text}
+                                    </div>
+                                )}
+                                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
+                                    <div className="flex-1 space-y-1">
+                                        <label className="text-xs font-medium text-gray-700">Email</label>
+                                        <input
+                                            type="email"
+                                            value={inviteEmail}
+                                            onChange={(e) => setInviteEmail(e.target.value)}
+                                            placeholder="teammate@company.com"
+                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-40 space-y-1">
+                                        <label className="text-xs font-medium text-gray-700">Role</label>
+                                        <select
+                                            value={inviteRole}
+                                            onChange={(e) => setInviteRole(e.target.value as User['role'])}
+                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                                        >
+                                            <option value="Recruiter">Recruiter</option>
+                                            <option value="HiringManager">Hiring Manager</option>
+                                            <option value="Admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    <div className="w-full md:w-auto">
+                                        <Button
+                                            variant="black"
+                                            onClick={async () => {
+                                                try {
+                                                    setIsSendingInvite(true);
+                                                    setInviteMessage(null);
+                                                    const { token, emailError } = await api.workspaces.createInvite(inviteEmail, inviteRole);
+                                                    const inviteLink = `${window.location.origin}/invite?token=${encodeURIComponent(token)}`;
+                                                    const baseText = `Invite created. Share this link with your teammate: ${inviteLink}`;
+                                                    setInviteMessage(
+                                                        emailError
+                                                            ? {
+                                                                type: 'error',
+                                                                text: `${baseText}\n\n${emailError}`,
+                                                            }
+                                                            : {
+                                                                type: 'success',
+                                                                text: baseText,
+                                                            }
+                                                    );
+                                                    setInviteEmail('');
+                                                } catch (error: any) {
+                                                    console.error('Error creating invite:', error);
+                                                    setInviteMessage({
+                                                        type: 'error',
+                                                        text: error.message || 'Failed to create invite. Please try again.',
+                                                    });
+                                                } finally {
+                                                    setIsSendingInvite(false);
+                                                }
+                                            }}
+                                            disabled={isSendingInvite || !inviteEmail.trim()}
+                                        >
+                                            {isSendingInvite ? 'Sending…' : 'Send Invite'}
+                                        </Button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                    Invites expire after 3 days. When a teammate signs up with the invite link, they’ll be added to this workspace with the selected role.
+                                </p>
                             </div>
                         </div>
                     )}

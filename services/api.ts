@@ -1,4 +1,5 @@
 import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate, Client } from "../types";
+export type { Client };
 import { supabase } from "./supabase";
 import { getPlanLimits, hasFeature, getMonthlyScrapeLimit, canScrapeThisMonth } from "./planLimits";
 
@@ -6,6 +7,15 @@ import { getPlanLimits, hasFeature, getMonthlyScrapeLimit, canScrapeThisMonth } 
 const getUserId = async (): Promise<string | null> => {
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id || null;
+};
+
+// Helper for RBAC: returns current user's role (Admin, Recruiter, HiringManager) or 'Admin' for backward compat
+const getCurrentUserRole = async (): Promise<string> => {
+  const userId = await getUserId();
+  if (!userId) return 'Admin';
+  const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
+  const role = (data?.role || 'User').toString();
+  return role === 'Recruiter' || role === 'HiringManager' ? role : 'Admin';
 };
 
 // Test mode removed - all jobs and candidates are now production data
@@ -320,11 +330,13 @@ export const api = {
                 }
             }
 
+            const role = profile?.role?.toString() || 'User';
+            const normalizedRole = role === 'Recruiter' || role === 'HiringManager' ? role : 'Admin';
             return {
                 id: userId,
                 name: profile?.name || user?.email?.split('@')[0] || 'User',
                 email: user?.email || '',
-                role: profile?.role || 'User',
+                role: normalizedRole,
                 phone: profile?.phone || '',
                 jobTitle: profile?.job_title || '',
                 avatar: profile?.avatar_url,
@@ -380,6 +392,52 @@ export const api = {
                     weeklyReport: updated.weekly_report ?? true,
                 }
             };
+        },
+        /** Request email change (no password): invokes Edge Function to send confirmation to current email. Used by Change Email page. */
+        requestEmailChange: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user?.email) return { success: false, error: 'Not authenticated' };
+            const trimmed = newEmail.trim().toLowerCase();
+            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { success: false, error: 'Please enter a valid email address' };
+            }
+            if (session.user.email.toLowerCase() === trimmed) {
+                return { success: false, error: 'This is already your current email' };
+            }
+            const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('request-email-change', {
+                body: { newEmail: trimmed },
+            });
+            if (error) return { success: false, error: error.message };
+            if (data?.error) return { success: false, error: data.error };
+            return { success: true };
+        },
+        /** Verify the token from the "confirm current email" link; returns newEmail so client can call updateEmail to send link to new address. */
+        verifyEmailChangeToken: async (token: string): Promise<{ success: boolean; newEmail?: string; error?: string }> => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return { success: false, error: 'Not authenticated' };
+            const { data, error } = await supabase.functions.invoke<{ success?: boolean; newEmail?: string; error?: string }>('verify-email-change-token', {
+                body: { token: token.trim() },
+            });
+            if (error) return { success: false, error: error.message };
+            if (data?.error) return { success: false, error: data.error };
+            if (data?.success && data?.newEmail) return { success: true, newEmail: data.newEmail };
+            return { success: false, error: data?.error || 'Invalid or expired link' };
+        },
+        /** Send confirmation link to the new email (Supabase updateUser). Call after verifyEmailChangeToken. */
+        updateEmail: async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
+            const trimmed = newEmail.trim().toLowerCase();
+            if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { success: false, error: 'Invalid email address' };
+            }
+            const { error } = await supabase.auth.updateUser({ email: trimmed });
+            if (error) {
+                const msg = error.message || '';
+                if (msg.includes('already registered') || msg.includes('already in use')) {
+                    return { success: false, error: 'This email is already used by another account' };
+                }
+                return { success: false, error: msg };
+            }
+            return { success: true };
         },
         /** Request email change from Settings: verify password, record pending (old/new), then Supabase sends verification to the new email. */
         requestEmailChangeWithPassword: async (newEmail: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -3875,12 +3933,11 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Verify interview belongs to user and get candidate_id
+            // Verify user can see this interview (RLS: owner or hiring manager for the job)
             const { data: interview } = await supabase
                 .from('interviews')
                 .select('id, candidate_id')
                 .eq('id', interviewId)
-                .eq('user_id', userId)
                 .single();
 
             if (!interview) throw new Error('Interview not found');
@@ -4296,6 +4353,8 @@ export const api = {
         getInvoices: async (): Promise<Invoice[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin') throw new Error('Only admins can access billing.');
 
             try {
                 // Call Supabase Edge Function to fetch invoices from Stripe
@@ -4336,6 +4395,8 @@ export const api = {
         getBillingDetails: async (): Promise<{ subscription: any; paymentMethod: any }> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin') throw new Error('Only admins can access billing.');
 
             try {
                 // Call Supabase Edge Function to fetch billing details from Stripe
@@ -4552,6 +4613,230 @@ export const api = {
                 }
             }
         }
+    },
+    workspaces: {
+        /**
+         * Get current workspace and members for the logged-in user.
+         */
+        getWorkspaceWithMembers: async (): Promise<{
+            workspaceId: string;
+            name: string;
+            members: { userId: string; name: string; role: UserRole; isCurrentUser: boolean }[];
+        }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const { data: membership, error: membershipError } = await supabase
+                .from('workspace_members')
+                .select('workspace_id, role, workspaces(name)')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (membershipError) throw membershipError;
+            if (!membership) {
+                throw new Error('Workspace not found for current user.');
+            }
+
+            const workspaceId = membership.workspace_id as string;
+            const workspaceName = (membership as any).workspaces?.name || 'Workspace';
+
+            const { data: membersData, error: membersError } = await supabase
+                .from('workspace_members')
+                .select('user_id, role, profiles(name)')
+                .eq('workspace_id', workspaceId);
+
+            if (membersError) throw membersError;
+
+            const members = (membersData || []).map((m: any) => ({
+                userId: m.user_id as string,
+                name: m.profiles?.name || 'User',
+                role: (m.role as string) as UserRole,
+                isCurrentUser: m.user_id === userId,
+            }));
+
+            return {
+                workspaceId,
+                name: workspaceName,
+                members,
+            };
+        },
+
+        /**
+         * Update a member's role in the current workspace.
+         * Prevents demoting the last Admin.
+         */
+        updateMemberRole: async (memberUserId: string, newRole: UserRole): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const { data: currentMembership, error: currentMembershipError } = await supabase
+                .from('workspace_members')
+                .select('workspace_id, role')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (currentMembershipError) throw currentMembershipError;
+            if (!currentMembership) throw new Error('Workspace not found for current user.');
+            if (currentMembership.role !== 'Admin') {
+                throw new Error('Only admins can change member roles.');
+            }
+
+            const workspaceId = currentMembership.workspace_id as string;
+
+            const { data: targetMember, error: targetError } = await supabase
+                .from('workspace_members')
+                .select('role')
+                .eq('workspace_id', workspaceId)
+                .eq('user_id', memberUserId)
+                .maybeSingle();
+
+            if (targetError) throw targetError;
+            if (!targetMember) throw new Error('Member not found in this workspace.');
+
+            if (targetMember.role === 'Admin' && newRole !== 'Admin') {
+                const { count, error: countError } = await supabase
+                    .from('workspace_members')
+                    .select('user_id', { count: 'exact', head: true })
+                    .eq('workspace_id', workspaceId)
+                    .eq('role', 'Admin');
+
+                if (countError) throw countError;
+                const adminCount = count ?? 0;
+                if (adminCount <= 1) {
+                    throw new Error('You must have at least one admin in the workspace.');
+                }
+            }
+
+            const { error: updateError } = await supabase
+                .from('workspace_members')
+                .update({ role: newRole })
+                .eq('workspace_id', workspaceId)
+                .eq('user_id', memberUserId);
+
+            if (updateError) throw updateError;
+        },
+
+        /**
+         * Create an invite for a new member with a given role.
+         * Returns a token that can be used to build an invite link and sends an email via Edge Function.
+         */
+        createInvite: async (email: string, role: UserRole, expiresInDays = 3): Promise<{ token: string; emailError?: string }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const trimmedEmail = email.trim().toLowerCase();
+            if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+                throw new Error('Please enter a valid email address.');
+            }
+
+            const { data: membership, error: membershipError } = await supabase
+                .from('workspace_members')
+                .select('workspace_id, role')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (membershipError) throw membershipError;
+            if (!membership) throw new Error('Workspace not found for current user.');
+            if (membership.role !== 'Admin') {
+                throw new Error('Only admins can invite team members.');
+            }
+
+            const workspaceId = membership.workspace_id as string;
+
+            const token = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+                ? crypto.randomUUID()
+                : `inv_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+
+            const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+
+            const { error: insertError } = await supabase
+                .from('workspace_invites')
+                .insert({
+                    workspace_id: workspaceId,
+                    email: trimmedEmail,
+                    role,
+                    token,
+                    expires_at: expiresAt,
+                    created_by: userId,
+                });
+
+            if (insertError) throw insertError;
+
+            // Try to send invite email (non-fatal if it fails)
+            let emailError: string | undefined;
+            try {
+                // Derive frontend URL (use production domain outside localhost)
+                const frontendUrl =
+                    typeof window !== 'undefined' &&
+                    window.location.hostname !== 'localhost' &&
+                    window.location.hostname !== '127.0.0.1'
+                        ? window.location.origin
+                        : 'https://www.coreflowhr.com';
+
+                const inviteLink = `${frontendUrl}/invite?token=${encodeURIComponent(token)}`;
+                const friendlyRole = role === 'HiringManager' ? 'Hiring Manager' : role;
+                const subject = 'You’ve been invited to join CoreFlowHR';
+                const content = [
+                    `<p style="margin:0 0 12px;">Hi,</p>`,
+                    `<p style="margin:0 0 16px;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p>`,
+                    `<p style="margin:0 0 24px;">Click the button below to accept the invitation and create your account:</p>`,
+                    `<p style="margin:0 0 24px;">`,
+                    `  <a href="${inviteLink}"`,
+                    `     style="display:inline-block;padding:10px 20px;border-radius:999px;background-color:#111827;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;">`,
+                    `    Accept invitation`,
+                    `  </a>`,
+                    `</p>`,
+                    `<p style="margin:0 0 8px;font-size:12px;color:#6b7280;">If you weren’t expecting this, you can safely ignore this email.</p>`,
+                ].join('\n');
+
+                const { error } = await supabase.functions.invoke('send-email', {
+                    body: {
+                        to: trimmedEmail,
+                        subject,
+                        content,
+                        emailType: 'WorkspaceInvite',
+                    },
+                });
+
+                if (error) {
+                    console.error('Error sending workspace invite email:', error);
+                    emailError = 'Invite created, but sending the email failed. Share the link manually.';
+                }
+            } catch (err: any) {
+                console.error('Unexpected error sending workspace invite email:', err);
+                emailError = 'Invite created, but sending the email failed. Share the link manually.';
+            }
+
+            return { token, emailError };
+        },
+
+        /**
+         * Accept a workspace invite by token for the current authenticated user.
+         */
+        acceptInvite: async (token: string): Promise<{ success: boolean; error?: string; workspaceId?: string; role?: UserRole }> => {
+            const trimmed = token.trim();
+            if (!trimmed) {
+                return { success: false, error: 'Invalid invite link.' };
+            }
+            const userId = await getUserId();
+            if (!userId) return { success: false, error: 'Not authenticated' };
+
+            const { data, error } = await supabase.rpc('accept_workspace_invite', { p_token: trimmed });
+            if (error) {
+                console.error('accept_workspace_invite error', error);
+                return { success: false, error: error.message || 'Failed to accept invite.' };
+            }
+
+            if (!data || data.success !== true) {
+                return { success: false, error: data?.error || 'Invalid or expired invite.' };
+            }
+
+            return {
+                success: true,
+                workspaceId: data.workspace_id as string | undefined,
+                role: (data.role as string | undefined) as UserRole | undefined,
+            };
+        },
     },
     plan: {
         /**
@@ -6285,7 +6570,6 @@ export const api = {
             };
         },
         acceptByToken: async (token: string, response?: string): Promise<Offer> => {
-            // Use atomic RPC function to prevent race conditions
             const { data: result, error: rpcError } = await supabase
                 .rpc('accept_offer_atomic', {
                     offer_token_param: token,
@@ -6293,11 +6577,24 @@ export const api = {
                 });
 
             if (rpcError) {
-                throw new Error(`Failed to accept offer: ${rpcError.message}`);
+                const msg = (rpcError.message || '').toLowerCase();
+                if (msg.includes('could not find the function') || msg.includes('schema cache') || msg.includes('42883')) {
+                    throw new Error('We couldn\'t process your response right now. Please try again in a moment or contact the company.');
+                }
+                if (msg.includes('invalid') || msg.includes('expired')) {
+                    throw new Error('This offer link is invalid or has expired. Please contact the company.');
+                }
+                throw new Error('We couldn\'t process your response. Please try again or contact the company.');
             }
 
             if (!result || !result.success) {
-                throw new Error(result?.error || 'Failed to accept offer');
+                const err = (result?.error || '').toLowerCase();
+                if (err.includes('expired')) throw new Error('This offer link has expired. Please contact the company.');
+                if (err.includes('already been accepted') || err.includes('already been declined')) {
+                    throw new Error('This offer has already been responded to.');
+                }
+                if (err.includes('invalid')) throw new Error('This offer link is invalid.');
+                throw new Error(result?.error || 'We couldn\'t process your response. Please try again or contact the company.');
             }
 
             // Fetch the updated offer
@@ -6308,7 +6605,7 @@ export const api = {
                 .single();
 
             if (fetchError || !updated) {
-                throw new Error('Failed to fetch updated offer');
+                throw new Error('We couldn\'t process your response right now. Please try again in a moment or contact the company.');
             }
 
             // Get candidate name for notification
@@ -6393,7 +6690,6 @@ export const api = {
             };
         },
         declineByToken: async (token: string, response?: string): Promise<Offer> => {
-            // Use atomic RPC function to prevent race conditions
             const { data: result, error: rpcError } = await supabase
                 .rpc('decline_offer_atomic', {
                     offer_token_param: token,
@@ -6401,11 +6697,24 @@ export const api = {
                 });
 
             if (rpcError) {
-                throw new Error(`Failed to decline offer: ${rpcError.message}`);
+                const msg = (rpcError.message || '').toLowerCase();
+                if (msg.includes('could not find the function') || msg.includes('schema cache') || msg.includes('42883')) {
+                    throw new Error('We couldn\'t process your response right now. Please try again in a moment or contact the company.');
+                }
+                if (msg.includes('invalid') || msg.includes('expired')) {
+                    throw new Error('This offer link is invalid or has expired. Please contact the company.');
+                }
+                throw new Error('We couldn\'t process your response. Please try again or contact the company.');
             }
 
             if (!result || !result.success) {
-                throw new Error(result?.error || 'Failed to decline offer');
+                const err = (result?.error || '').toLowerCase();
+                if (err.includes('expired')) throw new Error('This offer link has expired. Please contact the company.');
+                if (err.includes('already been accepted') || err.includes('already been declined')) {
+                    throw new Error('This offer has already been responded to.');
+                }
+                if (err.includes('invalid')) throw new Error('This offer link is invalid.');
+                throw new Error(result?.error || 'We couldn\'t process your response. Please try again or contact the company.');
             }
 
             // Fetch the updated offer
@@ -6416,7 +6725,7 @@ export const api = {
                 .single();
 
             if (fetchError || !updated) {
-                throw new Error('Failed to fetch updated offer');
+                throw new Error('We couldn\'t process your response right now. Please try again in a moment or contact the company.');
             }
 
             // Get candidate name for notification

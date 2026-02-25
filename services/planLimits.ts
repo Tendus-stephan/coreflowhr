@@ -11,6 +11,10 @@ export interface PlanLimits {
   maxJobsPerMonth: number;
   /** How many candidates are fetched per single scrape action */
   candidatesPerScrape: number;
+  /** Max email workflows (e.g. stage-triggered automations) the user can create */
+  maxEmailWorkflows: number;
+  /** Max candidates per export (CSV/Excel) */
+  maxExportCandidates: number;
   sourcingSources: string[];
   aiAnalysis: boolean;
   aiEmailGeneration: boolean;
@@ -26,6 +30,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     name: 'Basic',
     maxJobsPerMonth: 10,
     candidatesPerScrape: 25,
+    maxEmailWorkflows: 5,
+    maxExportCandidates: 100,
     sourcingSources: ['profiles'],
     aiAnalysis: true,
     aiEmailGeneration: false,
@@ -46,6 +52,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     name: 'Professional',
     maxJobsPerMonth: 50,
     candidatesPerScrape: 50,
+    maxEmailWorkflows: 10,
+    maxExportCandidates: 500,
     sourcingSources: ['profiles'],
     aiAnalysis: true,
     aiEmailGeneration: true,
@@ -78,7 +86,7 @@ export function getAvailableSources(planName: string | null | undefined): string
 
 export function hasFeature(
   planName: string | null | undefined,
-  feature: keyof Omit<PlanLimits, 'name' | 'maxJobsPerMonth' | 'candidatesPerScrape' | 'features' | 'sourcingSources'>
+  feature: keyof Omit<PlanLimits, 'name' | 'maxJobsPerMonth' | 'candidatesPerScrape' | 'maxEmailWorkflows' | 'maxExportCandidates' | 'features' | 'sourcingSources'>
 ): boolean {
   return getPlanLimits(planName)[feature] === true;
 }

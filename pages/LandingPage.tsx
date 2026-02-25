@@ -1068,7 +1068,7 @@ const LandingPage: React.FC = () => {
                                "AI-scored shortlists up to 100 candidates per role", 
                                "Up to 1,000 sourced candidates per month", 
                                "30 AI analyses per month",
-                               "3 email workflows",
+                               "5 email workflows",
                                "AI-powered candidate matching",
                                "Email templates",
                                "Basic analytics",

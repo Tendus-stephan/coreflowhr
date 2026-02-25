@@ -113,7 +113,9 @@ const OfferResponse: React.FC = () => {
             await api.offers.acceptByToken(token, responseNote.trim() || undefined);
             setSuccess('accepted');
         } catch (err: any) {
-            setError(err.message || 'Failed to accept offer');
+            const msg = err?.message || '';
+            const isTechnical = /failed to accept|schema cache|could not find|42883|postgres|supabase/i.test(msg);
+            setError(isTechnical ? 'Something went wrong on our end. Please try again or contact the company.' : msg);
         } finally {
             setSubmitting(false);
         }
@@ -129,7 +131,9 @@ const OfferResponse: React.FC = () => {
             await api.offers.declineByToken(token, responseNote.trim() || undefined);
             setSuccess('declined');
         } catch (err: any) {
-            setError(err.message || 'Failed to decline offer');
+            const msg = err?.message || '';
+            const isTechnical = /failed to decline|schema cache|could not find|42883|postgres|supabase/i.test(msg);
+            setError(isTechnical ? 'Something went wrong on our end. Please try again or contact the company.' : msg);
         } finally {
             setSubmitting(false);
         }
@@ -166,7 +170,9 @@ const OfferResponse: React.FC = () => {
             setSuccess('counter_offered');
             setShowCounterOffer(false);
         } catch (err: any) {
-            setError(err.message || 'Failed to submit counter offer');
+            const msg = err?.message || '';
+            const isTechnical = /failed to|schema cache|could not find|42883|postgres|supabase/i.test(msg);
+            setError(isTechnical ? 'Something went wrong on our end. Please try again or contact the company.' : msg);
         } finally {
             setSubmitting(false);
         }
@@ -365,9 +371,18 @@ const OfferResponse: React.FC = () => {
 
                     {/* Error message */}
                     {error && (
-                        <div className="mx-8 mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 flex items-center gap-2">
-                            <AlertCircle size={16} />
-                            {error}
+                        <div className="mx-8 mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <AlertCircle size={16} className="flex-shrink-0" />
+                                <span className="flex-1">{error}</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setError(null)}
+                                className="mt-3 text-sm font-medium text-red-800 underline hover:no-underline"
+                            >
+                                Try again
+                            </button>
                         </div>
                     )}
 

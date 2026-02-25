@@ -7,11 +7,13 @@ export enum CandidateStage {
   REJECTED = 'Rejected'
 }
 
+export type UserRole = 'Admin' | 'Recruiter' | 'HiringManager';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   avatar?: string;
   phone?: string;
   jobTitle?: string;

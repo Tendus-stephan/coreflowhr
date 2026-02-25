@@ -20,10 +20,10 @@ export default defineConfig(({ mode }) => {
             secure: false,
             // Only proxy if scraper server is running, otherwise let it fail gracefully
             configure: (proxy, _options) => {
-              proxy.on('error', (err, _req, _res) => {
+              proxy.on('error', (err: NodeJS.ErrnoException, _req, _res) => {
                 // Silently ignore proxy errors - main app doesn't use /api endpoints
                 // This prevents console spam when scraper-ui server isn't running
-                if (err.code === 'ECONNREFUSED') {
+                if (err?.code === 'ECONNREFUSED') {
                   return; // Ignore connection refused errors
                 }
                 console.error('Proxy error:', err);
