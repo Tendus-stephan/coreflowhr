@@ -7,7 +7,7 @@ const Invite: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
-  const [status, setStatus] = useState<'idle' | 'accepting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'accepting' | 'success' | 'error' | 'expired'>('idle');
   const [message, setMessage] = useState<string>('');
   const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(true);
@@ -27,7 +27,7 @@ const Invite: React.FC = () => {
 
   useEffect(() => {
     if (!token) {
-      setStatus('error');
+      setStatus('expired');
       setMessage('Invalid invite link. Please check that you copied the full URL.');
       setInviteLoading(false);
       return;
@@ -35,11 +35,32 @@ const Invite: React.FC = () => {
     let cancelled = false;
     api.workspaces.getInviteByToken(token).then((r) => {
       if (!cancelled) {
-        setInviteEmail(r.found && r.email ? r.email : null);
+        if (r.found && r.email) {
+          setInviteEmail(r.email);
+        } else {
+          setInviteEmail(null);
+          setStatus('expired');
+          setMessage('This invite has expired or has already been used. Ask your Admin to send a new one.');
+          try {
+            localStorage.removeItem('workspaceInviteToken');
+          } catch {
+            // ignore
+          }
+        }
         setInviteLoading(false);
       }
     }).catch(() => {
-      if (!cancelled) setInviteLoading(false);
+      if (!cancelled) {
+        setInviteEmail(null);
+        setStatus('expired');
+        setMessage('This invite has expired or has already been used. Ask your Admin to send a new one.');
+        try {
+          localStorage.removeItem('workspaceInviteToken');
+        } catch {
+          // ignore
+        }
+        setInviteLoading(false);
+      }
     });
     return () => { cancelled = true; };
   }, [token]);
@@ -55,6 +76,15 @@ const Invite: React.FC = () => {
     navigate(`${path}?invite_token=${encodeURIComponent(token)}`);
   };
 
+  const handleGoToHome = () => {
+    try {
+      localStorage.removeItem('workspaceInviteToken');
+    } catch {
+      // ignore
+    }
+    navigate('/', { replace: true });
+  };
+
   const emailMatches = inviteEmail && user?.email
     ? user.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase()
     : false;
@@ -64,8 +94,8 @@ const Invite: React.FC = () => {
     if (!user) return;
     if (inviteLoading || inviteEmail === null) return;
     if (!inviteEmail) {
-      setStatus('error');
-      setMessage('This invite link is invalid or has expired.');
+      setStatus('expired');
+      setMessage('This invite has expired or has already been used. Ask your Admin to send a new one.');
       return;
     }
     if (!emailMatches) return;
@@ -75,10 +105,14 @@ const Invite: React.FC = () => {
       setMessage('Accepting your invite…');
       const result = await api.workspaces.acceptInvite(token);
       if (!result.success) {
+        try {
+          localStorage.removeItem('workspaceInviteToken');
+        } catch {
+          // ignore
+        }
         if (result.error && result.error.toLowerCase().includes('not authenticated')) {
-          setStatus('idle');
-          setMessage('');
-          handleGoToAuth('/login');
+          setStatus('error');
+          setMessage('Your session may have expired. Please log in again to accept this invite.');
           return;
         }
         setStatus('error');
@@ -98,28 +132,73 @@ const Invite: React.FC = () => {
     accept();
   }, [token, user, loading, status, inviteLoading, inviteEmail, emailMatches, navigate]);
 
-  const showAuthCta = !loading && !user && !!token;
-  const showWrongAccount = !loading && !!user && !!token && !!inviteEmail && !emailMatches;
+  const showAuthCta = !loading && !user && !!token && status !== 'expired';
+  const showWrongAccount = !loading && !!user && !!token && !!inviteEmail && !emailMatches && status !== 'expired';
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 shadow-sm p-8 bg-white">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Workspace Invitation</h1>
-        <p className="text-sm text-gray-600 mb-6">
+    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 shadow-sm p-10 bg-white">
+        <h1 className="text-xl font-bold text-gray-900 mb-2">{status === 'expired' ? 'Invite no longer valid' : 'Workspace Invitation'}</h1>
+        <p className="text-sm text-gray-600 mb-6 leading-relaxed">
           You’ve been invited to join a CoreFlowHR workspace. Accept the invitation to start collaborating with your team.
         </p>
 
+        {status === 'expired' && (
+          <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 px-5 py-5 text-center">
+            <p className="font-semibold text-gray-900">Invite expired</p>
+            <p className="mt-2 text-gray-600">{message}</p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={handleGoToHome}
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 underline hover:no-underline"
+              >
+                Go to homepage
+              </button>
+            </div>
+          </div>
+        )}
         {status === 'error' && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
             <p className="font-medium">Something went wrong</p>
             <p className="mt-1 text-amber-700">{message}</p>
-            <button
-              type="button"
-              onClick={() => { setStatus('idle'); setMessage(''); }}
-              className="mt-3 text-sm font-medium text-amber-800 underline hover:no-underline"
-            >
-              Try again
-            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+              {message.toLowerCase().includes('log in') ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleGoToAuth('/login')}
+                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
+                  >
+                    Log in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGoToHome}
+                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
+                  >
+                    Go to homepage
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setStatus('idle'); setMessage(''); }}
+                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
+                  >
+                    Try again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGoToHome}
+                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
+                  >
+                    Go to homepage
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
         {status === 'accepting' && (
@@ -134,23 +213,23 @@ const Invite: React.FC = () => {
         )}
 
         {showWrongAccount && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
-            <p className="font-medium">Wrong account</p>
-            <p className="mt-1 text-amber-700">
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
+            <p className="font-semibold text-base">Wrong account</p>
+            <p className="mt-2 text-amber-700 text-base leading-relaxed">
               This invitation was sent to <strong>{inviteEmail}</strong>. You're signed in as <strong>{user?.email}</strong>. To accept, use the invited email address.
             </p>
-            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+            <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => signOut().then(() => { setInviteEmail(null); setStatus('idle'); setMessage(''); })}
-                className="inline-flex justify-center px-4 py-2 rounded-lg border border-amber-700 text-amber-800 text-sm font-medium hover:bg-amber-100"
+                className="inline-flex justify-center px-5 py-2.5 rounded-lg border border-amber-700 text-amber-800 text-sm font-medium hover:bg-amber-100"
               >
                 Log out
               </button>
               <button
                 type="button"
                 onClick={() => handleGoToAuth('/signup')}
-                className="inline-flex justify-center px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
+                className="inline-flex justify-center px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
               >
                 Sign up with {inviteEmail}
               </button>
@@ -189,6 +268,16 @@ const Invite: React.FC = () => {
             {loading || inviteLoading ? 'Checking your session…' : 'Processing your invite…'}
           </p>
         )}
+
+        <p className="mt-6 pt-4 border-t border-gray-100 text-center">
+          <button
+            type="button"
+            onClick={handleGoToHome}
+            className="text-sm text-gray-500 hover:text-gray-700 underline hover:no-underline"
+          >
+            Go to homepage
+          </button>
+        </p>
       </div>
     </div>
   );

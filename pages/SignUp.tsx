@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { api } from '../services/api';
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState('');
@@ -14,6 +15,8 @@ const SignUp: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [inviteEmailLocked, setInviteEmailLocked] = useState(false);
+  const [inviteInvalid, setInviteInvalid] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -29,6 +32,24 @@ const SignUp: React.FC = () => {
         // ignore
       }
     }
+  }, [inviteToken]);
+
+  // Invite flow: prefill and lock email from invite
+  useEffect(() => {
+    if (!inviteToken) return;
+    let cancelled = false;
+    api.workspaces.getInviteByToken(inviteToken).then((r) => {
+      if (cancelled) return;
+      if (r.found && r.email) {
+        setEmail(r.email);
+        setInviteEmailLocked(true);
+      } else {
+        setInviteInvalid(true);
+      }
+    }).catch(() => {
+      if (!cancelled) setInviteInvalid(true);
+    });
+    return () => { cancelled = true; };
   }, [inviteToken]);
 
   // Helper function to simplify password validation errors
@@ -108,7 +129,7 @@ const SignUp: React.FC = () => {
             />
         </div>
         <h2 className="mt-3 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Create your account
+          {inviteEmailLocked ? 'Join your team' : 'Create your account'}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Or <Link to={loginPath} className="font-semibold text-black hover:underline transition-all">Sign in</Link>
@@ -117,6 +138,12 @@ const SignUp: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-[0_0_50px_-12px_rgb(0,0,0,0.12)] sm:rounded-2xl sm:px-10 border border-gray-100">
+          {inviteInvalid && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              This invite has expired or is invalid. Ask your admin to send a new invitation.
+              <Link to="/" className="block mt-2 font-medium hover:underline">Go to homepage</Link>
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
               {error}
@@ -149,9 +176,13 @@ const SignUp: React.FC = () => {
                   autoComplete="email" 
                   required 
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white" 
+                  onChange={(e) => !inviteEmailLocked && setEmail(e.target.value)}
+                  readOnly={inviteEmailLocked}
+                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white disabled:bg-gray-50 disabled:text-gray-700" 
                 />
+                {inviteEmailLocked && (
+                  <p className="mt-1 text-xs text-gray-500">This invite was sent to this email address.</p>
+                )}
               </div>
             </div>
 

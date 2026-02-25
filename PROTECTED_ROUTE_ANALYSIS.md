@@ -5,8 +5,8 @@
 ### Authentication Flow:
 1. **Checks user authentication** - Redirects to `/login` if not authenticated
 2. **Checks email verification** - Redirects to `/verify-email` if email not confirmed
-3. **Checks subscription** - Redirects to `/?pricing=true` if not subscribed (allows `/settings` access)
-4. **Checks onboarding** - Redirects to `/onboarding` if not completed
+3. **App access (gatekeeper)** - Two-question check: (1) Does user belong to a workspace that has an active subscription? If yes, allow. (2) Else, does user have their own active subscription? If yes, allow. If no, redirect to `/?pricing=true` (allows `/settings` access). See `services/appAccess.ts`.
+4. **Checks onboarding** - Redirects to `/onboarding` if not completed (invited workspace members skip onboarding)
 
 ### Public Routes (No Authentication Required):
 - `/` - Landing page
@@ -19,6 +19,7 @@
 - `/jobs/apply/:jobId` - Job application (public CV upload)
 - `/candidates/register/:candidateId` - Candidate registration (public)
 - `/offers/respond/:token` - Offer response (public)
+- `/invite` - Workspace invite accept (public; token in URL)
 
 ### Protected Routes (Require Authentication):
 - `/dashboard` - Dashboard
@@ -35,7 +36,7 @@
 1. **Session tracking** - Checks for revoked sessions periodically
 2. **Non-blocking checks** - Uses timeouts to prevent hanging
 3. **Graceful error handling** - Doesn't block access on errors
-4. **Subscription check** - Prevents access to paid features without subscription
+4. **App access check** - Workspace-first: members of a workspace with a subscription inherit access; otherwise requires own subscription
 5. **Onboarding enforcement** - Ensures new users complete onboarding
 
 ### ✅ **Conclusion: ProtectedRoute is properly set up and secure**

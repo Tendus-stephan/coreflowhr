@@ -191,22 +191,42 @@ const AppRoutes: React.FC = () => {
     }
   }, [location.pathname]);
 
-  // After login/signup, if there is a stored workspace invite token, redirect to /invite to finalize
+  // After login/signup, if there is a stored workspace invite token that is still valid, redirect to /invite.
+  // If the token is invalid/expired, clear it so we don't keep redirecting the user to a broken invite page.
   useEffect(() => {
     if (loading) return;
     if (!user) return;
     if (location.pathname.startsWith('/invite')) return;
 
+    let cancelled = false;
     try {
       const stored = localStorage.getItem('workspaceInviteToken');
-      if (stored) {
-        // Don't clear token here – Invite page clears it after successful accept.
-        // That way after email verification we still redirect to invite if they land elsewhere.
-        navigate(`/invite?token=${encodeURIComponent(stored)}`, { replace: true });
-      }
+      if (!stored) return;
+
+      const { api } = await import('./services/api');
+      api.workspaces.getInviteByToken(stored).then((r) => {
+        if (cancelled) return;
+        try {
+          if (!r.found) {
+            localStorage.removeItem('workspaceInviteToken');
+            return;
+          }
+          navigate(`/invite?token=${encodeURIComponent(stored)}`, { replace: true });
+        } catch {
+          // ignore
+        }
+      }).catch(() => {
+        if (!cancelled) {
+          try {
+            localStorage.removeItem('workspaceInviteToken');
+          } catch {
+            // ignore
+          }
+        });
     } catch {
       // ignore storage errors
     }
+    return () => { cancelled = true; };
   }, [user?.id, loading, location.pathname, navigate]);
 
   return (

@@ -155,79 +155,31 @@ const LandingPage: React.FC = () => {
   // Get user display name
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
 
-  // Check subscription status for logged-in users
+  // Can user enter app? Workspace with subscription first, then own subscription.
   useEffect(() => {
-    const checkSubscription = async () => {
+    const checkAccess = async () => {
       if (!session || !user) {
         setSubscriptionLoading(false);
         setIsSubscribed(false);
         return;
       }
-
       try {
-        const { data: settings, error: queryError } = await supabase
-          .from('user_settings')
-          .select('subscription_status, subscription_stripe_id, billing_plan_name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        // If no settings found or error, user is not subscribed
-        if (queryError) {
-          // Suppress verbose errors for network timeouts (expected in poor network conditions)
-          const isNetworkError = queryError.message?.includes('Failed to fetch') || 
-                                 queryError.message?.includes('timeout') ||
-                                 queryError.code === 'PGRST301' || // Supabase timeout error code
-                                 queryError.message?.toLowerCase().includes('network');
-          
-          if (!isNetworkError) {
-          console.error('Error fetching user settings:', queryError);
-          }
-          setIsSubscribed(false);
-          setSubscriptionLoading(false);
-          return;
-        }
-
-        if (!settings) {
-          console.log('No user_settings row found for user - not subscribed');
-          setIsSubscribed(false);
-          setSubscriptionLoading(false);
-          return;
-        }
-
-        console.log('Subscription check - User settings:', {
-          subscription_status: settings.subscription_status,
-          subscription_stripe_id: settings.subscription_stripe_id,
-          billing_plan_name: settings.billing_plan_name,
-          userId: user.id
-        });
-
-        // Only active or trialing Stripe subscriptions can access the app (no access after cancel/expiry)
-        const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-        const subscribed = hasActiveSubscription(settings);
-
-        console.log('Subscription check result:', {
-          subscription_status: settings.subscription_status,
-          subscribed,
-          finalDecision: subscribed ? '✅ SUBSCRIBED - Will redirect to dashboard' : '❌ NOT SUBSCRIBED - Will show pricing'
-        });
-
-        setIsSubscribed(subscribed);
+        const { checkAppAccess } = await import('../services/appAccess');
+        const result = await checkAppAccess(user.id);
+        setIsSubscribed(result.canEnter);
       } catch (error: any) {
-        // Handle timeout and network errors gracefully
-        if (error.message?.includes('timeout') || error.message?.includes('Failed to fetch')) {
-          // Network issue - silently fail and assume not subscribed
+        if (error?.message?.includes('timeout') || error?.message?.includes('Failed to fetch')) {
           setIsSubscribed(false);
         } else {
-        console.error('Error checking subscription:', error);
-        setIsSubscribed(false);
+          console.error('Error checking app access:', error);
+          setIsSubscribed(false);
         }
       } finally {
         setSubscriptionLoading(false);
       }
     };
-
     if (session && user) {
-      checkSubscription();
+      checkAccess();
     } else {
       setSubscriptionLoading(false);
     }

@@ -10,13 +10,12 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, session, loading } = useAuth();
   const location = useLocation();
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
-  const [isSubscribed, setIsSubscribed] = useState(true); // Default to true to allow access during check
-  const [subscriptionChecked, setSubscriptionChecked] = useState(false); // Track if we've completed a check
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [canEnter, setCanEnter] = useState(true); // Default allow during check
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true); // Only admins see pricing gate
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true); // Default to true to allow access during check
-  const [isAdmin, setIsAdmin] = useState(true); // Assume admin until we know role
-
   // Function to check if session was revoked (optimized, non-blocking)
   const checkSessionRevoked = async (): Promise<boolean> => {
     if (!session || !user) return false;
@@ -90,79 +89,69 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
   };
 
+  // Gatekeeper: workspace-first, then subscription.
+  // Q1 — Does this user belong to a workspace? If yes, let them in (workspace owner paid; they inherit access).
+  // Q2 — If no workspace, do they have their own subscription? If yes, in. If no, send to pricing.
   useEffect(() => {
-    const checkSubscription = async () => {
+    const checkAccess = async () => {
       if (!session || !user) {
-        setSubscriptionLoading(false);
+        setAccessLoading(false);
         return;
       }
 
-      // Check subscription status
       try {
+        // Question 1: Does this user belong to any workspace?
+        const { data: memberships, error: membershipsError } = await supabase
+          .from('workspace_members')
+          .select('role')
+          .eq('user_id', user.id);
+
+        const belongsToWorkspace = !membershipsError && memberships && memberships.length > 0;
+        const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
+        const isAdminRole = belongsToWorkspace
+          ? !(memberships || []).some((m: any) => nonAdminRoles.includes(m.role))
+          : true; // No workspace yet → treat as potential plan buyer (admin)
+        setIsAdmin(isAdminRole);
+
+        if (belongsToWorkspace) {
+          // User is in a workspace → let them in. No subscription check.
+          setCanEnter(true);
+          setAccessChecked(true);
+          setAccessLoading(false);
+          return;
+        }
+
+        // Question 2: No workspace — do they have their own subscription?
         const { data: settings, error } = await supabase
           .from('user_settings')
           .select('subscription_status, subscription_stripe_id, billing_plan_name')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Fetch workspace-scoped role to distinguish Admin vs members for subscription gating
-        let isAdminRole = true;
-        try {
-          // Prefer workspace_members (workspace-scoped roles)
-          const { data: memberships, error: membershipsError } = await supabase
-            .from('workspace_members')
-            .select('role')
-            .eq('user_id', user.id);
-
-          if (!membershipsError && memberships && memberships.length > 0) {
-            const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-            const hasNonAdminRole = memberships.some(
-              (m: any) => nonAdminRoles.includes(m.role)
-            );
-            isAdminRole = !hasNonAdminRole;
-          } else {
-            isAdminRole = false;
-          }
-        } catch (roleError) {
-          console.warn('Error fetching user workspace role for subscription check:', roleError);
-          isAdminRole = true;
-        }
-        setIsAdmin(isAdminRole);
-
-        // If no settings found, user might not be subscribed yet
         if (error && error.code !== 'PGRST116') {
-          console.error('Error checking subscription:', error);
-          // On error, allow access (don't block)
-          setIsSubscribed(true);
-          setSubscriptionChecked(true);
+          setCanEnter(true);
+          setAccessChecked(true);
         } else if (!settings) {
-          // No settings row:
-          // - For Admins: treat as not subscribed (they should see pricing)
-          // - For non-Admins (invited members): allow access and skip paywall
-          setIsSubscribed(!isAdminRole);
-          setSubscriptionChecked(true);
+          setCanEnter(false); // No workspace, no subscription → pricing
+          setAccessChecked(true);
         } else {
           const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-          let subscribed = hasActiveSubscription(settings);
-          // Non-admin members should not be blocked by subscription gate
-          if (!isAdminRole) subscribed = true;
-          setIsSubscribed(subscribed);
-          setSubscriptionChecked(true);
+          setCanEnter(hasActiveSubscription(settings));
+          setAccessChecked(true);
         }
       } catch (error) {
-        console.error('Error checking subscription:', error);
-        // On error, allow access (don't block)
-        setIsSubscribed(true);
-        setSubscriptionChecked(true);
+        console.error('Error checking access:', error);
+        setCanEnter(true);
+        setAccessChecked(true);
       } finally {
-        setSubscriptionLoading(false);
+        setAccessLoading(false);
       }
     };
 
     if (session && user) {
-      checkSubscription();
+      checkAccess();
     } else {
-      setSubscriptionLoading(false);
+      setAccessLoading(false);
     }
   }, [session, user]);
 
@@ -183,6 +172,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       }
 
       try {
+        // Invited users (workspace members) skip onboarding
+        const { data: memberships } = await supabase
+          .from('workspace_members')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+        if (memberships && memberships.length > 0) {
+          setOnboardingCompleted(true);
+          setOnboardingChecked(true);
+          return;
+        }
+
         // Always check the database for current onboarding status
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -315,8 +316,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Show loading only while checking subscription for the first time
-  if (subscriptionLoading && !subscriptionChecked) {
+  // Show loading only while checking access for the first time
+  if (accessLoading && !accessChecked) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
@@ -324,15 +325,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // Only redirect if:
-  // 1. Subscription check has completed (subscriptionChecked is true)
-  // 2. User is confirmed not subscribed (isSubscribed is false)
-  // 3. User is an Admin (only admins should see pricing gate)
-  // 4. We're not on the settings page (users should access settings to subscribe)
+  // No workspace-with-subscription and no own subscription → pricing (except settings)
   const isSettingsPage = location.pathname === '/settings';
-  const shouldRedirect = subscriptionChecked && !isSubscribed && isAdmin && !isSettingsPage;
-
-  if (shouldRedirect) {
+  if (accessChecked && !canEnter && !isSettingsPage) {
     return <Navigate to="/?pricing=true" replace />;
   }
 

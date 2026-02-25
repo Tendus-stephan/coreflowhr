@@ -26,16 +26,24 @@ const VerifyEmail: React.FC = () => {
 
   useEffect(() => {
     // Check if user is already verified
+    const getRedirectPath = () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('workspaceInviteToken') : null;
+        if (token) return `/invite?token=${encodeURIComponent(token)}`;
+      } catch {
+        // ignore
+      }
+      return '/login';
+    };
+
     const checkVerification = async () => {
       if (user) {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (currentUser?.email_confirmed_at) {
-        setVerified(true);
-        // Redirect to login after email confirmation
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      }
+        if (currentUser?.email_confirmed_at) {
+          setVerified(true);
+          const path = getRedirectPath();
+          setTimeout(() => navigate(path), 2000);
+        }
       }
     };
 
@@ -45,10 +53,8 @@ const VerifyEmail: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
         setVerified(true);
-        // Redirect to login after email confirmation
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        const path = getRedirectPath();
+        setTimeout(() => navigate(path), 2000);
       }
     });
 
@@ -102,7 +108,7 @@ const VerifyEmail: React.FC = () => {
             Email Verified!
           </h2>
           <p className="mt-4 text-center text-sm text-gray-600">
-            Your email has been confirmed. Redirecting to login...
+            Your email has been confirmed. Redirecting you...
           </p>
         </div>
       </div>
