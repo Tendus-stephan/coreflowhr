@@ -13,9 +13,10 @@ const Sidebar: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>('User');
+  const [userName, setUserName] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>(() => '');
-  const [userRole, setUserRole] = useState<string>('Viewer');
+  const [userRole, setUserRole] = useState<string>('');
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   const roleLabel = userRole === 'HiringManager' ? 'Hiring Manager' : userRole;
 
@@ -34,11 +35,14 @@ const Sidebar: React.FC = () => {
           setUserName(profile.name);
           setUserAvatar(profile.avatar || null);
           setUserEmail(profile.email || user.email || '');
-          setUserRole(profile.role || 'Viewer');
+          setUserRole(profile.role || '');
+          setProfileLoaded(true);
         } catch (error) {
           console.error('Error loading profile:', error);
           setUserName(user.user_metadata?.name || user.email?.split('@')[0] || 'User');
           setUserEmail(user.email || '');
+          setUserRole('');
+          setProfileLoaded(true);
         }
       }
     };
@@ -75,7 +79,7 @@ const Sidebar: React.FC = () => {
     { name: 'Candidates', path: '/candidates', icon: Users },
     { name: 'Clients', path: '/clients', icon: Building2 },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
-    ...(userRole !== 'HiringManager' && userRole !== 'Viewer' ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
+    ...(!profileLoaded || (userRole !== 'HiringManager' && userRole !== 'Viewer') ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -175,24 +179,35 @@ const Sidebar: React.FC = () => {
             className={`flex items-center ${isExpanded ? 'gap-3' : 'justify-center'} p-2 rounded-lg cursor-pointer transition-colors group relative ${
                 isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-50'
             }`}
-            title={!isExpanded ? `${userName} · ${roleLabel} (${userEmail || user?.email || ''})` : ''}
+            title={!isExpanded && profileLoaded ? `${userName || 'User'} · ${roleLabel} (${userEmail || user?.email || ''})` : ''}
         >
             {user ? (
                 <>
-                    <Avatar name={userName} src={userAvatar} className="w-8 h-8 text-[10px] flex-shrink-0" />
+                    <Avatar name={userName || user.email?.split('@')[0] || '…'} src={userAvatar} className="w-8 h-8 text-[10px] flex-shrink-0" />
                     {isExpanded && (
-                        <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-gray-900 group-hover:text-black truncate">{userName}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium flex-shrink-0" title="Your role in this workspace">{roleLabel}</span>
-                            </div>
-                            <span className="text-[10px] text-gray-500 truncate">{userEmail || user?.email || ''}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                            {!profileLoaded ? (
+                                <>
+                                    <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
+                                    <div className="h-2.5 w-28 bg-gray-100 rounded animate-pulse mt-1.5" />
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold text-gray-900 group-hover:text-black truncate">{userName || 'User'}</span>
+                                        {userRole && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium flex-shrink-0" title="Your role in this workspace">{roleLabel}</span>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] text-gray-500 truncate">{userEmail || user?.email || ''}</span>
+                                </>
+                            )}
                         </div>
                     )}
                     {!isExpanded && (
                         <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                            <div className="font-bold">{userName}</div>
-                            <div className="text-[10px] text-gray-300">{roleLabel}</div>
+                            <div className="font-bold">{profileLoaded ? (userName || 'User') : '…'}</div>
+                            {profileLoaded && roleLabel && <div className="text-[10px] text-gray-300">{roleLabel}</div>}
                             <div className="text-[10px]">{userEmail || user?.email || ''}</div>
                         </div>
                     )}

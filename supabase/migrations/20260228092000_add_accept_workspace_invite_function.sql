@@ -24,6 +24,14 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid or expired invite');
   END IF;
 
+  -- Only the person the invite was sent to can accept it (prevents admin clicking link and losing Admin role)
+  IF (SELECT LOWER(email) FROM auth.users WHERE id = v_user_id) IS DISTINCT FROM LOWER(TRIM(v_inv.email)) THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'This invitation was sent to ' || v_inv.email || '. Please log in or sign up with that email to accept.'
+    );
+  END IF;
+
   -- Create or update membership for this workspace/user
   INSERT INTO public.workspace_members (workspace_id, user_id, role)
   VALUES (v_inv.workspace_id, v_user_id, v_inv.role)

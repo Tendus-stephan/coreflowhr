@@ -6,17 +6,40 @@ import { api } from '../services/api';
 const Invite: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [status, setStatus] = useState<'idle' | 'accepting' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState<string>('');
+  const [inviteEmail, setInviteEmail] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(true);
 
   const token = searchParams.get('token') || '';
+
+  // Security: always force sign-out when visiting an invite link so acceptance
+  // is done only after an explicit login/signup with the correct email.
+  useEffect(() => {
+    if (!token || loading) return;
+    if (user) {
+      signOut();
+    }
+  }, [token, user, loading, signOut]);
 
   useEffect(() => {
     if (!token) {
       setStatus('error');
       setMessage('Invalid invite link. Please check that you copied the full URL.');
+      setInviteLoading(false);
+      return;
     }
+    let cancelled = false;
+    api.workspaces.getInviteByToken(token).then((r) => {
+      if (!cancelled) {
+        setInviteEmail(r.found && r.email ? r.email : null);
+        setInviteLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setInviteLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [token]);
 
   const handleGoToAuth = (path: '/login' | '/signup') => {
@@ -30,15 +53,26 @@ const Invite: React.FC = () => {
     navigate(`${path}?invite_token=${encodeURIComponent(token)}`);
   };
 
+  const emailMatches = inviteEmail && user?.email
+    ? user.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase()
+    : false;
+
   useEffect(() => {
-    if (!token || !user || loading || status !== 'idle') return;
+    if (!token || loading || status !== 'idle') return;
+    if (!user) return;
+    if (inviteLoading || inviteEmail === null) return;
+    if (!inviteEmail) {
+      setStatus('error');
+      setMessage('This invite link is invalid or has expired.');
+      return;
+    }
+    if (!emailMatches) return;
 
     const accept = async () => {
       setStatus('accepting');
       setMessage('Accepting your invite…');
       const result = await api.workspaces.acceptInvite(token);
       if (!result.success) {
-        // If backend says "Not authenticated", send the user through login/signup flow
         if (result.error && result.error.toLowerCase().includes('not authenticated')) {
           setStatus('idle');
           setMessage('');
@@ -51,15 +85,14 @@ const Invite: React.FC = () => {
       }
       setStatus('success');
       setMessage('Invite accepted. Redirecting you to your dashboard…');
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      setTimeout(() => navigate('/dashboard'), 1500);
     };
 
     accept();
-  }, [token, user, loading, status, navigate]);
+  }, [token, user, loading, status, inviteLoading, inviteEmail, emailMatches, navigate]);
 
   const showAuthCta = !loading && !user && !!token;
+  const showWrongAccount = !loading && !!user && !!token && !!inviteEmail && !emailMatches;
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
@@ -93,11 +126,37 @@ const Invite: React.FC = () => {
           </div>
         )}
 
+        {showWrongAccount && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+            <p className="font-medium">Wrong account</p>
+            <p className="mt-1 text-amber-700">
+              This invitation was sent to <strong>{inviteEmail}</strong>. You're signed in as <strong>{user?.email}</strong>. To accept, use the invited email address.
+            </p>
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => signOut().then(() => { setInviteEmail(null); setStatus('idle'); setMessage(''); })}
+                className="inline-flex justify-center px-4 py-2 rounded-lg border border-amber-700 text-amber-800 text-sm font-medium hover:bg-amber-100"
+              >
+                Log out
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGoToAuth('/signup')}
+                className="inline-flex justify-center px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
+              >
+                Sign up with {inviteEmail}
+              </button>
+            </div>
+          </div>
+        )}
+
         {showAuthCta && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              To accept this invite, please log in or create an account. After signing in, come back to this link to finish joining the
-              workspace.
+              {inviteEmail
+                ? `This invite was sent to ${inviteEmail}. Log in or sign up with that email to accept and join the workspace.`
+                : 'To accept this invite, please log in or create an account. After signing in, return to this link to join the workspace.'}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -118,9 +177,9 @@ const Invite: React.FC = () => {
           </div>
         )}
 
-        {!showAuthCta && status === 'idle' && (
+        {!showAuthCta && !showWrongAccount && status === 'idle' && (
           <p className="text-sm text-gray-500">
-            {loading ? 'Checking your session…' : 'Processing your invite…'}
+            {loading || inviteLoading ? 'Checking your session…' : 'Processing your invite…'}
           </p>
         )}
       </div>

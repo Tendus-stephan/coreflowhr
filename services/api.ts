@@ -4715,6 +4715,11 @@ export const api = {
             if (targetError) throw targetError;
             if (!targetMember) throw new Error('Member not found in this workspace.');
 
+            // Enforce single-admin rule: you cannot promote another member to Admin
+            if (newRole === 'Admin' && targetMember.role !== 'Admin') {
+                throw new Error('You cannot promote another member to Admin. There can only be one Admin in this workspace.');
+            }
+
             if (targetMember.role === 'Admin' && newRole !== 'Admin') {
                 const { count, error: countError } = await supabase
                     .from('workspace_members')
@@ -4749,6 +4754,10 @@ export const api = {
             const trimmedEmail = email.trim().toLowerCase();
             if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
                 throw new Error('Please enter a valid email address.');
+            }
+
+            if (role === 'Admin') {
+                throw new Error('You cannot invite another Admin. There can only be one Admin per workspace.');
             }
 
             const { data: membership, error: membershipError } = await supabase
@@ -4833,7 +4842,21 @@ export const api = {
         },
 
         /**
-         * Accept a workspace invite by token for the current authenticated user.
+         * Get invite details by token (no auth required). Used to show "invite sent to X" and to check email match before accepting.
+         */
+        getInviteByToken: async (token: string): Promise<{ found: boolean; email?: string; role?: string }> => {
+            const trimmed = token.trim();
+            if (!trimmed) return { found: false };
+            const { data, error } = await supabase.rpc('get_invite_by_token', { p_token: trimmed });
+            if (error || !data) return { found: false };
+            if (data.found === true && data.email) {
+                return { found: true, email: data.email as string, role: data.role as string };
+            }
+            return { found: false };
+        },
+
+        /**
+         * Accept a workspace invite by token for the current authenticated user. Invite email must match current user's email.
          */
         acceptInvite: async (token: string): Promise<{ success: boolean; error?: string; workspaceId?: string; role?: UserRole }> => {
             const trimmed = token.trim();

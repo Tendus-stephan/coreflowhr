@@ -1654,6 +1654,25 @@ const Settings: React.FC = () => {
         if (!tabs.some(t => t.id === activeTab)) setActiveTab(firstVisibleTabId);
     }, [user?.id, user?.role, tabs, activeTab, firstVisibleTabId]);
 
+    // Load team members when Team tab is opened (so list isn't empty until user clicks Refresh)
+    useEffect(() => {
+        if (activeTab !== 'team' || !user) return;
+        let cancelled = false;
+        setIsLoadingTeam(true);
+        setTeamError(null);
+        api.workspaces.getWorkspaceWithMembers()
+            .then((workspace) => {
+                if (!cancelled) setTeamMembers(workspace.members);
+            })
+            .catch((err: any) => {
+                if (!cancelled) setTeamError(err?.message || 'Failed to load team members.');
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingTeam(false);
+            });
+        return () => { cancelled = true; };
+    }, [activeTab, user?.id]);
+
     if (!user) return (
         <div className="min-h-screen bg-white">
             <div className="p-8">
@@ -1906,7 +1925,14 @@ const Settings: React.FC = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {teamMembers.length === 0 && (
+                                            {isLoadingTeam && teamMembers.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                                                        Loading members…
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {!isLoadingTeam && teamMembers.length === 0 && (
                                                 <tr>
                                                     <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
                                                         No team members yet. Invite someone using the form below.
@@ -1942,7 +1968,7 @@ const Settings: React.FC = () => {
                                                                 }}
                                                                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none disabled:bg-gray-50 disabled:text-gray-400"
                                                             >
-                                                                <option value="Admin">Admin</option>
+                                                                {isSelf && <option value="Admin">Admin</option>}
                                                                 <option value="Recruiter">Recruiter</option>
                                                                 <option value="HiringManager">Hiring Manager</option>
                                                                 <option value="Viewer">Viewer</option>
@@ -1991,7 +2017,6 @@ const Settings: React.FC = () => {
                                             <option value="Recruiter">Recruiter</option>
                                             <option value="HiringManager">Hiring Manager</option>
                                             <option value="Viewer">Viewer</option>
-                                            <option value="Admin">Admin</option>
                                         </select>
                                     </div>
                                     <div className="w-full md:w-auto">
