@@ -15,7 +15,7 @@ const Sidebar: React.FC = () => {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>(() => '');
-  const [userRole, setUserRole] = useState<string>('Admin');
+  const [userRole, setUserRole] = useState<string>('Viewer');
 
   // Don't render sidebar if user is not authenticated
   // This check must be AFTER all hooks to maintain hook order
@@ -32,7 +32,7 @@ const Sidebar: React.FC = () => {
           setUserName(profile.name);
           setUserAvatar(profile.avatar || null);
           setUserEmail(profile.email || user.email || '');
-          setUserRole(profile.role || 'Admin');
+          setUserRole(profile.role || 'Viewer');
         } catch (error) {
           console.error('Error loading profile:', error);
           setUserName(user.user_metadata?.name || user.email?.split('@')[0] || 'User');
@@ -73,7 +73,7 @@ const Sidebar: React.FC = () => {
     { name: 'Candidates', path: '/candidates', icon: Users },
     { name: 'Clients', path: '/clients', icon: Building2 },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
-    ...(userRole !== 'HiringManager' ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
+    ...(userRole !== 'HiringManager' && userRole !== 'Viewer' ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 

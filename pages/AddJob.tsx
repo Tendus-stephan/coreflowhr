@@ -175,6 +175,7 @@ const AddJob: React.FC = () => {
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
+  const [canCreateJobs, setCanCreateJobs] = useState<boolean | null>(null);
 
   /** Apply a built-in or user template to the form (title, location, type, skills, description, remote). */
   const applyTemplate = (t: JobTemplate | typeof BUILTIN_TEMPLATES[number]) => {
@@ -203,14 +204,21 @@ const AddJob: React.FC = () => {
               setLoadingClients(false);
           }
 
-          // Load job data if editing
+          // Load job data if editing; if creating, check role
           if (!id) {
               try {
-                  const list = await api.jobTemplates.list();
+                  const [list, me] = await Promise.all([
+                      api.jobTemplates.list(),
+                      api.auth.me()
+                  ]);
                   setTemplates(list);
-              } catch (_) {}
+                  setCanCreateJobs(me?.role !== 'HiringManager');
+              } catch (_) {
+                  setCanCreateJobs(true);
+              }
               return;
           }
+          setCanCreateJobs(true);
           
           setLoading(true);
           try {

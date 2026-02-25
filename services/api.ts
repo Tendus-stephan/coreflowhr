@@ -9,13 +9,37 @@ const getUserId = async (): Promise<string | null> => {
   return user?.id || null;
 };
 
-// Helper for RBAC: returns current user's role (Admin, Recruiter, HiringManager) or 'Admin' for backward compat
+// Helper for RBAC: workspace-scoped role (Admin, Recruiter, HiringManager, Viewer). Never treat as Admin unless they are Admin in a workspace.
 const getCurrentUserRole = async (): Promise<string> => {
   const userId = await getUserId();
-  if (!userId) return 'Admin';
-  const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
-  const role = (data?.role || 'User').toString();
-  return role === 'Recruiter' || role === 'HiringManager' ? role : 'Admin';
+  if (!userId) return 'Viewer';
+  const { data: memberships, error: membershipsError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('user_id', userId);
+  if (membershipsError || !memberships || memberships.length === 0) {
+    return 'Viewer';
+  }
+  const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
+  const hasNonAdmin = memberships.some((m: { role: string }) => nonAdminRoles.includes(m.role));
+  if (hasNonAdmin) {
+    const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
+    return (m?.role as string) || 'Viewer';
+  }
+  return 'Admin';
+};
+
+// Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace where user is Admin.
+const getCurrentWorkspaceId = async (): Promise<string | null> => {
+  const userId = await getUserId();
+  if (!userId) return null;
+  const { data: rows, error } = await supabase
+    .from('workspace_members')
+    .select('workspace_id, role')
+    .eq('user_id', userId);
+  if (error || !rows?.length) return null;
+  const admin = rows.find((r: { role: string }) => r.role === 'Admin');
+  return (admin?.workspace_id ?? rows[0]?.workspace_id) as string | null;
 };
 
 // Test mode removed - all jobs and candidates are now production data
@@ -313,11 +337,12 @@ export const api = {
                     .single();
 
                 if (newProfile) {
+                    const role = await getCurrentUserRole();
                     return {
                         id: userId,
                         name: newProfile.name || user.email?.split('@')[0] || 'User',
                         email: user.email || '',
-                        role: newProfile.role || 'User',
+                        role,
                         phone: newProfile.phone || '',
                         jobTitle: newProfile.job_title || '',
                         avatar: newProfile.avatar_url,
@@ -330,8 +355,7 @@ export const api = {
                 }
             }
 
-            const role = profile?.role?.toString() || 'User';
-            const normalizedRole = role === 'Recruiter' || role === 'HiringManager' ? role : 'Admin';
+            const normalizedRole = await getCurrentUserRole();
             return {
                 id: userId,
                 name: profile?.name || user?.email?.split('@')[0] || 'User',
@@ -1429,24 +1453,20 @@ export const api = {
             if (!userId) throw new Error('Not authenticated');
 
             const page = filters?.page || 1;
-            const pageSize = filters?.pageSize || 50; // Default 50 per page
+            const pageSize = filters?.pageSize || 50;
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
-            // Build base query for count
+            // RLS enforces visibility: Admin/Recruiter see all workspace jobs; HM/Viewer see only their assigned jobs
             let countQuery = supabase
                 .from('jobs')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userId);
-            
+                .select('*', { count: 'exact', head: true });
             if (filters?.excludeClosed === true) {
                 countQuery = countQuery.neq('status', 'Closed');
             }
-
             const { count, error: countError } = await countQuery;
             if (countError) throw countError;
 
-            // Build data query with pagination - join clients if available
             let query = supabase
                 .from('jobs')
                 .select(`
@@ -1457,8 +1477,7 @@ export const api = {
                         contact_email,
                         contact_phone
                     )
-                `)
-                .eq('user_id', userId);
+                `);
             
             // Exclude closed jobs if requested (default is to include all)
             if (filters?.excludeClosed === true) {
@@ -1517,6 +1536,7 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
+            const workspaceId = await getCurrentWorkspaceId();
             const { data, error } = await supabase
                 .from('jobs')
                 .select(`
@@ -1529,10 +1549,12 @@ export const api = {
                     )
                 `)
                 .eq('id', id)
-                .eq('user_id', userId)
                 .single();
 
             if (error || !data) return undefined;
+            const inWorkspace = workspaceId && data.workspace_id === workspaceId;
+            const isOwner = data.user_id === userId;
+            if (!inWorkspace && !isOwner) return undefined;
 
             const client = data.clients && !Array.isArray(data.clients) ? data.clients : null;
             return {
@@ -1573,39 +1595,38 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Determine status - if not provided, default to 'Draft' for safety
-            // Status should always be explicitly set by the caller
+            const role = await getCurrentUserRole();
+            if (role === 'HiringManager') {
+                throw new Error('Only admins and recruiters can create jobs. You can view and work on existing jobs in this workspace.');
+            }
+
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!workspaceId) {
+                throw new Error('No workspace found. Accept an invitation or create a workspace to add jobs.');
+            }
+
             const jobStatus = jobData.status || 'Draft';
-            
-            // Check active jobs limit if activating the job
             if (jobStatus === 'Active') {
-                const { getPlanLimits } = await import('./planLimits');
-                
-                // Get user's plan
                 const { data: settings } = await supabase
                     .from('user_settings')
                     .select('billing_plan_name')
                     .eq('user_id', userId)
                     .single();
-                
-                // No active job limit — users can have unlimited active jobs.
             }
-            
             const postedDate = jobStatus === 'Active' ? new Date().toISOString() : null;
-
-            // Production mode - use job title as provided
             const jobTitle = jobData.title || 'Untitled';
 
             const { data: job, error: jobError } = await supabase
                 .from('jobs')
                 .insert({
                     user_id: userId,
-                title: jobTitle,
+                    workspace_id: workspaceId,
+                    title: jobTitle,
                     department: jobData.department || 'General',
-                location: jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? undefined : 'Remote'),
-                type: jobData.type || 'Full-time',
-                status: jobStatus,
-                description: jobData.description || '',
+                    location: jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? undefined : 'Remote'),
+                    type: jobData.type || 'Full-time',
+                    status: jobStatus,
+                    description: jobData.description || '',
                     company: jobData.company,
                     client_id: jobData.clientId || null,
                     salary_range: jobData.salaryRange,
@@ -1613,7 +1634,7 @@ export const api = {
                     remote: jobData.remote || false,
                     skills: jobData.skills || [],
                     posted_date: postedDate,
-                    is_test: false // Production mode - always false
+                    is_test: false
                 })
                 .select()
                 .single();
@@ -1664,7 +1685,13 @@ export const api = {
             if (jobData.remote !== undefined) updateData.remote = jobData.remote;
             if (jobData.skills !== undefined) updateData.skills = jobData.skills;
 
-            // Get old job data to check status changes
+            const { data: row } = await supabase.from('jobs').select('user_id, workspace_id').eq('id', id).single();
+            if (!row) throw new Error('Job not found or access denied.');
+            const isOwner = row.user_id === userId;
+            const workspaceId = await getCurrentWorkspaceId();
+            const canEdit = isOwner || (row?.workspace_id && workspaceId === row.workspace_id && (await getCurrentUserRole()) !== 'HiringManager');
+            if (!canEdit) throw new Error('You do not have permission to edit this job.');
+
             let oldStatus: string | undefined;
             let jobTitle: string | undefined;
             let oldPostedDate: string | null | undefined;
@@ -1673,7 +1700,6 @@ export const api = {
                     .from('jobs')
                     .select('status, title, posted_date')
                     .eq('id', id)
-                    .eq('user_id', userId)
                     .single();
                 if (oldJob) {
                     oldStatus = oldJob.status;
@@ -1681,19 +1707,14 @@ export const api = {
                     oldPostedDate = oldJob.posted_date;
                 }
             }
-
-            // Set posted_date when job is activated
             if (updateData.status === 'Active' && oldStatus !== 'Active' && !oldPostedDate) {
                 updateData.posted_date = new Date().toISOString();
             }
 
-            const { data, error } = await supabase
-                .from('jobs')
-                .update(updateData)
-                .eq('id', id)
-                .eq('user_id', userId)
-                .select()
-                .single();
+            let updateQuery = supabase.from('jobs').update(updateData).eq('id', id);
+            if (isOwner) updateQuery = updateQuery.eq('user_id', userId);
+            else if (row?.workspace_id) updateQuery = updateQuery.eq('workspace_id', row.workspace_id);
+            const { data, error } = await updateQuery.select().single();
 
             if (error) throw error;
 
@@ -1747,28 +1768,29 @@ export const api = {
         delete: async (id: string) => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
-
-            // Get job title before deleting for activity log
-            const { data: jobData } = await supabase
-                .from('jobs')
-                .select('title')
-                .eq('id', id)
-                .eq('user_id', userId)
-                .single();
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin') {
+                throw new Error('Only admins can delete jobs.');
+            }
+            const { data: row } = await supabase.from('jobs').select('title, user_id, workspace_id').eq('id', id).single();
+            if (!row) throw new Error('Job not found or access denied.');
+            const isOwner = row.user_id === userId;
+            const workspaceId = await getCurrentWorkspaceId();
+            const canDelete = isOwner || (row.workspace_id && workspaceId === row.workspace_id);
+            if (!canDelete) throw new Error('You do not have permission to delete this job.');
 
             const { error } = await supabase
                 .from('jobs')
                 .delete()
                 .eq('id', id)
-                .eq('user_id', userId);
+                .eq(isOwner ? 'user_id' : 'workspace_id', isOwner ? userId : row.workspace_id);
 
             if (error) throw error;
 
-            // Log job deletion activity
-            if (jobData) {
+            if (row?.title) {
                 try {
                     const { logJobDeleted } = await import('./activityLogger');
-                    await logJobDeleted(jobData.title);
+                    await logJobDeleted(row.title);
                 } catch (logError) {
                     console.error('Error logging job deletion:', logError);
                 }

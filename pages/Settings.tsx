@@ -1638,11 +1638,12 @@ const Settings: React.FC = () => {
         { id: 'integrations', label: 'Integrations', icon: Layers, requiresProfessional: true },
         { id: 'security', label: 'Security', icon: AlertCircle },
     ];
-    const role = user?.role ?? 'Admin';
+    const role = user?.role ?? 'Viewer';
     const tabs = allTabs.filter(tab => {
         if (tab.requiresProfessional && plan?.name === 'Basic Plan') return false;
-        if (role !== 'Admin' && tab.id === 'team') return false;
-        if (role !== 'Admin' && (tab.id === 'billing' || tab.id === 'integrations')) return false;
+        if (role === 'Viewer') return tab.id === 'profile' || tab.id === 'notifications';
+        if (tab.id === 'team') return role === 'Admin' || role === 'Recruiter';
+        if (tab.id === 'billing' || tab.id === 'integrations') return role === 'Admin';
         if (role === 'HiringManager' && (tab.id === 'templates' || tab.id === 'workflows')) return false;
         return true;
     });
@@ -1944,6 +1945,7 @@ const Settings: React.FC = () => {
                                                                 <option value="Admin">Admin</option>
                                                                 <option value="Recruiter">Recruiter</option>
                                                                 <option value="HiringManager">Hiring Manager</option>
+                                                                <option value="Viewer">Viewer</option>
                                                             </select>
                                                         </td>
                                                         <td className="px-4 py-3 text-right text-xs text-gray-400">
@@ -1988,6 +1990,7 @@ const Settings: React.FC = () => {
                                         >
                                             <option value="Recruiter">Recruiter</option>
                                             <option value="HiringManager">Hiring Manager</option>
+                                            <option value="Viewer">Viewer</option>
                                             <option value="Admin">Admin</option>
                                         </select>
                                     </div>

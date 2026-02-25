@@ -492,7 +492,8 @@ const Jobs: React.FC = () => {
 
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
-  
+  const [canCreateJobs, setCanCreateJobs] = useState(true);
+
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -500,13 +501,13 @@ const Jobs: React.FC = () => {
     const loadJobs = async () => {
         setLoading(true);
         try {
-            // Load all jobs including closed ones for the Jobs page
-            // Fetch with large page size to get all jobs, then paginate client-side
-            const [jobsResult, n, billingPlan] = await Promise.all([
+            const [jobsResult, n, billingPlan, me] = await Promise.all([
                 api.jobs.list({ excludeClosed: false, page: 1, pageSize: API_PAGE_SIZE }), 
                 api.notifications.list(),
-                api.settings.getPlan().catch(() => null)
+                api.settings.getPlan().catch(() => null),
+                api.auth.me().catch(() => null)
             ]);
+            if (me?.role) setCanCreateJobs(me.role !== 'HiringManager');
             // Handle paginated response
             const jobsData = jobsResult && typeof jobsResult === 'object' && 'data' in jobsResult 
                 ? jobsResult.data 
@@ -937,9 +938,11 @@ const Jobs: React.FC = () => {
                 )}
             </div>
 
-            <Link to="/jobs/new">
-                <Button variant="black" size="sm" icon={<Plus size={14}/>}>Post a Job</Button>
-            </Link>
+            {canCreateJobs && (
+                <Link to="/jobs/new">
+                    <Button variant="black" size="sm" icon={<Plus size={14}/>}>Post a Job</Button>
+                </Link>
+            )}
         </div>
       </div>
 

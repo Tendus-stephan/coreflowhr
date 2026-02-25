@@ -115,22 +115,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             .eq('user_id', user.id);
 
           if (!membershipsError && memberships && memberships.length > 0) {
+            const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
             const hasNonAdminRole = memberships.some(
-              (m: any) => m.role === 'Recruiter' || m.role === 'HiringManager'
+              (m: any) => nonAdminRoles.includes(m.role)
             );
             isAdminRole = !hasNonAdminRole;
           } else {
-            // Fallback to profiles.role if no memberships yet
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', user.id)
-              .maybeSingle();
-
-            const rawRole = profile?.role?.toString() || 'User';
-            const normalizedRole =
-              rawRole === 'Recruiter' || rawRole === 'HiringManager' ? rawRole : 'Admin';
-            isAdminRole = normalizedRole === 'Admin';
+            isAdminRole = false;
           }
         } catch (roleError) {
           console.warn('Error fetching user workspace role for subscription check:', roleError);
