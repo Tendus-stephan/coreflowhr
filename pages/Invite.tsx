@@ -14,15 +14,6 @@ const Invite: React.FC = () => {
 
   const token = searchParams.get('token') || '';
 
-  // Security: always force sign-out when visiting an invite link so acceptance
-  // is done only after an explicit login/signup with the correct email.
-  useEffect(() => {
-    if (!token || loading) return;
-    if (user) {
-      signOut();
-    }
-  }, [token, user, loading, signOut]);
-
   useEffect(() => {
     if (!token) {
       setStatus('error');
