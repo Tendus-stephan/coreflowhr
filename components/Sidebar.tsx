@@ -17,6 +17,8 @@ const Sidebar: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>(() => '');
   const [userRole, setUserRole] = useState<string>('Viewer');
 
+  const roleLabel = userRole === 'HiringManager' ? 'Hiring Manager' : userRole;
+
   // Don't render sidebar if user is not authenticated
   // This check must be AFTER all hooks to maintain hook order
   const isAuthenticated = user && session;
@@ -173,20 +175,24 @@ const Sidebar: React.FC = () => {
             className={`flex items-center ${isExpanded ? 'gap-3' : 'justify-center'} p-2 rounded-lg cursor-pointer transition-colors group relative ${
                 isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-50'
             }`}
-            title={!isExpanded ? `${userName} (${userEmail || user?.email || ''})` : ''}
+            title={!isExpanded ? `${userName} · ${roleLabel} (${userEmail || user?.email || ''})` : ''}
         >
             {user ? (
                 <>
                     <Avatar name={userName} src={userAvatar} className="w-8 h-8 text-[10px] flex-shrink-0" />
                     {isExpanded && (
                         <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-gray-900 group-hover:text-black truncate">{userName}</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-gray-900 group-hover:text-black truncate">{userName}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium flex-shrink-0" title="Your role in this workspace">{roleLabel}</span>
+                            </div>
                             <span className="text-[10px] text-gray-500 truncate">{userEmail || user?.email || ''}</span>
                         </div>
                     )}
                     {!isExpanded && (
                         <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                             <div className="font-bold">{userName}</div>
+                            <div className="text-[10px] text-gray-300">{roleLabel}</div>
                             <div className="text-[10px]">{userEmail || user?.email || ''}</div>
                         </div>
                     )}
