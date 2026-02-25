@@ -91,16 +91,20 @@ const SignUp: React.FC = () => {
           // User already exists - show error, don't redirect
           setError(normalizedError);
         } else if (errorMsg?.includes('email') || errorMsg?.includes('sending')) {
-          // Account created but email failed - redirect to verify email page
-          navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}`;
+          setTimeout(() => navigate(verifyUrl, { replace: true }), 0);
           return;
         } else {
           // Other errors - show error message
           setError(normalizedError);
         }
       } else {
-        // Account created successfully - redirect to verify email page
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        // Account created successfully - go to verify email page after auth state settles
+        // (defer so route doesn't flicker to login; use replace so back button doesn't return to signup)
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}`;
+        setTimeout(() => {
+          navigate(verifyUrl, { replace: true });
+        }, 0);
       }
     } catch (err: any) {
       const errorMsg = err.message || 'An unexpected error occurred';

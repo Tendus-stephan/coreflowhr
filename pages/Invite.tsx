@@ -1,7 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
+
+const INVITE_REDIRECT_DONE_KEY = 'inviteRedirectDone';
+
+function clearInviteStorage() {
+  try {
+    localStorage.removeItem('workspaceInviteToken');
+    sessionStorage.removeItem(INVITE_REDIRECT_DONE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 const Invite: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -11,6 +22,7 @@ const Invite: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(true);
+  const acceptStartedRef = useRef(false);
 
   const token = searchParams.get('token') || '';
 
@@ -26,14 +38,10 @@ const Invite: React.FC = () => {
     }
   }, [token, status]);
 
-  // Whenever we're showing error or expired, ensure token is cleared so user can go to landing without being redirected back
+  // Whenever we're showing error or expired, ensure token and redirect flag are cleared
   useEffect(() => {
     if (status === 'error' || status === 'expired') {
-      try {
-        localStorage.removeItem('workspaceInviteToken');
-      } catch {
-        // ignore
-      }
+      clearInviteStorage();
     }
   }, [status]);
 
@@ -53,11 +61,7 @@ const Invite: React.FC = () => {
           setInviteEmail(null);
           setStatus('expired');
           setMessage('This invite has expired or has already been used. Ask your Admin to send a new one.');
-          try {
-            localStorage.removeItem('workspaceInviteToken');
-          } catch {
-            // ignore
-          }
+          clearInviteStorage();
         }
         setInviteLoading(false);
       }
@@ -66,11 +70,7 @@ const Invite: React.FC = () => {
         setInviteEmail(null);
         setStatus('expired');
         setMessage('This invite has expired or has already been used. Ask your Admin to send a new one.');
-        try {
-          localStorage.removeItem('workspaceInviteToken');
-        } catch {
-          // ignore
-        }
+        clearInviteStorage();
         setInviteLoading(false);
       }
     });
@@ -89,11 +89,7 @@ const Invite: React.FC = () => {
   };
 
   const handleGoToHome = () => {
-    try {
-      localStorage.removeItem('workspaceInviteToken');
-    } catch {
-      // ignore
-    }
+    clearInviteStorage();
     navigate('/', { replace: true });
   };
 
@@ -111,33 +107,42 @@ const Invite: React.FC = () => {
       return;
     }
     if (!emailMatches) return;
+    if (acceptStartedRef.current) return;
+    acceptStartedRef.current = true;
 
     const accept = async () => {
       setStatus('accepting');
       setMessage('Accepting your invite…');
       const result = await api.workspaces.acceptInvite(token);
       if (!result.success) {
-        try {
-          localStorage.removeItem('workspaceInviteToken');
-        } catch {
-          // ignore
-        }
-        if (result.error && result.error.toLowerCase().includes('not authenticated')) {
+        const errMsg = (result.error || '').toLowerCase();
+        if (errMsg.includes('not authenticated')) {
+          clearInviteStorage();
           setStatus('error');
           setMessage('Your session may have expired. Please log in again to accept this invite.');
           return;
         }
+        // Invite may already be accepted (e.g. from an earlier step in the same flow) — if user is already in a workspace, treat as success
+        if (errMsg.includes('invalid') || errMsg.includes('expired')) {
+          try {
+            await api.workspaces.getWorkspaceWithMembers();
+            clearInviteStorage();
+            setStatus('success');
+            setMessage('You\'re already in the workspace. Redirecting to dashboard…');
+            setTimeout(() => navigate('/dashboard'), 1500);
+            return;
+          } catch {
+            // Not in a workspace — show error
+          }
+        }
+        clearInviteStorage();
         setStatus('error');
         setMessage(result.error || 'Failed to accept invite. It may have expired.');
         return;
       }
       setStatus('success');
       setMessage('Invite accepted. Redirecting you to your dashboard…');
-      try {
-        localStorage.removeItem('workspaceInviteToken');
-      } catch {
-        // ignore
-      }
+      clearInviteStorage();
       setTimeout(() => navigate('/dashboard'), 1500);
     };
 

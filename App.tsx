@@ -191,17 +191,27 @@ const AppRoutes: React.FC = () => {
     }
   }, [location.pathname]);
 
-  // After login/signup, if there is a stored workspace invite token that is still valid, redirect to /invite.
-  // If the token is invalid/expired, clear it so we don't keep redirecting the user to a broken invite page.
+  // After login/signup, if there is a stored workspace invite token that is still valid, redirect to /invite once.
+  // If the user has already been sent to /invite and then left (e.g. went to landing), do NOT redirect again — clear token and let them stay.
+  // Do not run when on verify-email so the user can stay on confirm-email after signup.
+  const INVITE_REDIRECT_DONE_KEY = 'inviteRedirectDone';
   useEffect(() => {
     if (loading) return;
     if (!user) return;
     if (location.pathname.startsWith('/invite')) return;
+    if (location.pathname === '/verify-email') return;
 
     let cancelled = false;
     try {
       const stored = localStorage.getItem('workspaceInviteToken');
       if (!stored) return;
+
+      // If we already sent them to invite this session and they navigated away, stop pushing them back
+      if (sessionStorage.getItem(INVITE_REDIRECT_DONE_KEY) === '1') {
+        localStorage.removeItem('workspaceInviteToken');
+        sessionStorage.removeItem(INVITE_REDIRECT_DONE_KEY);
+        return;
+      }
 
       const { api } = await import('./services/api');
       api.workspaces.getInviteByToken(stored).then((r) => {
@@ -209,8 +219,10 @@ const AppRoutes: React.FC = () => {
         try {
           if (!r.found) {
             localStorage.removeItem('workspaceInviteToken');
+            sessionStorage.removeItem(INVITE_REDIRECT_DONE_KEY);
             return;
           }
+          sessionStorage.setItem(INVITE_REDIRECT_DONE_KEY, '1');
           navigate(`/invite?token=${encodeURIComponent(stored)}`, { replace: true });
         } catch {
           // ignore
@@ -219,6 +231,7 @@ const AppRoutes: React.FC = () => {
         if (!cancelled) {
           try {
             localStorage.removeItem('workspaceInviteToken');
+            sessionStorage.removeItem(INVITE_REDIRECT_DONE_KEY);
           } catch {
             // ignore
           }

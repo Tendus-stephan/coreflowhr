@@ -9,7 +9,8 @@ const getUserId = async (): Promise<string | null> => {
   return user?.id || null;
 };
 
-// Helper for RBAC: workspace-scoped role (Admin, Recruiter, HiringManager, Viewer). Never treat as Admin unless they are Admin in a workspace.
+// Helper for RBAC: workspace-scoped role (Admin, Recruiter, HiringManager, Viewer).
+// Prefer Admin if user is Admin in any workspace (so workspace owners always see Admin, not Viewer from another workspace).
 const getCurrentUserRole = async (): Promise<string> => {
   const userId = await getUserId();
   if (!userId) return 'Viewer';
@@ -20,13 +21,11 @@ const getCurrentUserRole = async (): Promise<string> => {
   if (membershipsError || !memberships || memberships.length === 0) {
     return 'Viewer';
   }
+  const hasAdmin = memberships.some((m: { role: string }) => m.role === 'Admin');
+  if (hasAdmin) return 'Admin';
   const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-  const hasNonAdmin = memberships.some((m: { role: string }) => nonAdminRoles.includes(m.role));
-  if (hasNonAdmin) {
-    const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
-    return (m?.role as string) || 'Viewer';
-  }
-  return 'Admin';
+  const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
+  return (m?.role as string) || 'Viewer';
 };
 
 // Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace where user is Admin.
@@ -4789,6 +4788,12 @@ export const api = {
             }
 
             const workspaceId = membership.workspace_id as string;
+
+            // Don't allow inviting the workspace owner (same email as current user) — they're already Admin
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (authUser?.email && trimmedEmail === (authUser.email || '').trim().toLowerCase()) {
+                throw new Error('You cannot invite yourself. You are already the workspace owner.');
+            }
 
             const token = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
                 ? crypto.randomUUID()

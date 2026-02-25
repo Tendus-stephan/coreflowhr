@@ -58,9 +58,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(session.user);
           setSession(null);
         } else {
-          // No session
+          // No session - don't overwrite a user that was just set by signUp (unconfirmed)
           setSession(null);
-          setUser(null);
+          setUser(prev => (prev && !prev.email_confirmed_at ? prev : null));
         }
       } catch (error) {
         // Ensure we always set loading to false and handle errors gracefully
