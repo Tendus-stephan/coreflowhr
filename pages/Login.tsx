@@ -74,43 +74,25 @@ const Login: React.FC = () => {
   const handleLoginSuccess = async () => {
     // Wait a moment for AuthContext to update
     await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Check email verification and subscription status
+
+    // Check email verification
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const user = currentSession?.user;
-    
+
     if (!user?.email_confirmed_at) {
       // Email not verified - redirect to verify email page
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
       return;
     }
 
-    // Check subscription status
-    try {
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('subscription_status, subscription_stripe_id, billing_plan_name')
-        .eq('user_id', user.id)
-        .single();
-
-      const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-      if (!hasActiveSubscription(settings)) {
-        navigate('/?pricing=true');
-        return;
-      }
-
-      // Email verified and has active/trialing subscription - go to dashboard or return path (e.g. change-email)
-      if (from?.pathname) {
-        navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
-        return;
-      }
-      sessionStorage.setItem('showDashboardLoader', 'true');
-      navigate('/dashboard');
-    } catch (settingsError) {
-      // If settings query fails, still allow login but redirect to pricing
-      console.error('Error checking subscription:', settingsError);
-      navigate('/#pricing');
+    // Let ProtectedRoute handle subscription/paywall based on workspace role.
+    // Here we just send the user to their intended destination or dashboard.
+    if (from?.pathname) {
+      navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
+      return;
     }
+    sessionStorage.setItem('showDashboardLoader', 'true');
+    navigate('/dashboard');
   };
 
   return (
