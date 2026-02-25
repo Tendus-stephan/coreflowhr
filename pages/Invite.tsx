@@ -19,6 +19,17 @@ const Invite: React.FC = () => {
     }
   }, [token]);
 
+  const handleGoToAuth = (path: '/login' | '/signup') => {
+    if (token) {
+      try {
+        localStorage.setItem('workspaceInviteToken', token);
+      } catch {
+        // ignore
+      }
+    }
+    navigate(`${path}?invite_token=${encodeURIComponent(token)}`);
+  };
+
   useEffect(() => {
     if (!token || !user || loading || status !== 'idle') return;
 
@@ -27,6 +38,13 @@ const Invite: React.FC = () => {
       setMessage('Accepting your invite…');
       const result = await api.workspaces.acceptInvite(token);
       if (!result.success) {
+        // If backend says "Not authenticated", send the user through login/signup flow
+        if (result.error && result.error.toLowerCase().includes('not authenticated')) {
+          setStatus('idle');
+          setMessage('');
+          handleGoToAuth('/login');
+          return;
+        }
         setStatus('error');
         setMessage(result.error || 'Failed to accept invite. It may have expired.');
         return;
@@ -40,17 +58,6 @@ const Invite: React.FC = () => {
 
     accept();
   }, [token, user, loading, status, navigate]);
-
-  const handleGoToAuth = (path: '/login' | '/signup') => {
-    if (token) {
-      try {
-        localStorage.setItem('workspaceInviteToken', token);
-      } catch {
-        // ignore
-      }
-    }
-    navigate(`${path}?invite_token=${encodeURIComponent(token)}`);
-  };
 
   const showAuthCta = !loading && !user && !!token;
 
