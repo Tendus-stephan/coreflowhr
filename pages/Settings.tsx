@@ -1665,7 +1665,8 @@ const Settings: React.FC = () => {
                 if (!cancelled) setTeamMembers(workspace.members);
             })
             .catch((err: any) => {
-                if (!cancelled) setTeamError(err?.message || 'Failed to load team members.');
+                console.error('Error loading team:', err);
+                if (!cancelled) setTeamError('We couldn’t load your team members. Please try again.');
             })
             .finally(() => {
                 if (!cancelled) setIsLoadingTeam(false);
@@ -1903,7 +1904,7 @@ const Settings: React.FC = () => {
                                                 setTeamMembers(workspace.members);
                                             } catch (error: any) {
                                                 console.error('Error loading team:', error);
-                                                setTeamError(error.message || 'Failed to load team members.');
+                                                setTeamError('We couldn’t load your team members. Please try again.');
                                             } finally {
                                                 setIsLoadingTeam(false);
                                             }

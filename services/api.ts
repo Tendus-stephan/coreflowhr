@@ -4664,14 +4664,30 @@ export const api = {
 
             const { data: membersData, error: membersError } = await supabase
                 .from('workspace_members')
-                .select('user_id, role, profiles(name)')
+                .select('user_id, role')
                 .eq('workspace_id', workspaceId);
 
             if (membersError) throw membersError;
 
+            const userIds = (membersData || []).map((m: any) => m.user_id).filter(Boolean);
+            const nameById: Record<string, string> = {};
+            if (userIds.length > 0) {
+                const { data: profilesData, error: profilesError } = await supabase
+                    .from('profiles')
+                    .select('id, name')
+                    .in('id', userIds);
+                if (!profilesError && profilesData) {
+                    for (const p of profilesData) {
+                        if (p && p.id) {
+                            nameById[p.id as string] = (p.name as string) || 'User';
+                        }
+                    }
+                }
+            }
+
             const members = (membersData || []).map((m: any) => ({
                 userId: m.user_id as string,
-                name: m.profiles?.name || 'User',
+                name: nameById[m.user_id as string] || 'User',
                 role: (m.role as string) as UserRole,
                 isCurrentUser: m.user_id === userId,
             }));
