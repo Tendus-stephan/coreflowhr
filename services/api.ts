@@ -1179,15 +1179,13 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Get all jobs (including closed) to filter candidates
-            // Exclude test jobs: is_test = true OR title starts with [TEST]
+            // Workspace-scoped: RLS returns only jobs/candidates the user can see (Admin/Recruiter = all workspace; Viewer = assigned jobs).
+            // Do NOT filter by user_id — that would show 0 for workspace members who didn't create the jobs.
             const [allJobsResult, candidatesResult, activityResult] = await Promise.all([
                 supabase.from('jobs')
-                    .select('id, status, created_at, posted_date, is_test, title')
-                    .eq('user_id', userId),
+                    .select('id, status, created_at, posted_date, is_test, title'),
                 supabase.from('candidates')
-                    .select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test')
-                    .eq('user_id', userId),
+                    .select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test'),
                 supabase.from('activity_log')
                     .select('*')
                     .eq('user_id', userId)

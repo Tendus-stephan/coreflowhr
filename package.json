@@ -14,6 +14,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:run": "vitest run",
+    "test:workspace": "vitest run tests/workspace-and-invite.test.ts",
+    "test:watch": "vitest tests/workspace-and-invite.test.ts tests/integration.test.ts --watch",
     "scraper:job": "tsx scraper/scripts/scrape-job.ts",
     "scraper:list-jobs": "tsx scraper/scripts/list-jobs.ts",
     "scraper:schedule": "tsx scraper/scripts/run-scheduler.ts",

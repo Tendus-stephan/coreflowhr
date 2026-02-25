@@ -26,24 +26,24 @@ const Invite: React.FC = () => {
 
   const token = searchParams.get('token') || '';
 
-  // Persist token to localStorage only while invite is still usable (so after email verification we can return to /invite).
-  // Do NOT re-store when we're in error/expired state, or we'd put the token back and cause a redirect loop.
+  // Persist token only when invite is usable and not wrong-account (so after email verification we can return to /invite).
+  const isWrongAccount = !!(inviteEmail && user?.email && inviteEmail.trim().toLowerCase() !== (user.email || '').trim().toLowerCase());
   useEffect(() => {
-    if (token && status !== 'error' && status !== 'expired') {
+    if (token && status !== 'error' && status !== 'expired' && !isWrongAccount) {
       try {
         localStorage.setItem('workspaceInviteToken', token);
       } catch {
         // ignore
       }
     }
-  }, [token, status]);
+  }, [token, status, isWrongAccount]);
 
-  // Whenever we're showing error or expired, ensure token and redirect flag are cleared
+  // Clear token when invite is unusable or wrong account so user isn't stuck in redirect loop
   useEffect(() => {
-    if (status === 'error' || status === 'expired') {
+    if (status === 'error' || status === 'expired' || isWrongAccount) {
       clearInviteStorage();
     }
-  }, [status]);
+  }, [status, isWrongAccount]);
 
   useEffect(() => {
     if (!token) {
@@ -235,7 +235,14 @@ const Invite: React.FC = () => {
             <p className="mt-2 text-amber-700 text-base leading-relaxed">
               This invitation was sent to <strong>{inviteEmail}</strong>. You're signed in as <strong>{user?.email}</strong>. To accept, use the invited email address.
             </p>
-            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleGoToHome}
+                className="inline-flex justify-center px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+              >
+                Go to homepage
+              </button>
               <button
                 type="button"
                 onClick={() => signOut().then(() => { setInviteEmail(null); setStatus('idle'); setMessage(''); })}

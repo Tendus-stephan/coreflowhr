@@ -222,6 +222,14 @@ const AppRoutes: React.FC = () => {
             sessionStorage.removeItem(INVITE_REDIRECT_DONE_KEY);
             return;
           }
+          // Don't redirect if invite was for a different email — they'd just see "Wrong account" and get stuck
+          const inviteEmail = (r.email || '').trim().toLowerCase();
+          const currentEmail = (user?.email || '').trim().toLowerCase();
+          if (inviteEmail && currentEmail && inviteEmail !== currentEmail) {
+            localStorage.removeItem('workspaceInviteToken');
+            sessionStorage.removeItem(INVITE_REDIRECT_DONE_KEY);
+            return;
+          }
           sessionStorage.setItem(INVITE_REDIRECT_DONE_KEY, '1');
           navigate(`/invite?token=${encodeURIComponent(stored)}`, { replace: true });
         } catch {
