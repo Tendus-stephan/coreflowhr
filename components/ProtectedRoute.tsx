@@ -15,6 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [subscriptionChecked, setSubscriptionChecked] = useState(false); // Track if we've completed a check
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true); // Default to true to allow access during check
+  const [isAdmin, setIsAdmin] = useState(true); // Assume admin until we know role
 
   // Function to check if session was revoked (optimized, non-blocking)
   const checkSessionRevoked = async (): Promise<boolean> => {
@@ -104,6 +105,39 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           .eq('user_id', user.id)
           .maybeSingle();
 
+        // Fetch workspace-scoped role to distinguish Admin vs members for subscription gating
+        let isAdminRole = true;
+        try {
+          // Prefer workspace_members (workspace-scoped roles)
+          const { data: memberships, error: membershipsError } = await supabase
+            .from('workspace_members')
+            .select('role')
+            .eq('user_id', user.id);
+
+          if (!membershipsError && memberships && memberships.length > 0) {
+            const hasNonAdminRole = memberships.some(
+              (m: any) => m.role === 'Recruiter' || m.role === 'HiringManager'
+            );
+            isAdminRole = !hasNonAdminRole;
+          } else {
+            // Fallback to profiles.role if no memberships yet
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            const rawRole = profile?.role?.toString() || 'User';
+            const normalizedRole =
+              rawRole === 'Recruiter' || rawRole === 'HiringManager' ? rawRole : 'Admin';
+            isAdminRole = normalizedRole === 'Admin';
+          }
+        } catch (roleError) {
+          console.warn('Error fetching user workspace role for subscription check:', roleError);
+          isAdminRole = true;
+        }
+        setIsAdmin(isAdminRole);
+
         // If no settings found, user might not be subscribed yet
         if (error && error.code !== 'PGRST116') {
           console.error('Error checking subscription:', error);
@@ -111,12 +145,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           setIsSubscribed(true);
           setSubscriptionChecked(true);
         } else if (!settings) {
-          // No settings row - not subscribed
-          setIsSubscribed(false);
+          // No settings row:
+          // - For Admins: treat as not subscribed (they should see pricing)
+          // - For non-Admins (invited members): allow access and skip paywall
+          setIsSubscribed(!isAdminRole);
           setSubscriptionChecked(true);
         } else {
           const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-          setIsSubscribed(hasActiveSubscription(settings));
+          let subscribed = hasActiveSubscription(settings);
+          // Non-admin members should not be blocked by subscription gate
+          if (!isAdminRole) subscribed = true;
+          setIsSubscribed(subscribed);
           setSubscriptionChecked(true);
         }
       } catch (error) {
@@ -297,9 +336,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Only redirect if:
   // 1. Subscription check has completed (subscriptionChecked is true)
   // 2. User is confirmed not subscribed (isSubscribed is false)
-  // 3. We're not on the settings page (users should access settings to subscribe)
+  // 3. User is an Admin (only admins should see pricing gate)
+  // 4. We're not on the settings page (users should access settings to subscribe)
   const isSettingsPage = location.pathname === '/settings';
-  const shouldRedirect = subscriptionChecked && !isSubscribed && !isSettingsPage;
+  const shouldRedirect = subscriptionChecked && !isSubscribed && isAdmin && !isSettingsPage;
 
   if (shouldRedirect) {
     return <Navigate to="/?pricing=true" replace />;
