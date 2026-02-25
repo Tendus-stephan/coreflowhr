@@ -215,6 +215,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.warn('[SignUp] Exception checking if user exists:', err);
     }
 
+    // Determine redirect after email confirmation:
+    // - For regular signups, go to dashboard
+    // - For invite-based signups, return to /invite so the workspace invite can be accepted
+    let emailRedirectTo = `${window.location.origin}/dashboard`;
+    try {
+      if (typeof window !== 'undefined') {
+        const inviteToken = localStorage.getItem('workspaceInviteToken');
+        if (inviteToken) {
+          emailRedirectTo = `${window.location.origin}/invite?token=${encodeURIComponent(inviteToken)}`;
+        }
+      }
+    } catch {
+      // Ignore storage issues and fall back to dashboard
+    }
+
     // Proceed with signup
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -223,7 +238,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         data: {
           name: name || '',
         },
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo,
       },
     });
 

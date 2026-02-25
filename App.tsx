@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SourcingProvider } from './contexts/SourcingContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
@@ -176,6 +176,8 @@ function isEmailChangeErrorHash(hash: string): boolean {
 // AppRoutes component that uses AuthProvider context
 const AppRoutes: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
 
   // When user lands on / with email-change hash (success or error), redirect to settings page.
   useEffect(() => {
@@ -188,6 +190,23 @@ const AppRoutes: React.FC = () => {
       window.location.replace(`${base}/settings${hash}`);
     }
   }, [location.pathname]);
+
+  // After login/signup, if there is a stored workspace invite token, redirect to /invite to finalize
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    if (location.pathname.startsWith('/invite')) return;
+
+    try {
+      const stored = localStorage.getItem('workspaceInviteToken');
+      if (stored) {
+        localStorage.removeItem('workspaceInviteToken');
+        navigate(`/invite?token=${encodeURIComponent(stored)}`, { replace: true });
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [user?.id, loading, location.pathname, navigate]);
 
   return (
     <Routes>

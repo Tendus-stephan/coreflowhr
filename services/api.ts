@@ -4824,7 +4824,15 @@ export const api = {
             const { data, error } = await supabase.rpc('accept_workspace_invite', { p_token: trimmed });
             if (error) {
                 console.error('accept_workspace_invite error', error);
-                return { success: false, error: error.message || 'Failed to accept invite.' };
+                const msg = error.message || '';
+                // User-friendly message when the DB function isn't deployed yet (migration not run)
+                if (msg.includes('could not find the function') || msg.includes('accept_workspace_invite') && msg.includes('schema')) {
+                    return { success: false, error: "We're still setting up workspace invites. Please try again in a few minutes or ask your admin to resend the invitation." };
+                }
+                if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('expired')) {
+                    return { success: false, error: 'This invite link is invalid or has expired. Ask the person who invited you to send a new invitation.' };
+                }
+                return { success: false, error: 'We couldn\'t accept your invitation right now. Please try again or use a new invite link.' };
             }
 
             if (!data || data.success !== true) {

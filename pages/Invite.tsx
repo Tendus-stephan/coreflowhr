@@ -70,8 +70,16 @@ const Invite: React.FC = () => {
         </p>
 
         {status === 'error' && (
-          <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-line">
-            {message}
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+            <p className="font-medium">Something went wrong</p>
+            <p className="mt-1 text-amber-700">{message}</p>
+            <button
+              type="button"
+              onClick={() => { setStatus('idle'); setMessage(''); }}
+              className="mt-3 text-sm font-medium text-amber-800 underline hover:no-underline"
+            >
+              Try again
+            </button>
           </div>
         )}
         {status === 'accepting' && (
