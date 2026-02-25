@@ -47,9 +47,28 @@ Without valid Supabase credentials, the UI will render but auth/data operations 
 
 ### Authentication gotcha
 
-Supabase email verification is enabled on the hosted project. Creating a test account via the signup form will require email verification before login. To fully test authenticated flows (dashboard, job creation, etc.), you need either:
-- Access to the email inbox to click the verification link, OR
-- `SUPABASE_SERVICE_ROLE_KEY` to programmatically confirm users via the admin API
+Supabase email verification is enabled on the hosted project. Creating a test account via the signup form will require email verification before login. To programmatically confirm a user's email with `SUPABASE_SERVICE_ROLE_KEY`:
+
+```bash
+curl -X PUT "$VITE_SUPABASE_URL/auth/v1/admin/users/<USER_ID>" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email_confirm": true}'
+```
+
+### Subscription paywall gotcha
+
+After login, new users are redirected to a pricing/subscription page. The app checks `subscription_status` in the `user_settings` table. To bypass this for testing, update the user's subscription status directly:
+
+```bash
+curl -X PATCH "$VITE_SUPABASE_URL/rest/v1/user_settings?user_id=eq.<USER_ID>" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=minimal" \
+  -d '{"subscription_status": "active"}'
+```
 
 ### Node version
 
