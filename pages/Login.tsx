@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +17,21 @@ const Login: React.FC = () => {
   const { signIn, verifyMFA } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite_token') || '';
+  const signupPath = inviteToken ? `/signup?invite_token=${encodeURIComponent(inviteToken)}` : '/signup';
+
+  // Keep invite token in localStorage so after login App redirects to /invite
+  React.useEffect(() => {
+    if (inviteToken) {
+      try {
+        localStorage.setItem('workspaceInviteToken', inviteToken);
+      } catch {
+        // ignore
+      }
+    }
+  }, [inviteToken]);
+
   const from = (location.state as { from?: { pathname: string; search?: string; hash?: string }; emailChanged?: boolean })?.from;
   const emailChanged = (location.state as { emailChanged?: boolean })?.emailChanged;
 
@@ -117,7 +132,7 @@ const Login: React.FC = () => {
           Welcome back
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or <Link to="/signup" className="font-semibold text-black hover:underline transition-all">Sign up</Link>
+          Or <Link to={signupPath} className="font-semibold text-black hover:underline transition-all">Sign up</Link>
         </p>
       </div>
 

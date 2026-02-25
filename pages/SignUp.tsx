@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,20 @@ const SignUp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite_token') || '';
+  const loginPath = inviteToken ? `/login?invite_token=${encodeURIComponent(inviteToken)}` : '/login';
+
+  // Keep invite token in URL and localStorage so post-signup redirect goes to /invite
+  useEffect(() => {
+    if (inviteToken) {
+      try {
+        localStorage.setItem('workspaceInviteToken', inviteToken);
+      } catch {
+        // ignore
+      }
+    }
+  }, [inviteToken]);
 
   // Helper function to simplify password validation errors
   const normalizePasswordError = (errorMessage: string): string => {
@@ -97,7 +111,7 @@ const SignUp: React.FC = () => {
           Create your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or <Link to="/login" className="font-semibold text-black hover:underline transition-all">Sign in</Link>
+          Or <Link to={loginPath} className="font-semibold text-black hover:underline transition-all">Sign in</Link>
         </p>
       </div>
 

@@ -200,7 +200,8 @@ const AppRoutes: React.FC = () => {
     try {
       const stored = localStorage.getItem('workspaceInviteToken');
       if (stored) {
-        localStorage.removeItem('workspaceInviteToken');
+        // Don't clear token here – Invite page clears it after successful accept.
+        // That way after email verification we still redirect to invite if they land elsewhere.
         navigate(`/invite?token=${encodeURIComponent(stored)}`, { replace: true });
       }
     } catch {

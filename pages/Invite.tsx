@@ -14,6 +14,17 @@ const Invite: React.FC = () => {
 
   const token = searchParams.get('token') || '';
 
+  // Persist token to localStorage so after email verification we still know it's an invite flow
+  useEffect(() => {
+    if (token) {
+      try {
+        localStorage.setItem('workspaceInviteToken', token);
+      } catch {
+        // ignore
+      }
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) {
       setStatus('error');
@@ -76,6 +87,11 @@ const Invite: React.FC = () => {
       }
       setStatus('success');
       setMessage('Invite accepted. Redirecting you to your dashboard…');
+      try {
+        localStorage.removeItem('workspaceInviteToken');
+      } catch {
+        // ignore
+      }
       setTimeout(() => navigate('/dashboard'), 1500);
     };
 
