@@ -14,16 +14,28 @@ const Invite: React.FC = () => {
 
   const token = searchParams.get('token') || '';
 
-  // Persist token to localStorage so after email verification we still know it's an invite flow
+  // Persist token to localStorage only while invite is still usable (so after email verification we can return to /invite).
+  // Do NOT re-store when we're in error/expired state, or we'd put the token back and cause a redirect loop.
   useEffect(() => {
-    if (token) {
+    if (token && status !== 'error' && status !== 'expired') {
       try {
         localStorage.setItem('workspaceInviteToken', token);
       } catch {
         // ignore
       }
     }
-  }, [token]);
+  }, [token, status]);
+
+  // Whenever we're showing error or expired, ensure token is cleared so user can go to landing without being redirected back
+  useEffect(() => {
+    if (status === 'error' || status === 'expired') {
+      try {
+        localStorage.removeItem('workspaceInviteToken');
+      } catch {
+        // ignore
+      }
+    }
+  }, [status]);
 
   useEffect(() => {
     if (!token) {
