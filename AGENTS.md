@@ -41,14 +41,15 @@ Note: the codebase has pre-existing TypeScript errors (e.g. in `pages/Calendar.t
 
 ### Environment variables
 
-A `.env` (or `.env.local`) file at the project root is required for the Vite dev server. Minimum:
-
-```
-VITE_SUPABASE_URL=https://placeholder.supabase.co
-VITE_SUPABASE_ANON_KEY=placeholder-anon-key
-```
+A `.env` (or `.env.local`) file at the project root is required for the Vite dev server. The update script auto-creates this from environment secrets if they are set (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), falling back to placeholders.
 
 Without valid Supabase credentials, the UI will render but auth/data operations will fail with "Failed to fetch". This is expected for frontend-only development.
+
+### Authentication gotcha
+
+Supabase email verification is enabled on the hosted project. Creating a test account via the signup form will require email verification before login. To fully test authenticated flows (dashboard, job creation, etc.), you need either:
+- Access to the email inbox to click the verification link, OR
+- `SUPABASE_SERVICE_ROLE_KEY` to programmatically confirm users via the admin API
 
 ### Node version
 
