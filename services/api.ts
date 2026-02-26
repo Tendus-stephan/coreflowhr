@@ -37,7 +37,7 @@ const getCurrentUserRole = async (): Promise<string> => {
   return (m?.role as string) || 'Viewer';
 };
 
-// Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace where user is Admin.
+// Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace the user OWNS (created_by), then Admin, then first.
 const getCurrentWorkspaceId = async (): Promise<string | null> => {
   const userId = await getUserId();
   if (!userId) return null;
@@ -46,6 +46,14 @@ const getCurrentWorkspaceId = async (): Promise<string | null> => {
     .select('workspace_id, role')
     .eq('user_id', userId);
   if (error || !rows?.length) return null;
+  const workspaceIds = rows.map((r: { workspace_id: string }) => r.workspace_id);
+  const { data: owned } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('created_by', userId)
+    .in('id', workspaceIds)
+    .limit(1);
+  if (owned?.[0]?.id) return owned[0].id as string;
   const admin = rows.find((r: { role: string }) => r.role === 'Admin');
   return (admin?.workspace_id ?? rows[0]?.workspace_id) as string | null;
 };
@@ -1190,19 +1198,28 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Workspace-scoped: RLS returns only jobs/candidates the user can see (Admin/Recruiter = all workspace; Viewer = assigned jobs).
-            // Do NOT filter by user_id — that would show 0 for workspace members who didn't create the jobs.
+            // Scope to current workspace only so each user sees only their workspace's data (not other workspaces they're a member of).
+            const workspaceId = await getCurrentWorkspaceId();
+
+            let jobsQuery = supabase.from('jobs').select('id, status, created_at, posted_date, is_test, title');
+            let candidatesQuery = supabase.from('candidates').select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test');
+            if (workspaceId) {
+                jobsQuery = jobsQuery.eq('workspace_id', workspaceId);
+                candidatesQuery = candidatesQuery.eq('workspace_id', workspaceId);
+            }
+
+            let activityQuery = supabase.from('activity_log')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('action', 'candidate_moved')
+                .like('target_to', '%Hired%')
+                .order('created_at', { ascending: false });
+            if (workspaceId) activityQuery = activityQuery.eq('workspace_id', workspaceId);
+
             const [allJobsResult, candidatesResult, activityResult] = await Promise.all([
-                supabase.from('jobs')
-                    .select('id, status, created_at, posted_date, is_test, title'),
-                supabase.from('candidates')
-                    .select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test'),
-                supabase.from('activity_log')
-                    .select('*')
-                    .eq('user_id', userId)
-                    .eq('action', 'candidate_moved')
-                    .like('target_to', '%Hired%')
-                    .order('created_at', { ascending: false })
+                jobsQuery,
+                candidatesQuery,
+                activityQuery
             ]);
 
             let allJobs = allJobsResult.data || [];
@@ -1465,10 +1482,13 @@ export const api = {
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
-            // RLS enforces visibility: Admin/Recruiter see all workspace jobs; HM/Viewer see only their assigned jobs
+            const workspaceId = await getCurrentWorkspaceId();
+
+            // Scope to current workspace so user only sees jobs from the workspace they're operating in (not other workspaces they're a member of).
             let countQuery = supabase
                 .from('jobs')
                 .select('*', { count: 'exact', head: true });
+            if (workspaceId) countQuery = countQuery.eq('workspace_id', workspaceId);
             if (filters?.excludeClosed === true) {
                 countQuery = countQuery.neq('status', 'Closed');
             }
@@ -1486,12 +1506,13 @@ export const api = {
                         contact_phone
                     )
                 `);
-            
+            if (workspaceId) query = query.eq('workspace_id', workspaceId);
+
             // Exclude closed jobs if requested (default is to include all)
             if (filters?.excludeClosed === true) {
                 query = query.neq('status', 'Closed');
             }
-            
+
             query = query.order('created_at', { ascending: false }).range(from, to);
 
             const { data, error } = await query;
