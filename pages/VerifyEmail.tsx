@@ -80,15 +80,24 @@ const VerifyEmail: React.FC = () => {
       });
 
       if (error) {
-        const errorMessage = error.message || 'Failed to send email. Please check your Supabase email configuration.';
-        setResendError(`Error: ${errorMessage}. Check Supabase SMTP settings and Resend domain verification.`);
+        const rawMessage = error.message || '';
+        const isNetwork = rawMessage.toLowerCase().includes('failed to fetch') || rawMessage.toLowerCase().includes('network');
+        const friendlyMessage = isNetwork
+          ? 'We could not reach the email service. Please check your internet connection and try again in a moment.'
+          : 'We could not resend the verification email right now. Please try again in a moment. If this keeps happening, contact support.';
+        setResendError(friendlyMessage);
         console.error('Error resending email:', error);
-        console.error('Full error details:', JSON.stringify(error, null, 2));
+        console.error('Full error details (SMTP/domain verification, etc.):', JSON.stringify(error, null, 2));
       } else {
         setResent(true);
       }
     } catch (err: any) {
-      setResendError(err.message || 'Failed to send email. Please check your Supabase email configuration.');
+      const rawMessage = err?.message || '';
+      const isNetwork = rawMessage.toLowerCase().includes('failed to fetch') || rawMessage.toLowerCase().includes('network');
+      const friendlyMessage = isNetwork
+        ? 'We could not reach the email service. Please check your internet connection and try again in a moment.'
+        : 'We could not resend the verification email right now. Please try again in a moment. If this keeps happening, contact support.';
+      setResendError(friendlyMessage);
       console.error('Error resending email:', err);
     } finally {
       setResending(false);
