@@ -4918,12 +4918,31 @@ export const api = {
             if (!userId) return { success: false, error: 'Not authenticated' };
 
             const { data, error } = await supabase.rpc('accept_workspace_invite', { p_token: trimmed });
+
+            // Prefer returned JSON error (function returns success: false, error: "..." so we get data with error)
+            if (data && typeof data === 'object' && data.success === false && data.error) {
+                return { success: false, error: String(data.error) };
+            }
+
             if (error) {
                 console.error('accept_workspace_invite error', error);
-                const msg = error.message || '';
+                const msg = (error.message || '').trim();
+                const details = (error as { details?: string })?.details;
+                const fromDetails = typeof details === 'string' ? details : '';
+                const combined = (msg + ' ' + fromDetails).trim();
                 // User-friendly message when the DB function isn't deployed yet (migration not run)
-                if (msg.includes('could not find the function') || msg.includes('accept_workspace_invite') && msg.includes('schema')) {
+                if (msg.includes('could not find the function') || (msg.includes('accept_workspace_invite') && msg.includes('schema'))) {
                     return { success: false, error: "We're still setting up workspace invites. Please try again in a few minutes or ask your admin to resend the invitation." };
+                }
+                // Wrong-account message from server (sometimes in response body)
+                if (combined.includes('This invitation was sent to') || combined.includes('log in or sign up with that email')) {
+                    try {
+                        const parsed = typeof details === 'string' && details.startsWith('{') ? JSON.parse(details) : null;
+                        const err = parsed?.error || parsed?.message || combined || msg;
+                        if (err) return { success: false, error: err };
+                    } catch {
+                        if (combined) return { success: false, error: combined };
+                    }
                 }
                 if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('expired')) {
                     return { success: false, error: 'This invite link is invalid or has expired. Ask the person who invited you to send a new invitation.' };
@@ -4932,7 +4951,7 @@ export const api = {
             }
 
             if (!data || data.success !== true) {
-                return { success: false, error: data?.error || 'Invalid or expired invite.' };
+                return { success: false, error: (data && (data as { error?: string }).error) || 'Invalid or expired invite.' };
             }
 
             return {

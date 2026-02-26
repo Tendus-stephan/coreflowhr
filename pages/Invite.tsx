@@ -122,7 +122,15 @@ const Invite: React.FC = () => {
           setMessage('Your session may have expired. Please log in again to accept this invite.');
           return;
         }
-        // Invite may already be accepted (e.g. from an earlier step in the same flow) — if user is already in a workspace, treat as success
+        // Wrong account: invite was sent to another email — show wrong-account UI (no generic error box)
+        if (errMsg.includes('this invitation was sent to') || errMsg.includes('log in or sign up with that email')) {
+          const match = (result.error || '').match(/sent to\s+([^\s.]+@[^\s.]+)/i);
+          if (match?.[1]) setInviteEmail(match[1].trim());
+          setStatus('idle');
+          setMessage('');
+          return;
+        }
+        // Invite may already be accepted — if user is already in a workspace, treat as success
         if (errMsg.includes('invalid') || errMsg.includes('expired')) {
           try {
             await api.workspaces.getWorkspaceWithMembers();
