@@ -58,6 +58,27 @@ const getCurrentWorkspaceId = async (): Promise<string | null> => {
   return (admin?.workspace_id ?? rows[0]?.workspace_id) as string | null;
 };
 
+/** For Viewers only: return job IDs they are assigned to in the current workspace. Returns null if not a Viewer (no filter). */
+const getViewerAssignedJobIds = async (): Promise<string[] | null> => {
+  const role = await getCurrentUserRole();
+  if (role !== 'Viewer') return null;
+  const userId = await getUserId();
+  const workspaceId = await getCurrentWorkspaceId();
+  if (!userId || !workspaceId) return [];
+  const { data: assignments, error: assignError } = await supabase
+    .from('job_assignments')
+    .select('job_id')
+    .eq('user_id', userId);
+  if (assignError || !assignments?.length) return [];
+  const jobIds = assignments.map((a: { job_id: string }) => a.job_id);
+  const { data: jobsInWorkspace } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .in('id', jobIds);
+  return (jobsInWorkspace || []).map((j: { id: string }) => j.id);
+};
+
 // Test mode removed - all jobs and candidates are now production data
 
 // Helper to generate a simple hash from string (for device fingerprinting)
@@ -1200,12 +1221,29 @@ export const api = {
 
             // Scope to current workspace only so each user sees only their workspace's data (not other workspaces they're a member of).
             const workspaceId = await getCurrentWorkspaceId();
+            const viewerJobIds = await getViewerAssignedJobIds();
 
             let jobsQuery = supabase.from('jobs').select('id, status, created_at, posted_date, is_test, title');
             let candidatesQuery = supabase.from('candidates').select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test');
             if (workspaceId) {
                 jobsQuery = jobsQuery.eq('workspace_id', workspaceId);
                 candidatesQuery = candidatesQuery.eq('workspace_id', workspaceId);
+            }
+            if (viewerJobIds !== null) {
+                if (viewerJobIds.length === 0) {
+                    return {
+                        activeJobs: 0,
+                        activeJobsTrend: '+0',
+                        totalCandidates: 0,
+                        candidatesTrend: '+0%',
+                        qualifiedCandidates: 0,
+                        qualifiedTrend: '+0%',
+                        avgTimeToFill: '0d',
+                        timeToFillTrend: '0d'
+                    };
+                }
+                jobsQuery = jobsQuery.in('id', viewerJobIds);
+                candidatesQuery = candidatesQuery.in('job_id', viewerJobIds);
             }
 
             let activityQuery = supabase.from('activity_log')
@@ -1490,12 +1528,27 @@ export const api = {
             const to = from + pageSize - 1;
 
             const workspaceId = await getCurrentWorkspaceId();
+            const viewerJobIds = await getViewerAssignedJobIds();
+
+            // Viewers see only jobs they're assigned to (enforce in API so they never see unassigned jobs)
+            if (viewerJobIds !== null) {
+                if (viewerJobIds.length === 0) {
+                    return {
+                        data: [],
+                        total: 0,
+                        page,
+                        pageSize,
+                        totalPages: 0
+                    };
+                }
+            }
 
             // Scope to current workspace so user only sees jobs from the workspace they're operating in (not other workspaces they're a member of).
             let countQuery = supabase
                 .from('jobs')
                 .select('*', { count: 'exact', head: true });
             if (workspaceId) countQuery = countQuery.eq('workspace_id', workspaceId);
+            if (viewerJobIds !== null) countQuery = countQuery.in('id', viewerJobIds);
             if (filters?.excludeClosed === true) {
                 countQuery = countQuery.neq('status', 'Closed');
             }
@@ -1514,6 +1567,7 @@ export const api = {
                     )
                 `);
             if (workspaceId) query = query.eq('workspace_id', workspaceId);
+            if (viewerJobIds !== null) query = query.in('id', viewerJobIds);
 
             // Exclude closed jobs if requested (default is to include all)
             if (filters?.excludeClosed === true) {
@@ -1571,6 +1625,9 @@ export const api = {
         get: async (id: string): Promise<Job | undefined> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+
+            const viewerJobIds = await getViewerAssignedJobIds();
+            if (viewerJobIds !== null && !viewerJobIds.includes(id)) return undefined;
 
             const workspaceId = await getCurrentWorkspaceId();
             const { data, error } = await supabase
