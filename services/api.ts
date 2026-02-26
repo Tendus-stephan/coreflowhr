@@ -1415,17 +1415,24 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            const { data, error } = await supabase
+            const workspaceId = await getCurrentWorkspaceId();
+            let query = supabase
                 .from('activity_log')
                 .select('*')
-                .eq('user_id', userId)
                 .order('created_at', { ascending: false })
-                .limit(100); // Increased to get more stage movement data
+                .limit(100);
+            // Workspace-scoped feed so all members see e.g. "X joined the workspace"
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
 
+            const { data, error } = await query;
             if (error) throw error;
 
             return (data || []).map(item => ({
-                id: parseInt(item.id.replace(/-/g, '').substring(0, 10), 16) || Date.now(),
+                id: parseInt(String(item.id).replace(/-/g, '').substring(0, 10), 16) || Date.now(),
                 user: item.user_name,
                 action: item.action,
                 target: item.target,

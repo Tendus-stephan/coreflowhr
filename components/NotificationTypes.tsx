@@ -47,6 +47,7 @@ export type NotificationType =
     | 'sourcing_failed'
     | 'inactivity_nudge'
     | 'weekly_digest'
+    | 'member_joined'
     | 'system';
 
 export type NotificationCategory = 
@@ -278,6 +279,12 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
         icon: Sparkles,
         color: 'text-purple-600',
         bgColor: 'bg-purple-50',
+        category: 'system'
+    },
+    member_joined: {
+        icon: UserPlus,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
         category: 'system'
     },
     system: {

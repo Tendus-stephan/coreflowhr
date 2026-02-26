@@ -331,29 +331,29 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                 />
             )}
             {createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
-            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-6 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-6xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
                 
                 {/* Modal Header / Top Bar */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900">Manage Job</h3>
+                <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900">Manage Job</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-8 overflow-y-auto bg-gray-50/50 space-y-8">
+                <div className="p-10 overflow-y-auto bg-gray-50/50 space-y-10">
                     
                     {/* Job Header Card & Assigned Members */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start gap-6">
-                        <div className="flex gap-5 flex-1">
-                            <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500">
+                    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 flex flex-col md:flex-row justify-between items-start gap-8">
+                        <div className="flex gap-6 flex-1">
+                            <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
                                 <Briefcase size={28} />
                             </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900 mb-1">{job.title}</h2>
-                                <p className="text-sm text-gray-500 font-medium">{job.company || 'Company'}</p>
-                                <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs md:text-sm">
+                            <div className="min-w-0">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h2>
+                                <p className="text-base text-gray-500 font-medium">{job.company || 'Company'}</p>
+                                <div className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
                                     <span className="text-gray-400 font-medium">Type</span>
                                     <span className="text-gray-900 font-medium">{job.type}</span>
                                     <span className="text-gray-400 font-medium">Location</span>
@@ -362,7 +362,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                     <span className="text-gray-900 font-medium">{new Date(job.postedDate).toLocaleDateString()}</span>
                                     <span className="text-gray-400 font-medium self-center">Status</span>
                                     <span className="text-gray-900 font-medium">
-                                        <span className="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                        <span className="bg-gray-100 text-gray-700 text-sm font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
                                             {job.status}
                                         </span>
                                     </span>
@@ -370,42 +370,42 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                             </div>
                         </div>
 
-                        <div className="w-full md:w-64 bg-white/60 rounded-xl p-4 border border-gray-200">
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">Assigned members</p>
+                        <div className="w-full md:w-72 md:min-w-[280px] bg-white/60 rounded-xl p-5 border border-gray-200">
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-bold text-gray-900 uppercase tracking-wide">Assigned members</p>
                                 {!canManageAssignments && (
-                                    <span className="text-[10px] text-gray-400 font-medium">Admin/Recruiter manage</span>
+                                    <span className="text-xs text-gray-400 font-medium">Admin/Recruiter manage</span>
                                 )}
                             </div>
                             {loadingAssignments ? (
-                                <p className="text-xs text-gray-500">Loading assignments…</p>
+                                <p className="text-sm text-gray-500">Loading assignments…</p>
                             ) : workspaceMembers.length === 0 ? (
-                                <p className="text-xs text-gray-500">No other members in this workspace yet.</p>
+                                <p className="text-sm text-gray-500">No other members in this workspace yet.</p>
                             ) : (
-                                <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                                     {workspaceMembers.map((m) => {
                                         const checked = assignedUserIds.includes(m.userId);
                                         return (
                                             <label
                                                 key={m.userId}
-                                                className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2 py-1 ${
+                                                className={`flex items-center justify-between gap-3 text-sm rounded-lg px-3 py-2 ${
                                                     checked ? 'bg-gray-100' : 'hover:bg-gray-50'
                                                 }`}
                                             >
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-3 min-w-0">
                                                     <input
                                                         type="checkbox"
-                                                        className="h-3.5 w-3.5 rounded border-gray-300 text-black focus:ring-black"
+                                                        className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black shrink-0"
                                                         checked={checked}
                                                         disabled={!canManageAssignments || savingAssignments}
                                                         onChange={() => toggleAssignment(m.userId)}
                                                     />
-                                                    <span className="text-gray-900 font-medium">
+                                                    <span className="text-gray-900 font-medium truncate">
                                                         {m.name}
                                                         {m.isCurrentUser && ' (You)'}
                                                     </span>
                                                 </div>
-                                                <span className="text-[10px] text-gray-500 font-semibold uppercase">
+                                                <span className="text-xs text-gray-500 font-semibold uppercase shrink-0">
                                                     {m.role}
                                                 </span>
                                             </label>
@@ -417,9 +417,9 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     </div>
 
                     {/* Pipeline Overview */}
-                    <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-900 mb-8">Pipeline Overview</h3>
-                        <div className="flex items-center justify-between relative px-4">
+                    <div className="bg-white border border-gray-200 rounded-2xl p-10 shadow-sm">
+                        <h3 className="text-xl font-bold text-gray-900 mb-10">Pipeline Overview</h3>
+                        <div className="flex items-center justify-between relative px-6">
                             {stages.map((stage, index) => (
                                 <React.Fragment key={stage.name}>
                                     {/* Step */}
@@ -440,19 +440,19 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     </div>
 
                     {/* Description & Candidates Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                         {/* Left Col: Description & Skills */}
                         <div className="lg:col-span-2 space-y-8">
-                            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Job Description</h3>
-                                <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed">
+                            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+                                <h3 className="text-xl font-bold text-gray-900 mb-5">Job Description</h3>
+                                <div className="prose prose-base max-w-none text-gray-600 leading-relaxed">
                                     {job.description}
                                 </div>
                             </div>
                             
                             {job.skills && job.skills.length > 0 && (
-                                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-4">Required Skills</h3>
+                                <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-5">Required Skills</h3>
                                     <div className="flex flex-wrap gap-2">
                                         {job.skills.map(skill => (
                                             <span key={skill} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
@@ -465,11 +465,11 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                         </div>
 
                         {/* Right Col: Candidates List */}
-                        <div className="lg:col-span-1">
-                            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-full flex flex-col">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold text-gray-900">Candidates</h3>
-                                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-bold">{jobCandidates.length}</span>
+                        <div className="lg:col-span-1 min-h-0 flex flex-col">
+                            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm h-full flex flex-col min-h-[320px]">
+                                <div className="flex items-center justify-between mb-5">
+                                    <h3 className="text-xl font-bold text-gray-900">Candidates</h3>
+                                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold">{jobCandidates.length}</span>
                                 </div>
                                 
                                 {loadingCandidates ? (
@@ -478,7 +478,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                         <p className="text-sm text-gray-500">Loading candidates...</p>
                                     </div>
                                 ) : currentCandidates.length > 0 ? (
-                                    <div className="divide-y divide-gray-100 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
+                                    <div className="divide-y divide-gray-100 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 min-h-0">
                                         {currentCandidates.map(c => (
                                             <div 
                                                 key={c.id} 
@@ -486,14 +486,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                     onClose(); // Close the job management modal
                                                     navigate(`/candidates?candidateId=${c.id}`); // Navigate to candidate page with ID
                                                 }}
-                                                className="py-3 flex items-center gap-3 hover:bg-gray-50 rounded-lg px-2 transition-colors cursor-pointer"
+                                                className="py-4 flex items-center gap-4 hover:bg-gray-50 rounded-lg px-3 transition-colors cursor-pointer"
                                             >
-                                                <Avatar name={c.name} className="w-10 h-10 border border-gray-200" />
+                                                <Avatar name={c.name} className="w-11 h-11 border border-gray-200 shrink-0" />
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-bold text-gray-900 truncate">{c.name}</p>
-                                                    <p className="text-xs text-gray-500">{c.stage}</p>
+                                                    <p className="text-base font-bold text-gray-900 truncate">{c.name}</p>
+                                                    <p className="text-sm text-gray-500">{c.stage}</p>
                                                 </div>
-                                                <ChevronDown size={16} className="text-gray-300" />
+                                                <ChevronDown size={18} className="text-gray-300 shrink-0" />
                                             </div>
                                         ))}
                                     </div>

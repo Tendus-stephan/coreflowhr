@@ -37,6 +37,7 @@ export function getNotificationLink(type: string, desc: string): string {
     case '2fa_disabled':
     case 'integration_connected':
     case 'integration_disconnected':
+    case 'member_joined':
       return '/settings';
     default:
       return '/dashboard';
