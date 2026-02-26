@@ -73,15 +73,21 @@ const Sidebar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Jobs', path: '/jobs', icon: Briefcase },
-    { name: 'Candidates', path: '/candidates', icon: Users },
-    { name: 'Clients', path: '/clients', icon: Building2 },
-    { name: 'Calendar', path: '/calendar', icon: Calendar },
-    ...(!profileLoaded || (userRole !== 'HiringManager' && userRole !== 'Viewer') ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
-    { name: 'Settings', path: '/settings', icon: Settings },
-  ];
+  // Viewer: only Dashboard and Settings (profile). Other roles see full nav.
+  const navItems = userRole === 'Viewer'
+    ? [
+        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { name: 'Settings', path: '/settings', icon: Settings },
+      ]
+    : [
+        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { name: 'Jobs', path: '/jobs', icon: Briefcase },
+        { name: 'Candidates', path: '/candidates', icon: Users },
+        { name: 'Clients', path: '/clients', icon: Building2 },
+        { name: 'Calendar', path: '/calendar', icon: Calendar },
+        ...(!profileLoaded || userRole !== 'HiringManager' ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
+        { name: 'Settings', path: '/settings', icon: Settings },
+      ];
 
   const handleLogout = async () => {
     // Don't await - signOut handles redirect immediately

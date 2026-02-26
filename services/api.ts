@@ -4984,6 +4984,28 @@ export const api = {
 
             const workspaceId = membership.workspace_id as string;
 
+            // Viewer cap: max 5 Viewers per workspace (existing members + pending invites)
+            if (role === 'Viewer') {
+                const { count: viewerMemberCount, error: viewerCountErr } = await supabase
+                    .from('workspace_members')
+                    .select('user_id', { count: 'exact', head: true })
+                    .eq('workspace_id', workspaceId)
+                    .eq('role', 'Viewer');
+                if (viewerCountErr) throw viewerCountErr;
+                const now = new Date().toISOString();
+                const { count: viewerInviteCount, error: inviteCountErr } = await supabase
+                    .from('workspace_invites')
+                    .select('email', { count: 'exact', head: true })
+                    .eq('workspace_id', workspaceId)
+                    .eq('role', 'Viewer')
+                    .gt('expires_at', now);
+                if (inviteCountErr) throw inviteCountErr;
+                const totalViewers = (viewerMemberCount ?? 0) + (viewerInviteCount ?? 0);
+                if (totalViewers >= 5) {
+                    throw new Error('This workspace already has the maximum of 5 Viewers. You cannot invite more Viewers until someone is removed or their invite expires.');
+                }
+            }
+
             // Don't allow inviting the workspace owner (same email as current user) — they're already Admin
             const { data: { user: authUser } } = await supabase.auth.getUser();
             if (authUser?.email && trimmedEmail === (authUser.email || '').trim().toLowerCase()) {

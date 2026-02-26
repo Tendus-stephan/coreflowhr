@@ -18,6 +18,8 @@ interface OfferCardProps {
     onUnarchive?: (offer: Offer) => void;
     isArchiving?: boolean;
     readOnly?: boolean;
+    /** When true (e.g. Hiring Manager), salary and counter-offer salary are hidden. */
+    hideSalary?: boolean;
 }
 
 export const OfferCard: React.FC<OfferCardProps> = ({
@@ -33,7 +35,8 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     onArchive,
     onUnarchive,
     isArchiving,
-    readOnly = false
+    readOnly = false,
+    hideSalary = false
 }) => {
     const getStatusColor = (status: Offer['status']) => {
         // All statuses use normal gray color
@@ -92,10 +95,12 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                <div>
-                    <span className="text-gray-500">Salary:</span>
-                    <p className="font-medium text-gray-900">{formatSalary()}</p>
-                </div>
+                {!hideSalary && (
+                    <div>
+                        <span className="text-gray-500">Salary:</span>
+                        <p className="font-medium text-gray-900">{formatSalary()}</p>
+                    </div>
+                )}
                 {offer.startDate && (
                     <div>
                         <span className="text-gray-500">Start Date:</span>
@@ -159,7 +164,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                                         {format(new Date(item.timestamp), 'MMM d, yyyy h:mm a')}
                                     </p>
                                     <div className="space-y-1 text-sm text-gray-700">
-                                        {co.salaryAmount && (
+                                        {!hideSalary && co.salaryAmount && (
                                             <p>
                                                 <span className="font-medium">Salary:</span>{' '}
                                                 {co.salaryCurrency === 'USD' ? '$' : co.salaryCurrency}

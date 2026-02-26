@@ -61,10 +61,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [loadingGeneralOffers, setLoadingGeneralOffers] = useState(false);
   const [jobsMap, setJobsMap] = useState<Record<string, Job>>({});
   const [isViewer, setIsViewer] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
 
   useEffect(() => {
     if (!isOpen) return;
-    api.auth.me().then((me) => setIsViewer((me?.role ?? '') === 'Viewer')).catch(() => {});
+    api.auth.me().then((me) => {
+      const r = me?.role ?? '';
+      setIsViewer(r === 'Viewer');
+      setUserRole(r);
+    }).catch(() => {});
   }, [isOpen]);
 
   useEffect(() => {
@@ -1657,6 +1662,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     key={offer.id}
                                     offer={offer}
                                     readOnly={isViewer}
+                                    hideSalary={userRole === 'HiringManager'}
                                     onEdit={(offer) => {
                                         setEditingOffer(offer);
                                         setIsOfferModalOpen(true);

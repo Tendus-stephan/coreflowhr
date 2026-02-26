@@ -212,7 +212,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
     const [savingAssignments, setSavingAssignments] = useState(false);
     const canManageAssignments = currentUserRole === 'Admin' || currentUserRole === 'Recruiter';
 
-    // Fetch candidates for this job when modal opens or job changes
+    // Fetch candidates for this job when modal opens or job changes. Viewers: we still fetch to get counts for pipeline overview but never show individual names/list.
     const fetchCandidates = async () => {
         if (!job || !isOpen) {
             setJobCandidates([]);
@@ -464,7 +464,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                             )}
                         </div>
 
-                        {/* Right Col: Candidates List */}
+                        {/* Right Col: Candidates — list only for non-Viewer; Viewer sees aggregate count only */}
                         <div className="lg:col-span-1 min-h-0 flex flex-col">
                             <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm h-full flex flex-col min-h-[320px]">
                                 <div className="flex items-center justify-between mb-5">
@@ -472,7 +472,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                     <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold">{jobCandidates.length}</span>
                                 </div>
                                 
-                                {loadingCandidates ? (
+                                {currentUserRole === 'Viewer' ? (
+                                    <div className="py-12 text-center flex-1">
+                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <Users size={20} className="text-gray-400"/>
+                                        </div>
+                                        <p className="text-sm text-gray-500">Aggregate view only. You can see counts, not individual candidate details.</p>
+                                    </div>
+                                ) : loadingCandidates ? (
                                     <div className="py-12 text-center flex-1">
                                         <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
                                         <p className="text-sm text-gray-500">Loading candidates...</p>
@@ -506,8 +513,8 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                     </div>
                                 )}
                                 
-                                {/* Pagination for Candidates */}
-                                {totalPages > 1 && (
+                                {/* Pagination for Candidates (non-Viewer only) */}
+                                {currentUserRole !== 'Viewer' && totalPages > 1 && (
                                     <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
                                         <button 
                                             onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -527,9 +534,11 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                     </div>
                                 )}
                                 
-                                <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                                    <Link to="/candidates" className="text-sm font-medium text-gray-900 hover:underline">View Kanban Board</Link>
-                                </div>
+                                {currentUserRole !== 'Viewer' && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                                        <Link to="/candidates" className="text-sm font-medium text-gray-900 hover:underline">View Kanban Board</Link>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

@@ -20,13 +20,18 @@ const Offers: React.FC = () => {
     const [isNegotiateModalOpen, setIsNegotiateModalOpen] = useState(false);
     const [candidateMap, setCandidateMap] = useState<Map<string, string>>(new Map());
     const [jobMap, setJobMap] = useState<Map<string, string>>(new Map());
-    
+    const [userRole, setUserRole] = useState<string>('');
+
     // Pagination: 3 columns × 2 rows = 6 items per page
     const ITEMS_PER_PAGE = 6;
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         loadOffers();
+    }, []);
+
+    useEffect(() => {
+        api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -310,6 +315,7 @@ const Offers: React.FC = () => {
                                     onArchive={handleArchive}
                                     onUnarchive={handleUnarchive}
                                     isArchiving={archivingOfferId === offer.id}
+                                    hideSalary={userRole === 'HiringManager'}
                                 />
                             ))}
                     </div>

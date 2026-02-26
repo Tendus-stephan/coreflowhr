@@ -1,5 +1,7 @@
 # Workspace role restrictions and implementation status
 
+**Canonical product spec:** See [ROLE_AND_LIMITS_SPEC.md](./ROLE_AND_LIMITS_SPEC.md) for the full role definitions, seat limits (Recruiter/HM unlimited, Viewer cap 5), and Admin/Recruiter/Hiring Manager/Viewer DO and DO NOT lists.
+
 Roles are **workspace-scoped** (stored in `workspace_members.role`). Only one **Admin** per workspace (the owner, `workspaces.created_by`).
 
 ---
