@@ -125,7 +125,8 @@ export async function createCheckoutSession(
 
     if (error) {
       console.error('Error creating checkout session:', error);
-      return { sessionId: '', error: error.message };
+      const safe = (await import('../utils/edgeFunctionError')).userFacingEdgeError(error.message, 'Failed to start checkout. Please try again.');
+      return { sessionId: '', error: safe };
     }
 
     // Handle case where data might be a string that needs parsing
@@ -139,7 +140,8 @@ export async function createCheckoutSession(
     }
 
     if (responseData?.error) {
-      return { sessionId: '', error: responseData.error };
+      const { userFacingEdgeError } = await import('../utils/edgeFunctionError');
+      return { sessionId: '', error: userFacingEdgeError(responseData.error, 'Something went wrong. Please try again.') };
     }
 
     console.log('Parsed checkout session response:', {
@@ -167,7 +169,8 @@ export async function createCheckoutSession(
     };
   } catch (error: any) {
     console.error('Error creating checkout session:', error);
-    return { sessionId: '', error: error.message || 'Failed to create checkout session' };
+    const { userFacingEdgeError } = await import('../utils/edgeFunctionError');
+    return { sessionId: '', error: userFacingEdgeError(error?.message, 'Failed to create checkout session. Please try again.') };
   }
 }
 
@@ -202,9 +205,10 @@ export async function createPortalSession(): Promise<{ url: string; error?: stri
 
     // Check if response contains an error (even if status is 200)
     if (responseData?.error) {
+      const { userFacingEdgeError } = await import('../utils/edgeFunctionError');
       return { 
         url: '', 
-        error: responseData.error,
+        error: userFacingEdgeError(responseData.error, 'Failed to open billing settings. Please try again.'),
         details: responseData.details || 'Check Supabase Edge Function logs for details.'
       };
     }
@@ -212,14 +216,14 @@ export async function createPortalSession(): Promise<{ url: string; error?: stri
     // Handle Supabase client error
     if (error) {
       console.error('Error creating portal session:', error);
-      
+      const { userFacingEdgeError } = await import('../utils/edgeFunctionError');
       // Try to extract detailed error from response body (data might contain error message)
-      let errorMessage = error.message || 'Failed to create portal session';
+      let errorMessage = userFacingEdgeError(error.message, 'Failed to open billing settings. Please try again.');
       let errorDetails = 'Check Supabase Edge Function logs for details.';
       
       // Check if data contains error message (sometimes errors are in data field)
       if (responseData?.error) {
-        errorMessage = responseData.error;
+        errorMessage = userFacingEdgeError(responseData.error, 'Failed to open billing settings. Please try again.');
         errorDetails = responseData.details || errorDetails;
       } else if (error.context) {
         // Check if error has context with error details
@@ -229,7 +233,7 @@ export async function createPortalSession(): Promise<{ url: string; error?: stri
             : error.context;
           
           if (errorBody.error) {
-            errorMessage = errorBody.error;
+            errorMessage = userFacingEdgeError(errorBody.error, 'Failed to open billing settings. Please try again.');
           }
           if (errorBody.details) {
             errorDetails = errorBody.details;
@@ -253,9 +257,10 @@ export async function createPortalSession(): Promise<{ url: string; error?: stri
     return { url: responseData.url };
   } catch (error: any) {
     console.error('Error creating portal session:', error);
+    const { userFacingEdgeError } = await import('../utils/edgeFunctionError');
     return { 
       url: '', 
-      error: error.message || 'Failed to create portal session',
+      error: userFacingEdgeError(error?.message, 'Failed to create portal session. Please try again.'),
       details: 'Check browser console and Supabase logs for details'
     };
   }

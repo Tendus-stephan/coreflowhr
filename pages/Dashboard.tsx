@@ -947,7 +947,7 @@ const Dashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome back, {user?.name?.split(' ')[0] || 'User'}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome back, {user?.name?.trim()?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}</h1>
             <p className="text-gray-500 text-sm mt-1">Here's what's happening in your pipeline today.</p>
         </div>
         <div className="flex gap-3 items-center">

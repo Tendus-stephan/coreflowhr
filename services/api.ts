@@ -2,6 +2,7 @@ import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingP
 export type { Client };
 import { supabase } from "./supabase";
 import { getPlanLimits, hasFeature, getMonthlyScrapeLimit, canScrapeThisMonth } from "./planLimits";
+import { userFacingEdgeError } from "../utils/edgeFunctionError";
 
 // Helper to get current user ID
 const getUserId = async (): Promise<string | null> => {
@@ -11,18 +12,26 @@ const getUserId = async (): Promise<string | null> => {
 
 // Helper for RBAC: workspace-scoped role (Admin, Recruiter, HiringManager, Viewer).
 // Prefer Admin if user is Admin in any workspace (so workspace owners always see Admin, not Viewer from another workspace).
+// Call ensure_workspace_owner_admin() when we have no Admin (including 0 memberships) so owners get a row and role fixed.
 const getCurrentUserRole = async (): Promise<string> => {
   const userId = await getUserId();
   if (!userId) return 'Viewer';
-  const { data: memberships, error: membershipsError } = await supabase
+  let { data: memberships, error: membershipsError } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('user_id', userId);
-  if (membershipsError || !memberships || memberships.length === 0) {
+  const hasAdmin = memberships?.some((m: { role: string }) => m.role === 'Admin');
+  if (!hasAdmin) {
+    await supabase.rpc('ensure_workspace_owner_admin');
+    const retry = await supabase.from('workspace_members').select('role').eq('user_id', userId);
+    if (!retry.error && retry.data?.length) {
+      memberships = retry.data;
+    }
+  }
+  if (!memberships || memberships.length === 0) {
     return 'Viewer';
   }
-  const hasAdmin = memberships.some((m: { role: string }) => m.role === 'Admin');
-  if (hasAdmin) return 'Admin';
+  if (memberships.some((m: { role: string }) => m.role === 'Admin')) return 'Admin';
   const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
   const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
   return (m?.role as string) || 'Viewer';
@@ -323,14 +332,16 @@ export const api = {
             if (error && error.code !== 'PGRST116') throw error;
 
             const { data: { user } } = await supabase.auth.getUser();
-            
+            const email = user?.email ?? (user?.user_metadata?.email as string | undefined) ?? '';
+            const nameFromEmail = (email && email.split('@')[0]) || 'User';
+
             if (!profile && user) {
                 // Create profile if it doesn't exist
                 const { data: newProfile } = await supabase
                     .from('profiles')
                     .insert({
                         id: userId,
-                        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+                        name: user.user_metadata?.name || nameFromEmail,
                     })
                     .select()
                     .single();
@@ -339,8 +350,8 @@ export const api = {
                     const role = await getCurrentUserRole();
                     return {
                         id: userId,
-                        name: newProfile.name || user.email?.split('@')[0] || 'User',
-                        email: user.email || '',
+                        name: newProfile.name || nameFromEmail,
+                        email: email || '',
                         role,
                         phone: newProfile.phone || '',
                         jobTitle: newProfile.job_title || '',
@@ -357,8 +368,8 @@ export const api = {
             const normalizedRole = await getCurrentUserRole();
             return {
                 id: userId,
-                name: profile?.name || user?.email?.split('@')[0] || 'User',
-                email: user?.email || '',
+                name: (profile?.name && profile.name.trim()) ? profile.name : nameFromEmail,
+                email: email || '',
                 role: normalizedRole,
                 phone: profile?.phone || '',
                 jobTitle: profile?.job_title || '',
@@ -430,8 +441,8 @@ export const api = {
             const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('request-email-change', {
                 body: { newEmail: trimmed },
             });
-            if (error) return { success: false, error: error.message };
-            if (data?.error) return { success: false, error: data.error };
+            if (error) return { success: false, error: userFacingEdgeError(error.message, 'Could not request email change. Please try again.') };
+            if (data?.error) return { success: false, error: userFacingEdgeError(data.error, 'Could not request email change. Please try again.') };
             return { success: true };
         },
         /** Verify the token from the "confirm current email" link; returns newEmail so client can call updateEmail to send link to new address. */
@@ -441,8 +452,8 @@ export const api = {
             const { data, error } = await supabase.functions.invoke<{ success?: boolean; newEmail?: string; error?: string }>('verify-email-change-token', {
                 body: { token: token.trim() },
             });
-            if (error) return { success: false, error: error.message };
-            if (data?.error) return { success: false, error: data.error };
+            if (error) return { success: false, error: userFacingEdgeError(error.message, 'Invalid or expired link. Please try again.') };
+            if (data?.error) return { success: false, error: userFacingEdgeError(data.error, 'Invalid or expired link. Please try again.') };
             if (data?.success && data?.newEmail) return { success: true, newEmail: data.newEmail };
             return { success: false, error: data?.error || 'Invalid or expired link' };
         },
@@ -545,8 +556,8 @@ export const api = {
         /** Ask Edge Function to notify old email (if pending) and clear row. Used after Supabase confirms new email. */
         notifyOldEmailAndClearPending: async (): Promise<{ success: boolean; error?: string }> => {
             const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('notify-old-email-after-change');
-            if (error) return { success: false, error: error.message };
-            if (data?.error) return { success: false, error: data.error };
+            if (error) return { success: false, error: userFacingEdgeError(error.message, 'Could not send notification. Please try again.') };
+            if (data?.error) return { success: false, error: userFacingEdgeError(data.error, 'Could not send notification. Please try again.') };
             return { success: true };
         },
         /** Send a "your email was updated successfully" notification to the current user (new email). Call after email change is confirmed. */
@@ -559,7 +570,7 @@ export const api = {
             const { error } = await supabase.functions.invoke('send-email', {
                 body: { to, subject, content, emailType: 'EmailChangeSuccess' },
             });
-            if (error) return { success: false, error: error.message };
+            if (error) return { success: false, error: userFacingEdgeError(error.message, 'Could not send confirmation email. Please try again.') };
             return { success: true };
         },
         getSessions: async (): Promise<Session[]> => {
@@ -4560,7 +4571,7 @@ export const api = {
 
                 if (error) {
                     console.error('Error connecting integration:', error);
-                    return { url: '', error: error.message || 'Failed to initiate connection' };
+                    return { url: '', error: userFacingEdgeError(error.message, 'Failed to initiate connection. Please try again.') };
                 }
 
                 let responseData = data;
@@ -4575,11 +4586,11 @@ export const api = {
 
                 return {
                     url: responseData?.url || '',
-                    error: responseData?.error
+                    error: responseData?.error ? userFacingEdgeError(responseData.error, 'Failed to connect. Please try again.') : undefined
                 };
             } catch (error: any) {
                 console.error('Error connecting integration:', error);
-                return { url: '', error: error.message || 'Failed to connect integration' };
+                return { url: '', error: userFacingEdgeError(error?.message, 'Failed to connect integration. Please try again.') };
             }
         },
         disconnectIntegration: async (integrationId: string): Promise<void> => {

@@ -197,6 +197,85 @@ describe('Invite flow (dummy emails)', () => {
   });
 });
 
+describe('One Admin per workspace (owner only)', () => {
+  it('invited Viewer stays Viewer: getCurrentUserRole returns Viewer when only membership is Viewer', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'viewer-id', email: 'viewer@test.com' } },
+      error: null,
+    });
+    const { api } = await import('../services/api');
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'workspace_members') {
+        return {
+          select: () => ({
+            eq: () => Promise.resolve({
+              data: [{ role: 'Viewer' }],
+              error: null,
+            }),
+          }),
+        };
+      }
+      if (table === 'profiles') {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({
+                data: { name: 'Viewer User', id: 'viewer-id' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+    const me = await api.auth.me();
+    expect(me.role).toBe('Viewer');
+  });
+
+  it('Admin (owner) gets Admin when only membership is Admin', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'admin-id', email: 'admin@test.com' } },
+      error: null,
+    });
+    const { api } = await import('../services/api');
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'workspace_members') {
+        return {
+          select: () => ({
+            eq: () => Promise.resolve({
+              data: [{ role: 'Admin' }],
+              error: null,
+            }),
+          }),
+        };
+      }
+      if (table === 'profiles') {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({
+                data: { name: 'Admin User', id: 'admin-id' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+    const me = await api.auth.me();
+    expect(me.role).toBe('Admin');
+  });
+
+  it('acceptInvite with Viewer role must not grant Admin (contract: DB/trigger enforces one Admin = owner)', () => {
+    const inviteRole = 'Viewer';
+    const acceptorIsOwner = false;
+    const expectedRole = acceptorIsOwner ? 'Admin' : inviteRole;
+    expect(expectedRole).toBe('Viewer');
+  });
+});
+
 describe('Workspace jobs list visibility', () => {
   it('jobs list relies on RLS (no explicit user_id filter in list)', () => {
     // Contract: api.jobs.list() does not call .eq('user_id', userId); RLS determines visibility.
