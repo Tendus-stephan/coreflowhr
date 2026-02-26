@@ -17,6 +17,7 @@ interface OfferCardProps {
     onArchive?: (offer: Offer) => void;
     onUnarchive?: (offer: Offer) => void;
     isArchiving?: boolean;
+    readOnly?: boolean;
 }
 
 export const OfferCard: React.FC<OfferCardProps> = ({
@@ -31,7 +32,8 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     isSending,
     onArchive,
     onUnarchive,
-    isArchiving
+    isArchiving,
+    readOnly = false
 }) => {
     const getStatusColor = (status: Offer['status']) => {
         // All statuses use normal gray color
@@ -78,7 +80,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         <p className="text-sm text-gray-600">Job: {jobTitle}</p>
                     )}
                 </div>
-                {offer.status === 'draft' && (
+                {offer.status === 'draft' && !readOnly && (
                     <button
                         onClick={() => onEdit(offer)}
                         className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded hover:bg-gray-100"
@@ -187,7 +189,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             )}
 
             <div className="flex items-center gap-2 flex-wrap">
-                {offer.status === 'draft' && !offer.archived && onSend && (
+                {offer.status === 'draft' && !offer.archived && onSend && !readOnly && (
                     <Button
                         variant="black"
                         size="sm"
@@ -200,7 +202,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         {isSending ? 'Sending...' : 'Send Offer'}
                     </Button>
                 )}
-                {!offer.archived && onArchive && (
+                {!offer.archived && onArchive && !readOnly && (
                     <Button
                         variant="outline"
                         size="sm"
@@ -212,7 +214,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         {isArchiving ? 'Archiving...' : 'Archive'}
                     </Button>
                 )}
-                {offer.archived && onUnarchive && (
+                {offer.archived && onUnarchive && !readOnly && (
                     <Button
                         variant="outline"
                         size="sm"

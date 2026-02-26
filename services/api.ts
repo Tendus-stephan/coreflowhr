@@ -1625,6 +1625,9 @@ export const api = {
             if (!userId) throw new Error('Not authenticated');
 
             const role = await getCurrentUserRole();
+            if (role === 'Viewer') {
+                throw new Error('Viewers cannot create jobs. You can only view jobs you’re assigned to. Ask an admin or recruiter to create jobs or assign you to more.');
+            }
             if (role === 'HiringManager') {
                 throw new Error('Only admins and recruiters can create jobs. You can view and work on existing jobs in this workspace.');
             }
@@ -1822,6 +1825,95 @@ export const api = {
                     await logJobDeleted(row.title);
                 } catch (logError) {
                     console.error('Error logging job deletion:', logError);
+                }
+            }
+        },
+        /**
+         * Get user IDs assigned to a job via job_assignments.
+         * Only Admins and Recruiters can view full assignments; others get an empty list.
+         */
+        getAssignments: async (jobId: string): Promise<string[]> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin' && role !== 'Recruiter') {
+                return [];
+            }
+
+            const { data, error } = await supabase
+                .from('job_assignments')
+                .select('user_id')
+                .eq('job_id', jobId);
+
+            if (error) {
+                console.error('[JobAssignments] Failed to load assignments', { jobId, error });
+                throw error;
+            }
+
+            return (data || []).map((row: any) => row.user_id as string);
+        },
+        /**
+         * Replace the set of users assigned to a job.
+         * Only Admins and Recruiters in the workspace can manage assignments.
+         */
+        updateAssignments: async (jobId: string, userIds: string[]): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin' && role !== 'Recruiter') {
+                throw new Error('Only admins and recruiters can assign members to jobs.');
+            }
+
+            // Fetch existing assignments for this job
+            const { data: existing, error: existingError } = await supabase
+                .from('job_assignments')
+                .select('user_id')
+                .eq('job_id', jobId);
+
+            if (existingError) {
+                console.error('[JobAssignments] Failed to load existing assignments before update', { jobId, existingError });
+                throw existingError;
+            }
+
+            const existingIds = new Set((existing || []).map((row: any) => row.user_id as string));
+            const desiredIds = new Set(userIds || []);
+
+            const toAdd: string[] = [];
+            for (const id of desiredIds) {
+                if (!existingIds.has(id)) {
+                    toAdd.push(id);
+                }
+            }
+
+            const toRemove: string[] = [];
+            for (const id of existingIds) {
+                if (!desiredIds.has(id)) {
+                    toRemove.push(id);
+                }
+            }
+
+            // Apply changes
+            if (toAdd.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('job_assignments')
+                    .insert(toAdd.map((uid) => ({ job_id: jobId, user_id: uid })));
+
+                if (insertError) {
+                    console.error('[JobAssignments] Failed to add assignments', { jobId, toAdd, insertError });
+                    throw insertError;
+                }
+            }
+
+            if (toRemove.length > 0) {
+                const { error: deleteError } = await supabase
+                    .from('job_assignments')
+                    .delete()
+                    .eq('job_id', jobId)
+                    .in('user_id', toRemove);
+
+                if (deleteError) {
+                    console.error('[JobAssignments] Failed to remove assignments', { jobId, toRemove, deleteError });
+                    throw deleteError;
                 }
             }
         }
@@ -4701,22 +4793,31 @@ export const api = {
             const userIds = (membersData || []).map((m: any) => m.user_id).filter(Boolean);
             const nameById: Record<string, string> = {};
             if (userIds.length > 0) {
-                const { data: profilesData, error: profilesError } = await supabase
-                    .from('profiles')
-                    .select('id, name')
-                    .in('id', userIds);
-                if (!profilesError && profilesData) {
-                    for (const p of profilesData) {
-                        if (p && p.id) {
-                            nameById[p.id as string] = (p.name as string) || 'User';
+                const { data: namesData, error: namesError } = await supabase.rpc('get_display_names_for_users', {
+                    p_user_ids: userIds,
+                });
+                if (!namesError && namesData && typeof namesData === 'object') {
+                    for (const [id, name] of Object.entries(namesData)) {
+                        if (id && name && typeof name === 'string') nameById[id] = name;
+                    }
+                }
+                if (Object.keys(nameById).length < userIds.length) {
+                    const { data: profilesData } = await supabase.from('profiles').select('id, name').in('id', userIds);
+                    for (const p of profilesData || []) {
+                        if (p?.id && !nameById[p.id]) {
+                            const raw = (p.name as string)?.trim();
+                            nameById[p.id as string] = (raw && raw.toLowerCase() !== 'user' ? raw : null) || 'Member';
                         }
                     }
+                }
+                for (const id of userIds) {
+                    if (!nameById[id]) nameById[id] = 'Member';
                 }
             }
 
             const members = (membersData || []).map((m: any) => ({
                 userId: m.user_id as string,
-                name: nameById[m.user_id as string] || 'User',
+                name: nameById[m.user_id as string] || 'Member',
                 role: (m.role as string) as UserRole,
                 isCurrentUser: m.user_id === userId,
             }));

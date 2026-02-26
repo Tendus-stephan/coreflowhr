@@ -22,6 +22,8 @@ interface PipelineColumnProps {
     isValidDropTarget?: (sourceStage: CandidateStage, targetStage: CandidateStage) => boolean;
     /** When filtering by one job, required skills for green/red match tags */
     jobRequiredSkills?: string[];
+    /** When true, cards are not draggable and drops are disabled (e.g. Viewer role) */
+    readOnly?: boolean;
 }
 
 // Separate component for draggable candidate card
@@ -136,7 +138,7 @@ const DraggableCandidateCard: React.FC<{
     );
 };
 
-export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate, isValidDropTarget, jobRequiredSkills }) => {
+export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, candidates, onSelectCandidate, onDropCandidate, isValidDropTarget, jobRequiredSkills, readOnly = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragSourceStage, setDragSourceStage] = useState<CandidateStage | null>(null);
@@ -236,7 +238,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({ title, stage, ca
             candidate={candidate}
             onSelect={onSelectCandidate}
             jobRequiredSkills={jobRequiredSkills}
-            draggable={stage !== CandidateStage.NEW}
+            draggable={!readOnly && stage !== CandidateStage.NEW}
           />
         ))}
         {candidates.length === 0 && (

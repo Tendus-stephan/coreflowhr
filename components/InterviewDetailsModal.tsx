@@ -12,6 +12,7 @@ interface InterviewDetailsModalProps {
   onUpdate?: () => void;
   onDelete?: () => void;
   onEdit?: (interview: Interview) => void;
+  readOnly?: boolean;
 }
 
 export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
@@ -20,7 +21,8 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
   onClose,
   onUpdate,
   onDelete,
-  onEdit
+  onEdit,
+  readOnly = false
 }) => {
   const [loading, setLoading] = useState(false);
 
@@ -229,12 +231,12 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          {onEdit && (
+          {!readOnly && onEdit && (
             <Button variant="black" onClick={() => onEdit(interview)}>
               Edit
             </Button>
           )}
-          {onDelete && (
+          {!readOnly && onDelete && (
             <Button 
               variant="outline" 
               onClick={handleCancel}

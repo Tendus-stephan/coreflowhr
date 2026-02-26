@@ -60,6 +60,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [generalOffers, setGeneralOffers] = useState<Offer[]>([]);
   const [loadingGeneralOffers, setLoadingGeneralOffers] = useState(false);
   const [jobsMap, setJobsMap] = useState<Record<string, Job>>({});
+  const [isViewer, setIsViewer] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    api.auth.me().then((me) => setIsViewer((me?.role ?? '') === 'Viewer')).catch(() => {});
+  }, [isOpen]);
 
   useEffect(() => {
       const fetchJob = async () => {
@@ -778,9 +784,11 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             <CheckCircle size={18} />
                             <span className="text-sm font-medium">Interview scheduled on {dateStr} at {timeStr}{inv.jobTitle ? ` · ${inv.jobTitle}` : ''}</span>
                           </div>
+                          {!isViewer && (
                           <Button variant="outline" size="sm" onClick={() => setIsScheduleOpen(true)}>
                             Reschedule
                           </Button>
+                          )}
                         </div>
                       );
                     })()}
@@ -1493,6 +1501,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-gray-900">Job Offers</h3>
+                        {!isViewer && (
                         <div className="flex gap-2">
                             <Button
                                 variant="black"
@@ -1559,6 +1568,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 {loadingGeneralOffers ? 'Loading...' : 'Link General Offer'}
                             </Button>
                         </div>
+                        )}
                     </div>
 
                     {loadingOffers ? (
@@ -1568,6 +1578,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     ) : offers.length === 0 ? (
                         <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
                             <p className="text-sm text-gray-500 mb-4">No offers yet for this candidate</p>
+                            {!isViewer && (
+                            <>
                             <p className="text-xs text-gray-400 mb-4">Create an offer or link a general offer</p>
                             <div className="flex gap-2 justify-center">
                                 <Button
@@ -1635,6 +1647,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     {loadingGeneralOffers ? 'Loading...' : 'Link General Offer'}
                                 </Button>
                             </div>
+                            </>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -1642,6 +1656,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 <OfferCard
                                     key={offer.id}
                                     offer={offer}
+                                    readOnly={isViewer}
                                     onEdit={(offer) => {
                                         setEditingOffer(offer);
                                         setIsOfferModalOpen(true);
@@ -1669,6 +1684,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         {/* Actions Footer */}
         <div className="p-4 border-t border-border bg-gray-50 flex justify-end items-center">
                         <div className="flex gap-3">
+                {!isViewer && (
                 <Button
                                 variant="outline"
                                 icon={<Calendar size={16} />}
@@ -1682,7 +1698,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                               >
                                 {scheduledUpcoming.length > 0 ? 'Reschedule' : 'Schedule'}
                               </Button>
-                <Button variant="primary" onClick={onClose}>Save Changes</Button>
+                )}
+                <Button variant="primary" onClick={onClose}>{isViewer ? 'Close' : 'Save Changes'}</Button>
                              </div>
         </div>
       </div>

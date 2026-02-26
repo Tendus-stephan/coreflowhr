@@ -455,13 +455,15 @@ const QuickActions = ({
     onExport,
     onBulkReject,
     onBulkMove,
-    onGenerateReport
+    onGenerateReport,
+    isViewer = false
 }: { 
     onSchedule: () => void;
     onExport: () => void;
     onBulkReject: () => void;
     onBulkMove: () => void;
     onGenerateReport: (type: 'weekly' | 'job' | 'time') => void;
+    isViewer?: boolean;
 }) => {
     const [openDropdown, setOpenDropdown] = useState<'bulk' | 'report' | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -486,6 +488,7 @@ const QuickActions = ({
                 <h3 className="font-bold text-gray-900 text-lg">Quick Actions</h3>
             </div>
             <div className="space-y-4 flex-1">
+                {!isViewer && (
                 <button 
                     onClick={onSchedule}
                     className="w-full bg-black text-white rounded-lg py-4 px-4 flex items-center justify-center gap-3 font-bold hover:bg-gray-900 transition-all shadow-md active:scale-[0.98]"
@@ -493,7 +496,9 @@ const QuickActions = ({
                     <Calendar size={20} />
                     <span>Schedule Interview</span>
                 </button>
+                )}
                 
+                {!isViewer && (
                 <div className="relative" style={{ zIndex: openDropdown === 'bulk' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('bulk')}
@@ -514,6 +519,7 @@ const QuickActions = ({
                         </div>
                     )}
                 </div>
+                )}
 
                 <div className="relative" style={{ zIndex: openDropdown === 'report' ? 100 : 10 }}>
                     <button 
@@ -947,7 +953,9 @@ const Dashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome back, {user?.name?.trim()?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+              Welcome back, {user?.name?.trim()?.split(' ')[0] || (user?.email ? user.email.split('@')[0] : 'there')}
+            </h1>
             <p className="text-gray-500 text-sm mt-1">Here's what's happening in your pipeline today.</p>
         </div>
         <div className="flex gap-3 items-center">
@@ -981,9 +989,11 @@ const Dashboard: React.FC = () => {
                     />
                 )}
             </div>
+            {(user?.role !== 'Viewer' && user?.role !== 'HiringManager') && (
             <Link to="/jobs/new">
                 <Button variant="black" size="sm" icon={<Plus size={14}/>}>Post a Job</Button>
             </Link>
+            )}
         </div>
       </div>
 
@@ -1067,6 +1077,7 @@ const Dashboard: React.FC = () => {
                 onBulkReject={() => setBulkActionType('reject')}
                 onBulkMove={() => setBulkActionType('move')}
                 onGenerateReport={(type) => setReportModalType(type)}
+                isViewer={user?.role === 'Viewer'}
               />
           </div>
       </div>

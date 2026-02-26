@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link, useNavigate } from 'react-router-dom';
-import { Job, Candidate, CandidateStage } from '../types';
+import { Job, Candidate, CandidateStage, UserRole } from '../types';
 import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { CandidateModal } from '../components/CandidateModal';
@@ -200,12 +200,17 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
 };
 
 // --- Job Details / Manage Modal ---
-const JobManageModal = ({ job, isOpen, onClose, navigate }: { job: Job | null, isOpen: boolean, onClose: () => void, navigate: (path: string) => void }) => {
+const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { job: Job | null, isOpen: boolean, onClose: () => void, navigate: (path: string) => void, currentUserRole: UserRole | '' }) => {
     const [page, setPage] = useState(1);
     const [jobCandidates, setJobCandidates] = useState<Candidate[]>([]);
     const [loadingCandidates, setLoadingCandidates] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const ITEMS_PER_PAGE = 5;
+    const [workspaceMembers, setWorkspaceMembers] = useState<{ userId: string; name: string; role: UserRole; isCurrentUser: boolean }[]>([]);
+    const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
+    const [loadingAssignments, setLoadingAssignments] = useState(false);
+    const [savingAssignments, setSavingAssignments] = useState(false);
+    const canManageAssignments = currentUserRole === 'Admin' || currentUserRole === 'Recruiter';
 
     // Fetch candidates for this job when modal opens or job changes
     const fetchCandidates = async () => {
@@ -234,6 +239,44 @@ const JobManageModal = ({ job, isOpen, onClose, navigate }: { job: Job | null, i
         // Reset selected candidate when job changes
         setSelectedCandidate(null);
     }, [job, isOpen]);
+
+    // Load workspace members and job assignments for this job
+    useEffect(() => {
+        const loadAssignments = async () => {
+            if (!isOpen || !job || !canManageAssignments) return;
+            setLoadingAssignments(true);
+            try {
+                const workspace = await api.workspaces.getWorkspaceWithMembers();
+                // Exclude Admin from explicit assignments; Admin already sees all jobs
+                setWorkspaceMembers(
+                    workspace.members.filter((m) => !!m.userId && m.role !== 'Admin')
+                );
+                const userIds = await api.jobs.getAssignments(job.id);
+                setAssignedUserIds(userIds);
+            } catch (error) {
+                console.error('Failed to load job assignments:', error);
+            } finally {
+                setLoadingAssignments(false);
+            }
+        };
+        loadAssignments();
+    }, [isOpen, job, canManageAssignments]);
+
+    const toggleAssignment = async (userId: string) => {
+        if (!job || !canManageAssignments || savingAssignments) return;
+        const next = assignedUserIds.includes(userId)
+            ? assignedUserIds.filter((id) => id !== userId)
+            : [...assignedUserIds, userId];
+        setSavingAssignments(true);
+        try {
+            await api.jobs.updateAssignments(job.id, next);
+            setAssignedUserIds(next);
+        } catch (error) {
+            console.error('Failed to update assignments:', error);
+        } finally {
+            setSavingAssignments(false);
+        }
+    };
 
     // Handle candidate update - refresh the candidates list
     const handleCandidateUpdate = async (updatedCandidate: Candidate) => {
@@ -301,42 +344,75 @@ const JobManageModal = ({ job, isOpen, onClose, navigate }: { job: Job | null, i
 
                 <div className="p-8 overflow-y-auto bg-gray-50/50 space-y-8">
                     
-                    {/* Job Header Card */}
+                    {/* Job Header Card & Assigned Members */}
                     <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start gap-6">
-                        <div className="flex gap-5">
+                        <div className="flex gap-5 flex-1">
                             <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500">
                                 <Briefcase size={28} />
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 mb-1">{job.title}</h2>
                                 <p className="text-sm text-gray-500 font-medium">{job.company || 'Company'}</p>
-                            </div>
-                        </div>
-
-                        <div className="w-full md:w-auto bg-white/50 rounded-xl p-0 md:bg-transparent">
-                            <div className="grid grid-cols-[auto_1fr] gap-x-8 gap-y-2 text-sm">
-                                <span className="text-gray-400 font-medium">Type</span>
-                                <span className="text-gray-900 font-medium text-right md:text-left">{job.type}</span>
-                                
-                                <div className="h-px bg-gray-200 col-span-2 my-1"></div>
-
-                                <span className="text-gray-400 font-medium">Location</span>
-                                <span className="text-gray-900 font-medium text-right md:text-left">{job.location}</span>
-
-                                <div className="h-px bg-gray-200 col-span-2 my-1"></div>
-
-                                <span className="text-gray-400 font-medium">Posted</span>
-                                <span className="text-gray-900 font-medium text-right md:text-left">{new Date(job.postedDate).toLocaleDateString()}</span>
-
-                                <div className="h-px bg-gray-200 col-span-2 my-1"></div>
-
-                                <span className="text-gray-400 font-medium self-center">Status</span>
-                                <div className="text-right md:text-left">
-                                    <span className="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                                        {job.status}
+                                <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs md:text-sm">
+                                    <span className="text-gray-400 font-medium">Type</span>
+                                    <span className="text-gray-900 font-medium">{job.type}</span>
+                                    <span className="text-gray-400 font-medium">Location</span>
+                                    <span className="text-gray-900 font-medium">{job.location || 'Not specified'}</span>
+                                    <span className="text-gray-400 font-medium">Posted</span>
+                                    <span className="text-gray-900 font-medium">{new Date(job.postedDate).toLocaleDateString()}</span>
+                                    <span className="text-gray-400 font-medium self-center">Status</span>
+                                    <span className="text-gray-900 font-medium">
+                                        <span className="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                                            {job.status}
+                                        </span>
                                     </span>
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="w-full md:w-64 bg-white/60 rounded-xl p-4 border border-gray-200">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">Assigned members</p>
+                                {!canManageAssignments && (
+                                    <span className="text-[10px] text-gray-400 font-medium">Admin/Recruiter manage</span>
+                                )}
+                            </div>
+                            {loadingAssignments ? (
+                                <p className="text-xs text-gray-500">Loading assignments…</p>
+                            ) : workspaceMembers.length === 0 ? (
+                                <p className="text-xs text-gray-500">No other members in this workspace yet.</p>
+                            ) : (
+                                <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                    {workspaceMembers.map((m) => {
+                                        const checked = assignedUserIds.includes(m.userId);
+                                        return (
+                                            <label
+                                                key={m.userId}
+                                                className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2 py-1 ${
+                                                    checked ? 'bg-gray-100' : 'hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="h-3.5 w-3.5 rounded border-gray-300 text-black focus:ring-black"
+                                                        checked={checked}
+                                                        disabled={!canManageAssignments || savingAssignments}
+                                                        onChange={() => toggleAssignment(m.userId)}
+                                                    />
+                                                    <span className="text-gray-900 font-medium">
+                                                        {m.name}
+                                                        {m.isCurrentUser && ' (You)'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-gray-500 font-semibold uppercase">
+                                                    {m.role}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -493,6 +569,7 @@ const Jobs: React.FC = () => {
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
   const [canCreateJobs, setCanCreateJobs] = useState(true);
+  const [userRole, setUserRole] = useState<string>('');
 
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -507,7 +584,10 @@ const Jobs: React.FC = () => {
                 api.settings.getPlan().catch(() => null),
                 api.auth.me().catch(() => null)
             ]);
-            if (me?.role) setCanCreateJobs(me.role !== 'HiringManager');
+            if (me?.role) {
+              setCanCreateJobs(me.role !== 'HiringManager' && me.role !== 'Viewer');
+              setUserRole(me.role);
+            }
             // Handle paginated response
             const jobsData = jobsResult && typeof jobsResult === 'object' && 'data' in jobsResult 
                 ? jobsResult.data 
@@ -845,7 +925,15 @@ const Jobs: React.FC = () => {
   return (
     <div className="p-8 max-w-[1600px] mx-auto flex flex-col bg-white min-h-screen" style={{ position: 'relative', overflow: 'visible' }}>
       {/* Modal */}
-      {selectedJob && <JobManageModal job={selectedJob} isOpen={!!selectedJob} onClose={() => setSelectedJob(null)} navigate={navigate} />}
+      {selectedJob && (
+        <JobManageModal
+          job={selectedJob}
+          isOpen={!!selectedJob}
+          onClose={() => setSelectedJob(null)}
+          navigate={navigate}
+          currentUserRole={(userRole as UserRole) || ''}
+        />
+      )}
       {settingsJob && <JobSettingsModal job={settingsJob} isOpen={!!settingsJob} onClose={() => setSettingsJob(null)} />}
 
       {/* Close Job Confirmation Modal */}
@@ -1105,6 +1193,9 @@ const Jobs: React.FC = () => {
 
                 <div className="flex items-center gap-6 mt-4 md:mt-0 w-full md:w-auto justify-between md:justify-end relative" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2 relative">
+                        {/* Sourcing buttons hidden for Viewers */}
+                        {userRole !== 'Viewer' && (
+                        <>
                         {/* Idle: primary Find candidates CTA */}
                         {!job.scrapingStatus && (
                             <Button
@@ -1167,6 +1258,8 @@ const Jobs: React.FC = () => {
                                         : 'Retry Sourcing'}
                             </Button>
                         )}
+                        </>
+                        )}
                         
                         <Button 
                             variant="outline" 
@@ -1181,6 +1274,8 @@ const Jobs: React.FC = () => {
                             Manage
                         </Button>
                         
+                        {userRole !== 'Viewer' && (
+                        <>
                         <button 
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -1225,6 +1320,8 @@ const Jobs: React.FC = () => {
                                     <Trash2 size={14} /> Delete Job
                                 </button>
                             </div>
+                        )}
+                        </>
                         )}
                     </div>
                 </div>

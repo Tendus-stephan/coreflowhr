@@ -212,7 +212,7 @@ const AddJob: React.FC = () => {
                       api.auth.me()
                   ]);
                   setTemplates(list);
-                  setCanCreateJobs(me?.role !== 'HiringManager');
+                  setCanCreateJobs(me?.role !== 'HiringManager' && me?.role !== 'Viewer');
               } catch (_) {
                   setCanCreateJobs(true);
               }
@@ -247,6 +247,14 @@ const AddJob: React.FC = () => {
 
       loadData();
   }, [id, navigate]);
+
+  // Redirect Viewers and HiringManagers away from create-job page
+  useEffect(() => {
+    if (id) return;
+    if (canCreateJobs === false) {
+      navigate('/jobs', { replace: true });
+    }
+  }, [id, canCreateJobs, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
@@ -367,6 +375,14 @@ const AddJob: React.FC = () => {
           setIsSubmitting(false);
       }
   };
+
+  if (!id && canCreateJobs === false) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[200px] text-gray-500">
+        You don&apos;t have permission to post jobs. Redirecting...
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-4xl mx-auto relative">

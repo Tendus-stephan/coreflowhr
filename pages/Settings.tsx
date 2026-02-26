@@ -1942,7 +1942,8 @@ const Settings: React.FC = () => {
                                             )}
                                             {teamMembers.map(member => {
                                                 const isSelf = member.isCurrentUser;
-                                                const canChangeRole = role === 'Admin' && !isSelf;
+                                                const currentWorkspaceRole = teamMembers.find(m => m.isCurrentUser)?.role || role;
+                                                const canChangeRole = currentWorkspaceRole === 'Admin' && !isSelf;
                                                 return (
                                                     <tr key={member.userId} className="border-t border-gray-100">
                                                         <td className="px-4 py-3 text-gray-900">

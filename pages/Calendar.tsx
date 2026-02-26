@@ -86,6 +86,12 @@ const Calendar: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [draggedEventId, setDraggedEventId] = useState<string | null>(null);
   const dragStartRef = useRef<{ eventId: string | null; startTime: number }>({ eventId: null, startTime: 0 });
+  const [userRole, setUserRole] = useState<string>('');
+
+  useEffect(() => {
+    api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
+  }, []);
+  const isViewer = userRole === 'Viewer';
 
   // Convert interviews to calendar events
   const events: CalendarEvent[] = useMemo(() => {
@@ -424,10 +430,12 @@ const Calendar: React.FC = () => {
               <Filter size={16} />
               Filters
             </Button>
+            {!isViewer && (
             <Button variant="black" size="sm" onClick={handleScheduleClick}>
               <Plus size={16} />
               Schedule Interview
             </Button>
+            )}
           </div>
         </div>
 
@@ -531,12 +539,12 @@ const Calendar: React.FC = () => {
             date={currentDate}
             onNavigate={setCurrentDate}
             onSelectEvent={handleSelectEvent}
-            onSelectSlot={view !== 'month' ? handleSelectSlot : undefined}
-            onEventDrop={handleEventDrop}
-            onEventResize={handleEventResize}
-            selectable={view !== 'month'}
-            resizable={view !== 'month'}
-            draggableAccessor={() => true}
+            onSelectSlot={view !== 'month' && !isViewer ? handleSelectSlot : undefined}
+            onEventDrop={!isViewer ? handleEventDrop : undefined}
+            onEventResize={!isViewer ? handleEventResize : undefined}
+            selectable={view !== 'month' && !isViewer}
+            resizable={view !== 'month' && !isViewer}
+            draggableAccessor={() => !isViewer}
             showMultiDayTimes
             allDayAccessor={() => false}
             eventPropGetter={eventStyleGetter}
@@ -565,6 +573,7 @@ const Calendar: React.FC = () => {
         }}
         onUpdate={handleCalendarUpdate}
         onDelete={handleCalendarUpdate}
+        readOnly={isViewer}
         onEdit={(interview) => {
           setEditingInterview(interview);
           setSelectedInterview(null);

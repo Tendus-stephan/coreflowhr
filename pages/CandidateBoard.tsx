@@ -77,6 +77,13 @@ const CandidateBoard: React.FC = () => {
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const [userRole, setUserRole] = useState<string>('');
+
+  useEffect(() => {
+    api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
+  }, []);
+
+  const isViewer = userRole === 'Viewer';
 
   // Close job dropdown when clicking outside
   useEffect(() => {
@@ -664,54 +671,60 @@ const CandidateBoard: React.FC = () => {
                 stage={CandidateStage.NEW} 
                 candidates={getCandidatesByStage(CandidateStage.NEW)} 
                 onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={handleDropCandidate}
+                onDropCandidate={isViewer ? undefined : handleDropCandidate}
                 isValidDropTarget={isValidStageTransition}
                 jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
+                readOnly={isViewer}
             />
             <PipelineColumn 
                 title="Screening" 
                 stage={CandidateStage.SCREENING} 
                 candidates={getCandidatesByStage(CandidateStage.SCREENING)} 
                 onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={handleDropCandidate}
+                onDropCandidate={isViewer ? undefined : handleDropCandidate}
                 isValidDropTarget={isValidStageTransition}
                 jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
+                readOnly={isViewer}
             />
             <PipelineColumn 
                 title="Interview" 
                 stage={CandidateStage.INTERVIEW} 
                 candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} 
                 onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={handleDropCandidate}
+                onDropCandidate={isViewer ? undefined : handleDropCandidate}
                 isValidDropTarget={isValidStageTransition}
                 jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
+                readOnly={isViewer}
             />
             <PipelineColumn 
                 title="Offer" 
                 stage={CandidateStage.OFFER} 
                 candidates={getCandidatesByStage(CandidateStage.OFFER)} 
                 onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={handleDropCandidate}
+                onDropCandidate={isViewer ? undefined : handleDropCandidate}
                 isValidDropTarget={isValidStageTransition}
                 jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
+                readOnly={isViewer}
             />
             <PipelineColumn 
                 title="Hired" 
                 stage={CandidateStage.HIRED} 
                 candidates={getCandidatesByStage(CandidateStage.HIRED)} 
                 onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={handleDropCandidate}
+                onDropCandidate={isViewer ? undefined : handleDropCandidate}
                 isValidDropTarget={isValidStageTransition}
                 jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
+                readOnly={isViewer}
             />
             <PipelineColumn 
                 title="Rejected" 
                 stage={CandidateStage.REJECTED} 
                 candidates={getCandidatesByStage(CandidateStage.REJECTED)} 
                 onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={handleDropCandidate}
+                onDropCandidate={isViewer ? undefined : handleDropCandidate}
                 isValidDropTarget={isValidStageTransition}
                 jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
+                readOnly={isViewer}
             />
           </div>
       </div>
