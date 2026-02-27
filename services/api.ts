@@ -3826,10 +3826,12 @@ export const api = {
                             .replace(/{your_name}/g, userName);
 
                         // Add meeting link or location if available
+                        let plainMeetingLink: string | null = null;
                         if (updatedInterview?.type === 'Google Meet' && newMeetingLink) {
                             // Format meeting link as clickable HTML anchor tag
                             const formattedMeetingLink = `<a href="${newMeetingLink}" style="color: #2563eb; text-decoration: underline;">${newMeetingLink}</a>`;
                             content = content.replace(/{meeting_link}/g, formattedMeetingLink);
+                            plainMeetingLink = newMeetingLink;
                             // If {meeting_link} wasn't in template, append it
                             if (!template.content.includes('{meeting_link}')) {
                                 content += `\n\n**Meeting Link:**\n${formattedMeetingLink}`;
@@ -3838,6 +3840,7 @@ export const api = {
                             // Fallback to old meeting link if new one wasn't generated
                             const formattedMeetingLink = `<a href="${updatedInterview.meeting_link}" style="color: #2563eb; text-decoration: underline;">${updatedInterview.meeting_link}</a>`;
                             content = content.replace(/{meeting_link}/g, formattedMeetingLink);
+                            plainMeetingLink = updatedInterview.meeting_link;
                             if (!template.content.includes('{meeting_link}')) {
                                 content += `\n\n**Meeting Link:**\n${formattedMeetingLink}`;
                             }
@@ -3850,6 +3853,12 @@ export const api = {
                                 content += `\n\n**Location:**\n${updatedInterview.address}`;
                             }
                         }
+
+                        // Always strip placeholders even if we didn't have data, so the candidate
+                        // never sees raw {meeting_link} or {address} in emails.
+                        content = content
+                            .replace(/{meeting_link}/g, plainMeetingLink || '')
+                            .replace(/{address}/g, updatedInterview?.address || '');
 
                         // Send email via edge function
                         const { error: emailError } = await supabase.functions.invoke('send-email', {
