@@ -104,14 +104,18 @@ serve(async (req) => {
     await supabase.storage.from('signed-offers').upload(tempPath, pdfBytes, { contentType: 'application/pdf', upsert: true });
 
     // Send PDF in request body so Dropbox Sign doesn't need to fetch a URL (private bucket would block them)
-    const signers = [{ name: (candidate as { name?: string }).name || 'Candidate', email_address: (candidate as { email: string }).email, order: 0 }];
+    const signerName = (candidate as { name?: string }).name || 'Candidate';
+    const signerEmail = (candidate as { email: string }).email;
+
     const form = new FormData();
-    form.append('files', new Blob([pdfBytes], { type: 'application/pdf' }), 'offer.pdf');
-    form.append('signers', JSON.stringify(signers));
+    // HelloSign / Dropbox Sign expects indexed fields: files[0], signers[0][name], signers[0][email_address], metadata[offer_id], etc.
+    form.append('files[0]', new Blob([pdfBytes], { type: 'application/pdf' }), 'offer.pdf');
+    form.append('signers[0][name]', signerName);
+    form.append('signers[0][email_address]', signerEmail);
     form.append('title', `Offer Letter - ${(offer as { position_title?: string }).position_title || 'Offer'}`);
     form.append('subject', 'Sign your offer letter');
     form.append('message', 'Please sign the attached offer letter. You will receive a copy once signed.');
-    form.append('metadata', JSON.stringify({ offer_id: offerId }));
+    form.append('metadata[offer_id]', String(offerId));
 
     const apiKeyB64 = btoa(`${dropboxSignApiKey}:`);
     const dsRes = await fetch('https://api.hellosign.com/v3/signature_request/send', {
