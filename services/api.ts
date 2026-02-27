@@ -5819,8 +5819,10 @@ export const api = {
                 throw new Error('Cannot send a general offer. Please link it to a candidate first.');
             }
 
+            const requireEsignature = options?.requireEsignature ?? !!offer.requireEsignature;
+
             // eSignature path: invoke Edge Function and return updated offer
-            if (options?.requireEsignature) {
+            if (requireEsignature) {
                 const { data: session } = await supabase.auth.getSession();
                 const token = session?.session?.access_token;
                 if (!token) throw new Error('Not authenticated');
@@ -5829,7 +5831,7 @@ export const api = {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (fnError) throw new Error(fnError.message || 'Failed to send offer for signature');
-                const err = (data as { error?: string })?.error;
+                const err = (data as { error?: string; details?: string })?.error;
                 if (err) throw new Error(err);
                 return api.offers.get(offerId);
             }
