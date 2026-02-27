@@ -5843,7 +5843,13 @@ export const api = {
                     body: { offerId },
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                if (fnError) throw new Error(fnError.message || 'Failed to send offer for signature');
+                if (fnError) {
+                    const ctx: any = (fnError as any).context;
+                    const ctxMsg =
+                        (ctx && (ctx.error || ctx.message)) ||
+                        fnError.message;
+                    throw new Error(ctxMsg || 'Failed to send offer for signature');
+                }
                 const err = (data as { error?: string; details?: string })?.error;
                 if (err) throw new Error(err);
                 return api.offers.get(offerId);
