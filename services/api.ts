@@ -5663,6 +5663,7 @@ export const api = {
             benefits?: string[];
             notes?: string;
             expiresAt?: string;
+            requireEsignature?: boolean;
         }): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -5681,7 +5682,8 @@ export const api = {
                     benefits: offerData.benefits || null,
                     notes: offerData.notes || null,
                     status: 'draft',
-                    expires_at: offerData.expiresAt || null
+                    expires_at: offerData.expiresAt || null,
+                    require_esignature: offerData.requireEsignature ?? null
                 })
                 .select()
                 .single();
@@ -5766,6 +5768,7 @@ export const api = {
             expiresAt: string;
             candidateId?: string | null; // Allow updating candidate_id
             archived?: boolean;
+            requireEsignature?: boolean;
         }>): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -5781,6 +5784,7 @@ export const api = {
             if (updates.expiresAt !== undefined) updateData.expires_at = updates.expiresAt || null;
             if (updates.candidateId !== undefined) updateData.candidate_id = updates.candidateId || null;
             if (updates.archived !== undefined) updateData.archived = updates.archived;
+            if (updates.requireEsignature !== undefined) updateData.require_esignature = updates.requireEsignature;
 
             const { data, error } = await supabase
                 .from('offers')

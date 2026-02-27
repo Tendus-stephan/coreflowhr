@@ -213,7 +213,8 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     salaryPeriod: salaryPeriod,
                     benefits: benefits,
                     notes: notes.trim() || undefined,
-                    expiresAt: expiresAt
+                    expiresAt: expiresAt,
+                    requireEsignature: requireEsignature || undefined,
                 });
             } else {
                 await api.offers.create({
@@ -226,7 +227,8 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     salaryPeriod: salaryPeriod, // Required
                     benefits: benefits, // Required (at least one)
                     notes: notes.trim() || undefined, // Optional
-                    expiresAt: expiresAt // Required
+                    expiresAt: expiresAt, // Required
+                    requireEsignature: requireEsignature || undefined,
                 });
             }
 
