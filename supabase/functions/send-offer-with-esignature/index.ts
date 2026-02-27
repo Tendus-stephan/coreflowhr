@@ -116,6 +116,8 @@ serve(async (req) => {
     form.append('subject', 'Sign your offer letter');
     form.append('message', 'Please sign the attached offer letter. You will receive a copy once signed.');
     form.append('metadata[offer_id]', String(offerId));
+    // Use test mode so this works on free Dropbox Sign accounts
+    form.append('test_mode', '1');
 
     const apiKeyB64 = btoa(`${dropboxSignApiKey}:`);
     const dsRes = await fetch('https://api.hellosign.com/v3/signature_request/send', {
