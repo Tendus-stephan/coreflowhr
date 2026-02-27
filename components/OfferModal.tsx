@@ -38,6 +38,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [requireEsignature, setRequireEsignature] = useState(false);
     const actionInFlightRef = useRef(false);
 
     useEffect(() => {
@@ -277,7 +278,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
         try {
             setSending(true);
             setError(null);
-            await api.offers.send(offerId);
+            await api.offers.send(offerId, { requireEsignature });
             onSave();
             onClose();
         } catch (err: any) {
@@ -603,34 +604,47 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={saving || sending}
-                    >
-                        Cancel
-                    </Button>
-                    {offer && offer.status === 'draft' && (
-                        <Button
-                            variant="black"
-                            onClick={handleSendOffer}
-                            disabled={saving || sending}
-                            icon={sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-                        >
-                            {sending ? 'Sending...' : 'Save & Send Offer'}
-                        </Button>
+                <div className="p-6 border-t border-gray-200 space-y-3">
+                    {(offer?.status === 'draft' || !offer) && (
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={requireEsignature}
+                                onChange={(e) => setRequireEsignature(e.target.checked)}
+                                className="rounded border-gray-300 text-black focus:ring-black/5"
+                            />
+                            <span>Require eSignature (formal signed document via Dropbox Sign)</span>
+                        </label>
                     )}
-                    {(!offer || offer.status === 'draft') && (
+                    <div className="flex justify-end gap-3">
                         <Button
-                            variant="black"
-                            onClick={handleSave}
+                            variant="outline"
+                            onClick={onClose}
                             disabled={saving || sending}
-                            icon={<Save size={16} />}
                         >
-                            {saving ? 'Saving...' : offer ? 'Update Offer' : 'Save as Draft'}
+                            Cancel
                         </Button>
-                    )}
+                        {offer && offer.status === 'draft' && (
+                            <Button
+                                variant="black"
+                                onClick={handleSendOffer}
+                                disabled={saving || sending}
+                                icon={sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                            >
+                                {sending ? 'Sending...' : 'Save & Send Offer'}
+                            </Button>
+                        )}
+                        {(!offer || offer.status === 'draft') && (
+                            <Button
+                                variant="black"
+                                onClick={handleSave}
+                                disabled={saving || sending}
+                                icon={<Save size={16} />}
+                            >
+                                {saving ? 'Saving...' : offer ? 'Update Offer' : 'Save as Draft'}
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

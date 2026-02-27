@@ -470,7 +470,7 @@ export interface Offer {
   salaryPeriod: 'hourly' | 'monthly' | 'yearly';
   benefits?: string[];
   notes?: string;
-  status: 'draft' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'declined' | 'expired';
+  status: 'draft' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'declined' | 'expired' | 'awaiting_signature' | 'signed';
   sentAt?: string;
   viewedAt?: string;
   respondedAt?: string;
@@ -480,6 +480,10 @@ export interface Offer {
   createdAt: string;
   updatedAt: string;
   archived?: boolean;
+  /** When true, candidate must sign via Dropbox Sign; completion is status 'signed'. */
+  requireEsignature?: boolean;
+  /** Storage path for signed PDF (used to generate download URL). */
+  signedPdfPath?: string | null;
 }
 
 export interface OfferTemplate {

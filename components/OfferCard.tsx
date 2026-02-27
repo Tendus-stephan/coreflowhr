@@ -1,8 +1,15 @@
 import React from 'react';
 import { Offer } from '../types';
 import { Button } from './ui/Button';
-import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare, Download } from 'lucide-react';
 import { format } from 'date-fns';
+
+const formatStatusLabel = (status: Offer['status'], archived?: boolean): string => {
+    if (archived) return 'ARCHIVED';
+    if (status === 'awaiting_signature') return 'Awaiting Signature';
+    if (status === 'signed') return 'Signed';
+    return status.toUpperCase();
+};
 
 interface OfferCardProps {
     offer: Offer;
@@ -20,6 +27,8 @@ interface OfferCardProps {
     readOnly?: boolean;
     /** When true (e.g. Hiring Manager), salary and counter-offer salary are hidden. */
     hideSalary?: boolean;
+    /** Called when user clicks Download signed document (only for status === 'signed'). */
+    onDownloadSigned?: (offer: Offer) => void;
 }
 
 export const OfferCard: React.FC<OfferCardProps> = ({
@@ -36,7 +45,8 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     onUnarchive,
     isArchiving,
     readOnly = false,
-    hideSalary = false
+    hideSalary = false,
+    onDownloadSigned
 }) => {
     const getStatusColor = (status: Offer['status']) => {
         // All statuses use normal gray color
@@ -67,7 +77,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-base font-bold text-gray-900">{offer.positionTitle}</h3>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusColor(offer.status)}`}>
-                            {offer.archived ? 'ARCHIVED' : offer.status.toUpperCase()}
+                            {formatStatusLabel(offer.status, offer.archived)}
                         </span>
                         {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.some((item: any) => item.type === 'counter_offer') && (
                             <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700 flex items-center gap-1">
@@ -194,6 +204,16 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             )}
 
             <div className="flex items-center gap-2 flex-wrap">
+                {offer.status === 'signed' && (offer.signedPdfPath || onDownloadSigned) && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDownloadSigned?.(offer)}
+                        icon={<Download size={14} />}
+                    >
+                        Download signed document
+                    </Button>
+                )}
                 {offer.status === 'draft' && !offer.archived && onSend && !readOnly && (
                     <Button
                         variant="black"

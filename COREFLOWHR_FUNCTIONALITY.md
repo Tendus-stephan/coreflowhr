@@ -278,6 +278,12 @@ Guards every protected page. In order:
 
 - Offer accepted, declined, or counter offer received → in-app notification and, if user has “offer updates” and email set, email via `send-offer-update-email` edge function.
 
+**eSignature (optional per offer)**
+
+- When sending an offer, recruiter can check **Require eSignature**. If checked, CoreflowHR generates an offer PDF, sends it to Dropbox Sign (HelloSign), and sets status to **Awaiting Signature**. Candidate receives an email from Dropbox Sign to sign; on completion, webhook updates the offer to **Signed** and stores the signed PDF in storage. Recruiter sees **Download signed document** for signed offers. If eSignature is required, the candidate cannot complete via the Accept button on the response page; they must sign via the Dropbox Sign email.
+- **Config:** Supabase secrets: `DROPBOX_SIGN_API_KEY`. Webhook URL: `https://<project>.supabase.co/functions/v1/dropbox-sign-webhook` (configure in Dropbox Sign dashboard).
+- **References:** `supabase/functions/generate-offer-pdf`, `supabase/functions/send-offer-with-esignature`, `supabase/functions/dropbox-sign-webhook`, migration `20260228350000_offers_esignature_columns.sql`, `20260228350100_storage_signed_offers_bucket.sql`.
+
 **References:** `pages/Offers.tsx`, `pages/OfferResponse.tsx`, `components/OfferModal.tsx`, `components/OfferCard.tsx`, `components/NegotiateCounterOfferModal.tsx`, `services/api.ts` (offers.*), `supabase/functions/send-offer-update-email`, migration `20260225120000_add_atomic_offer_functions.sql`.
 
 ---

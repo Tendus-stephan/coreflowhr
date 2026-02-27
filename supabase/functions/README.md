@@ -104,6 +104,16 @@ Creates in-app weekly digest notifications for users who have **Settings → Not
 }
 ```
 
+### 7. eSignature (Dropbox Sign)
+
+- **`generate-offer-pdf`** – Generates offer PDF from offer/candidate/client data. Used by `send-offer-with-esignature`.
+- **`send-offer-with-esignature`** – Creates a Dropbox Sign signature request from the offer PDF and sends the signing link to the candidate. Sets offer status to `awaiting_signature`. **Auth:** Bearer token (recruiter).
+- **`dropbox-sign-webhook`** – Handles Dropbox Sign events. On `signature_request_all_signed`, downloads the signed PDF, uploads to storage bucket `signed-offers`, and updates the offer to `signed` with `signed_pdf_path`.
+
+**Required secret:** `DROPBOX_SIGN_API_KEY` (Dropbox Sign API key).
+
+**Webhook:** In Dropbox Sign (HelloSign) dashboard, add webhook URL: `https://<project-ref>.supabase.co/functions/v1/dropbox-sign-webhook`. Event: `signature_request_all_signed`. Optional: set a webhook secret and verify in the function if needed.
+
 ## Setup Instructions
 
 ### 1. Install Supabase CLI
@@ -134,6 +144,8 @@ supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
 supabase secrets set SUPABASE_URL=https://your-project.supabase.co
 supabase secrets set SUPABASE_ANON_KEY=your-anon-key
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# Optional: for eSignature on offers (Dropbox Sign)
+supabase secrets set DROPBOX_SIGN_API_KEY=your-dropbox-sign-api-key
 ```
 
 Or set them in the Supabase Dashboard:

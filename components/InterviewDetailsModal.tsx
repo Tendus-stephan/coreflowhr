@@ -97,7 +97,13 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-gray-200 bg-white rounded-t-2xl flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Interview Details</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {interview.jobTitle && interview.candidateName
+              ? `Interview: ${interview.jobTitle} – ${interview.candidateName}`
+              : interview.jobTitle
+                ? `Interview: ${interview.jobTitle}`
+                : 'Interview Details'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100"

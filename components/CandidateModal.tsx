@@ -62,6 +62,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [jobsMap, setJobsMap] = useState<Record<string, Job>>({});
   const [isViewer, setIsViewer] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
+  const [sendingOfferId, setSendingOfferId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -1668,15 +1669,28 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                         setIsOfferModalOpen(true);
                                     }}
                                     onSend={async (offer) => {
+                                        if (sendingOfferId) return;
                                         try {
+                                            setSendingOfferId(offer.id);
                                             await api.offers.send(offer.id);
-                                            // Play notification sound
                                             const { playNotificationSound } = await import('../utils/soundUtils');
                                             playNotificationSound();
                                             const data = await api.offers.list({ candidateId: candidate.id });
                                             setOffers(data);
                                         } catch (err: any) {
                                             alert(err.message || 'Failed to send offer');
+                                        } finally {
+                                            setSendingOfferId(null);
+                                        }
+                                    }}
+                                    isSending={sendingOfferId === offer.id}
+                                    onDownloadSigned={async (o) => {
+                                        try {
+                                            const url = await api.offers.getSignedPdfUrl(o.id);
+                                            if (url) window.open(url, '_blank');
+                                            else alert('Signed document is not available.');
+                                        } catch (err: any) {
+                                            alert(err.message || 'Failed to load signed document');
                                         }
                                     }}
                                 />

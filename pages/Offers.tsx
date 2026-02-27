@@ -190,10 +190,22 @@ const Offers: React.FC = () => {
         setIsNegotiateModalOpen(true);
     };
 
+    const handleDownloadSigned = async (offer: Offer) => {
+        try {
+            const url = await api.offers.getSignedPdfUrl(offer.id);
+            if (url) window.open(url, '_blank');
+            else alert('Signed document is not available.');
+        } catch (err: any) {
+            alert(err.message || 'Failed to load signed document');
+        }
+    };
+
     const statusOptions: Array<{ value: Offer['status'] | 'all' | 'archived'; label: string }> = [
         { value: 'all', label: 'All Statuses' },
         { value: 'draft', label: 'Draft' },
         { value: 'sent', label: 'Sent' },
+        { value: 'awaiting_signature', label: 'Awaiting Signature' },
+        { value: 'signed', label: 'Signed' },
         { value: 'viewed', label: 'Viewed' },
         { value: 'negotiating', label: 'Negotiating' },
         { value: 'accepted', label: 'Accepted' },
@@ -316,6 +328,7 @@ const Offers: React.FC = () => {
                                     onUnarchive={handleUnarchive}
                                     isArchiving={archivingOfferId === offer.id}
                                     hideSalary={userRole === 'HiringManager'}
+                                    onDownloadSigned={handleDownloadSigned}
                                 />
                             ))}
                     </div>

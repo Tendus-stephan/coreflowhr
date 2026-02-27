@@ -5589,6 +5589,8 @@ export const api = {
                 createdAt: offer.created_at,
                 updatedAt: offer.updated_at,
                 archived: offer.archived ?? false,
+                requireEsignature: offer.require_esignature ?? undefined,
+                signedPdfPath: offer.signed_pdf_path ?? undefined,
             }));
         },
         get: async (offerId: string): Promise<Offer> => {
@@ -5625,8 +5627,21 @@ export const api = {
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
                 updatedAt: data.updated_at,
-                archived: data.archived ?? false
+                archived: data.archived ?? false,
+                requireEsignature: data.require_esignature ?? undefined,
+                signedPdfPath: data.signed_pdf_path ?? undefined,
             };
+        },
+        getSignedPdfUrl: async (offerId: string): Promise<string | null> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const offer = await api.offers.get(offerId);
+            if (!offer.signedPdfPath) return null;
+            const { data, error } = await supabase.storage
+                .from('signed-offers')
+                .createSignedUrl(offer.signedPdfPath, 60);
+            if (error || !data?.signedUrl) return null;
+            return data.signedUrl;
         },
         create: async (offerData: {
             candidateId?: string | null; // Optional for general offers
@@ -5792,7 +5807,7 @@ export const api = {
                 archived: data.archived ?? false
             };
         },
-        send: async (offerId: string): Promise<Offer> => {
+        send: async (offerId: string, options?: { requireEsignature?: boolean }): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
@@ -5802,6 +5817,21 @@ export const api = {
             // Check if offer is linked to a candidate
             if (!offer.candidateId) {
                 throw new Error('Cannot send a general offer. Please link it to a candidate first.');
+            }
+
+            // eSignature path: invoke Edge Function and return updated offer
+            if (options?.requireEsignature) {
+                const { data: session } = await supabase.auth.getSession();
+                const token = session?.session?.access_token;
+                if (!token) throw new Error('Not authenticated');
+                const { data, error: fnError } = await supabase.functions.invoke('send-offer-with-esignature', {
+                    body: { offerId },
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (fnError) throw new Error(fnError.message || 'Failed to send offer for signature');
+                const err = (data as { error?: string })?.error;
+                if (err) throw new Error(err);
+                return api.offers.get(offerId);
             }
 
             // Check if Offer workflow is configured before allowing offer to be sent
@@ -6061,7 +6091,9 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
             };
         },
         accept: async (offerId: string, response?: string): Promise<Offer> => {
@@ -6876,10 +6908,22 @@ export const api = {
                 response: data.response || undefined,
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
-                updatedAt: data.updated_at
+                updatedAt: data.updated_at,
+                requireEsignature: data.require_esignature ?? undefined,
+                signedPdfPath: data.signed_pdf_path ?? undefined,
             };
         },
         acceptByToken: async (token: string, response?: string): Promise<Offer> => {
+            // Reject accept when eSignature is required and offer is not yet signed
+            const { data: offerByToken } = await supabase
+                .from('offers')
+                .select('require_esignature, status')
+                .eq('offer_token', token)
+                .single();
+            if (offerByToken?.require_esignature && offerByToken?.status !== 'signed') {
+                throw new Error('This offer requires a formal signature. Please check your email for a signing link from Dropbox Sign and complete the signature there.');
+            }
+
             const { data: result, error: rpcError } = await supabase
                 .rpc('accept_offer_atomic', {
                     offer_token_param: token,

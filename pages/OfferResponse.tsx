@@ -261,7 +261,8 @@ const OfferResponse: React.FC = () => {
     if (!offer) return null;
 
     const isExpired = offer.expiresAt && new Date(offer.expiresAt) < new Date();
-    const canRespond = offer.status === 'sent' || offer.status === 'viewed' || offer.status === 'negotiating';
+    const awaitingEsignature = offer.requireEsignature && offer.status === 'awaiting_signature';
+    const canRespond = (offer.status === 'sent' || offer.status === 'viewed' || offer.status === 'negotiating') && !awaitingEsignature;
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -390,6 +391,13 @@ const OfferResponse: React.FC = () => {
                         <div className="mx-8 mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
                             <AlertCircle className="w-5 h-5 inline-block mr-2" />
                             This offer has expired. Please contact the recruiter if you would still like to proceed.
+                        </div>
+                    )}
+
+                    {awaitingEsignature && (
+                        <div className="mx-8 mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                            <CheckCircle className="w-5 h-5 inline-block mr-2 align-middle" />
+                            A formal offer letter has been sent to your email for signature. Please check your inbox and complete the signature there. You will receive a copy of the signed document once it is complete.
                         </div>
                     )}
 
