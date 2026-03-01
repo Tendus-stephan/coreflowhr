@@ -79,6 +79,27 @@ const getViewerAssignedJobIds = async (): Promise<string[] | null> => {
   return (jobsInWorkspace || []).map((j: { id: string }) => j.id);
 };
 
+/** Job IDs the current user is allowed to see for reports (Admin/Recruiter: all workspace jobs; HM: jobs where hiring_manager_id = user; Viewer: assigned only). */
+const getReportAllowedJobIds = async (): Promise<string[]> => {
+  const role = await getCurrentUserRole();
+  const userId = await getUserId();
+  const workspaceId = await getCurrentWorkspaceId();
+  if (!userId || !workspaceId) return [];
+
+  if (role === 'Viewer') {
+    const assigned = await getViewerAssignedJobIds();
+    return assigned ?? [];
+  }
+
+  let query = supabase.from('jobs').select('id').eq('workspace_id', workspaceId);
+  if (role === 'HiringManager') {
+    query = query.eq('hiring_manager_id', userId);
+  }
+  const { data, error } = await query;
+  if (error || !data?.length) return [];
+  return data.map((j: { id: string }) => j.id);
+};
+
 // Test mode removed - all jobs and candidates are now production data
 
 // Helper to generate a simple hash from string (for device fingerprinting)
@@ -2724,22 +2745,20 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Verify candidate belongs to user
+            // Verify current user can see this candidate (RLS on candidates filters by owner/HM/workspace)
             const { data: candidate } = await supabase
                 .from('candidates')
                 .select('id')
                 .eq('id', candidateId)
-                .eq('user_id', userId)
                 .single();
 
             if (!candidate) throw new Error('Candidate not found');
 
-            // Get all email logs for this candidate
+            // Get all email logs for this candidate (RLS on email_logs allows if user can see candidate; includes inbound replies)
             const { data: emailLogs, error } = await supabase
                 .from('email_logs')
                 .select('*')
                 .eq('candidate_id', candidateId)
-                .eq('user_id', userId)
                 .order('sent_at', { ascending: false });
 
             if (error) throw error;
@@ -2757,8 +2776,32 @@ export const api = {
                 sentAt: log.sent_at,
                 threadId: log.thread_id || undefined,
                 replyToId: log.reply_to_id || undefined,
-                createdAt: log.created_at
+                createdAt: log.created_at,
+                direction: (log.direction === 'inbound' ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
+                read: !!log.read
             }));
+        },
+        markEmailRead: async (candidateId: string, emailLogId: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { error } = await supabase
+                .from('email_logs')
+                .update({ read: true })
+                .eq('id', emailLogId)
+                .eq('candidate_id', candidateId);
+            if (error) throw error;
+        },
+        getUnreadReplyCount: async (candidateId: string): Promise<number> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { count, error } = await supabase
+                .from('email_logs')
+                .select('*', { count: 'exact', head: true })
+                .eq('candidate_id', candidateId)
+                .eq('direction', 'inbound')
+                .eq('read', false);
+            if (error) throw error;
+            return count ?? 0;
         },
         update: async (candidateId: string, updates: Partial<Candidate>): Promise<Candidate> => {
             const userId = await getUserId();
@@ -3397,12 +3440,23 @@ export const api = {
                     timezone: interviewData.timezone || 'UTC',
                     meeting_link: interviewData.meetingLink || null,
                     notes: interviewData.notes || null,
-                    status: 'Scheduled'
+                    status: 'Scheduled',
+                    calendar_sync_status: 'pending',
                 })
                 .select('*, candidates!inner(id, name)')
                 .single();
 
             if (error) throw error;
+
+            try {
+                await supabase.functions.invoke('sync-interview-to-calendar', {
+                    body: { interviewId: interview.id, action: 'create' },
+                });
+            } catch (_) {
+                // Sync is best-effort; interview is already saved
+            }
+            const { data: afterSync } = await supabase.from('interviews').select('meeting_link, calendar_sync_status, google_event_id').eq('id', interview.id).single();
+            const updatedMeetingLink = afterSync?.meeting_link ?? interview.meeting_link;
 
             return {
                 id: interview.id,
@@ -3417,10 +3471,19 @@ export const api = {
                 durationMinutes: interview.duration_minutes || 60,
                 timezone: interview.timezone || 'UTC',
                 reminderSent: interview.reminder_sent || false,
-                meetingLink: interview.meeting_link || undefined,
+                meetingLink: updatedMeetingLink || interview.meeting_link || undefined,
                 notes: interview.notes || undefined,
-                status: interview.status || 'Scheduled'
+                status: interview.status || 'Scheduled',
+                calendarSyncStatus: (afterSync?.calendar_sync_status as 'synced' | 'failed' | 'pending' | 'not_connected') || 'pending',
             };
+        },
+        syncToCalendar: async (interviewId: string, action: 'create' | 'update' | 'delete'): Promise<{ ok?: boolean; error?: string }> => {
+            const { data, error } = await supabase.functions.invoke('sync-interview-to-calendar', {
+                body: { interviewId, action },
+            });
+            if (error) return { error: error.message || 'Sync failed' };
+            if (data?.error) return { error: data.error };
+            return { ok: true };
         },
         getCalendar: async (startDate: string, endDate: string, filters?: {
             candidateId?: string;
@@ -3524,7 +3587,9 @@ export const api = {
                 meetingLink: interview.meeting_link || undefined,
                 notes: interview.notes || undefined,
                 status: interview.status || 'Scheduled',
-                attendees: attendeesMap.get(interview.id) || []
+                attendees: attendeesMap.get(interview.id) || [],
+                calendarSyncStatus: interview.calendar_sync_status || undefined,
+                calendarSyncError: interview.calendar_sync_error || undefined,
             }));
         },
         checkConflicts: async (date: string, time: string, durationMinutes: number = 60, excludeInterviewId?: string): Promise<Interview[]> => {
@@ -3668,51 +3733,19 @@ export const api = {
 
             if (error) throw error;
 
-            // Fetch updated interview with all fields (including meeting_link and address)
+            try {
+                await supabase.functions.invoke('sync-interview-to-calendar', {
+                    body: { interviewId, action: 'update' },
+                });
+            } catch (_) {
+                // Calendar sync is best-effort
+            }
+
             const { data: updatedInterview } = await supabase
                 .from('interviews')
                 .select('meeting_link, address, type, duration_minutes')
                 .eq('id', interviewId)
                 .single();
-
-            // Generate new meeting link if it's a Google Meet interview
-            let newMeetingLink: string | null = null;
-            if (updatedInterview?.type === 'Google Meet') {
-                try {
-                    // Build ISO start datetime from new date and time
-                    const startDateTime = new Date(`${newDate}T${newTime}`);
-                    const durationMinutes = newDurationMinutes || updatedInterview.duration_minutes || 60;
-
-                    const { data: meetingData, error: meetingError } = await supabase.functions.invoke('create-meeting', {
-                        body: {
-                            platform: 'meet',
-                            title: `${jobTitle} - Interview`,
-                            startIso: startDateTime.toISOString(),
-                            durationMinutes: durationMinutes,
-                        }
-                    });
-
-                    if (!meetingError && meetingData?.meetingUrl) {
-                        newMeetingLink = meetingData.meetingUrl;
-                        
-                        // Update the interview with the new meeting link
-                        await supabase
-                            .from('interviews')
-                            .update({ meeting_link: newMeetingLink })
-                            .eq('id', interviewId);
-                        
-                        console.log('[Reschedule] New meeting link generated:', newMeetingLink);
-                    } else {
-                        console.warn('[Reschedule] Failed to generate new meeting link:', meetingError);
-                        // Fall back to old meeting link if generation fails
-                        newMeetingLink = updatedInterview?.meeting_link || null;
-                    }
-                } catch (meetingErr: any) {
-                    console.error('[Reschedule] Error generating new meeting link:', meetingErr);
-                    // Fall back to old meeting link if generation fails
-                    newMeetingLink = updatedInterview?.meeting_link || null;
-                }
-            }
 
             // Send reschedule notification email to candidate
             if (oldInterview.candidates?.email && !oldInterview.candidates?.is_test && (oldDate !== newDate || oldTime !== newTime)) {
@@ -3827,17 +3860,7 @@ export const api = {
 
                         // Add meeting link or location if available
                         let plainMeetingLink: string | null = null;
-                        if (updatedInterview?.type === 'Google Meet' && newMeetingLink) {
-                            // Format meeting link as clickable HTML anchor tag
-                            const formattedMeetingLink = `<a href="${newMeetingLink}" style="color: #2563eb; text-decoration: underline;">${newMeetingLink}</a>`;
-                            content = content.replace(/{meeting_link}/g, formattedMeetingLink);
-                            plainMeetingLink = newMeetingLink;
-                            // If {meeting_link} wasn't in template, append it
-                            if (!template.content.includes('{meeting_link}')) {
-                                content += `\n\n**Meeting Link:**\n${formattedMeetingLink}`;
-                            }
-                        } else if (updatedInterview?.type === 'Google Meet' && updatedInterview?.meeting_link) {
-                            // Fallback to old meeting link if new one wasn't generated
+                        if (updatedInterview?.type === 'Google Meet' && updatedInterview?.meeting_link) {
                             const formattedMeetingLink = `<a href="${updatedInterview.meeting_link}" style="color: #2563eb; text-decoration: underline;">${updatedInterview.meeting_link}</a>`;
                             content = content.replace(/{meeting_link}/g, formattedMeetingLink);
                             plainMeetingLink = updatedInterview.meeting_link;
@@ -3923,6 +3946,14 @@ export const api = {
                 .eq('user_id', userId);
 
             if (error) throw error;
+
+            try {
+                await supabase.functions.invoke('sync-interview-to-calendar', {
+                    body: { interviewId, action: 'delete' },
+                });
+            } catch (_) {
+                // Calendar sync is best-effort
+            }
         },
         getUpcoming: async (days: number = 7): Promise<Interview[]> => {
             const userId = await getUserId();
@@ -4729,13 +4760,14 @@ export const api = {
 
             if (error) throw error;
 
-            return (data || []).map(integration => ({
+            return (data || []).map((integration: any) => ({
                 id: integration.id,
                 name: integration.name,
                 desc: integration.desc || '',
                 active: integration.active || false,
                 logo: integration.logo || '',
-                connectedDate: integration.connected_date
+                connectedDate: integration.connected_date,
+                connectedEmail: integration.config?.google_email || undefined,
             }));
         },
         connectIntegration: async (integrationId: string): Promise<{ url: string; error?: string }> => {
@@ -4783,7 +4815,12 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Get integration name before disconnecting
+            const { data, error } = await supabase.functions.invoke('disconnect-integration', {
+                body: { integrationId },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
             const { data: integration } = await supabase
                 .from('integrations')
                 .select('name')
@@ -4791,41 +4828,12 @@ export const api = {
                 .eq('user_id', userId)
                 .single();
 
-            const { error } = await supabase
-                .from('integrations')
-                .update({
-                    active: false,
-                    config: null,
-                    connected_date: null
-                })
-                .eq('id', integrationId)
-                .eq('user_id', userId);
-
-            if (error) throw error;
-
-            // Create notification for integration disconnected
-            try {
-                await supabase
-                    .from('notifications')
-                    .insert({
-                        user_id: userId,
-                        title: 'Integration Disconnected',
-                        desc: `${integration?.name || 'Integration'} has been disconnected from your account.`,
-                        type: 'integration_disconnected',
-                        category: 'system',
-                        unread: true
-                    });
-            } catch (notifError) {
-                console.error('Error creating integration disconnected notification:', notifError);
-            }
-
-            // Log activity
             if (integration?.name) {
                 try {
                     const { logIntegrationDisconnected } = await import('./activityLogger');
                     await logIntegrationDisconnected(integration.name);
-                } catch (error) {
-                    console.error('Error logging integration disconnect activity:', error);
+                } catch (logErr) {
+                    console.error('Error logging integration disconnect activity:', logErr);
                 }
             }
         }
@@ -4844,7 +4852,7 @@ export const api = {
 
             const { data: membership, error: membershipError } = await supabase
                 .from('workspace_members')
-                .select('workspace_id, role, workspaces(name)')
+                .select('workspace_id, role, workspaces(name, company_logo_url)')
                 .eq('user_id', userId)
                 .maybeSingle();
 
@@ -4854,7 +4862,9 @@ export const api = {
             }
 
             const workspaceId = membership.workspace_id as string;
-            const workspaceName = (membership as any).workspaces?.name || 'Workspace';
+            const ws = (membership as any).workspaces;
+            const workspaceName = ws?.name || 'Workspace';
+            const companyLogoUrl = ws?.company_logo_url ?? undefined;
 
             const { data: membersData, error: membersError } = await supabase
                 .from('workspace_members')
@@ -4898,8 +4908,53 @@ export const api = {
             return {
                 workspaceId,
                 name: workspaceName,
+                companyLogoUrl,
                 members,
             };
+        },
+
+        /**
+         * Upload company logo via Edge Function (bypasses Storage RLS). Returns public URL.
+         * Caller must be Admin or Recruiter in the workspace.
+         */
+        uploadCompanyLogo: async (workspaceId: string, file: File): Promise<{ publicUrl: string }> => {
+            const buffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const fileBase64 = typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(bytes).toString('base64');
+            const { data, error } = await supabase.functions.invoke<{ publicUrl?: string; error?: string }>(
+                'upload-company-logo',
+                {
+                    body: {
+                        workspaceId,
+                        fileBase64,
+                        contentType: file.type,
+                        filename: file.name,
+                    },
+                }
+            );
+            if (error) throw new Error(error.message || 'Upload failed');
+            if (data?.error) throw new Error(data.error);
+            if (!data?.publicUrl) throw new Error('Upload failed: no URL returned');
+            return { publicUrl: data.publicUrl };
+        },
+
+        /**
+         * Update current workspace (e.g. company_logo_url). Caller must be Admin or Recruiter.
+         */
+        updateWorkspace: async (updates: { companyLogoUrl?: string | null }): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!workspaceId) throw new Error('Workspace not found');
+            const { error } = await supabase
+                .from('workspaces')
+                .update({
+                    company_logo_url: updates.companyLogoUrl ?? undefined,
+                })
+                .eq('id', workspaceId);
+            if (error) throw error;
         },
 
         /**
@@ -5600,6 +5655,7 @@ export const api = {
                 archived: offer.archived ?? false,
                 requireEsignature: offer.require_esignature ?? undefined,
                 signedPdfPath: offer.signed_pdf_path ?? undefined,
+                referenceNumber: offer.reference_number ?? undefined,
             }));
         },
         get: async (offerId: string): Promise<Offer> => {
@@ -5639,6 +5695,7 @@ export const api = {
                 archived: data.archived ?? false,
                 requireEsignature: data.require_esignature ?? undefined,
                 signedPdfPath: data.signed_pdf_path ?? undefined,
+                referenceNumber: data.reference_number ?? undefined,
             };
         },
         getSignedPdfUrl: async (offerId: string): Promise<string | null> => {
@@ -5668,11 +5725,20 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
+            const { data: jobRow } = await supabase
+                .from('jobs')
+                .select('workspace_id')
+                .eq('id', offerData.jobId)
+                .single();
+
+            const workspaceId = (jobRow as { workspace_id?: string } | null)?.workspace_id ?? null;
+
             const { data, error } = await supabase
                 .from('offers')
                 .insert({
                     user_id: userId,
-                    candidate_id: offerData.candidateId || null, // Allow null for general offers
+                    workspace_id: workspaceId,
+                    candidate_id: offerData.candidateId || null,
                     job_id: offerData.jobId,
                     position_title: offerData.positionTitle,
                     start_date: offerData.startDate || null,
@@ -5692,7 +5758,7 @@ export const api = {
 
             return {
                 id: data.id,
-                candidateId: data.candidate_id, // Can be null
+                candidateId: data.candidate_id,
                 jobId: data.job_id,
                 userId: data.user_id,
                 positionTitle: data.position_title,
@@ -5710,7 +5776,10 @@ export const api = {
                 response: data.response || undefined,
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
-                updatedAt: data.updated_at
+                updatedAt: data.updated_at,
+                requireEsignature: data.require_esignature ?? undefined,
+                signedPdfPath: data.signed_pdf_path ?? undefined,
+                referenceNumber: data.reference_number ?? undefined,
             };
         },
         linkToCandidate: async (offerId: string, candidateId: string): Promise<Offer> => {
@@ -5754,7 +5823,11 @@ export const api = {
                 response: data.response || undefined,
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
-                updatedAt: data.updated_at
+                updatedAt: data.updated_at,
+                archived: data.archived ?? false,
+                requireEsignature: data.require_esignature ?? undefined,
+                signedPdfPath: data.signed_pdf_path ?? undefined,
+                referenceNumber: data.reference_number ?? undefined,
             };
         },
         update: async (offerId: string, updates: Partial<{
@@ -5817,305 +5890,68 @@ export const api = {
                 negotiationHistory: data.negotiation_history || undefined,
                 createdAt: data.created_at,
                 updatedAt: data.updated_at,
-                archived: data.archived ?? false
+                archived: data.archived ?? false,
+                requireEsignature: data.require_esignature ?? undefined,
+                signedPdfPath: data.signed_pdf_path ?? undefined,
+                referenceNumber: data.reference_number ?? undefined,
             };
         },
-        send: async (offerId: string, options?: { requireEsignature?: boolean }): Promise<Offer> => {
+        send: async (offerId: string, _options?: { requireEsignature?: boolean }): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Get offer
             const offer = await api.offers.get(offerId);
 
-            // Check if offer is linked to a candidate
             if (!offer.candidateId) {
                 throw new Error('Cannot send a general offer. Please link it to a candidate first.');
             }
 
-            const requireEsignature = options?.requireEsignature ?? !!offer.requireEsignature;
-
-            // eSignature path: invoke Edge Function and return updated offer
-            if (requireEsignature) {
-                const { data: session } = await supabase.auth.getSession();
-                const token = session?.session?.access_token;
-                if (!token) throw new Error('Not authenticated');
-                const { data, error: fnError } = await supabase.functions.invoke('send-offer-with-esignature', {
-                    body: { offerId },
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (fnError) {
-                    const ctx: any = (fnError as any).context;
-                    const ctxMsg =
-                        (ctx && (ctx.error || ctx.message)) ||
-                        fnError.message;
-                    throw new Error(ctxMsg || 'Failed to send offer for signature');
-                }
-                const err = (data as { error?: string; details?: string })?.error;
-                if (err) throw new Error(err);
-                return api.offers.get(offerId);
-            }
-
-            // Check if Offer workflow is configured before allowing offer to be sent
-            // Since sending an offer automatically moves candidate to Offer stage, workflow must be configured
-            const { data: workflows, error: workflowCheckError } = await supabase
-                .from('email_workflows')
-                .select('id')
-                .eq('user_id', userId)
-                .eq('trigger_stage', 'Offer')
-                .eq('enabled', true)
-                .limit(1);
-            
-            if (workflowCheckError) {
-                throw new Error(`Error checking workflows: ${workflowCheckError.message}`);
-            }
-            
-            if (!workflows || workflows.length === 0) {
-                throw new Error('Cannot send offer. Please create an email workflow for the "Offer" stage in Settings > Email Workflows first.');
-            }
-
-            // Get candidate - use list and find, as there's no direct get method
-            const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1000 });
-            const candidates = candidatesResult.data || [];
-            const candidate = candidates.find(c => c.id === offer.candidateId);
-            if (!candidate) {
-                throw new Error('Candidate not found');
-            }
-            if (!candidate.email) {
-                throw new Error('Candidate does not have an email address');
-            }
-
-            // Get job
-            const job = await api.jobs.get(offer.jobId);
-            const companyName = job.company || 'Our Company';
-            const employmentType = job.type || 'Full-time';
-            const jobLocation = job.location || 'Not specified';
-            const remoteType = job.remote ? 'Remote' : 'On-site';
-
-            // Get offer email template
-            let template;
-            const { data: templateData, error: templateError } = await supabase
-                .from('email_templates')
-                .select('*')
-                .eq('user_id', userId)
-                .eq('type', 'Offer')
-                .single();
-
-            if (templateError || !templateData) {
-                // Use default template with all placeholders (notes removed as per user request)
-                template = {
-                    subject: 'Job Offer – {position_title} at {company_name}',
-                    content: `Dear {candidate_name},\n\nWe are delighted to extend a job offer for the {position_title} position at {company_name}.\n\nPosition: {position_title}\nSalary: {salary}\nStart Date: {start_date}\nExpires: {expires_at}\n\n{benefits}\n\nPlease review the offer details and let us know your decision.\n\nBest regards,\n{company_name}`
-                };
-            } else {
-                template = templateData;
-            }
-
-            // Format salary
-            let salaryText = '';
-            let salaryAmountText = '';
-            let salaryCurrencyText = '';
-            let salaryPeriodText = '';
-            if (offer.salaryAmount) {
-                salaryAmountText = offer.salaryAmount.toLocaleString();
-                salaryCurrencyText = offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency;
-                salaryPeriodText = offer.salaryPeriod === 'yearly' ? 'per year' : offer.salaryPeriod === 'monthly' ? 'per month' : 'per hour';
-                salaryText = `${salaryCurrencyText}${salaryAmountText} ${salaryPeriodText}`;
-            } else {
-                salaryText = 'To be discussed';
-                salaryAmountText = 'TBD';
-                salaryCurrencyText = '';
-                salaryPeriodText = '';
-            }
-
-            // Format benefits
-            let benefitsText = '';
-            let benefitsList = '';
-            if (offer.benefits && offer.benefits.length > 0) {
-                benefitsList = offer.benefits.map(b => `• ${b}`).join('\n');
-                benefitsText = `Benefits:\n${benefitsList}`;
-            } else {
-                benefitsText = '';
-                benefitsList = 'None specified';
-            }
-
-            // Format dates
-            const startDateText = offer.startDate 
-                ? new Date(offer.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                : 'To be determined';
-            const expiresAtText = offer.expiresAt
-                ? new Date(offer.expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                : 'No expiration date';
-
-            // Get user profile for your_name placeholder
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('name')
-                .eq('id', userId)
-                .single();
-            
-            const userName = profile?.name || 'Recruiter';
-
-            // Replace template variables in subject
-            let subject = template.subject
-                .replace(/{candidate_name}/g, candidate.name)
-                .replace(/{position_title}/g, offer.positionTitle)
-                .replace(/{company_name}/g, companyName)
-                .replace(/{job_title}/g, offer.positionTitle)
-                .replace(/{salary}/g, salaryText)
-                .replace(/{salary_amount}/g, salaryAmountText)
-                .replace(/{salary_currency}/g, salaryCurrencyText)
-                .replace(/{salary_period}/g, salaryPeriodText)
-                .replace(/{start_date}/g, startDateText)
-                .replace(/{expires_at}/g, expiresAtText)
-                .replace(/{employment_type}/g, employmentType)
-                .replace(/{job_location}/g, jobLocation)
-                .replace(/{remote_type}/g, remoteType)
-                .replace(/{your_name}/g, userName);
-
-            // Generate secure token for offer response
-            const { generateSecureToken } = await import('./tokenUtils');
-            const offerToken = generateSecureToken(32);
-            
-            // Calculate expiration (60 days from now)
-            const tokenExpiresAt = new Date();
-            tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60);
-            
-            // Build offer response link
-            // Always use production URL for email links (never localhost)
-            // window.location.origin is only checked if we're in browser AND not localhost
-            const frontendUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
-                ? window.location.origin 
-                : 'https://www.coreflowhr.com';
-            const offerResponseLink = `${frontendUrl}/offers/respond/${offerToken}`;
-            
-            // Replace template variables in content (notes placeholder removed from default, but still available if user adds it to template)
-            let content = template.content
-                .replace(/{candidate_name}/g, candidate.name)
-                .replace(/{position_title}/g, offer.positionTitle)
-                .replace(/{company_name}/g, companyName)
-                .replace(/{job_title}/g, offer.positionTitle)
-                .replace(/{salary}/g, salaryText)
-                .replace(/{salary_amount}/g, salaryAmountText)
-                .replace(/{salary_currency}/g, salaryCurrencyText)
-                .replace(/{salary_period}/g, salaryPeriodText)
-                .replace(/{start_date}/g, startDateText)
-                .replace(/{expires_at}/g, expiresAtText)
-                .replace(/{benefits}/g, benefitsText)
-                .replace(/{benefits_list}/g, benefitsList)
-                .replace(/{employment_type}/g, employmentType)
-                .replace(/{job_location}/g, jobLocation)
-                .replace(/{remote_type}/g, remoteType)
-                .replace(/{notes}/g, offer.notes || '') // Notes placeholder still works if user adds it to template
-                .replace(/{your_name}/g, userName);
-            
-            // Add offer response link - smart injection similar to CV upload links
-            const clickableLink = `<a href="${offerResponseLink}" style="color: #2563eb; text-decoration: underline; font-weight: 500;">View and Respond to Offer</a>`;
-            const responseSection = `\n\n---\n\nPlease click the link below to view the full offer details and accept or decline:\n${clickableLink}`;
-            
-            if (content.includes('{offer_response_link}')) {
-                // User has placed the variable - replace it with clickable link
-                content = content.replace(/{offer_response_link}/g, clickableLink);
-            } else {
-                // Variable not found - append response section at the bottom
-                content = content + responseSection;
-            }
-
-            // Send email
-            const { error: emailError } = await supabase.functions.invoke('send-email', {
-                body: {
-                    to: candidate.email,
-                    subject: subject,
-                    content: content,
-                    fromName: 'Recruiter', // Always use "Recruiter" as sender name
-                    candidateId: candidate.id,
-                    emailType: 'Offer'
-                }
+            // Use HTML template → PDFShift → Dropbox Sign (styled offer letter with "Generated by CoreflowHR" footer)
+            const { data: session } = await supabase.auth.getSession();
+            const token = session?.session?.access_token;
+            if (!token) throw new Error('Not authenticated');
+            const { data, error: fnError } = await supabase.functions.invoke('send-offer-html-pdf', {
+                body: { offerId },
+                headers: { Authorization: `Bearer ${token}` },
             });
-
-            if (emailError) {
-                throw new Error(`Failed to send offer email: ${emailError.message}`);
+            if (fnError) {
+                const ctx: any = (fnError as any).context;
+                const ctxMsg =
+                    (ctx && (ctx.error || ctx.message)) ||
+                    fnError.message;
+                throw new Error(ctxMsg || 'Failed to send offer for signature');
             }
+            const err = (data as { error?: string; details?: string })?.error;
+            if (err) throw new Error(err);
 
-            // Update offer status to 'sent' and store token
-            const { data: updated, error: updateError } = await supabase
-                .from('offers')
-                .update({
-                    status: 'sent',
-                    sent_at: new Date().toISOString(),
-                    offer_token: offerToken,
-                    offer_token_expires_at: tokenExpiresAt.toISOString()
-                })
-                .eq('id', offerId)
-                .eq('user_id', userId)
-                .select()
-                .single();
-
-            if (updateError) throw updateError;
-
-            // Automatically move candidate to Offer stage when offer is sent
-            // Do this directly via database update to bypass workflow checks (since we're already sending the offer email)
+            // Move candidate to Offer stage after successful send
             try {
-                // Get current stage and name for logging before update
                 const { data: candidateBeforeUpdate } = await supabase
                     .from('candidates')
                     .select('stage, name')
                     .eq('id', offer.candidateId)
                     .eq('user_id', userId)
                     .single();
-
                 const oldStage = candidateBeforeUpdate?.stage;
                 const candidateName = candidateBeforeUpdate?.name;
-
-                // Update candidate stage to Offer
                 const { error: stageUpdateError } = await supabase
                     .from('candidates')
                     .update({ stage: 'Offer' })
                     .eq('id', offer.candidateId)
                     .eq('user_id', userId);
-
-                if (stageUpdateError) {
-                    console.error('Error updating candidate stage to Offer:', stageUpdateError);
-                    // Don't throw - offer was sent successfully, stage update is secondary
-                } else if (oldStage && oldStage !== 'Offer' && candidateName) {
-                    // Log the stage change activity (only if stage actually changed)
+                if (!stageUpdateError && oldStage && oldStage !== 'Offer' && candidateName) {
                     try {
                         const { logCandidateMoved } = await import('./activityLogger');
                         await logCandidateMoved(candidateName, oldStage as CandidateStage, CandidateStage.OFFER);
                     } catch (logError) {
                         console.error('Error logging candidate stage change:', logError);
-                        // Don't throw - logging is non-critical
                     }
                 }
             } catch (stageError: any) {
-                // Log error but don't fail the offer send if stage update fails
                 console.error('Error updating candidate stage to Offer:', stageError);
-                // Don't throw - offer was sent successfully
             }
 
-            return {
-                id: updated.id,
-                candidateId: updated.candidate_id,
-                jobId: updated.job_id,
-                userId: updated.user_id,
-                positionTitle: updated.position_title,
-                startDate: updated.start_date || undefined,
-                salaryAmount: updated.salary_amount ? parseFloat(updated.salary_amount) : undefined,
-                salaryCurrency: updated.salary_currency || 'USD',
-                salaryPeriod: updated.salary_period || 'yearly',
-                benefits: updated.benefits || undefined,
-                notes: updated.notes || undefined,
-                status: updated.status as Offer['status'],
-                sentAt: updated.sent_at || undefined,
-                viewedAt: updated.viewed_at || undefined,
-                respondedAt: updated.responded_at || undefined,
-                expiresAt: updated.expires_at || undefined,
-                response: updated.response || undefined,
-                negotiationHistory: updated.negotiation_history || undefined,
-                createdAt: updated.created_at,
-                updatedAt: updated.updated_at,
-                requireEsignature: updated.require_esignature ?? undefined,
-                signedPdfPath: updated.signed_pdf_path ?? undefined,
-            };
+            return api.offers.get(offerId);
         },
         accept: async (offerId: string, response?: string): Promise<Offer> => {
             const userId = await getUserId();
@@ -6168,7 +6004,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         decline: async (offerId: string, response?: string): Promise<Offer> => {
@@ -6209,7 +6048,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         negotiate: async (offerId: string, negotiationData: { notes: string; updatedFields?: any }): Promise<Offer> => {
@@ -6275,7 +6117,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         acceptCounterOffer: async (offerId: string): Promise<Offer> => {
@@ -6460,7 +6305,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         declineCounterOffer: async (offerId: string, notes?: string): Promise<Offer> => {
@@ -6588,7 +6436,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         respondToCounterOffer: async (offerId: string, updatedFields: {
@@ -6794,7 +6645,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         expire: async (offerId: string): Promise<Offer> => {
@@ -6833,7 +6687,10 @@ export const api = {
                 response: updated.response || undefined,
                 negotiationHistory: updated.negotiation_history || undefined,
                 createdAt: updated.created_at,
-                updatedAt: updated.updated_at
+                updatedAt: updated.updated_at,
+                requireEsignature: updated.require_esignature ?? undefined,
+                signedPdfPath: updated.signed_pdf_path ?? undefined,
+                referenceNumber: updated.reference_number ?? undefined,
             };
         },
         getTemplates: async (): Promise<OfferTemplate[]> => {
@@ -7449,6 +7306,109 @@ export const api = {
 
             if (error) throw error;
         }
+    },
+    reports: {
+        getMetrics: async (params: { dateFrom: string; dateTo: string; jobId?: string | null }): Promise<{
+            timeToHire: { avg_days: number; trend_pct: number; weekly_series: { week: string; avg_days: number }[] };
+            pipelineConversion: { screening_count: number; interview_count: number; offer_count: number; hired_count: number; conversion_screening_to_interview_pct: number; conversion_interview_to_offer_pct: number; conversion_offer_to_hired_pct: number };
+            offerAcceptance: { acceptance_rate_pct: number; trend_pct: number; counts: { sent: number; viewed: number; accepted: number; declined: number; negotiating: number } };
+            interviewOfferRatio: { interview_count: number; offer_count: number; ratio: number; trend_pct: number };
+            sourceQuality: { rows: { source: string; total: number; interview_count: number; offer_count: number; hired_count: number; hire_rate_pct: number }[] };
+        }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const allowed = await getReportAllowedJobIds();
+            const jobIds = params.jobId && allowed.includes(params.jobId) ? [params.jobId] : (allowed.length ? allowed : null);
+            const p = { p_date_from: params.dateFrom, p_date_to: params.dateTo, p_job_ids: jobIds };
+
+            const [tth, pipe, off, ratio, src] = await Promise.all([
+                supabase.rpc('report_time_to_hire', p).then(({ data, error }) => { if (error) throw error; return data as any; }),
+                supabase.rpc('report_pipeline_conversion', p).then(({ data, error }) => { if (error) throw error; return data as any; }),
+                supabase.rpc('report_offer_acceptance', p).then(({ data, error }) => { if (error) throw error; return data as any; }),
+                supabase.rpc('report_interview_offer_ratio', p).then(({ data, error }) => { if (error) throw error; return data as any; }),
+                supabase.rpc('report_source_quality', p).then(({ data, error }) => { if (error) throw error; return data as any; }),
+            ]);
+
+            return {
+                timeToHire: tth,
+                pipelineConversion: pipe,
+                offerAcceptance: off,
+                interviewOfferRatio: ratio,
+                sourceQuality: src,
+            };
+        },
+        exportCsv: async (params: { dateFrom: string; dateTo: string; jobId?: string | null }): Promise<{ csv: string; filename: string }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin' && role !== 'Recruiter') throw new Error('Only admins and recruiters can export reports.');
+            const allowed = await getReportAllowedJobIds();
+            const jobIds = params.jobId && allowed.includes(params.jobId) ? [params.jobId] : allowed;
+            if (!jobIds.length) return { csv: '', filename: `coreflowhr-report-${new Date().toISOString().slice(0, 10)}.csv` };
+
+            const from = new Date(params.dateFrom).toISOString();
+            const to = new Date(params.dateTo).toISOString();
+
+            const { data: candidates, error: cErr } = await supabase
+                .from('candidates')
+                .select('id, name, source, created_at, updated_at, stage, job_id, applied_date')
+                .gte('created_at', from)
+                .lte('created_at', to)
+                .in('job_id', jobIds);
+            if (cErr) throw cErr;
+            if (!candidates?.length) return { csv: '', filename: `coreflowhr-report-${new Date().toISOString().slice(0, 10)}.csv` };
+
+            const jobIdsSeen = [...new Set((candidates as any[]).map((c: any) => c.job_id))];
+            const { data: jobs } = await supabase.from('jobs').select('id, title').in('id', jobIdsSeen);
+            const jobMap = new Map((jobs || []).map((j: any) => [j.id, j.title || '']));
+
+            const cIds = (candidates as any[]).map((c: any) => c.id);
+            const { data: history } = await supabase.from('candidate_stage_history').select('candidate_id, to_stage, changed_at').in('candidate_id', cIds);
+            const { data: offers } = await supabase.from('offers').select('candidate_id, status, created_at, sent_at').in('candidate_id', cIds);
+
+            const hiredAtMap = new Map<string, string>();
+            const stagesMap = new Map<string, string[]>();
+            (history || []).forEach((h: any) => {
+                if (h.to_stage === 'Hired') {
+                    const existing = hiredAtMap.get(h.candidate_id);
+                    if (!existing || h.changed_at < existing) hiredAtMap.set(h.candidate_id, h.changed_at);
+                }
+                if (!stagesMap.has(h.candidate_id)) stagesMap.set(h.candidate_id, []);
+                if (!stagesMap.get(h.candidate_id)!.includes(h.to_stage)) stagesMap.get(h.candidate_id)!.push(h.to_stage);
+            });
+
+            const offerByCandidate = new Map<string, { status: string; sent_at: string | null }>();
+            (offers || []).sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''));
+            (offers || []).forEach((o: any) => {
+                if (!offerByCandidate.has(o.candidate_id)) {
+                    offerByCandidate.set(o.candidate_id, { status: o.status || '', sent_at: o.sent_at || o.created_at || null });
+                }
+            });
+
+            const escape = (s: string) => (s == null ? '' : String(s).replace(/"/g, '""'));
+            const header = 'Candidate Name,Job Title,Source,Date Applied,Date Hired,Days to Hire,Stages Reached,Offer Status,Offer Sent Date';
+            const rows = (candidates as any[]).map((c: any) => {
+                const hiredAt = hiredAtMap.get(c.id) || (c.stage === 'Hired' ? c.updated_at : null);
+                const applied = c.applied_date || c.created_at;
+                const days = hiredAt && applied ? Math.round((new Date(hiredAt).getTime() - new Date(applied).getTime()) / 86400000) : '';
+                const stages = (stagesMap.get(c.id) || []).join('; ');
+                const off = offerByCandidate.get(c.id);
+                return [
+                    escape(c.name || ''),
+                    escape(jobMap.get(c.job_id) || ''),
+                    escape(c.source || ''),
+                    applied ? new Date(applied).toISOString().slice(0, 10) : '',
+                    hiredAt ? new Date(hiredAt).toISOString().slice(0, 10) : '',
+                    days,
+                    escape(stages),
+                    escape(off?.status || ''),
+                    off?.sent_at ? new Date(off.sent_at).toISOString().slice(0, 10) : '',
+                ].join(',');
+            });
+            const csv = [header, ...rows].join('\r\n');
+            const filename = `coreflowhr-report-${new Date().toISOString().slice(0, 10)}.csv`;
+            return { csv, filename };
+        },
     }
 };
 

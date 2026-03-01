@@ -263,11 +263,42 @@ const OfferResponse: React.FC = () => {
     const isExpired = offer.expiresAt && new Date(offer.expiresAt) < new Date();
     const awaitingEsignature = offer.requireEsignature && offer.status === 'awaiting_signature';
     const canRespond = (offer.status === 'sent' || offer.status === 'viewed' || offer.status === 'negotiating') && !awaitingEsignature;
+    // When offer was sent for eSignature, candidate must sign via Dropbox Sign email link – don't show duplicate plain letter or Accept/Counter/Decline
+    const signViaEmailOnly = offer.requireEsignature && (offer.status === 'sent' || offer.status === 'awaiting_signature');
+
+    if (signViaEmailOnly) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12 px-4">
+                <div className="max-w-4xl mx-auto">
+                    <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-900 text-white px-8 py-6">
+                            <h1 className="text-2xl font-bold">{companyName || 'Company'}</h1>
+                            <p className="text-gray-300 text-sm mt-1">Job Offer Letter</p>
+                        </div>
+                        <div className="px-8 py-10">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-blue-900">
+                                <CheckCircle className="w-10 h-10 inline-block mr-3 align-middle text-blue-600" />
+                                <div className="inline-block align-middle">
+                                    <p className="font-semibold text-lg mb-2">Your offer letter has been sent to your email</p>
+                                    <p className="text-blue-800">
+                                        Please check your inbox for an email from Dropbox Sign. Open the link in that email to view the official offer letter and sign it. You will receive a copy of the signed document once complete.
+                                    </p>
+                                    <p className="text-sm mt-3 text-blue-700">
+                                        If you don&apos;t see the email, check your spam folder or contact {companyName || 'the company'} to resend the signing link.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4">
             <div className="max-w-4xl mx-auto">
-                {/* Letter-style offer document */}
+                {/* Letter-style offer document (only when not eSignature sign-via-email flow) */}
                 <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
                     {/* Header with company name and date */}
                     <div className="bg-gray-900 text-white px-8 py-6">

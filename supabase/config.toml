@@ -10,3 +10,10 @@ verify_jwt = false
 [functions.connect-teams-callback]
 verify_jwt = false
 
+# Dropbox Sign calls this when a document is fully signed (no JWT)
+[functions.dropbox-sign-webhook]
+verify_jwt = false
+
+# Resend inbound webhook (email.received) calls this without JWT
+[functions.receive-candidate-email]
+verify_jwt = false

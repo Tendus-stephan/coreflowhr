@@ -108,9 +108,10 @@ Creates in-app weekly digest notifications for users who have **Settings → Not
 
 - **`generate-offer-pdf`** – Generates offer PDF from offer/candidate/client data. Used by `send-offer-with-esignature`.
 - **`send-offer-with-esignature`** – Creates a Dropbox Sign signature request from the offer PDF and sends the signing link to the candidate. Sets offer status to `awaiting_signature`. **Auth:** Bearer token (recruiter).
+- **`send-offer-html-pdf`** – **HTML template flow:** Takes an offer ID, fetches offer data, fills an HTML offer letter template with placeholders (e.g. `{{candidate_name}}`, `{{position_title}}`, `{{salary_amount}}`), converts the HTML to PDF via **PDFShift API**, then sends that PDF to Dropbox Sign for the candidate to sign. Use this when you want to use a custom HTML/CSS offer letter. **Auth:** Bearer token (recruiter). **Request body:** `{ "offerId": "uuid" }`.
 - **`dropbox-sign-webhook`** – Handles Dropbox Sign events. On `signature_request_all_signed`, downloads the signed PDF, uploads to storage bucket `signed-offers`, and updates the offer to `signed` with `signed_pdf_path`.
 
-**Required secret:** `DROPBOX_SIGN_API_KEY` (Dropbox Sign API key).
+**Required secrets:** `DROPBOX_SIGN_API_KEY` (Dropbox Sign API key). For `send-offer-html-pdf` only: `PDFSHIFT_API_KEY` (from [PDFShift](https://pdfshift.io)).
 
 **Webhook:** In Dropbox Sign (HelloSign) dashboard, add webhook URL: `https://<project-ref>.supabase.co/functions/v1/dropbox-sign-webhook`. Event: `signature_request_all_signed`. Optional: set a webhook secret and verify in the function if needed.
 
@@ -146,6 +147,8 @@ supabase secrets set SUPABASE_ANON_KEY=your-anon-key
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # Optional: for eSignature on offers (Dropbox Sign)
 supabase secrets set DROPBOX_SIGN_API_KEY=your-dropbox-sign-api-key
+# Optional: for HTML→PDF offer letters (send-offer-html-pdf)
+supabase secrets set PDFSHIFT_API_KEY=your-pdfshift-api-key
 ```
 
 Or set them in the Supabase Dashboard:

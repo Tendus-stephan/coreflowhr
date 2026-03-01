@@ -1,0 +1,101 @@
+# Step-by-step: Create a fully functional offer
+
+Follow these steps to create, send, and track an offer (with eSignature via Dropbox Sign).
+
+---
+
+## 1. Prerequisites
+
+- **Dropbox Sign:** In Supabase Dashboard → Project Settings → Edge Functions, set `DROPBOX_SIGN_API_KEY`. In Dropbox Sign dashboard, set the webhook URL to `https://<your-project-ref>.supabase.co/functions/v1/dropbox-sign-webhook`.
+- **Migrations applied:** Run all migrations (including `20260228360000`, `20260228360100`, `20260228360200`, and `20260228360300`) so that `offers.reference_number`, `workspaces.offer_sequence_counter`, `workspaces.company_logo_url`, and storage bucket `company-assets` with RLS exist.
+- **Your role:** You must be **Admin** or **Recruiter** in the workspace (not Viewer).
+
+---
+
+## 2. Optional: Company profile (logo)
+
+1. Go to **Settings** → **Team**.
+2. In **Company profile**, click **Upload your company logo**.
+3. Choose a PNG, JPG, or SVG (max 2MB). Upload.
+4. If you see **"new row violates row-level security policy"**, ensure the migration `20260228360300_storage_company_assets_rls_fix.sql` has been applied, then try again.
+5. The logo will appear in the offer letter header when you send an offer.
+
+---
+
+## 3. Optional: Your profile (closing block)
+
+1. Go to **Settings** → **My Profile**.
+2. Fill **Full Name** and **Job Title** (e.g. "Senior Recruiter, Head of Talent").
+3. Check the **Offer letter closing preview** to see how your signature block will look on offer letters.
+4. Click **Save Changes**.
+
+---
+
+## 4. Create the offer (Save as Draft)
+
+1. Open the **candidate** you want to make an offer to (from the pipeline or Candidates).
+2. Go to the **Offers** tab in the candidate modal, or go to **Offers** in the main nav and click **Create Offer** (then link the offer to the candidate later).
+3. In the offer form:
+   - **Position title** (e.g. Senior Software Engineer).
+   - **Job** (select the job).
+   - **Start date**, **Salary** (amount, currency, period), **Benefits** (at least one), **Expiration date**.
+   - Optionally **Notes**.
+4. Click **Save as Draft**.
+5. A **reference number** (e.g. `CF-2026-00142`) is generated automatically. If it is missing (e.g. due to a one-off error), the offer is still created; you can use it and assign a reference manually later if needed.
+
+---
+
+## 5. Send the offer (eSignature)
+
+1. With the offer in **Draft**, click **Save & Send Offer** (from the offer modal) or **Send Offer** (from the offer card on the candidate’s Offers tab or on the main Offers page).
+2. The system **always** sends via **Dropbox Sign** (no separate “Require eSignature” checkbox):
+   - An offer letter PDF is generated (with logo, reference number, and your closing block if set).
+   - Dropbox Sign sends the candidate an email with a link to sign.
+   - The candidate’s stage is set to **Offer**.
+3. The candidate receives **one email** from Dropbox Sign with subject like “Sign your offer letter – CF-2026-00142”. They sign in the Dropbox Sign flow.
+4. After they sign, the webhook updates the offer to **Signed** and stores the signed PDF. You can use **Download signed document** from the offer card.
+
+---
+
+## 6. After sending
+
+- **Offers** list: You can search/filter by **reference number**, candidate, job, or position.
+- **Offer status:** Draft → Sent → Awaiting Signature → Signed (or Viewed / Negotiating / Accepted / Declined / Expired as applicable).
+- **Candidate:** Moved to **Offer** stage when the offer is sent; you can move to **Hired** when they accept (or use your workflow).
+
+---
+
+## 7. If the offer letter looks plain (no navy bar, logo, reference number)
+
+The **official offer letter** the candidate sees is the **PDF** sent to Dropbox Sign. That PDF is built by the **generate-offer-pdf** Edge Function. If the document in Dropbox Sign still looks like a plain letter (e.g. just “OFFER LETTER”, company name, and bullet points with no navy bar, logo, or reference number), the function in your project is likely an old version.
+
+**Fix:** Redeploy the Edge Function so it uses the current template (header with logo/company + date + reference, navy bar, “Offer of Employment”, two-column details, recruiter closing, footer):
+
+- **Supabase Dashboard** → Edge Functions → `generate-offer-pdf` → Deploy from your repo, or  
+- From your repo: `supabase functions deploy generate-offer-pdf`
+
+After redeploying, **new** offers will generate the template-style PDF. Existing sent offers will not change.
+
+---
+
+## 8. If logo upload still fails (RLS)
+
+1. In Supabase Dashboard → **SQL Editor**, run the migration `20260228360300_storage_company_assets_rls_fix.sql` (it drops and recreates the `company-assets` policies using `split_part` and adds a SELECT policy).
+2. Confirm your user is in `workspace_members` with role **Admin** or **Recruiter** for the workspace you’re in.
+3. Try uploading the logo again from **Settings** → **Team** → **Company profile**.
+
+---
+
+## Summary
+
+- **Template PDF** = generated by `generate-offer-pdf` (deploy it to get the styled letter with logo, reference, navy bar).
+- **CoreflowHR response page** = when the candidate opens your respond link and the offer was sent for eSignature, they now see only “Your offer letter has been sent to your email” and are directed to sign via the Dropbox Sign link (no duplicate plain letter, no Accept/Counter/Decline on that page).
+
+---
+
+## Summary flow
+
+1. **Settings (optional):** Upload company logo (Team), set name/job title (My Profile).
+2. **Create offer:** Open candidate → Offers tab (or Offers page) → fill form → **Save as Draft** (reference number is generated).
+3. **Send offer:** **Save & Send Offer** or **Send Offer** → always via Dropbox Sign → candidate gets one email to sign.
+4. **Track:** Use reference number in list/search; download signed PDF when status is **Signed**.

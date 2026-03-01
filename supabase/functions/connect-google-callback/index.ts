@@ -91,16 +91,30 @@ serve(async (req) => {
       return Response.redirect(`${frontendUrl}/settings?tab=integrations&integration_error=${encodeURIComponent('No tokens received')}`, 302);
     }
 
+    let googleEmail = '';
+    try {
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      if (userInfoRes.ok) {
+        const userInfo = await userInfoRes.json();
+        googleEmail = userInfo.email || '';
+      }
+    } catch (_) {
+      // Non-fatal; we can still store tokens
+    }
+
     // Initialize Supabase client with service role key for database operations
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Store tokens in integrations table
+    // Store tokens and optional Google account email in integrations table
     const config = {
       access_token,
       refresh_token,
       expires_at: Date.now() + (expires_in * 1000),
       token_type: tokens.token_type || 'Bearer',
+      google_email: googleEmail || undefined,
     };
 
     // Map short key to display name

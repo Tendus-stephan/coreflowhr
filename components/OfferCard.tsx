@@ -92,6 +92,9 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     {jobTitle && (
                         <p className="text-sm text-gray-600">Job: {jobTitle}</p>
                     )}
+                    {offer.referenceNumber && (
+                        <p className="text-xs text-gray-500 mt-1">Ref: {offer.referenceNumber}</p>
+                    )}
                 </div>
                 {offer.status === 'draft' && !readOnly && (
                     <button

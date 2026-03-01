@@ -47,10 +47,12 @@ const Offers: React.FC = () => {
                 filtered = filtered.filter(offer => {
                     const candidateName = offer.candidateId ? candidateMap.get(offer.candidateId)?.toLowerCase() || '' : 'general offer';
                     const jobTitle = jobMap.get(offer.jobId)?.toLowerCase() || '';
+                    const ref = (offer.referenceNumber || '').toLowerCase();
                     return (
                         offer.positionTitle.toLowerCase().includes(query) ||
                         candidateName.includes(query) ||
-                        jobTitle.includes(query)
+                        jobTitle.includes(query) ||
+                        ref.includes(query)
                     );
                 });
             }
@@ -253,7 +255,7 @@ const Offers: React.FC = () => {
                         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search by candidate name, job title, or position..."
+                            placeholder="Search by reference, candidate, job, or position..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"

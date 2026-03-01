@@ -151,6 +151,8 @@ export interface Interview {
   notes?: string;
   status?: 'Scheduled' | 'Completed' | 'Cancelled';
   attendees?: InterviewAttendee[];
+  calendarSyncStatus?: 'synced' | 'failed' | 'pending' | 'not_connected';
+  calendarSyncError?: string;
 }
 
 export interface InterviewAttendee {
@@ -221,6 +223,8 @@ export interface EmailLog {
   threadId?: string;
   replyToId?: string;
   createdAt: string;
+  direction?: 'outbound' | 'inbound';
+  read?: boolean;
 }
 
 // --- Settings & Billing Types ---
@@ -265,6 +269,7 @@ export interface Integration {
   active: boolean;
   logo: string;
   connectedDate?: string;
+  connectedEmail?: string;
 }
 
 export interface DashboardStats {
@@ -351,6 +356,8 @@ export interface EmailLog {
   threadId?: string;
   replyToId?: string;
   createdAt: string;
+  direction?: 'outbound' | 'inbound';
+  read?: boolean;
 }
 
 // --- Settings & Billing Types ---
@@ -395,6 +402,7 @@ export interface Integration {
   active: boolean;
   logo: string;
   connectedDate?: string;
+  connectedEmail?: string;
 }
 
 export interface DashboardStats {
@@ -484,6 +492,8 @@ export interface Offer {
   requireEsignature?: boolean;
   /** Storage path for signed PDF (used to generate download URL). */
   signedPdfPath?: string | null;
+  /** Generated reference e.g. CF-2026-00142. Null if generation failed. */
+  referenceNumber?: string | null;
 }
 
 export interface OfferTemplate {

@@ -44,7 +44,7 @@ serve(async (req) => {
 
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('id, job_id, candidate_id, position_title, require_esignature')
+      .select('id, job_id, candidate_id, position_title, require_esignature, reference_number')
       .eq('id', offerId)
       .single();
 
@@ -113,7 +113,8 @@ serve(async (req) => {
     form.append('signers[0][name]', signerName);
     form.append('signers[0][email_address]', signerEmail);
     form.append('title', `Offer Letter - ${(offer as { position_title?: string }).position_title || 'Offer'}`);
-    form.append('subject', 'Sign your offer letter');
+    const ref = (offer as { reference_number?: string | null }).reference_number;
+    form.append('subject', ref ? `Sign your offer letter – ${ref}` : 'Sign your offer letter');
     form.append('message', 'Please sign the attached offer letter. You will receive a copy once signed.');
     form.append('metadata[offer_id]', String(offerId));
     // Use test mode so this works on free Dropbox Sign accounts

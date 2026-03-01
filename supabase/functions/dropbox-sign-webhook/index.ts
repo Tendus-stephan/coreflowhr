@@ -19,9 +19,24 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const eventType = body?.event?.event_type;
-    const signatureRequest = body?.signature_request;
+    // Dropbox Sign sends webhooks as multipart/form-data with JSON in a field named "json"
+    let body: Record<string, unknown> = {};
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const jsonField = formData.get('json');
+      if (typeof jsonField === 'string') {
+        try {
+          body = JSON.parse(jsonField) as Record<string, unknown>;
+        } catch (_) {
+          console.error('Webhook: failed to parse json field');
+        }
+      }
+    } else {
+      body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    }
+    const eventType = (body?.event as { event_type?: string } | undefined)?.event_type;
+    const signatureRequest = body?.signature_request as { signature_request_id?: string; metadata?: Record<string, string> } | undefined;
     const requestId = signatureRequest?.signature_request_id;
 
     // Dropbox Sign "Test" sends a minimal payload; return their expected string so the test passes.
@@ -97,20 +112,30 @@ serve(async (req) => {
       });
     }
 
-    const { error: updateError } = await supabase
+    // Update by offer id (metadata is set by us when sending). Don't require esignature_request_id match
+    // so we don't miss updates due to type/format differences in webhook payload.
+    const { data: updated, error: updateError } = await supabase
       .from('offers')
       .update({
         status: 'signed',
         signed_pdf_path: storagePath,
         responded_at: new Date().toISOString(),
       })
-      .eq('id', offerId)
-      .eq('esignature_request_id', requestId);
+      .eq('id', String(offerId))
+      .select('id')
+      .maybeSingle();
 
     if (updateError) {
       console.error('Offer update failed', updateError);
       return new Response(JSON.stringify({ error: 'Failed to update offer' }), {
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!updated) {
+      console.error('Webhook: no offer found for id', offerId);
+      return new Response(JSON.stringify({ error: 'Offer not found for id' }), {
+        status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

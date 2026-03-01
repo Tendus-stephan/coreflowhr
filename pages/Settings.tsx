@@ -790,8 +790,12 @@ const Settings: React.FC = () => {
 
     // Team / workspace state
     const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; role: User['role']; isCurrentUser: boolean }[]>([]);
+    const [workspaceInfo, setWorkspaceInfo] = useState<{ workspaceId: string; name: string; companyLogoUrl?: string } | null>(null);
     const [isLoadingTeam, setIsLoadingTeam] = useState(false);
     const [teamError, setTeamError] = useState<string | null>(null);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+    const [profileWorkspaceName, setProfileWorkspaceName] = useState<string>('');
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [teamPage, setTeamPage] = useState(0);
     const TEAM_PAGE_SIZE = 8;
@@ -1665,7 +1669,10 @@ const Settings: React.FC = () => {
         setTeamError(null);
         api.workspaces.getWorkspaceWithMembers()
             .then((workspace) => {
-                if (!cancelled) setTeamMembers(workspace.members);
+                if (!cancelled) {
+                    setTeamMembers(workspace.members);
+                    setWorkspaceInfo({ workspaceId: workspace.workspaceId, name: workspace.name, companyLogoUrl: workspace.companyLogoUrl });
+                }
             })
             .catch((err: any) => {
                 console.error('Error loading team:', err);
@@ -1675,6 +1682,14 @@ const Settings: React.FC = () => {
                 if (!cancelled) setIsLoadingTeam(false);
             });
         return () => { cancelled = true; };
+    }, [activeTab, user?.id]);
+
+    // Load workspace name for profile closing preview
+    useEffect(() => {
+        if (activeTab !== 'profile' || !user) return;
+        api.workspaces.getWorkspaceWithMembers()
+            .then((w) => setProfileWorkspaceName(w.name || 'Your company'))
+            .catch(() => setProfileWorkspaceName('Your company'));
     }, [activeTab, user?.id]);
 
     if (!user) return (
@@ -1849,7 +1864,7 @@ const Settings: React.FC = () => {
                                         type="text" 
                                         value={profileData.jobTitle}
                                         onChange={(e) => setProfileData({...profileData, jobTitle: e.target.value})}
-                                        placeholder="Recruiter"
+                                        placeholder="e.g. Senior Recruiter, Head of Talent"
                                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
                                     />
                                 </div>
@@ -1862,6 +1877,14 @@ const Settings: React.FC = () => {
                                         placeholder="+1 (555) 000-0000" 
                                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
                                     />
+                                </div>
+                            </div>
+                            {/* Offer letter closing preview */}
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                <p className="text-sm font-bold text-gray-900 mb-2">Offer letter closing preview</p>
+                                <p className="text-xs text-gray-500 mb-3">This is how your signature block will appear on offer letters.</p>
+                                <div className="text-sm text-gray-800 font-mono whitespace-pre-wrap min-h-[4rem]">
+                                    {[profileData.name?.trim(), profileData.jobTitle?.trim(), profileData.email?.trim(), profileWorkspaceName || 'Your company'].filter(Boolean).join('\n') || 'Add your name and email above.'}
                                 </div>
                             </div>
                             <div className="flex justify-end pt-4 border-t border-gray-100">
@@ -1885,6 +1908,67 @@ const Settings: React.FC = () => {
                                     <p className="text-sm text-gray-500 mt-1">
                                         Manage who has access to this workspace and their roles.
                                     </p>
+                                </div>
+                            </div>
+
+                            {/* Company profile / logo */}
+                            <div className="rounded-xl border border-gray-200 p-4 space-y-4">
+                                <h3 className="text-sm font-bold text-gray-900">Company profile</h3>
+                                <p className="text-xs text-gray-500">Logo appears in the header of offer letters. PNG, JPG, or SVG. Max 2MB. Transparent background recommended.</p>
+                                <div className="flex flex-wrap items-start gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <input
+                                            type="file"
+                                            accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml"
+                                            className="hidden"
+                                            id="company-logo-upload"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file || !workspaceInfo) return;
+                                                setLogoUploadError(null);
+                                                const ext = file.name.split('.').pop()?.toLowerCase();
+                                                const allowed = ['png', 'jpg', 'jpeg', 'svg'];
+                                                if (!ext || !allowed.includes(ext)) {
+                                                    setLogoUploadError('Please use PNG, JPG, or SVG. This file type is not supported.');
+                                                    return;
+                                                }
+                                                if (file.size > 2 * 1024 * 1024) {
+                                                    setLogoUploadError('File is too large. Maximum size is 2MB.');
+                                                    return;
+                                                }
+                                                setIsUploadingLogo(true);
+                                                try {
+                                                    const { publicUrl } = await api.workspaces.uploadCompanyLogo(workspaceInfo.workspaceId, file);
+                                                    await api.workspaces.updateWorkspace({ companyLogoUrl: publicUrl });
+                                                    setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: publicUrl } : null);
+                                                } catch (err: any) {
+                                                    setLogoUploadError(err?.message || 'Upload failed');
+                                                } finally {
+                                                    setIsUploadingLogo(false);
+                                                    e.target.value = '';
+                                                }
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="company-logo-upload"
+                                            className={`flex flex-col items-center justify-center w-48 h-24 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${isUploadingLogo ? 'bg-gray-50 border-gray-200' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}`}
+                                        >
+                                            {isUploadingLogo ? (
+                                                <Loader2 size={24} className="animate-spin text-gray-400" />
+                                            ) : (
+                                                <span className="text-xs text-gray-500 text-center px-2">Upload your company logo</span>
+                                            )}
+                                        </label>
+                                        {logoUploadError && <p className="text-xs text-red-600">{logoUploadError}</p>}
+                                    </div>
+                                    {/* Preview as in offer header */}
+                                    <div className="rounded-lg bg-[#1e3a5f] px-4 py-3 flex items-center min-h-[50px] max-w-[220px]">
+                                        {workspaceInfo?.companyLogoUrl ? (
+                                            <img src={workspaceInfo.companyLogoUrl} alt="Company logo" className="max-h-[50px] max-w-[180px] object-contain" />
+                                        ) : (
+                                            <span className="text-white text-sm font-medium">{workspaceInfo?.name || 'Company name'}</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -1921,6 +2005,7 @@ const Settings: React.FC = () => {
                                                     setTeamError(null);
                                                     const workspace = await api.workspaces.getWorkspaceWithMembers();
                                                     setTeamMembers(workspace.members);
+                                                    setWorkspaceInfo({ workspaceId: workspace.workspaceId, name: workspace.name, companyLogoUrl: workspace.companyLogoUrl });
                                                     setTeamPage(0);
                                                     setTeamSearchQuery('');
                                                 } catch (error: any) {
@@ -2482,6 +2567,9 @@ const Settings: React.FC = () => {
                                                 <div>
                                                     <h3 className="font-bold text-gray-900">{integration.name}</h3>
                                                     <p className="text-sm text-gray-500">{integration.desc}</p>
+                                                    {integration.active && integration.connectedEmail && (
+                                                        <p className="text-xs text-gray-500 mt-1">Connected as {integration.connectedEmail}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <button 

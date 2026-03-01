@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Users, Calendar, Settings, LogOut, User as UserIcon, FileText, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Users, Calendar, Settings, LogOut, User as UserIcon, FileText, ChevronLeft, ChevronRight, Building2, BarChart3 } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -85,6 +85,7 @@ const Sidebar: React.FC = () => {
         { name: 'Candidates', path: '/candidates', icon: Users },
         { name: 'Clients', path: '/clients', icon: Building2 },
         { name: 'Calendar', path: '/calendar', icon: Calendar },
+        { name: 'Reports', path: '/reports', icon: BarChart3 },
         ...(!profileLoaded || userRole !== 'HiringManager' ? [{ name: 'Offers', path: '/offers', icon: FileText }] : []),
         { name: 'Settings', path: '/settings', icon: Settings },
       ];

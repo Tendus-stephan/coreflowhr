@@ -38,7 +38,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [requireEsignature, setRequireEsignature] = useState(false);
     const actionInFlightRef = useRef(false);
 
     useEffect(() => {
@@ -214,7 +213,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     benefits: benefits,
                     notes: notes.trim() || undefined,
                     expiresAt: expiresAt,
-                    requireEsignature: requireEsignature || undefined,
                 });
             } else {
                 await api.offers.create({
@@ -228,7 +226,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     benefits: benefits, // Required (at least one)
                     notes: notes.trim() || undefined, // Optional
                     expiresAt: expiresAt, // Required
-                    requireEsignature: requireEsignature || undefined,
                 });
             }
 
@@ -280,7 +277,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
         try {
             setSending(true);
             setError(null);
-            await api.offers.send(offerId, { requireEsignature });
+            await api.offers.send(offerId);
             onSave();
             onClose();
         } catch (err: any) {
@@ -607,17 +604,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
 
                 {/* Footer */}
                 <div className="p-6 border-t border-gray-200 space-y-3">
-                    {(offer?.status === 'draft' || !offer) && (
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={requireEsignature}
-                                onChange={(e) => setRequireEsignature(e.target.checked)}
-                                className="rounded border-gray-300 text-black focus:ring-black/5"
-                            />
-                            <span>Require eSignature (formal signed document via Dropbox Sign)</span>
-                        </label>
-                    )}
                     <div className="flex justify-end gap-3">
                         <Button
                             variant="outline"

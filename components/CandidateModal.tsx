@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
-import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
+import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply } from 'lucide-react';
 import { Button } from './ui/Button';
 import { generateCandidateAnalysis, draftEmail, draftOutreachMessage } from '../services/geminiService';
 import { api } from '../services/api';
@@ -23,20 +23,37 @@ interface CandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (c: Candidate) => void;
+  initialActiveTab?: 'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers';
+  initialEmailSubTab?: 'compose' | 'history';
 }
 
-export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpen, onClose, onUpdate }) => {
+export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpen, onClose, onUpdate, initialActiveTab, initialEmailSubTab }) => {
   const { setCandidateModalOpen } = useModal();
-  
+
   // Update modal context when modal opens/closes (and reset when unmounting so AI button shows on other pages)
   useEffect(() => {
     setCandidateModalOpen(isOpen);
     return () => setCandidateModalOpen(false);
   }, [isOpen, setCandidateModalOpen]);
-  
+
+  // Apply URL deep-link tab when modal opens (e.g. from notification "Candidate replied")
+  useEffect(() => {
+    if (isOpen && candidate?.id && (initialActiveTab || initialEmailSubTab)) {
+      if (initialActiveTab) setActiveTab(initialActiveTab);
+      if (initialEmailSubTab) setEmailSubTab(initialEmailSubTab);
+    }
+  }, [isOpen, candidate?.id, initialActiveTab, initialEmailSubTab]);
+
+  // Clear reply context when candidate changes so we don't send with wrong thread
+  useEffect(() => {
+    setReplyContext(null);
+  }, [candidate?.id]);
+
   const [loadingAI, setLoadingAI] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers'>('overview');
   const [emailSubTab, setEmailSubTab] = useState<'compose' | 'history'>('compose');
+  const [emailUnreadCount, setEmailUnreadCount] = useState(0);
+  const [emailHistoryRefreshKey, setEmailHistoryRefreshKey] = useState(0);
   const [interviewFeedbacks, setInterviewFeedbacks] = useState<any[]>([]);
   const [candidateInterviews, setCandidateInterviews] = useState<any[]>([]);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
@@ -52,6 +69,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [emailError, setEmailError] = useState<string | null>(null);
   const [showConfirmSend, setShowConfirmSend] = useState(false);
   const [currentEmailType, setCurrentEmailType] = useState<'Screening' | 'Offer' | 'Hired' | 'Rejection' | null>(null);
+  const [replyContext, setReplyContext] = useState<{ replyToId: string; threadId: string } | null>(null);
   const [offers, setOffers] = useState<any[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [editingOffer, setEditingOffer] = useState<any | null>(null);
@@ -72,6 +90,11 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       setUserRole(r);
     }).catch(() => {});
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !candidate?.id) return;
+    api.candidates.getUnreadReplyCount(candidate.id).then(setEmailUnreadCount).catch(() => setEmailUnreadCount(0));
+  }, [isOpen, candidate?.id]);
 
   useEffect(() => {
       const fetchJob = async () => {
@@ -371,12 +394,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           console.log('[Send Email] Sending email to candidate:', candidate.email);
           const { error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
-                  to: candidate.email, // Email goes to candidate, not user
+                  to: candidate.email,
                   subject: emailDraft.subject,
                   content: emailDraft.content,
-                  fromName: 'Recruiter', // Always use "Recruiter" as sender name
+                  fromName: 'Recruiter',
                   candidateId: candidate.id,
-                  emailType: currentEmailType || 'Custom'
+                  emailType: currentEmailType || 'Custom',
+                  ...(replyContext ? { replyToId: replyContext.replyToId, threadId: replyContext.threadId || undefined } : {})
               }
           });
 
@@ -387,6 +411,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               console.log('[Send Email] Email sent successfully to candidate:', candidate.email);
               setEmailSent(true);
               setEmailError(null);
+              setReplyContext(null);
+              setEmailHistoryRefreshKey((k) => k + 1);
 
               // Play notification sound for successful email send
               const { playNotificationSound } = await import('../utils/soundUtils');
@@ -748,11 +774,14 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
             >
                 Portfolio
             </button>
-            <button 
+            <button
                 onClick={() => setActiveTab('email')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'email' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === 'email' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
             >
                 Communication
+                {emailUnreadCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" aria-label={`${emailUnreadCount} unread reply`} />
+                )}
             </button>
             <button 
                 onClick={() => setActiveTab('notes')}
@@ -1267,7 +1296,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             ) : (
                                 /* Show regular email compose for candidates with email */
                                 <>
-                                    <div className="flex gap-3 overflow-x-auto pb-2">
+                                    <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
+                                        <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={() => { setCurrentEmailType('Custom'); setEmailDraft({ subject: '', content: '' }); setEmailSent(false); setEmailError(null); }}
+                                        >
+                                            <Mail size={14} className="mr-1.5" />
+                                            Write your own
+                                        </Button>
                                         <Button 
                                             size="sm" 
                                             variant="outline" 
@@ -1309,6 +1346,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     
                                     {loadingAI && <div className="text-sm text-gray-500 animate-pulse flex items-center gap-2"><BrainCircuit size={14} className="animate-spin"/> Generating draft...</div>}
 
+                                    {replyContext && (
+                                        <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
+                                            <Reply size={14} className="shrink-0" />
+                                            <span>Replying in this thread. Your message will be linked to the previous email.</span>
+                                        </div>
+                                    )}
                                     {emailDraft && (
                                         <div className="space-y-4">
                                             <div className="space-y-2">
@@ -1347,7 +1390,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                         icon={<Mail size={16}/>} 
                                                         variant="black" 
                                                         onClick={handleSendEmailClick}
-                                                        disabled={sendingEmail || !emailDraft}
+                                                        disabled={sendingEmail || !emailDraft || !emailDraft.subject.trim() || !emailDraft.content.trim()}
                                                     >
                                                         {sendingEmail ? 'Sending...' : 'Send Email'}
                                                     </Button>
@@ -1359,7 +1402,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     {!emailDraft && !loadingAI && (
                                         <div className="text-center py-12 text-gray-500">
                                             <Mail size={48} className="mx-auto mb-4 opacity-50" />
-                                            <p className="text-sm">Click a button above to generate an email draft</p>
+                                            <p className="text-sm">Click &quot;Write your own&quot; to compose from scratch, or choose a template to generate a draft</p>
                                         </div>
                                     )}
                                 </>
@@ -1368,7 +1411,16 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     )}
 
                     {emailSubTab === 'history' && (
-                        <EmailHistory candidateId={candidate.id} />
+                        <EmailHistory
+                            key={emailHistoryRefreshKey}
+                            candidateId={candidate.id}
+                            candidateEmail={candidate.email}
+                            onUnreadCountChange={() => api.candidates.getUnreadReplyCount(candidate.id).then(setEmailUnreadCount).catch(() => {})}
+                            onReplyClick={(email) => {
+                                setReplyContext({ replyToId: email.id, threadId: email.threadId ?? '' });
+                                setEmailSubTab('compose');
+                            }}
+                        />
                     )}
                 </div>
             )}

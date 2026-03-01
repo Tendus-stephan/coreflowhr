@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Interview } from '../types';
-import { X, Calendar as CalendarIcon, Clock, Video, Phone, MapPin, User, Briefcase, FileText, ExternalLink } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Clock, Video, Phone, MapPin, User, Briefcase, FileText, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { api } from '../services/api';
 
@@ -25,6 +25,7 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
   readOnly = false
 }) => {
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -218,6 +219,39 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
                 <h3 className="font-semibold text-gray-900">Notes</h3>
               </div>
               <p className="text-gray-700 ml-8 whitespace-pre-wrap">{interview.notes}</p>
+            </div>
+          )}
+
+          {/* Calendar sync failed - retry */}
+          {interview.calendarSyncStatus === 'failed' && !readOnly && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <AlertTriangle size={20} className="text-amber-600" />
+                <h3 className="font-semibold text-amber-900">Calendar sync failed</h3>
+              </div>
+              <p className="text-amber-800 text-sm ml-8 mb-2">
+                {interview.calendarSyncError || 'Could not sync to Google Calendar.'}
+              </p>
+              <div className="ml-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={syncing}
+                  onClick={async () => {
+                    setSyncing(true);
+                    try {
+                      await api.interviews.syncToCalendar(interview.id, 'create');
+                      onUpdate?.();
+                    } catch (e) {
+                      console.error('Retry sync failed:', e);
+                    } finally {
+                      setSyncing(false);
+                    }
+                  }}
+                >
+                  {syncing ? 'Syncing...' : 'Retry sync'}
+                </Button>
+              </div>
             </div>
           )}
 

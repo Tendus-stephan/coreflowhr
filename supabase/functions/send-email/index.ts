@@ -71,7 +71,7 @@ function sanitizeHtml(html: string): string {
   return sanitized;
 }
 
-// Create professional email template with clean styling and subtle branding
+// Professional email template: compact layout, no excess whitespace, table-based for client compatibility
 function createEmailTemplate(content: string, logoUrl: string, companyName: string, companyWebsite: string, recipientEmail?: string): string {
   return `
 <!DOCTYPE html>
@@ -81,38 +81,39 @@ function createEmailTemplate(content: string, logoUrl: string, companyName: stri
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Email</title>
+  <style type="text/css">
+    .content-body p { margin: 0 0 12px 0; }
+    .content-body p:last-child { margin-bottom: 0; }
+  </style>
   <!--[if mso]>
   <style type="text/css">
-    body, table, td {font-family: Arial, sans-serif !important;}
+    body, table, td { font-family: Arial, sans-serif !important; }
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb;">
+<body style="margin: 0; padding: 0; background-color: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f5f7;">
     <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-          <!-- Logo Header -->
+      <td align="center" style="padding: 24px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
           <tr>
-            <td align="center" style="padding: 30px 30px 20px 30px;">
-              <img src="${logoUrl}" alt="${companyName}" width="180" style="display: block; max-width: 180px; height: auto; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
+            <td align="center" style="padding: 20px 24px 14px 24px;">
+              <img src="${logoUrl}" alt="${companyName}" width="160" style="display: block; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
             </td>
           </tr>
-          <!-- Content Area with proper padding -->
           <tr>
-            <td style="padding: 0 30px 40px 30px;">
-              <div style="color: #1f2937; font-size: 16px; line-height: 1.75; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+            <td style="padding: 0 28px 24px 28px;">
+              <div class="content-body" style="color: #1f2937; font-size: 15px; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                 ${content}
               </div>
             </td>
           </tr>
-          <!-- Professional Footer with subtle branding -->
           <tr>
-            <td style="padding: 0 30px 30px 30px;">
-              <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
-                <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5; text-align: center;">
+            <td style="padding: 0 28px 20px 28px;">
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.4; text-align: center;">
                   <span style="color: #6b7280;">Sent via CoreflowHR</span>
-                  <span style="color: #d1d5db; margin: 0 8px;">|</span>
+                  <span style="color: #d1d5db; margin: 0 6px;">|</span>
                   <a href="${companyWebsite}/unsubscribe${recipientEmail ? `?email=${encodeURIComponent(recipientEmail)}` : ''}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
                 </p>
               </div>
@@ -189,6 +190,7 @@ serve(async (req) => {
     const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
     const fromDefaultName = Deno.env.get('FROM_NAME') || 'Coreflow';
     const forceToEmail = Deno.env.get('RESEND_FORCE_TO') || null;
+    const replyToEmail = Deno.env.get('REPLY_TO_EMAIL') || null; // e.g. replies@coreflowhr.com for two-way email
 
     console.log('[Email Send] Starting email send process', {
       timestamp: new Date().toISOString(),
@@ -206,7 +208,33 @@ serve(async (req) => {
       );
     }
 
-    const { to, subject, content, fromName, candidateId, emailType, threadId, replyToId } = await req.json();
+    const { to, subject, content, fromName, candidateId, emailType, threadId: requestedThreadId, replyToId } = await req.json();
+    
+    // Thread ID for threading replies: use provided, or reuse candidate's existing thread, or generate new
+    let threadId: string = requestedThreadId && typeof requestedThreadId === 'string' ? requestedThreadId : crypto.randomUUID();
+    if ((!requestedThreadId || typeof requestedThreadId !== 'string') && candidateId && typeof candidateId === 'string') {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+        if (supabaseServiceKey) {
+          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          const { data: lastLog } = await supabase
+            .from('email_logs')
+            .select('thread_id')
+            .eq('candidate_id', candidateId)
+            .not('thread_id', 'is', null)
+            .order('sent_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (lastLog?.thread_id) {
+            threadId = lastLog.thread_id;
+          }
+        }
+      } catch (_) {
+        // keep threadId as new UUID on any error
+      }
+    }
     
     // Determine final recipient early for logging
     const finalRecipient = forceToEmail || to;
@@ -260,39 +288,21 @@ serve(async (req) => {
         return part.replace(/\n/g, '<br>');
       }).join('');
     } else {
-      // Plain text content – normalize spacing into professional paragraphs
+      // Plain text: single Enter = new line (<br>), double Enter = new paragraph (<p>)
       const normalized = contentStr.replace(/\r\n/g, '\n').trim();
-      const lines = normalized.split('\n');
+      const rawParagraphs = normalized ? normalized.split(/\n\n+/) : [''];
+      const paragraphs = rawParagraphs.map((block) => block.trim());
 
-      const paragraphs: string[] = [];
-      let current: string[] = [];
-
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line) {
-          if (current.length) {
-            paragraphs.push(current.join(' '));
-            current = [];
-          }
-        } else {
-          current.push(line);
-        }
-      }
-      if (current.length) {
-        paragraphs.push(current.join(' '));
-      }
-
-      // If everything was blank, fall back to a single empty paragraph
-      if (paragraphs.length === 0) {
-        paragraphs.push('');
-      }
-
-      // Wrap paragraphs with consistent spacing; email clients ignore extra <p> margins nicely
+      // Within each paragraph, preserve single newlines as <br>; escape HTML first
       htmlContent = paragraphs
-        .map((p) => `<p style="margin: 0 0 16px 0;">${escapeHtml(p)}</p>`)
+        .map((block) => {
+          const escaped = escapeHtml(block);
+          const withBreaks = escaped.replace(/\n/g, '<br>');
+          return `<p style="margin: 0 0 12px 0;">${withBreaks}</p>`;
+        })
         .join('');
 
-      // Convert plain URLs to clickable links inside the escaped content
+      // Convert plain URLs to clickable links (after escaping, so safe)
       htmlContent = htmlContent.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" style="color: #2563eb; text-decoration: underline;">$1</a>');
     }
 
@@ -338,13 +348,57 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    const emailPayload = {
+    const emailPayload: Record<string, unknown> = {
       from: `${fromName || fromDefaultName} <${fromEmail}>`,
       to: finalRecipient,
       subject,
       text: String(content),
       html: htmlContent,
     };
+    if (replyToEmail) {
+      emailPayload.reply_to = replyToEmail;
+    }
+    const messageIdDomain = replyToEmail?.includes('@') ? replyToEmail.split('@')[1] : 'coreflowhr.com';
+    const messageIdStr = `<${threadId}@${messageIdDomain}>`;
+
+    // RFC 5322 threading: In-Reply-To and References so clients thread replies correctly
+    let inReplyTo: string | null = null;
+    let references: string | null = null;
+    if (replyToId && typeof replyToId === 'string') {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+        if (supabaseServiceKey) {
+          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          const { data: parentLog } = await supabase
+            .from('email_logs')
+            .select('message_id')
+            .eq('id', replyToId)
+            .single();
+          if (parentLog?.message_id) {
+            inReplyTo = parentLog.message_id;
+            references = parentLog.message_id;
+          }
+        }
+      } catch (_) {
+        // continue without In-Reply-To on error
+      }
+    }
+
+    const headers: Record<string, string> = {
+      'Message-ID': messageIdStr,
+      'X-Thread-ID': threadId,
+    };
+    if (inReplyTo) {
+      headers['In-Reply-To'] = inReplyTo;
+      if (references) headers['References'] = references;
+    }
+    // List-Unsubscribe (RFC 8058 / CAN-SPAM best practice) for better deliverability
+    const unsubscribeUrl = `${companyWebsite}/unsubscribe${to ? `?email=${encodeURIComponent(to)}` : ''}`;
+    headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`;
+    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    emailPayload.headers = headers;
 
     console.log('[Email Send] 📧 Sending to Resend API', {
       recipient: finalRecipient,
@@ -436,8 +490,11 @@ serve(async (req) => {
                     content: htmlContent,
                     email_type: emailType || 'Custom',
                     status: 'sent',
-                    thread_id: threadId || null,
+                    direction: 'outbound',
+                    read: false,
+                    thread_id: threadId,
                     reply_to_id: replyToId || null,
+                    message_id: messageIdStr,
                     sent_at: new Date().toISOString()
                   });
 

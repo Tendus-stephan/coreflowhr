@@ -63,12 +63,13 @@ serve(async (req) => {
     const state = crypto.randomUUID();
     const stateParam = typeof rawId === 'string' && rawId.includes('_') ? rawId : `${user.id}_${integrationId}`;
     
-    // Determine scopes based on integration (use short key)
-    const scopes = integrationId === 'gcal' 
-      ? 'https://www.googleapis.com/auth/calendar'
+    // Determine scopes based on integration (use short key). Include userinfo.email to show connected account in Settings.
+    const baseScope = 'https://www.googleapis.com/auth/userinfo.email';
+    const scopes = integrationId === 'gcal'
+      ? `${baseScope} https://www.googleapis.com/auth/calendar`
       : integrationId === 'meet'
-      ? 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/meetings.space.created'
-      : 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/meetings.space.created';
+      ? `${baseScope} https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/meetings.space.created`
+      : `${baseScope} https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/meetings.space.created`;
 
     // Build OAuth URL - callback goes to Edge Function
     const redirectUri = `${supabaseUrl}/functions/v1/connect-google-callback`;

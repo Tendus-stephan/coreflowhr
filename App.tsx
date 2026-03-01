@@ -28,6 +28,7 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
 import Invite from './pages/Invite';
+import Reports from './pages/Reports';
 
 const Layout = () => {
   const location = useLocation();
@@ -381,6 +382,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Clients />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports" 
+          element={
+            <ProtectedRoute>
+              <Reports />
             </ProtectedRoute>
           } 
         />

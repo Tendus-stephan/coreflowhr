@@ -1,12 +1,28 @@
 /**
  * Returns the app path to navigate to for a notification, or '' if no link.
  */
+/** Extract candidateId from desc when format is "... [candidateId:uuid]" */
+function parseCandidateIdFromDesc(desc: string): string | null {
+  const match = desc.match(/\s\[candidateId:([a-f0-9-]+)\]$/i);
+  return match ? match[1] : null;
+}
+
 export function getNotificationLink(type: string, desc: string): string {
+  if (type === 'candidate_replied') {
+    const candidateId = parseCandidateIdFromDesc(desc);
+    if (candidateId) return `/candidates?candidateId=${candidateId}&tab=email&emailSubTab=history`;
+    return '/candidates';
+  }
   switch (type) {
     case 'counter_offer_received':
     case 'offer_accepted':
     case 'offer_declined':
       return '/offers';
+    case 'candidate_replied': {
+      const match = desc && /\[candidateId:([a-f0-9-]+)\]$/i.exec(desc);
+      const id = match ? match[1] : '';
+      return id ? `/candidates?candidateId=${id}&tab=email&emailSubTab=history` : '/candidates';
+    }
     case 'candidate_moved':
     case 'candidate_added':
     case 'cv_parsed':

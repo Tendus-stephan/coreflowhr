@@ -33,9 +33,11 @@ const CandidateBoard: React.FC = () => {
   const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('success');
 
   const [selectedJob, setSelectedJob] = useState<string>('all');
-  const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All'); 
+  const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [initialTabFromUrl, setInitialTabFromUrl] = useState<string | undefined>();
+  const [initialEmailSubTabFromUrl, setInitialEmailSubTabFromUrl] = useState<string | undefined>();
 
   // Horizontal scroll container for pipeline columns
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -119,15 +121,22 @@ const CandidateBoard: React.FC = () => {
     loadData();
   }, []);
 
-  // Handle candidate ID and job filter from URL parameters
+  // Handle candidate ID and tab from URL (e.g. /candidates?candidateId=...&tab=email&emailSubTab=history)
   useEffect(() => {
     const candidateId = searchParams.get('candidateId');
     if (candidateId && candidates.length > 0) {
       const candidate = candidates.find(c => c.id === candidateId);
       if (candidate) {
+        const tab = searchParams.get('tab');
+        const emailSubTab = searchParams.get('emailSubTab');
+        setInitialTabFromUrl(tab || undefined);
+        setInitialEmailSubTabFromUrl(emailSubTab || undefined);
         setSelectedCandidate(candidate);
-        searchParams.delete('candidateId');
-        setSearchParams(searchParams, { replace: true });
+        const next = new URLSearchParams(searchParams);
+        next.delete('candidateId');
+        next.delete('tab');
+        next.delete('emailSubTab');
+        setSearchParams(next, { replace: true });
       }
     }
   }, [candidates, searchParams, setSearchParams]);
@@ -730,17 +739,20 @@ const CandidateBoard: React.FC = () => {
       </div>
 
       {selectedCandidate && (
-          <CandidateModal 
-            candidate={selectedCandidate} 
-            isOpen={!!selectedCandidate} 
+          <CandidateModal
+            candidate={selectedCandidate}
+            isOpen={!!selectedCandidate}
             onClose={() => {
               setSelectedCandidate(null);
-              // Remove candidateId from URL when closing modal
+              setInitialTabFromUrl(undefined);
+              setInitialEmailSubTabFromUrl(undefined);
               const newSearchParams = new URLSearchParams(searchParams);
               newSearchParams.delete('candidateId');
               setSearchParams(newSearchParams, { replace: true });
             }}
             onUpdate={handleCandidateUpdate}
+            initialActiveTab={initialTabFromUrl as 'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers' | undefined}
+            initialEmailSubTab={initialEmailSubTabFromUrl as 'compose' | 'history' | undefined}
           />
       )}
 

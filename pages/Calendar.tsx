@@ -11,7 +11,7 @@ import { supabase } from '../services/supabase';
 import { Button } from '../components/ui/Button';
 import { InterviewDetailsModal } from '../components/InterviewDetailsModal';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Plus, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
 
 // Add custom styles for drag feedback - event should follow cursor
 if (typeof document !== 'undefined') {
@@ -176,7 +176,6 @@ const Calendar: React.FC = () => {
   // Event style getter
   const eventStyleGetter = (event: CalendarEvent, start?: Date, end?: Date, isSelected?: boolean) => {
     let backgroundColor = '#3174ad';
-    
     switch (event.type) {
       case 'Google Meet':
         backgroundColor = '#4285f4';
@@ -188,7 +187,6 @@ const Calendar: React.FC = () => {
         backgroundColor = '#ea4335';
         break;
     }
-
     return {
       style: {
         backgroundColor,
@@ -203,6 +201,19 @@ const Calendar: React.FC = () => {
       },
       className: 'rbc-event rbc-event-draggable',
     };
+  };
+
+  const EventComponent = ({ event }: { event: CalendarEvent }) => {
+    const interview = event.resource as Interview;
+    const status = interview?.calendarSyncStatus;
+    const isFailed = status === 'failed';
+    return (
+      <div className="rbc-event-content flex items-center gap-1 overflow-hidden">
+        {status === 'synced' && <CheckCircle size={12} className="text-white shrink-0 opacity-90" />}
+        {isFailed && <AlertTriangle size={12} className="text-white shrink-0 opacity-90" title={interview?.calendarSyncError || 'Calendar sync failed. Click to retry.'} />}
+        <span className="truncate">{event.title}</span>
+      </div>
+    );
   };
 
   // Handle event click - only open modal on actual clicks, not drags
@@ -557,7 +568,8 @@ const Calendar: React.FC = () => {
               monthHeaderFormat: 'MMMM yyyy',
             }}
             components={{
-              toolbar: () => null
+              toolbar: () => null,
+              event: EventComponent,
             }}
           />
         )}
