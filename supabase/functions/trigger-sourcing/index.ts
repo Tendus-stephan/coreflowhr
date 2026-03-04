@@ -49,7 +49,15 @@ serve(async (req) => {
     const authHeader = req.headers.get('authorization') || '';
     const callerToken = authHeader.replace(/^bearer\s+/i, '');
 
-    if (callerToken && callerToken !== serviceRoleKey) {
+    // Check if caller is service_role (decode JWT claims without verification)
+    const isServiceRole = (() => {
+      try {
+        const payload = JSON.parse(atob(callerToken.split('.')[1]));
+        return payload?.role === 'service_role';
+      } catch { return false; }
+    })();
+
+    if (callerToken && !isServiceRole) {
       // Verify user belongs to workspace
       const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
         global: { headers: { authorization: authHeader } },

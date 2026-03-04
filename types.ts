@@ -53,6 +53,7 @@ export interface Job {
   clientId?: string;
   client?: Client;
   isTest?: boolean;
+  candidateCount?: number;  // actual count from candidates table
   // Sourcing fields (PDL)
   sourcingStatus?: 'pending' | 'running' | 'completed' | 'failed' | null;
   sourcingCandidatesCount?: number;

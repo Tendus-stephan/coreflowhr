@@ -1585,7 +1585,8 @@ export const api = {
                         name,
                         contact_email,
                         contact_phone
-                    )
+                    ),
+                    candidates(count)
                 `);
             if (workspaceId) query = query.eq('workspace_id', workspaceId);
             if (viewerJobIds !== null) query = query.in('id', viewerJobIds);
@@ -1628,6 +1629,7 @@ export const api = {
                 remote: job.remote || false,
                 skills: job.skills || [],
                 isTest: job.is_test || false,
+                candidateCount: (job.candidates as any)?.[0]?.count ?? 0,
                 sourcingStatus: job.sourcing_status || null,
                 sourcingCandidatesCount: job.sourcing_candidates_count ?? 0,
                 sourcingMaxedOut: job.sourcing_maxed_out ?? false,

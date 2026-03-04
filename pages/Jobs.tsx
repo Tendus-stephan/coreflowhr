@@ -928,8 +928,8 @@ const Jobs: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1.5 text-gray-600 font-medium">
                             <Users size={14} />
-                            {job.sourcingCandidatesCount != null && job.sourcingCandidatesCount > 0
-                                ? `${job.sourcingCandidatesCount} candidate${job.sourcingCandidatesCount !== 1 ? 's' : ''}`
+                            {(job.candidateCount ?? 0) > 0
+                                ? `${job.candidateCount} candidate${job.candidateCount !== 1 ? 's' : ''}`
                                 : 'No candidates yet'}
                         </div>
                     </div>
