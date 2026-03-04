@@ -208,7 +208,7 @@ const LandingPage: React.FC = () => {
   }, []);
 
   // Handle subscription
-  const handleSubscribe = async (plan: 'basic' | 'professional') => {
+  const handleSubscribe = async (plan: 'professional') => {
     if (!user || !session) {
       // Not logged in - redirect to signup with plan info
       navigate(`/signup?plan=${plan}&billing=${billingCycle}&returnTo=pricing`);
@@ -352,12 +352,12 @@ const LandingPage: React.FC = () => {
           
           {/* High Contrast Typography */}
           <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-6 md:mb-8 leading-[1.1] max-w-5xl mx-auto px-4">
-            <span className="text-gray-900">Built for Recruitment Agencies</span> <br />
-            <span className="text-gray-400">Scale placements with AI automation</span>
+            <span className="text-gray-900">Source, screen, and hire</span> <br />
+            <span className="text-gray-400">faster with AI automation</span>
           </h1>
-          
+
           <p className="text-base sm:text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-light px-4">
-            Self-service candidate registration. Zero manual data entry. Handle 5x more placements.
+            CoreflowHR automatically sources matched candidates from PeopleDataLabs, AI-scores them, and manages your entire hiring pipeline — one tool, $149/month.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 md:mb-24 px-4">
@@ -926,14 +926,20 @@ const LandingPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications and channel updates.", color: "text-gray-900" },
-                { icon: Mail, name: "Google Workspace", desc: "Sync emails and calendar events automatically.", color: "text-red-500" },
-                { icon: Video, name: "Zoom", desc: "Auto-generate unique meeting links for interviews.", color: "text-blue-500" },
+                { icon: Calendar, name: "Google Calendar & Meet", desc: "Sync interviews and auto-generate meeting links for candidates.", color: "text-blue-600", comingSoon: false },
+                { icon: Video, name: "Microsoft Teams", desc: "Generate Teams meeting links for video interviews.", color: "text-indigo-600", comingSoon: false },
+                { icon: FileText, name: "E-Signatures", desc: "Send offer letters for candidates to sign electronically.", color: "text-emerald-600", comingSoon: false },
+                { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications and updates in your channels.", color: "text-gray-900", comingSoon: true },
               ].map((tool, i) => (
                   <FadeIn key={i} delay={i * 100}>
-                    <div className="flex flex-col p-8 bg-white border border-gray-200 rounded-3xl hover:border-gray-300 hover:shadow-lg transition-all duration-300 group h-full">
-                        <div className={`w-14 h-14 flex items-center justify-center mb-6 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm group-hover:scale-110 transition-transform ${tool.color}`}>
+                    <div className={`flex flex-col p-8 rounded-3xl border transition-all duration-300 group h-full ${tool.comingSoon ? 'bg-gray-50/80 border-gray-200 border-dashed' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className={`w-14 h-14 flex items-center justify-center rounded-2xl border shadow-sm group-hover:scale-110 transition-transform ${tool.comingSoon ? 'bg-gray-100 border-gray-200' : 'bg-gray-50 border-gray-100'} ${tool.color}`}>
                             <tool.icon size={28} />
+                          </div>
+                          {tool.comingSoon && (
+                            <span className="shrink-0 px-2.5 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-medium">Coming soon</span>
+                          )}
                         </div>
                         <h3 className="font-bold text-lg text-gray-900 mb-2">{tool.name}</h3>
                         <p className="text-sm text-gray-500 leading-relaxed">{tool.desc}</p>
@@ -946,156 +952,82 @@ const LandingPage: React.FC = () => {
       {/* Pricing Section */}
       <section id="pricing" className="py-16 sm:py-24 md:py-32 max-w-7xl mx-auto px-4 sm:px-6">
         <FadeIn>
-          <div className="text-center mb-6 sm:mb-8">
+          <div className="text-center mb-10 sm:mb-14">
               <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-0.5 sm:py-1 rounded-full border border-gray-200 bg-white shadow-sm text-xs font-medium text-gray-600 mb-4 sm:mb-6">
                  <span className="text-gray-400">★</span> Simple, Transparent Pricing
               </div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 tracking-tighter px-4">Choose Your <br/> Perfect Plan</h2>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 tracking-tighter px-4">One plan.<br/>Everything included.</h2>
               <p className="text-gray-500 text-sm sm:text-base max-w-xl mx-auto px-4">
-                Start with a free trial, then choose the plan that scales with your recruitment needs. No hidden fees, cancel anytime.
+                14-day money-back guarantee — no questions asked.
               </p>
-          </div>
-
-          {/* Monthly/Yearly Toggle */}
-          <div className="flex justify-center mb-16">
-              <div className="bg-gray-100 p-1.5 rounded-xl flex items-center relative">
-                  <button 
-                    onClick={() => setBillingCycle('monthly')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${billingCycle === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-                  >
-                      Monthly
-                  </button>
-                  <button 
-                    onClick={() => setBillingCycle('yearly')}
-                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${billingCycle === 'yearly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-                  >
-                      Yearly
-                  </button>
-                  {/* Badge */}
-                  <div className="absolute -right-24 top-1.5 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm animate-bounce">
-                      Save 20%
-                  </div>
-              </div>
           </div>
         </FadeIn>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-             {/* Basic Plan */}
-             <FadeIn delay={100}>
-               <div className="bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 md:p-10 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 h-full flex flex-col">
-                   <div className="mb-6 sm:mb-8">
-                       <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Basic Plan</h3>
-                       <div className="flex items-baseline gap-1 mb-2">
-                           <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter text-gray-900">
-                               ${billingCycle === 'monthly' ? '49' : '41'}
-                           </span>
-                           <span className="text-sm sm:text-base text-gray-500 font-medium">per month</span>
-                       </div>
-                       <p className="text-sm text-gray-500 mt-1">
-                         Designed for solo recruiters and small teams who want CoreFlow to replace manual sourcing and spreadsheet tracking.
-                       </p>
-                   </div>
-                   
-                   {user && session ? (
-                     <Button 
-                       variant="outline" 
-                       size="lg" 
-                       className="w-full mb-6 sm:mb-8 md:mb-10 border-gray-300 text-gray-900 hover:bg-gray-50 text-sm sm:text-base"
-                       onClick={() => handleSubscribe('basic')}
-                     >
-                       Subscribe Now
-                     </Button>
-                   ) : (
-                     <Link to="/signup">
-                       <Button variant="outline" size="lg" className="w-full mb-6 sm:mb-8 md:mb-10 border-gray-300 text-gray-900 hover:bg-gray-50 text-sm sm:text-base">Start Free Trial</Button>
-                     </Link>
-                   )}
-                   
-                   <div className="space-y-6 flex-1">
-                       <p className="font-bold text-sm text-gray-900 uppercase tracking-wide">FEATURES</p>
-                       <p className="text-sm text-gray-500 mb-4">Everything you need to run a focused, high-signal hiring pipeline.</p>
-                       <ul className="space-y-4">
-                           {[
-                               "Up to 5 active roles at a time", 
-                               "AI-scored shortlists up to 100 candidates per role", 
-                               "Up to 1,000 sourced candidates per month", 
-                               "30 AI analyses per month",
-                               "5 email workflows",
-                               "AI-powered candidate matching",
-                               "Email templates",
-                               "Basic analytics",
-                               "Email support"
-                           ].map((feat, i) => (
-                               <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
-                                   <div className="mt-0.5 bg-black rounded-full p-0.5 text-white">
-                                       <Check size={10} strokeWidth={4} />
-                                   </div>
-                                   {feat}
-                               </li>
-                           ))}
-                       </ul>
-                   </div>
-               </div>
-             </FadeIn>
+        {/* Single Professional Plan Card */}
+        <div className="max-w-2xl mx-auto">
+          <FadeIn delay={100}>
+            <div className="bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+              {/* Founding rate badge */}
+              <div className="absolute top-5 right-5 sm:top-7 sm:right-7 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">
+                First 20 customers: $119/mo locked forever
+              </div>
 
-             {/* Professional Plan */}
-             <FadeIn delay={200}>
-               <div className="bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 md:p-10 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 h-full flex flex-col relative overflow-hidden">
-                   <div className="mb-6 sm:mb-8">
-                       <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Professional Plan</h3>
-                       <div className="flex items-baseline gap-1 mb-2">
-                           <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter text-gray-900">
-                               ${billingCycle === 'monthly' ? '99' : '83'}
-                           </span>
-                           <span className="text-sm sm:text-base text-gray-500 font-medium">per month</span>
-                       </div>
-                       <p className="text-sm text-gray-500 mt-1">
-                         For modern recruiting teams who want CoreFlow to replace multiple tools—ATS, sourcing, and outreach—in a single workflow.
-                       </p>
-                   </div>
-                   
-                   {user && session ? (
-                     <Button 
-                       variant="black" 
-                       size="lg" 
-                       className="w-full mb-6 sm:mb-8 md:mb-10 text-sm sm:text-base"
-                       onClick={() => handleSubscribe('professional')}
-                     >
-                       Subscribe Now
-                     </Button>
-                   ) : (
-                     <Link to="/signup">
-                       <Button variant="black" size="lg" className="w-full mb-6 sm:mb-8 md:mb-10 text-sm sm:text-base">Start Free Trial</Button>
-                     </Link>
-                   )}
-                   
-                   <div className="space-y-6 flex-1">
-                       <p className="font-bold text-sm text-gray-900 uppercase tracking-wide">FEATURES</p>
-                       <p className="text-sm text-gray-500 mb-4">Advanced automation and analytics to scale hiring across many roles.</p>
-                       <ul className="space-y-4">
-                           {[
-                               "Up to 25 active roles (base) + buy more as you scale", 
-                               "AI-ranked sourcing up to 300 candidates per role", 
-                               "Up to 4,000 sourced candidates per month (base)", 
-                               "100 AI analyses per month",
-                               "10 email workflows",
-                               "AI email generation",
-                               "Advanced analytics & reports",
-                               "Integrations (Google Calendar, Meet, Teams)",
-                               "Priority support",
-                               "Option to purchase additional volume if you outgrow the base limits"
-                           ].map((feat, i) => (
-                               <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
-                                   <div className="mt-0.5 bg-black rounded-full p-0.5 text-white">
-                                       <Check size={10} strokeWidth={4} />
-                                   </div>
-                                   {feat}
-                               </li>
-                           ))}
-                       </ul>
-                   </div>
-               </div>
-             </FadeIn>
+              <div className="mb-6 sm:mb-8 pt-6 sm:pt-0">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">CoreflowHR Professional</h3>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-5xl sm:text-6xl font-bold tracking-tighter text-gray-900">$149</span>
+                  <span className="text-sm sm:text-base text-gray-500 font-medium">/ month</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  One ATS, sourcing, outreach, and offer management tool — replacing five separate subscriptions.
+                </p>
+              </div>
+
+              {user && session ? (
+                <Button
+                  variant="black"
+                  size="lg"
+                  className="w-full mb-8 text-sm sm:text-base"
+                  onClick={() => handleSubscribe('professional')}
+                >
+                  Subscribe Now — $149/month
+                </Button>
+              ) : (
+                <Link to="/signup">
+                  <Button variant="black" size="lg" className="w-full mb-8 text-sm sm:text-base">
+                    Get Started — $149/month
+                  </Button>
+                </Link>
+              )}
+
+              <div className="border-t border-gray-100 pt-6">
+                <p className="font-bold text-xs text-gray-500 uppercase tracking-widest mb-4">Everything included</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    "Unlimited active jobs",
+                    "Up to 100 PDL-sourced candidates per job",
+                    "AI match scoring (Claude) on every candidate",
+                    "Automated email workflows",
+                    "AI email generation",
+                    "Advanced analytics & reports",
+                    "eSignature for offer letters",
+                    "CV / resume parsing",
+                    "Google Calendar & Meet integration",
+                    "Microsoft Teams integration",
+                    "Team collaboration — unlimited members",
+                    "Priority support",
+                  ].map((feat, i) => (
+                    <div key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
+                      <div className="mt-0.5 bg-black rounded-full p-0.5 text-white flex-shrink-0">
+                        <Check size={10} strokeWidth={4} />
+                      </div>
+                      {feat}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -1114,7 +1046,7 @@ const LandingPage: React.FC = () => {
                 {[
                     { q: "What is CoreFlow and how does it work?", a: "CoreFlow is a recruitment platform built for agencies. It centralizes job postings, candidates, and interviews in one place—with self-service registration, multi-client management, and AI-powered sourcing. Create an account, add clients, post jobs, and track candidates through the pipeline." },
                     { q: "How does CoreFlow use my data to build custom AI insights?", a: "We use your job descriptions and candidate resumes to generate match scores. Data is processed securely using enterprise-grade LLMs and is never shared with third parties or used to train public models." },
-                    { q: "How do I get started with CoreFlow and what are the pricing options?", a: "You can start for free with our trial. We offer a Basic Plan for small teams and a Professional Plan for growing companies. See our Pricing section above for details." },
+                    { q: "Is there a free trial?", a: "No free trial — but we offer a 14-day money-back guarantee. If CoreflowHR doesn't work for your hiring process within 14 days, we'll refund you in full. No questions asked." },
                     { q: "What payment methods do you accept?", a: "We accept all major credit cards, PayPal, and bank transfers for enterprise customers." }
                 ].map((item, i) => (
                     <div key={i} className="border-b border-gray-200 py-6">
@@ -1143,9 +1075,10 @@ const LandingPage: React.FC = () => {
                  <div className="text-gray-400 text-xs sm:text-sm">
                      © 2025 CoreFlow HR. All rights reserved.
                  </div>
-                 <div className="flex gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-500">
+                 <div className="flex flex-wrap gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-500">
                      <Link to="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link>
                      <Link to="/privacy" className="hover:text-gray-900 transition-colors">Privacy Policy</Link>
+                     <a href="mailto:teams@coreflowhr.com" className="hover:text-gray-900 transition-colors">Contact</a>
                  </div>
              </div>
         </div>

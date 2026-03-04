@@ -167,13 +167,7 @@ serve(async (req) => {
         const interval = stripeInterval === 'year' ? 'yearly' : stripeInterval === 'month' ? 'monthly' : stripeInterval;
         const currency = price?.currency?.toUpperCase() || 'USD';
 
-        // Determine plan limits based on plan type
-        const planType = session.metadata?.planType || 'basic';
-        const isProfessional = planType.toLowerCase() === 'professional';
-        // Align webhook limits with frontend/server plan definitions
-        const maxJobs = isProfessional ? 25 : 5;
-        const maxCandidates = isProfessional ? 300 : 100;
-
+        // Single Professional plan — no per-plan limits
         // Update or insert user_settings
         const { error: upsertError } = await supabaseClient
           .from('user_settings')
@@ -182,12 +176,10 @@ serve(async (req) => {
             subscription_stripe_id: subscription.id,
             subscription_status: subscription.status,
             subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            billing_plan_name: planName,
+            billing_plan_name: planName || 'CoreflowHR Professional',
             billing_plan_price: planPrice,
             billing_plan_interval: interval,
             billing_plan_currency: currency === 'USD' ? '$' : currency,
-            billing_plan_active_jobs_limit: maxJobs,
-            billing_plan_candidates_limit: maxCandidates,
             updated_at: new Date().toISOString(),
           }, {
             onConflict: 'user_id',
@@ -302,14 +294,12 @@ serve(async (req) => {
           .from('user_settings')
           .update({
             subscription_stripe_id: null,
-            subscription_status: null,
+            subscription_status: 'canceled',
             subscription_current_period_end: null,
-            billing_plan_name: 'Free',
+            billing_plan_name: null,
             billing_plan_price: 0,
             billing_plan_interval: 'monthly',
             billing_plan_currency: '$',
-            billing_plan_active_jobs_limit: 10,
-            billing_plan_candidates_limit: 20,
             updated_at: new Date().toISOString(),
           })
           .eq('subscription_stripe_id', subscription.id);

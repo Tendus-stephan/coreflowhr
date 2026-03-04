@@ -89,13 +89,6 @@ const tests = [
     headers: { 'Content-Type': 'application/json' },
     expectStatus: [200, 400, 500],
   },
-  {
-    name: 'scrape-candidates',
-    method: 'POST',
-    body: { jobId: '00000000-0000-0000-0000-000000000000' },
-    headers: { 'Content-Type': 'application/json', ...authHeader },
-    expectStatus: [200, 400, 401, 402, 500],
-  },
 ];
 
 async function runOne(test) {

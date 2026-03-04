@@ -366,8 +366,8 @@ const AddJob: React.FC = () => {
               });
           }
 
-          // Job created — navigate to Jobs page so user can click "Find candidates" when ready
-                      navigate('/jobs');
+          // Navigate to pipeline — sourcing starts automatically in the background
+          navigate(`/candidates?job=${createdJob.id}&sourcing=started`);
       } catch (e) {
           console.error("Failed to post job", e);
           alert('Failed to save job. Please try again.');
@@ -604,15 +604,16 @@ const AddJob: React.FC = () => {
                   
                   <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-900">Required Skills *</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         name="skills"
                         value={formData.skills}
                         onChange={handleChange}
-                        placeholder="e.g. React, TypeScript, Node.js (comma separated)" 
-                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                        placeholder="e.g. React, TypeScript, Node.js (comma separated)"
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                         required
                       />
+                      <p className="text-xs text-gray-500">Skills are used to automatically source and AI-score matching candidates from PeopleDataLabs after job creation.</p>
                   </div>
 
                   <div className="space-y-2">

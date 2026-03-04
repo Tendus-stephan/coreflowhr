@@ -79,7 +79,7 @@ const DraggableCandidateCard: React.FC<{
                         {/* Job & Location */}
                         <div className="flex items-center gap-1 text-xs text-gray-600 font-medium mt-0.5 w-32">
                            <Briefcase size={10} className="text-gray-400 shrink-0" />
-                           <p className="truncate">{candidate.role}</p>
+                           <p className="truncate">{candidate.currentCompany || candidate.role}</p>
                         </div>
                          <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5 w-32">
                            <MapPin size={10} className="shrink-0" />
@@ -87,12 +87,20 @@ const DraggableCandidateCard: React.FC<{
                         </div>
                     </div>
                 </div>
-                {candidate.aiMatchScore !== undefined && candidate.aiMatchScore !== null && (
-                     <div className="flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 bg-gray-100 text-gray-700 border border-gray-200">
-                        <BrainCircuit size={10} />
-                        {candidate.aiMatchScore}%
-                     </div>
-                )}
+                {candidate.aiMatchScore !== undefined && candidate.aiMatchScore !== null && (() => {
+                    const score = candidate.aiMatchScore as number;
+                    const colorClass = score >= 70
+                        ? 'bg-green-50 text-green-700 border-green-200'
+                        : score >= 50
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-red-50 text-red-600 border-red-200';
+                    return (
+                        <div className={`flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 border ${colorClass}`} title={candidate.aiMatchReason || ''}>
+                            <BrainCircuit size={10} />
+                            {score}%
+                        </div>
+                    );
+                })()}
             </div>
             
             {/* Cross-job duplicate flag */}
@@ -115,16 +123,22 @@ const DraggableCandidateCard: React.FC<{
                     <span className="text-[10px] px-1.5 py-1 text-gray-400 font-medium">+{candidate.skills.length - 3}</span>
                 )}
             </div>
-            {summaryLine && (
+            {/* AI match reason (sourced candidates) */}
+            {candidate.aiMatchReason && (
+                <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 border-t border-gray-50 pt-2">
+                    {candidate.aiMatchReason}
+                </p>
+            )}
+            {!candidate.aiMatchReason && summaryLine && (
                 <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 border-t border-gray-50 pt-2" title={candidate.aiAnalysis || ''}>
                     {summaryLine}
                 </p>
             )}
             <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-50">
-                <p className="text-[10px] text-gray-400">Sourced {new Date(candidate.appliedDate).toLocaleDateString()}</p>
-                {(candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
+                <p className="text-[10px] text-gray-400">{candidate.source === 'Sourced' ? 'Sourced' : 'Applied'} {new Date(candidate.appliedDate).toLocaleDateString()}</p>
+                {(candidate.linkedInUrl || candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
                     <a
-                        href={candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''}
+                        href={candidate.linkedInUrl || candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}

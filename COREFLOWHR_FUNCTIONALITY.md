@@ -150,7 +150,7 @@ Guards every protected page. In order:
 **Job list** (`/jobs`, `pages/Jobs.tsx`)
 
 - Jobs from `api.jobs.list({ excludeClosed, page, pageSize })`. Filters, search, status (Active / Closed / Draft).
-- Row: title, location, type, applicant count, status, scraping status. Actions: View candidates (CandidateBoard with job filter), **Source candidates**, Job settings (JobSettingsModal), Edit (`/jobs/edit/:id`), Archive/Close.
+- Row: title, location, type, applicant count, status. Actions: View candidates (CandidateBoard with job filter), Job settings (JobSettingsModal), Edit (`/jobs/edit/:id`), Archive/Close.
 - “New job” → `/jobs/new`.
 
 **Create / edit job** (`/jobs/new`, `/jobs/edit/:id`, `pages/AddJob.tsx`)
@@ -159,15 +159,15 @@ Guards every protected page. In order:
 
 **Sourcing (“Source candidates”)**
 
-- **Check:** `canScrapeThisMonth(plan, scrapesUsed, resetDate)` (from `planLimits`). Plan limits: Basic 10 jobs/month, Professional 50; candidates per scrape: 25 vs 50.
-- **Action:** `scrapeCandidates(jobId, …)` (e.g. via `scrapingApi` / scrape-candidates edge function). On success, job shows scraping status (e.g. pending, then updated by backend).
-- **Down:** Over monthly limit → error (e.g. “You’ve used your X sourcing runs this month. Upgrade or wait until renewal.”). Handled by `scrapingErrorHandler`; user sees message.
+- **Check:** `canSourceThisMonth(plan, scrapesUsed, resetDate)` (from `planLimits`). Plan limits: Basic 10 jobs/month, Professional 50; candidates per sourcing run: 25 vs 50.
+- **Action:** `scrapeCandidates(jobId, …)` (e.g. via `api` / sourcing). On success, job shows sourcing status (e.g. pending, then updated by backend).
+- **Down:** Over monthly limit → error (e.g. “You’ve used your X sourcing runs this month. Upgrade or wait until renewal.”). Handled by `(error handling)`; user sees message.
 
 **Job status**
 
 - Only **Active** jobs are used for application and sourcing. Draft/Closed are not.
 
-**References:** `pages/Jobs.tsx`, `pages/AddJob.tsx`, `services/api.ts` (jobs.*), `services/scrapingApi.ts`, `services/planLimits.ts`, `services/scrapingErrorHandler.ts`.
+**References:** `pages/Jobs.tsx`, `pages/AddJob.tsx`, `services/api.ts` (jobs.*), `services/planLimits.ts`.
 
 ---
 
@@ -206,13 +206,13 @@ Guards every protected page. In order:
 
 **Ways candidates enter**
 
-- **Sourcing:** Scrape from Jobs creates candidates in **New** (no email until they register via link).
+- **Sourcing:** Candidates can be added via applications, imports, or integrations. Candidates in **New** may have no email until they register via link.
 - **Job application:** Public `/jobs/apply/:jobId`. Submit name, email, phone, cover letter, CV. Creates candidate (often in Screening); CV is parsed (skills, summary, experience) and optional AI match score. Uses `cvParser` (e.g. `extractTextFromCV`, `parseCVText` / `parseCVTextWithAI`).
 - **Registration:** `/candidates/register/:candidateId?token=...`. Validates token and expiry; candidate must not already have email. Submits email (and optionally name); backend sets email and can move to Screening or trigger workflow.
 
 **CV parse & grading**
 
-- `services/cvParser.ts`: extract text, parse (skills, experience, etc.), optional AI. On create/update with CV, API can set `resume_summary`, `skills`, `experience`, `ai_match_score`. Match score 0–100; also computed in scraper and when viewing candidate if missing.
+- `services/cvParser.ts`: extract text, parse (skills, experience, etc.), optional AI. On create/update with CV, API can set `resume_summary`, `skills`, `experience`, `ai_match_score`. Match score 0–100; also computed when viewing candidate if missing.
 
 **Candidate profile** (`components/CandidateModal.tsx`)
 
@@ -380,7 +380,7 @@ Guards every protected page. In order:
 | Limit | Basic | Professional |
 |-------|--------|---------------|
 | Sourcing runs/month | 10 | 50 |
-| Candidates per scrape | 25 | 50 |
+| Candidates per sourcing run | 25 | 50 |
 | Email workflows | 3 | 10 |
 | Export candidates per export | 100 | 500 |
 

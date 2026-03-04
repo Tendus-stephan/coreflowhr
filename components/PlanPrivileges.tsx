@@ -1,126 +1,50 @@
 import React from 'react';
-import { Check, X } from 'lucide-react';
-import { PLAN_LIMITS, PlanName, getPlanLimits } from '../services/planLimits';
+import { Check } from 'lucide-react';
 
 interface PlanPrivilegesProps {
   currentPlan?: string | null;
   showComparison?: boolean;
 }
 
-export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({ 
-  currentPlan, 
-  showComparison = false 
-}) => {
-  const currentPlanLimits = getPlanLimits(currentPlan);
+const PROFESSIONAL_FEATURES = [
+  'Unlimited active jobs',
+  'Up to 100 sourced candidates per job (PDL)',
+  'AI match scoring for all sourced candidates',
+  'Email workflows — automated follow-ups',
+  'CSV export — all candidates',
+  'Advanced analytics & reports',
+  'Team collaboration — unlimited members',
+  'eSignature for offer letters',
+  'CV / resume parsing',
+  'Priority support',
+];
 
+export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({ showComparison = false }) => {
   if (showComparison) {
-    // Show comparison table
+    // Single plan — no comparison needed
     return (
-      <div className="space-y-6">
-        <h3 className="text-lg font-bold text-gray-900">Plan Comparison</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left p-3 text-sm font-bold text-gray-900">Feature</th>
-                <th className="text-center p-3 text-sm font-bold text-gray-900">Basic</th>
-                <th className="text-center p-3 text-sm font-bold text-gray-900">Professional</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Jobs sourced per month</td>
-                <td className="p-3 text-sm text-center text-gray-900">10</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">50</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Candidates per sourcing run</td>
-                <td className="p-3 text-sm text-center text-gray-900">25</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">50</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Sourcing Sources</td>
-                <td className="p-3 text-sm text-center text-gray-900">Professional profiles</td>
-                <td className="p-3 text-sm text-center text-gray-900 font-bold">All enabled sources</td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">AI Analysis</td>
-                <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-gray-600 mx-auto" />
-                </td>
-                <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-gray-600 mx-auto" />
-                </td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Advanced Analytics</td>
-                <td className="p-3 text-sm text-center">
-                  <X size={16} className="text-gray-400 mx-auto" />
-                </td>
-                <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-gray-600 mx-auto" />
-                </td>
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="p-3 text-sm text-gray-700">Team Collaboration</td>
-                <td className="p-3 text-sm text-center">
-                  <X size={16} className="text-gray-400 mx-auto" />
-                </td>
-                <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-gray-600 mx-auto" />
-                </td>
-              </tr>
-              <tr>
-                <td className="p-3 text-sm text-gray-700">Priority Support</td>
-                <td className="p-3 text-sm text-center">
-                  <X size={16} className="text-gray-400 mx-auto" />
-                </td>
-                <td className="p-3 text-sm text-center">
-                  <Check size={16} className="text-gray-600 mx-auto" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-gray-900">CoreflowHR Professional — Everything included</h3>
+        <ul className="space-y-2">
+          {PROFESSIONAL_FEATURES.map((feature, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+              <Check size={16} className="text-green-500 mt-0.5 flex-shrink-0" />
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
 
-  // Show current plan privileges
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-3">
-          Your {currentPlanLimits.name} Plan Privileges
-        </h3>
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Jobs sourced per month</span>
-            <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.maxJobsPerMonth}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Candidates per sourcing run</span>
-            <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.candidatesPerScrape}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Sourcing Sources</span>
-            <span className="text-sm font-bold text-gray-900">
-              {currentPlanLimits.sourcingSources.join(', ')}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h4 className="text-sm font-bold text-gray-900 mb-2">Features</h4>
-        <ul className="space-y-2">
-          {currentPlanLimits.features.map((feature, index) => (
-            <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-              <Check size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+        <h3 className="text-lg font-bold text-gray-900 mb-3">Your Professional Plan Privileges</h3>
+        <ul className="space-y-2 bg-gray-50 rounded-xl p-4 border border-gray-200">
+          {PROFESSIONAL_FEATURES.map((feature, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+              <Check size={16} className="text-green-500 mt-0.5 flex-shrink-0" />
               <span>{feature}</span>
             </li>
           ))}
@@ -129,4 +53,3 @@ export const PlanPrivileges: React.FC<PlanPrivilegesProps> = ({
     </div>
   );
 };
-

@@ -333,17 +333,6 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   };
 
   const handleGenerateEmail = async (type: 'Screening' | 'Offer' | 'Hired' | 'Rejection') => {
-      // Check if AI email generation is allowed
-      try {
-          const canUseAi = await api.plan.canUseAiEmailGeneration();
-          if (!canUseAi) {
-              alert('AI email generation is only available on the Professional plan. Upgrade to Professional to use this feature.');
-              return;
-          }
-      } catch (error) {
-          console.error('Error checking AI email generation permission:', error);
-      }
-      
       setLoadingAI(true);
       setEmailSent(false);
       setEmailError(null);
@@ -750,7 +739,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                          </button>
                          )}
                          <span className="text-xs bg-white border border-border px-2 py-1 rounded text-gray-500 flex items-center">
-                            {(candidate.source === 'ai_sourced' || candidate.isTest) ? 'Sourced' : 'Applied'}: {new Date(candidate.appliedDate).toLocaleDateString()}
+                            {(candidate.source === 'Sourced' || candidate.isTest) ? 'Sourced' : 'Applied'}: {new Date(candidate.appliedDate).toLocaleDateString()}
                          </span>
                     </div>
                 </div>

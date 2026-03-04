@@ -103,7 +103,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         // Question 1: Does this user belong to any workspace?
         const { data: memberships, error: membershipsError } = await supabase
           .from('workspace_members')
-          .select('role')
+          .select('role, workspace_id')
           .eq('user_id', user.id);
 
         const belongsToWorkspace = !membershipsError && memberships && memberships.length > 0;
@@ -114,8 +114,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAdmin(isAdminRole);
 
         if (belongsToWorkspace) {
-          // User is in a workspace → let them in. No subscription check.
-          setCanEnter(true);
+          // User is in a workspace — check if any workspace is active (paid or valid design partner).
+          const workspaceIds = (memberships || []).map((m: any) => m.workspace_id).filter(Boolean);
+
+          if (workspaceIds.length > 0) {
+            const { data: workspaces } = await supabase
+              .from('workspaces')
+              .select('id, subscription_status, is_free_access, free_access_expires_at')
+              .in('id', workspaceIds);
+
+            const hasAccess = (workspaces || []).some((ws: any) => {
+              const subStatus = (ws.subscription_status || '').toLowerCase();
+              if (subStatus === 'active') return true;
+              if (ws.is_free_access) {
+                if (!ws.free_access_expires_at) return true; // no expiry set → valid
+                return new Date(ws.free_access_expires_at) > new Date();
+              }
+              return false;
+            });
+
+            setCanEnter(hasAccess);
+          } else {
+            setCanEnter(true);
+          }
           setAccessChecked(true);
           setAccessLoading(false);
           return;

@@ -49,8 +49,8 @@ TARGET MARKET:
    - Create/Edit: Full job details (title, description, skills, location)
    - Job settings: Requirements, skills array, location, remote option
    - Candidate management: View candidates per job, filter by job in candidate board
-   - Scraping status: Track candidate sourcing progress (pending/succeeded/failed/partial)
-   - Retry sourcing: Re-run scraper for failed/partial jobs
+   - Sourcing status: Track candidate sourcing progress (pending/succeeded/failed/partial)
+   - Retry sourcing: Re-run sourcing for failed/partial jobs
    - Client filtering: Filter jobs by client company (for agencies)
    - Client display: Shows client name on job cards
 
@@ -60,7 +60,7 @@ TARGET MARKET:
    - Skills input: Array of required skills (required)
    - Candidate sourcing: Request candidates (up to plan limit), animated counter shows limit
    - Plan limits enforcement: Checks subscription plan before allowing sourcing
-   - Real-time scraping: Progress modal shows candidate sourcing status
+   - Real-time sourcing: Progress modal shows candidate sourcing status
 
 6. CALENDAR (/calendar)
    - Views: Monthly, weekly, daily calendar layouts
@@ -103,9 +103,9 @@ TARGET MARKET:
 === COMPLETE WORKFLOW SYSTEM ===
 
 CANDIDATE SOURCING FLOW:
-1. Job Posted → Scraping begins automatically via Apify (LinkedIn)
+1. Job Posted → Candidates can be sourced via applications and job boards
 2. Candidates saved with: portfolio data, work experience, LinkedIn links, AI analysis
-3. Default state: email=null, stage="New", source="scraped"
+3. Default state: email=null, stage="New", source set by channel (e.g. direct_application, referral)
 4. NO automatic emails sent (candidates don't have emails by default)
 
 LINKEDIN OUTREACH FLOW:
@@ -179,29 +179,21 @@ Workflow Logic:
    - Action: Onboarding (Hired) or archive (Rejected)
    - Workflow: Sends welcome email (Hired) or rejection email
 
-=== PLAN-BASED LIMITS ===
+=== PLAN ===
 
-BASIC PLAN ($49/month or $41/yearly):
-- Candidates per job: 50
-- Active jobs: 5
-- Candidates per month: 500
-- Sourcing sources: LinkedIn only
-- Features: AI analysis, email templates, basic analytics, multi-client management
-- Integrations: Manual meeting links (no Google Calendar/Meet sync)
-
-PROFESSIONAL PLAN ($99/month or $83/yearly):
-- Candidates per job: Unlimited
-- Active jobs: Unlimited
-- Candidates per month: Unlimited
-- Sourcing sources: LinkedIn only (currently)
-- Features: All Basic features + advanced analytics, team collaboration, priority support
-- Integrations: Google Calendar, Google Meet, Microsoft Teams (automatic meeting creation)
+COREFLOWHR PROFESSIONAL ($149/month, or $119/month founding customer rate):
+- Sourcing: Up to 100 AI-matched candidates per job (automatic on job creation)
+- All jobs, team members, candidates: Unlimited
+- eSignature: Unlimited
+- CV parsing: Unlimited
+- Features: Full pipeline, AI sourcing via PeopleDataLabs, AI scoring, eSignature, two-way email, Google Calendar, analytics, workflows, multi-client
+- Design partners (free access): 30 sourced candidates per job, 5 eSignatures, 30 CV parses
 
 === EXPERIENCE LEVELS ===
 
 Entry Level (0-2 years):
 - Min: 0 years, Max: 2 years
-- Used in: Job requirements, candidate filtering, scraper queries
+- Used in: Job requirements, candidate filtering
 
 Mid Level (2-5 years):
 - Min: 2 years, Max: 5 years
@@ -258,20 +250,21 @@ RESEND (Email Delivery):
 
 === CANDIDATE SOURCING ===
 
-SOURCING PROVIDERS:
-- LinkedIn (via Apify): Primary source, uses harvestapi/linkedin-profile-search actor (most reliable)
-- Single scraper approach: Uses only one reliable scraper to minimize costs
-- Query building: Job title + simplified skills + location
-- Experience level filtering: Applied in scraper queries
-- Cost optimization: Limited attempts to prevent wasted compute units
+SOURCING PROVIDER: PeopleDataLabs (PDL) Person Search API
+- Triggered automatically when a job is posted with Active status
+- Also triggered manually via "Source More" button in the pipeline view
+- Searches by job_title, location, and required_skills
+- Returns up to 20 candidates per batch, up to 100 total per job (30 for design partners)
+- Each candidate scored 0-100 by Claude AI for job fit
 
-SCRAPING PROCESS:
-1. Job posted with "Active" status → Scraping begins
-2. Plan limits checked: Max candidates per job enforced
-3. Apify actor called: Search LinkedIn profiles
-4. Candidates processed: Validated, deduplicated, saved
-5. AI analysis: Generated for each candidate
-6. Status tracking: scraping_status updated (succeeded/failed/partial)
+SOURCING PROCESS:
+1. Job posted with "Active" status → sourcing triggers automatically
+2. PDL Person Search API called with job criteria
+3. Results cached in sourcing_cache table
+4. Duplicates filtered (no same linkedin_url for same job)
+5. Candidates mapped and AI-scored in parallel
+6. Candidates inserted into pipeline at "New" stage
+7. Status tracked via sourcing_status column on jobs table
 
 MATCH SCORING (0-100):
 - 85-100: Excellent match (80%+ skills overlap)
@@ -297,12 +290,15 @@ KEY TABLES:
 CANDIDATE FIELDS:
 - email: NULL by default (only set after registration or direct application)
 - stage: One of 'New', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'
-- source: 'scraped' | 'direct_application' | 'email_application' | 'referral'
-- is_test: Boolean (true for AI-sourced test candidates)
+- source: 'manual' | 'Sourced' | 'direct_application' | 'email_application' | 'referral'
+- is_test: Boolean (true for test candidates)
 - registration_token: Secure token for email registration (expires 30 days)
 - cv_upload_token: Secure token for CV upload link (expires 30 days)
-- ai_match_score: Integer 0-100 (calculated by AI analysis)
-- profileUrl: LinkedIn profile URL from scraping
+- ai_match_score: Integer 0-100 (calculated by AI scoring via Claude)
+- ai_match_reason: Short explanation of the AI score
+- linkedin_url: LinkedIn profile URL (from PDL sourcing)
+- current_company: Current employer (from PDL sourcing)
+- sourced_at: Timestamp when PDL sourcing created this candidate
 
 === AUTHENTICATION & SECURITY ===
 
@@ -464,7 +460,7 @@ Validation: Form prevents submission if any required field is empty. Browser sho
 2. Marketing Update: Landing page focused on agencies
 3. Job Form: All fields now required
 4. Clients Page: Modern design matching other pages
-5. Scraper: Simplified to single reliable actor (cost optimization)
+5. Sourcing: Switched to PeopleDataLabs for automatic candidate sourcing
 6. Job Expiration: Fixed duplicate variable declaration bug
 
 Keep responses clear, actionable, and focused on helping recruiters succeed with CoreFlowHR.`;

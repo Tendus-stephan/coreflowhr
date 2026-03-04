@@ -1,7 +1,7 @@
-import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate, Client } from "../types";
+import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate, Client, UserRole } from "../types";
 export type { Client };
 import { supabase } from "./supabase";
-import { getPlanLimits, hasFeature, getMonthlyScrapeLimit, canScrapeThisMonth } from "./planLimits";
+import { getSourcingCap } from "./planLimits";
 import { userFacingEdgeError } from "../utils/edgeFunctionError";
 
 // Helper to get current user ID
@@ -33,8 +33,8 @@ const getCurrentUserRole = async (): Promise<string> => {
   }
   if (memberships.some((m: { role: string }) => m.role === 'Admin')) return 'Admin';
   const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-  const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
-  return (m?.role as string) || 'Viewer';
+    const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
+    return (m?.role as string) || 'Viewer';
 };
 
 // Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace the user OWNS (created_by), then Admin, then first.
@@ -384,7 +384,7 @@ export const api = {
             const { data: { user } } = await supabase.auth.getUser();
             const email = user?.email ?? (user?.user_metadata?.email as string | undefined) ?? '';
             const nameFromEmail = (email && email.split('@')[0]) || 'User';
-
+            
             if (!profile && user) {
                 // Create profile if it doesn't exist
                 const { data: newProfile } = await supabase
@@ -397,7 +397,7 @@ export const api = {
                     .single();
 
                 if (newProfile) {
-                    const role = await getCurrentUserRole();
+                    const role = await getCurrentUserRole() as UserRole;
                     return {
                         id: userId,
                         name: newProfile.name || nameFromEmail,
@@ -415,7 +415,7 @@ export const api = {
                 }
             }
 
-            const normalizedRole = await getCurrentUserRole();
+            const normalizedRole = await getCurrentUserRole() as UserRole;
             return {
                 id: userId,
                 name: (profile?.name && profile.name.trim()) ? profile.name : nameFromEmail,
@@ -1268,10 +1268,10 @@ export const api = {
             }
 
             let activityQuery = supabase.from('activity_log')
-                .select('*')
-                .eq('user_id', userId)
-                .eq('action', 'candidate_moved')
-                .like('target_to', '%Hired%')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('action', 'candidate_moved')
+                    .like('target_to', '%Hired%')
                 .order('created_at', { ascending: false });
             if (workspaceId) activityQuery = activityQuery.eq('workspace_id', workspaceId);
 
@@ -1589,12 +1589,12 @@ export const api = {
                 `);
             if (workspaceId) query = query.eq('workspace_id', workspaceId);
             if (viewerJobIds !== null) query = query.in('id', viewerJobIds);
-
+            
             // Exclude closed jobs if requested (default is to include all)
             if (filters?.excludeClosed === true) {
                 query = query.neq('status', 'Closed');
             }
-
+            
             query = query.order('created_at', { ascending: false }).range(from, to);
 
             const { data, error } = await query;
@@ -1628,11 +1628,12 @@ export const api = {
                 remote: job.remote || false,
                 skills: job.skills || [],
                 isTest: job.is_test || false,
-                scrapingStatus: job.scraping_status || null,
-                scrapingError: job.scraping_error || null,
-                scrapingSuggestion: job.scraping_suggestion || null,
-                scrapingAttemptedAt: job.scraping_attempted_at || null,
-                candidatesFound: job.candidates_found ?? 0,
+                sourcingStatus: job.sourcing_status || null,
+                sourcingCandidatesCount: job.sourcing_candidates_count ?? 0,
+                sourcingMaxedOut: job.sourcing_maxed_out ?? false,
+                sourcingPdlOffset: job.sourcing_pdl_offset ?? 0,
+                sourcingLastRunAt: job.sourcing_last_run_at || null,
+                sourcingErrorMessage: job.sourcing_error_message || null,
             }));
 
             return {
@@ -1698,11 +1699,12 @@ export const api = {
                 remote: data.remote || false,
                 skills: data.skills || [],
                 isTest: data.is_test || false,
-                scrapingStatus: data.scraping_status || null,
-                scrapingError: data.scraping_error || null,
-                scrapingSuggestion: data.scraping_suggestion || null,
-                scrapingAttemptedAt: data.scraping_attempted_at || null,
-                candidatesFound: data.candidates_found ?? 0,
+                sourcingStatus: data.sourcing_status || null,
+                sourcingCandidatesCount: data.sourcing_candidates_count ?? 0,
+                sourcingMaxedOut: data.sourcing_maxed_out ?? false,
+                sourcingPdlOffset: data.sourcing_pdl_offset ?? 0,
+                sourcingLastRunAt: data.sourcing_last_run_at || null,
+                sourcingErrorMessage: data.sourcing_error_message || null,
             };
         },
         create: async (jobData: Partial<Job>) => {
@@ -1723,13 +1725,6 @@ export const api = {
             }
 
             const jobStatus = jobData.status || 'Draft';
-            if (jobStatus === 'Active') {
-                const { data: settings } = await supabase
-                    .from('user_settings')
-                    .select('billing_plan_name')
-                    .eq('user_id', userId)
-                    .single();
-            }
             const postedDate = jobStatus === 'Active' ? new Date().toISOString() : null;
             const jobTitle = jobData.title || 'Untitled';
 
@@ -1761,6 +1756,13 @@ export const api = {
             // Log activity
             const { logJobCreated } = await import('./activityLogger');
             await logJobCreated(job.title);
+
+            // Fire-and-forget: trigger PDL candidate sourcing (do not await — never blocks job creation)
+            supabase.functions.invoke('trigger-sourcing', {
+                body: { job_id: job.id, workspace_id: workspaceId },
+            }).catch((err) => {
+                console.warn('[Jobs] trigger-sourcing fire-and-forget error (non-fatal):', err);
+            });
 
             return {
                 id: job.id,
@@ -2729,6 +2731,11 @@ export const api = {
                 portfolioUrls: candidate.portfolio_urls || {},
                 profileUrl: candidate.profile_url,
                 linkedInUrl: candidate.linkedin_url || undefined,
+                currentCompany: candidate.current_company || undefined,
+                profilePictureUrl: candidate.profile_picture_url || undefined,
+                sourcedAt: candidate.sourced_at || undefined,
+                pdlId: candidate.pdl_id || undefined,
+                aiMatchReason: candidate.ai_match_reason || undefined,
                 alsoInJobTitles: alsoInMap.get(candidate.id) || undefined
             };
             });
@@ -4399,55 +4406,19 @@ export const api = {
             if (error && error.code !== 'PGRST116') throw error;
 
             return {
-                name: data?.billing_plan_name || 'Basic Plan',
-                price: parseFloat(data?.billing_plan_price) || 0,
+                name: 'CoreflowHR Professional',
+                price: 149,
                 interval: data?.billing_plan_interval || 'monthly',
-                activeJobsLimit: data?.billing_plan_active_jobs_limit || 5,
-                candidatesLimit: data?.billing_plan_candidates_limit || 50,
-                currency: data?.billing_plan_currency || '$',
+                activeJobsLimit: Infinity,
+                candidatesLimit: Infinity,
+                currency: '$',
                 subscriptionStatus: data?.subscription_status || null,
                 subscriptionStripeId: data?.subscription_stripe_id || null,
                 subscriptionPeriodEnd: data?.subscription_current_period_end || null
             };
         },
-        getScrapeUsage: async (): Promise<{ used: number; limit: number; remaining: number; resetDate: string; allowed: boolean; message?: string }> => {
-            const userId = await getUserId();
-            if (!userId) throw new Error('Not authenticated');
-            const [{ data: usageData, error: usageError }, { data: settingsData }] = await Promise.all([
-                supabase.rpc('get_scrape_usage', { p_user_id: userId }),
-                supabase.from('user_settings').select('billing_plan_name').eq('user_id', userId).single(),
-            ]);
-            if (usageError) throw usageError;
-            let used = usageData?.[0]?.used ?? 0;
-            let resetDate = usageData?.[0]?.reset_date ?? new Date().toISOString();
-            const planName = settingsData?.billing_plan_name || 'Basic Plan';
-            const limit = getMonthlyScrapeLimit(planName);
-
-            // If stored reset date is in the past, refresh from Stripe so UI shows current period end (fixes stale "resets Jan 26" after renewal)
-            const resetAsDate = new Date(resetDate);
-            if (resetAsDate.getTime() < Date.now() && settingsData?.billing_plan_name) {
-                try {
-                    const { data: billingData } = await supabase.functions.invoke('get-billing-details', { body: {} });
-                    const sub = (typeof billingData === 'string' ? (() => { try { return JSON.parse(billingData); } catch { return null; } })() : billingData)?.subscription;
-                    if (sub?.currentPeriodEnd) {
-                        const periodEnd = new Date(sub.currentPeriodEnd);
-                        if (periodEnd.getTime() > Date.now()) resetDate = sub.currentPeriodEnd;
-                    }
-                } catch (_) {
-                    // Keep existing resetDate if refresh fails
-                }
-            }
-
-            const check = canScrapeThisMonth(planName, used, resetDate);
-            return {
-                used,
-                limit,
-                remaining: check.remaining,
-                resetDate,
-                allowed: check.allowed,
-                message: check.message,
-            };
-        },
+        // getSourcingUsage removed — old monthly credit system no longer exists.
+        // Sourcing is now per-job (100 cap for paid, 30 for design partners) via sourcing_candidates_count on jobs table.
         getNotificationPreferences: async (): Promise<{
             emailNotifications: boolean;
             interviewScheduleUpdates: boolean;
@@ -4845,6 +4816,7 @@ export const api = {
         getWorkspaceWithMembers: async (): Promise<{
             workspaceId: string;
             name: string;
+            companyLogoUrl?: string;
             members: { userId: string; name: string; role: UserRole; isCurrentUser: boolean }[];
         }> => {
             const userId = await getUserId();
@@ -5214,67 +5186,29 @@ export const api = {
     },
     plan: {
         /**
-         * Check if plan allows AI email generation
+         * Professional plan — all features unlimited.
+         * AI email generation always allowed.
          */
-        canUseAiEmailGeneration: async (): Promise<boolean> => {
-            const plan = await api.settings.getPlan();
-            const limits = getPlanLimits(plan.name);
-            return limits.aiEmailGeneration;
-        },
-        
+        canUseAiEmailGeneration: async (): Promise<boolean> => true,
+
         /**
-         * Check if user can create a workflow
+         * Workflows are unlimited on Professional.
          */
-        canCreateWorkflow: async (currentWorkflowCount: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
-            const plan = await api.settings.getPlan();
-            const limits = getPlanLimits(plan.name);
-            const maxAllowed = limits.maxEmailWorkflows;
-            
-            if (currentWorkflowCount < maxAllowed) {
-                return { allowed: true, maxAllowed };
-            }
-            
-            const isTopPlan = limits.name === 'Professional';
-            const message = isTopPlan
-                ? `You've reached your maximum of ${maxAllowed} email workflows. Please delete an existing workflow or contact support for assistance.`
-                : `Your ${limits.name} plan allows up to ${maxAllowed} email workflows. Upgrade to Professional for up to ${getPlanLimits('Professional').maxEmailWorkflows} workflows.`;
-            
-            return {
-                allowed: false,
-                maxAllowed,
-                message
-            };
+        canCreateWorkflow: async (_currentWorkflowCount: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
+            return { allowed: true, maxAllowed: Infinity };
         },
-        
+
         /**
-         * Check if user can export specified number of candidates
+         * CSV export is unlimited on Professional.
          */
-        canExportCandidates: async (count: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
-            const plan = await api.settings.getPlan();
-            const limits = getPlanLimits(plan.name);
-            const maxAllowed = limits.maxExportCandidates;
-            
-            if (count <= maxAllowed) {
-                return { allowed: true, maxAllowed };
-            }
-            
-            const isTopPlan = limits.name === 'Professional';
-            const message = isTopPlan
-                ? `Your plan allows up to ${maxAllowed} candidates per export. Please filter to fewer candidates or contact support for assistance.`
-                : `Your ${limits.name} plan allows up to ${maxAllowed} candidates per export. Upgrade to Professional for up to ${getPlanLimits('Professional').maxExportCandidates} candidates per export.`;
-            
-            return {
-                allowed: false,
-                maxAllowed,
-                message
-            };
+        canExportCandidates: async (_count: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
+            return { allowed: true, maxAllowed: Infinity };
         },
-        
+
         /**
-         * Check if user has AI analysis quota remaining
+         * AI analysis is unlimited.
          */
         hasAiAnalysisQuota: async (_usedThisMonth: number): Promise<{ allowed: boolean; maxAllowed: number; remaining: number; message?: string }> => {
-            // AI analysis is unlimited — no quota enforced
             return { allowed: true, maxAllowed: Infinity, remaining: Infinity };
         },
         

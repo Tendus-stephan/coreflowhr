@@ -8,7 +8,7 @@ Everything below is on your side. The app and docs are ready; run these in order
 
 1. **Supabase Dashboard** → SQL Editor → New query.
 2. Run these migrations **in this order** (open each file, copy all, paste into SQL Editor, run):
-   - [supabase/migrations/add_monthly_scrape_tracking.sql](supabase/migrations/add_monthly_scrape_tracking.sql) — fixes `get_scrape_usage` 404 and scrape-usage bar.
+   - [supabase/migrations/add_monthly_scrape_tracking.sql](supabase/migrations/add_monthly_scrape_tracking.sql) — fixes `get_scrape_usage` 404 and sourcing-usage bar.
    - [supabase/migrations/add_notifications_and_digest_settings.sql](supabase/migrations/add_notifications_and_digest_settings.sql) — fixes `user_settings` 400 (`last_seen_at`, `weekly_digest_enabled`).
 3. Reload the app: dashboard should load without those errors.
 
@@ -27,15 +27,15 @@ Run in **Supabase** → **SQL Editor** (open file → copy contents → paste �
 
 | Purpose | File (click to open) |
 |--------|----------------------|
-| Scraping status on jobs | [supabase/migrations/add_scraping_status.sql](supabase/migrations/add_scraping_status.sql) |
-| Partial scrape status | [supabase/migrations/add_partial_scraping_status.sql](supabase/migrations/add_partial_scraping_status.sql) |
+| Sourcing status on jobs | [supabase/migrations/add_scraping_status.sql](supabase/migrations/add_scraping_status.sql) |
+| Partial sourcing status | [supabase/migrations/add_partial_scraping_status.sql](supabase/migrations/add_partial_scraping_status.sql) |
 | “What to try” suggestion on jobs | [supabase/migrations/add_scraping_suggestion.sql](supabase/migrations/add_scraping_suggestion.sql) |
 | LinkedIn dedup + “Also in” | [supabase/migrations/add_linkedin_url_dedup.sql](supabase/migrations/add_linkedin_url_dedup.sql) |
 | Job templates table | [supabase/migrations/add_job_templates.sql](supabase/migrations/add_job_templates.sql) |
-| Scrape concurrency (multi-user) | [supabase/migrations/add_scrape_concurrency_limit.sql](supabase/migrations/add_scrape_concurrency_limit.sql) — limits concurrent scrapes so HarvestAPI isn’t overloaded |
+| Sourcing concurrency (multi-user) | [supabase/migrations/add_scrape_concurrency_limit.sql](supabase/migrations/add_scrape_concurrency_limit.sql) — limits concurrent scrapes so HarvestAPI isn’t overloaded |
 
 **Other migrations** (run if your project doesn’t have these yet):
-- [supabase/migrations/add_scraper_fields.sql](supabase/migrations/add_scraper_fields.sql) — `profile_url`, `work_experience`, etc. on candidates
+- [supabase/migrations/add_scraper_fields.sql](supabase/migrations/add_scraper_fields.sql) — `profile_url`, `work_experience`, etc. on candidates (sourcing-related fields)
 - [supabase/migrations/add_clients_table.sql](supabase/migrations/add_clients_table.sql) — clients table
 - [supabase/migrations/add_email_workflows.sql](supabase/migrations/add_email_workflows.sql) — email workflows
 - [supabase/migrations/add_notification_types.sql](supabase/migrations/add_notification_types.sql) — notification type/category columns
@@ -50,9 +50,7 @@ Run in **Supabase** → **SQL Editor** (open file → copy contents → paste �
   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.  
   Optional: Stripe price IDs if you use billing.
 - **Supabase** → **Project Settings** → **Edge Functions** → **Secrets**:  
-  Set secrets for each function you use (Stripe, Resend, OpenAI, `SCRAPER_SERVER_URL`, OAuth, etc.). See table in “Edge Functions” below.
-- **Scraper server:**  
-  Run it and set `SCRAPER_SERVER_URL` in Edge Function secrets to that URL (for sourcing).
+  Set secrets for each function you use (Stripe, Resend, OpenAI, OAuth, etc.). See table in “Edge Functions” below.
 
 ---
 
@@ -63,7 +61,6 @@ Run in **Supabase** → **SQL Editor** (open file → copy contents → paste �
 
 | Function | Secrets to set |
 |----------|----------------|
-| **scrape-candidates** | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SCRAPER_SERVER_URL` |
 | **send-email** | `RESEND_API_KEY`, `FROM_EMAIL`, optional `FROM_NAME`, `LOGO_URL` |
 | **parse-cv** | `OPENAI_API_KEY` |
 | **send-weekly-digest** | (uses `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` – usually already set) |
@@ -115,4 +112,4 @@ Use **`BROWSER_TEST_CHECKLIST.md`** and run tests 1–12 (templates, “What to 
 ---
 
 **What we did (code side):**  
-Fixed Dashboard crash (`scrapeUsage` state), scrape-usage bar when `limit` is 0, and `recordSeen` 400 handling. The rest (migrations, env, deploy, Stripe, cron, browser tests) is on your side above.
+Fixed Dashboard crash (usage state), sourcing-usage bar when `limit` is 0, and `recordSeen` 400 handling. The rest (migrations, env, deploy, Stripe, cron, browser tests) is on your side above.

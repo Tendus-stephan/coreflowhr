@@ -36,11 +36,6 @@ export interface Client {
 }
 
 export interface Job {
-  scrapingStatus?: 'pending' | 'succeeded' | 'failed' | 'partial' | null;
-  scrapingError?: string | null;
-  scrapingSuggestion?: string | null;
-  scrapingAttemptedAt?: string | null;
-  candidatesFound?: number | null;
   id: string;
   title: string;
   department: string;
@@ -55,9 +50,16 @@ export interface Job {
   remote?: boolean;
   skills?: string[];
   company?: string;
-  clientId?: string; // Link to client
-  client?: Client; // Full client object (when joined)
+  clientId?: string;
+  client?: Client;
   isTest?: boolean;
+  // Sourcing fields (PDL)
+  sourcingStatus?: 'pending' | 'running' | 'completed' | 'failed' | null;
+  sourcingCandidatesCount?: number;
+  sourcingMaxedOut?: boolean;
+  sourcingPdlOffset?: number;
+  sourcingLastRunAt?: string | null;
+  sourcingErrorMessage?: string | null;
 }
 
 export interface JobTemplate {
@@ -114,7 +116,6 @@ export interface Candidate {
   appliedDate: string;
   location: string;
   resumeSummary?: string;
-  aiMatchScore?: number;
   aiAnalysis?: string;
   avatarUrl?: string;
   experience?: number;
@@ -122,14 +123,20 @@ export interface Candidate {
   updatedAt?: string;
   cvFileUrl?: string;
   cvFileName?: string;
-  source?: 'ai_sourced' | 'direct_application' | 'email_application' | 'referral' | 'scraped';
+  source?: 'manual' | 'Sourced' | 'direct_application' | 'email_application' | 'referral';
   isTest?: boolean;
   workExperience?: WorkExperience[];
   projects?: Project[];
   portfolioUrls?: PortfolioURLs;
   profileUrl?: string;
-  /** Normalized LinkedIn profile URL (for dedup and cross-job flagging) */
+  // Sourcing fields (PDL)
   linkedInUrl?: string | null;
+  currentCompany?: string | null;
+  profilePictureUrl?: string | null;
+  sourcedAt?: string | null;
+  pdlId?: string | null;
+  aiMatchScore?: number | null;
+  aiMatchReason?: string | null;
   /** Other jobs (same user) that have a candidate with the same LinkedIn profile */
   alsoInJobTitles?: { jobId: string; jobTitle: string }[];
 }

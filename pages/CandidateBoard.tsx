@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Candidate, CandidateStage, Job } from '../types';
 import { PipelineColumn } from '../components/PipelineColumn';
+import { SourcingStatusBar } from '../components/SourcingStatusBar';
 import { 
     Users, CheckCircle, Clock, Sparkles, Search, ChevronDown, 
     Filter, MoreHorizontal, TrendingUp, Download, Bell, Loader2, AlertTriangle, Info
@@ -141,37 +142,22 @@ const CandidateBoard: React.FC = () => {
     }
   }, [candidates, searchParams, setSearchParams]);
 
-  // Preselect job from ?job= when jobs are loaded (e.g. from "Also in: Job X" link)
+  // Preselect job from ?job= when jobs are loaded; show sourcing toast when ?sourcing=started
   useEffect(() => {
     const jobId = searchParams.get('job');
+    const sourcing = searchParams.get('sourcing');
     if (jobId && jobs.length > 0 && jobs.some(j => j.id === jobId)) {
       setSelectedJob(jobId);
     }
-  }, [jobs, searchParams]);
-
-  // Poll every 5 s when the selected job is actively scraping
-  useEffect(() => {
-    if (selectedJob === 'all') return;
-    const jobData = jobs.find(j => j.id === selectedJob);
-    if (jobData?.scrapingStatus !== 'pending') return;
-
-    const id = setInterval(async () => {
-      try {
-        const [jobsResult, candidatesResult] = await Promise.all([
-          api.jobs.list({ excludeClosed: true, page: 1, pageSize: 100 }),
-          api.candidates.list({ page: 1, pageSize: 1000 }),
-        ]);
-        const updatedJobs = jobsResult.data || [];
-        setJobs(updatedJobs);
-        const updatedJob = updatedJobs.find(j => j.id === selectedJob);
-        if (updatedJob?.scrapingStatus !== 'pending') {
-          setCandidates(candidatesResult.data || []);
-        }
-      } catch (_) {}
-    }, 5000);
-
-    return () => clearInterval(id);
-  }, [selectedJob, jobs]);
+    if (sourcing === 'started') {
+      setToastMessage('Job created! Candidate sourcing has started in the background — check back shortly.');
+      setToastType('info');
+      setShowToast(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('sourcing');
+      setSearchParams(next, { replace: true });
+    }
+  }, [jobs, searchParams, setSearchParams]);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -606,65 +592,16 @@ const CandidateBoard: React.FC = () => {
           </div>
       </div>
 
-      {/* Scraping status banner for the selected job */}
-      {selectedJobData && selectedJobData.scrapingStatus && (
-          <div className="px-8 pb-3 flex-shrink-0">
-              {selectedJobData.scrapingStatus === 'pending' && (
-                  <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-600">
-                      <Loader2 size={15} className="animate-spin flex-shrink-0" />
-                      <span>
-                          <span className="font-semibold">Searching for candidates…</span>
-                          {(selectedJobData.candidatesFound ?? 0) > 0 && (
-                              <span> · <span className="font-bold">{selectedJobData.candidatesFound}</span> found so far</span>
-                          )}
-                      </span>
-                  </div>
-              )}
-              {selectedJobData.scrapingStatus === 'succeeded' && (selectedJobData.candidatesFound ?? 0) === 0 && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-700">
-                      <Info size={15} className="flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                          <p className="font-semibold">No candidates found matching your criteria.</p>
-                          {selectedJobData.scrapingError && (
-                              <p className="mt-0.5 text-xs opacity-80">{selectedJobData.scrapingError}</p>
-                          )}
-                          {selectedJobData.scrapingSuggestion && (
-                              <p className="mt-0.5 text-xs opacity-80">
-                                  <span className="font-medium">Try:</span> {selectedJobData.scrapingSuggestion}
-                              </p>
-                          )}
-                          <div className="mt-2">
-                              <Link to="/jobs" className="text-xs font-semibold underline underline-offset-2 hover:no-underline">
-                                  Edit job &amp; retry on Jobs page →
-                              </Link>
-                          </div>
-                      </div>
-                  </div>
-              )}
-              {selectedJobData.scrapingStatus === 'failed' && selectedJobData.scrapingError && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm border bg-gray-50 border-gray-200 text-gray-700">
-                      <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                          <p className="font-semibold">Candidate search failed</p>
-                          <p className="mt-0.5 text-xs opacity-80">{selectedJobData.scrapingError}</p>
-                          {selectedJobData.scrapingSuggestion && (
-                              <p className="mt-0.5 text-xs opacity-80">
-                                  <span className="font-medium">What to try:</span> {selectedJobData.scrapingSuggestion}
-                              </p>
-                          )}
-                          <div className="mt-2 flex items-center gap-3">
-                              <Link to="/jobs" className="text-xs font-semibold underline underline-offset-2 hover:no-underline">
-                                  Retry on Jobs page
-                              </Link>
-                              <span className="text-xs opacity-30">·</span>
-                              <Link to={`/jobs/edit/${selectedJobData.id}`} className="text-xs font-semibold underline underline-offset-2 hover:no-underline">
-                                  Edit job
-                              </Link>
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </div>
+      {/* Sourcing status bar — shown only when a specific job is selected */}
+      {selectedJob !== 'all' && (
+        <SourcingStatusBar
+          jobId={selectedJob}
+          isReadOnly={isViewer}
+          onCandidatesAdded={() => {
+            // Reload candidates when sourcing completes
+            api.candidates.list({ page: 1, pageSize: 1000 }).then((r) => setCandidates(r.data || [])).catch(() => {});
+          }}
+        />
       )}
 
       {/* Flexible Board Area with Horizontal Scroll */}

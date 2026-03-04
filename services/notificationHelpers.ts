@@ -142,7 +142,7 @@ export const notifySystemEvent = async (
 };
 
 /**
- * Sourcing (scrape) complete or failed – for in-app notification after candidate sourcing runs
+ * Sourcing complete or failed – for in-app notification after PDL sourcing runs
  */
 export const notifySourcingEvent = async (
     userId: string,

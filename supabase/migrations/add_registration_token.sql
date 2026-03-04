@@ -1,5 +1,5 @@
 -- Add registration token columns for candidate email collection via outreach
--- This allows scraped candidates (no email) to register their email through outreach links
+-- This allows candidates without email to register their email through outreach links
 
 ALTER TABLE candidates 
 ADD COLUMN IF NOT EXISTS registration_token TEXT,

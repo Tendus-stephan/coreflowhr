@@ -104,7 +104,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                         </div>
                         <div>
                             <p className="text-sm font-bold text-gray-900">Email Support</p>
-                            <p className="text-xs text-gray-500">coreflowhr@gmail.com</p>
+                            <a href="mailto:teams@coreflowhr.com" className="text-xs text-gray-500 hover:text-gray-900 hover:underline">teams@coreflowhr.com</a>
                         </div>
                     </div>
                 </div>
@@ -1580,7 +1580,7 @@ const Settings: React.FC = () => {
         }
     };
 
-    const handleUpgradePlan = async (planType: 'basic' | 'professional', billingInterval: 'monthly' | 'yearly') => {
+    const handleUpgradePlan = async (planType: 'professional', billingInterval: 'monthly' | 'yearly') => {
         setIsProcessingPayment(true);
         setBillingError(null);
 
@@ -1642,12 +1642,12 @@ const Settings: React.FC = () => {
         { id: 'notifications', label: 'Notifications', icon: Mail },
         { id: 'templates', label: 'Email Templates', icon: FileText },
         { id: 'workflows', label: 'Email Workflows', icon: Zap },
-        { id: 'integrations', label: 'Integrations', icon: Layers, requiresProfessional: true },
+        { id: 'integrations', label: 'Integrations', icon: Layers },
         { id: 'security', label: 'Security', icon: AlertCircle },
     ];
     const role = user?.role ?? 'Viewer';
     const tabs = allTabs.filter(tab => {
-        if (tab.requiresProfessional && plan?.name === 'Basic Plan') return false;
+        // All features are available on Professional — no plan gating
         if (role === 'Viewer') return tab.id === 'profile' || tab.id === 'notifications';
         if (tab.id === 'team') return role === 'Admin' || role === 'Recruiter';
         if (tab.id === 'billing' || tab.id === 'integrations') return role === 'Admin';
@@ -2539,25 +2539,7 @@ const Settings: React.FC = () => {
                                     <p className="text-sm font-medium">{saveMessage.text}</p>
                                 </div>
                             )}
-                            {plan?.name === 'Basic Plan' ? (
-                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
-                                    <Layers size={48} className="mx-auto text-gray-400 mb-4" />
-                                    <h3 className="text-lg font-bold text-gray-900 mb-2">Integrations Available on Professional Plan</h3>
-                                    <p className="text-sm text-gray-500 mb-6">
-                                        Upgrade to Professional to connect Google Calendar, Google Meet, and Microsoft Teams.
-                                    </p>
-                                    <Button
-                                        variant="black"
-                                        onClick={() => {
-                                            setActiveTab('billing');
-                                            handleUpgradePlan('professional', 'monthly');
-                                        }}
-                                    >
-                                        Upgrade to Professional
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 gap-4">
+                            <div className="grid grid-cols-1 gap-4">
                                     {integrations.filter(integration => integration.id !== 'teams' && integration.name !== 'Google Integration').map((integration) => (
                                         <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
                                             <div className="flex items-center gap-4">
@@ -2594,10 +2576,9 @@ const Settings: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-                            )}
                         </div>
                     )}
-                    
+
                      {activeTab === 'security' && (
                         <div className="space-y-8">
                              <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4">Security Settings</h2>

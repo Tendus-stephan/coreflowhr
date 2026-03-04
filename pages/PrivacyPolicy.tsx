@@ -280,7 +280,7 @@ const PrivacyPolicy: React.FC = () => {
                     <li><strong>Restriction:</strong> Request restriction of processing</li>
                   </ul>
                   <p className="mt-3">
-                    To exercise these rights, please contact us at <a href="mailto:coreflowhr@gmail.com" className="text-black hover:underline">coreflowhr@gmail.com</a>.
+                    To exercise these rights, please contact us at <a href="mailto:teams@coreflowhr.com" className="text-black hover:underline">teams@coreflowhr.com</a>.
                   </p>
                 </div>
               </section>
@@ -341,7 +341,7 @@ const PrivacyPolicy: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 text-gray-600">
                         <span className="font-medium">Email:</span>
-                        <a href="mailto:coreflowhr@gmail.com" className="hover:text-gray-900 hover:underline">coreflowhr@gmail.com</a>
+                        <a href="mailto:teams@coreflowhr.com" className="hover:text-gray-900 hover:underline">teams@coreflowhr.com</a>
                       </div>
                     </div>
                   </div>

@@ -79,7 +79,7 @@ const Reports: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       const res = await api.jobs.list({});
-      const list = res?.data ?? [];
+        const list = res?.data ?? [];
       setJobs(list.map((j: { id: string; title: string }) => ({ id: j.id, title: j.title || 'Untitled' })));
     };
     load();
@@ -156,8 +156,8 @@ const Reports: React.FC = () => {
   return (
     <div className="p-6 pb-12">
       {/* Header — matches Dashboard */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Reports</h1>
           <p className="text-gray-500 text-sm mt-1">Track your hiring performance</p>
         </div>
@@ -206,28 +206,28 @@ const Reports: React.FC = () => {
           </div>
           {useCustom && (
             <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
+                        <input
+                          type="date"
+                          value={customFrom}
+                          onChange={(e) => setCustomFrom(e.target.value)}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-              />
+                        />
               <span className="text-gray-400 text-sm">to</span>
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
+                        <input
+                          type="date"
+                          value={customTo}
+                          onChange={(e) => setCustomTo(e.target.value)}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-              />
-            </div>
-          )}
+                        />
+                      </div>
+                    )}
           <select
             value={jobId ?? ''}
             onChange={(e) => setJobId(e.target.value || null)}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white min-w-[160px] focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
           >
             <option value="">All Jobs</option>
-            {jobs.map((j) => (
+                  {jobs.map((j) => (
               <option key={j.id} value={j.id}>{j.title}</option>
             ))}
           </select>
@@ -237,13 +237,13 @@ const Reports: React.FC = () => {
             </Button>
           )}
         </div>
-      </div>
+        </div>
 
       {loading ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-12 shadow-sm flex flex-col items-center justify-center gap-3">
           <Loader2 size={32} className="text-gray-400 animate-spin" />
           <p className="text-gray-500 text-sm font-medium">Loading reports…</p>
-        </div>
+          </div>
       ) : !hasAnyData ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-12 shadow-sm text-center">
           {!metrics ? null : (jobId || useCustom) ? (
@@ -258,7 +258,7 @@ const Reports: React.FC = () => {
               No hiring data yet. Your metrics will appear here once you start adding candidates and moving them through your pipeline.
             </p>
           )}
-        </div>
+          </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -268,7 +268,7 @@ const Reports: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
                     <Target size={18} />
-                  </div>
+          </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">Time to hire</h3>
                     {metrics?.timeToHire && (
@@ -276,7 +276,7 @@ const Reports: React.FC = () => {
                         {metrics.timeToHire.trend_pct >= 0 ? 'Faster' : 'Slower'} vs previous period
                       </p>
                     )}
-                  </div>
+          </div>
                 </div>
                 {metrics?.timeToHire && (
                   <span className={`flex items-center gap-1 text-xs font-semibold ${metrics.timeToHire.trend_pct >= 0 ? 'text-green-600' : 'text-amber-600'}`}>
@@ -284,12 +284,12 @@ const Reports: React.FC = () => {
                     {metrics.timeToHire.trend_pct >= 0 ? `${metrics.timeToHire.trend_pct}%` : `${Math.abs(metrics.timeToHire.trend_pct)}%`}
                   </span>
                 )}
-              </div>
+                    </div>
               {metrics?.timeToHire?.weekly_series?.length ? (
                 <>
                   <p className="text-2xl font-bold text-gray-900 tracking-tight mb-4">{metrics.timeToHire.avg_days} days</p>
                   <div className="h-[160px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={metrics.timeToHire.weekly_series} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="tthGrad" x1="0" y1="0" x2="0" y2="1">
@@ -299,17 +299,17 @@ const Reports: React.FC = () => {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
                         <XAxis dataKey="week" stroke="#9ca3af" tick={{ fontSize: 10 }} axisLine={{ stroke: '#e5e7eb' }} tickLine={false} tickFormatter={(v) => v ? new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''} />
-                        <YAxis hide domain={['auto', 'auto']} />
+                            <YAxis hide domain={['auto', 'auto']} />
                         <Tooltip contentStyle={tooltipContentStyle} formatter={(val: number) => [val + ' days', 'Avg']} labelFormatter={(v) => v ? new Date(v).toLocaleDateString() : ''} />
                         <Area type="monotone" dataKey="avg_days" stroke="#3b82f6" strokeWidth={2} fill="url(#tthGrad)" activeDot={{ r: 4, strokeWidth: 0, fill: '#2563eb' }} />
                       </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </>
-              ) : (
+                        </ResponsiveContainer>
+                      </div>
+                  </>
+                ) : (
                 <p className="text-gray-500 text-sm italic">No hires in this period.</p>
-              )}
-            </div>
+                )}
+              </div>
 
             {/* Pipeline conversion — list-style like Dashboard */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -320,8 +320,8 @@ const Reports: React.FC = () => {
                 <h3 className="text-lg font-bold text-gray-900">Pipeline conversion</h3>
               </div>
               {(metrics?.pipelineConversion?.screening_count ?? 0) + (metrics?.pipelineConversion?.interview_count ?? 0) + (metrics?.pipelineConversion?.offer_count ?? 0) + (metrics?.pipelineConversion?.hired_count ?? 0) > 0 ? (
-                <div className="space-y-2">
-                  {[
+                    <div className="space-y-2">
+                      {[
                     { label: 'Screening', count: metrics!.pipelineConversion.screening_count, pct: null },
                     { label: 'Interview', count: metrics!.pipelineConversion.interview_count, pct: metrics!.pipelineConversion.conversion_screening_to_interview_pct },
                     { label: 'Offer', count: metrics!.pipelineConversion.offer_count, pct: metrics!.pipelineConversion.conversion_interview_to_offer_pct },
@@ -332,13 +332,13 @@ const Reports: React.FC = () => {
                       <span className="font-bold text-gray-900 w-10">{count}</span>
                       {pct != null && <span className="text-xs text-gray-500 flex-1">{pct}%</span>}
                       {i < 3 && <ArrowRight size={14} className="text-gray-300 flex-shrink-0" />}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
+                ) : (
                 <p className="text-gray-500 text-sm italic">No pipeline activity in this period.</p>
-              )}
-            </div>
+                )}
+              </div>
 
             {/* Offer acceptance — stat + bar chart feel */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -370,14 +370,14 @@ const Reports: React.FC = () => {
                         {k}: {metrics!.offerAcceptance!.counts[k]}
                       </span>
                     ))}
-                  </div>
-                </>
-              ) : (
+                    </div>
+                  </>
+                ) : (
                 <p className="text-gray-500 text-sm italic">No offers in this period.</p>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Interview–offer ratio */}
+              {/* Interview–offer ratio */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
@@ -399,12 +399,12 @@ const Reports: React.FC = () => {
                       {metrics.interviewOfferRatio.trend_pct >= 0 ? `+${metrics.interviewOfferRatio.trend_pct}%` : metrics.interviewOfferRatio.trend_pct + '%'} vs previous period
                     </span>
                   )}
-                </div>
-              ) : (
+                    </div>
+                ) : (
                 <p className="text-gray-500 text-sm italic">No interviews or offers in this period.</p>
-              )}
+                )}
+              </div>
             </div>
-          </div>
 
           {/* Source quality table — Dashboard-style card */}
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
@@ -414,10 +414,10 @@ const Reports: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-gray-900">Source quality</h3>
             </div>
-            {(metrics?.sourceQuality?.rows?.length ?? 0) > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
+              {(metrics?.sourceQuality?.rows?.length ?? 0) > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/80">
                       <th className="text-left py-4 px-5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Source</th>
                       <th className="text-right py-4 px-5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Total</th>
@@ -425,9 +425,9 @@ const Reports: React.FC = () => {
                       <th className="text-right py-4 px-5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Offers</th>
                       <th className="text-right py-4 px-5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Hires</th>
                       <th className="text-right py-4 px-5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Hire rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                      </tr>
+                    </thead>
+                    <tbody>
                     {metrics!.sourceQuality!.rows.map((row) => (
                       <tr key={row.source} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="py-4 px-5 font-medium text-gray-900">{row.source}</td>
@@ -441,19 +441,19 @@ const Reports: React.FC = () => {
                             <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div className="h-full bg-gray-900 rounded-full transition-all" style={{ width: Math.min(100, row.hire_rate_pct) + '%' }} />
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
               <p className="text-gray-500 text-sm italic p-6">No source data in this period.</p>
             )}
           </div>
-        </>
-      )}
+          </>
+        )}
     </div>
   );
 };

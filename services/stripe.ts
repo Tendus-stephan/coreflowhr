@@ -22,54 +22,33 @@ export const stripePromise = stripePublishableKey
     })
   : Promise.resolve(null);
 
-// Plan configurations
-// Debug: Log environment variables to help troubleshoot (without exposing values)
+// Plan configuration — single Professional plan
 if (typeof window !== 'undefined') {
   console.log('[Stripe] Environment variables check:', {
-    hasBasicMonthly: !!import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_MONTHLY,
-    hasBasicYearly: !!import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_YEARLY,
     hasProfessionalMonthly: !!import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY,
-    hasProfessionalYearly: !!import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_YEARLY,
-    // Don't log actual values to prevent exposure in console/build logs
+    hasFoundingMonthly: !!import.meta.env.VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY,
   });
 }
 
 export const PLANS = {
-  basic: {
-    name: 'Basic Plan',
-    priceIdMonthly: import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_MONTHLY || '',
-    priceIdYearly: import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_YEARLY || '',
-    priceMonthly: 49,
-    priceYearly: 41,
-    features: [
-      'Source candidates for up to 10 jobs per month',
-      '25 candidates per sourcing run',
-      'AI-powered candidate matching',
-      'Email templates',
-      'Basic analytics',
-      'Email support',
-    ],
-    maxJobsPerMonth: 10,
-    candidatesPerScrape: 25,
-    sourcingSources: ['profiles'],
-  },
   professional: {
-    name: 'Professional Plan',
+    name: 'CoreflowHR Professional',
     priceIdMonthly: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY || '',
-    priceIdYearly: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_YEARLY || '',
-    priceMonthly: 99,
-    priceYearly: 83,
+    priceIdYearly: '', // No yearly plan — monthly only
+    priceMonthly: 149,
+    priceYearly: 149,
     features: [
-      'Source candidates for up to 50 jobs per month',
-      '50 candidates per sourcing run',
-      'AI email generation',
+      'Unlimited active jobs',
+      'Up to 100 PDL-sourced candidates per job',
+      'AI match scoring on every candidate',
+      'Automated email workflows & AI email generation',
       'Advanced analytics & reports',
-      'Integrations (Google Calendar, Meet, Teams)',
+      'eSignature for offer letters',
+      'CV / resume parsing',
+      'Google Calendar, Meet & Teams integrations',
+      'Team collaboration — unlimited members',
       'Priority support',
     ],
-    maxJobsPerMonth: 50,
-    candidatesPerScrape: 50,
-    sourcingSources: ['profiles'],
   },
 } as const;
 
@@ -103,9 +82,9 @@ export async function createCheckoutSession(
         envVarName: billingInterval === 'monthly' 
           ? `VITE_STRIPE_PRICE_ID_${planType.toUpperCase()}_MONTHLY`
           : `VITE_STRIPE_PRICE_ID_${planType.toUpperCase()}_YEARLY`,
-        envVarValue: billingInterval === 'monthly' 
-          ? import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_MONTHLY || import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY
-          : import.meta.env.VITE_STRIPE_PRICE_ID_BASIC_YEARLY || import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_YEARLY
+        envVarValue: billingInterval === 'monthly'
+          ? import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY
+          : 'N/A (no yearly plan)'
       });
       return { sessionId: '', error: 'Price ID not configured for this plan. Please restart your dev server after adding environment variables.' };
     }

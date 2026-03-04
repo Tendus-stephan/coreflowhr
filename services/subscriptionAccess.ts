@@ -1,6 +1,6 @@
 /**
- * Access rule: only active or trialing Stripe subscriptions can use the app.
- * Canceled, expired, past_due, or no subscription → must see pricing/renew.
+ * Access rule: only active Stripe subscriptions (or is_free_access design partners) can use the app.
+ * Canceled, expired, past_due, or no subscription → must see upgrade screen.
  */
 
 export type SubscriptionSettings = {
@@ -10,11 +10,11 @@ export type SubscriptionSettings = {
 };
 
 /**
- * True only when the user has an active or trialing subscription.
- * Having a plan name or stripe id alone is not enough (avoids access after cancel/expiry).
+ * True when the user has an active subscription.
+ * Note: 'trialing' is no longer used — we offer a 14-day money-back guarantee, not a free trial.
  */
 export function hasActiveSubscription(settings: SubscriptionSettings | null | undefined): boolean {
   if (!settings) return false;
   const status = (settings.subscription_status || '').toLowerCase();
-  return status === 'active' || status === 'trialing';
+  return status === 'active';
 }
