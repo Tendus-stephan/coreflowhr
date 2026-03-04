@@ -118,31 +118,32 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           const workspaceIds = (memberships || []).map((m: any) => m.workspace_id).filter(Boolean);
 
           if (workspaceIds.length > 0) {
+            // Check is_free_access (design partners / testers) — subscription_status lives in
+            // user_settings, not workspaces, so we don't query it here.
             const { data: workspaces } = await supabase
               .from('workspaces')
-              .select('id, subscription_status, is_free_access, free_access_expires_at')
+              .select('id, is_free_access, free_access_expires_at')
               .in('id', workspaceIds);
 
-            const hasAccess = (workspaces || []).some((ws: any) => {
-              const subStatus = (ws.subscription_status || '').toLowerCase();
-              if (subStatus === 'active') return true;
-              if (ws.is_free_access) {
-                if (!ws.free_access_expires_at) return true; // no expiry set → valid
-                return new Date(ws.free_access_expires_at) > new Date();
-              }
-              return false;
+            const hasFreeAccess = (workspaces || []).some((ws: any) => {
+              if (!ws.is_free_access) return false;
+              if (!ws.free_access_expires_at) return true; // no expiry → valid
+              return new Date(ws.free_access_expires_at) > new Date();
             });
 
-            setCanEnter(hasAccess);
-          } else {
-            setCanEnter(true);
+            if (hasFreeAccess) {
+              setCanEnter(true);
+              setAccessChecked(true);
+              setAccessLoading(false);
+              return;
+            }
           }
-          setAccessChecked(true);
-          setAccessLoading(false);
-          return;
+
+          // No free-access workspace — fall through to own subscription check.
         }
 
-        // Question 2: No workspace — do they have their own subscription?
+        // Check own subscription (covers workspace owners who paid via Stripe,
+        // and users with no workspace).
         const { data: settings, error } = await supabase
           .from('user_settings')
           .select('subscription_status, subscription_stripe_id, billing_plan_name')
@@ -153,7 +154,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           setCanEnter(true);
           setAccessChecked(true);
         } else if (!settings) {
-          setCanEnter(false); // No workspace, no subscription → pricing
+          setCanEnter(false); // No workspace free access, no subscription → pricing
           setAccessChecked(true);
         } else {
           const { hasActiveSubscription } = await import('../services/subscriptionAccess');
