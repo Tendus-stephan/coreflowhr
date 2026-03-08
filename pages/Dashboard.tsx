@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { PageLoader } from '../components/ui/PageLoader';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { 
@@ -11,6 +12,7 @@ import {
     FileText, File, ArrowRight
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { Candidate, CandidateStage, Job, Interview, DashboardStats, ActivityItem, User } from '../types';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import { Avatar } from '../components/ui/Avatar';
@@ -75,6 +77,9 @@ const GenericListModal = ({ isOpen, onClose, title, children }: { isOpen: boolea
 
 // --- Report Modal ---
 const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () => void; type: 'weekly' | 'job' | 'time' | null }) => {
+    const [downloading, setDownloading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -87,25 +92,43 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
     }, [isOpen]);
 
     if (!isOpen || !type) return null;
-    
+
     const titles = {
         weekly: 'Weekly Performance Report',
         job: 'Job Posting Analysis',
         time: 'Time to Hire Analysis'
     };
 
-    // Dynamic Data Generation
     const today = new Date();
     const dateString = today.toISOString().split('T')[0];
-    const fileName = `${type}_report_${dateString}.pdf`;
-    
-    // Calculate date range (Last 30 days)
+    const fileName = `${type}_report_${dateString}.csv`;
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
     const dateRange = `${thirtyDaysAgo.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-    // Random file size between 1.2MB and 4.5MB for realism
-    const fileSize = (Math.random() * (4.5 - 1.2) + 1.2).toFixed(1) + ' MB';
+    const handleDownload = async () => {
+        setDownloading(true);
+        setError(null);
+        try {
+            const dateTo = new Date().toISOString();
+            const dateFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            const { csv, filename } = await api.reports.exportCsv({ dateFrom, dateTo });
+            if (!csv) throw new Error('No data to export');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+            onClose();
+        } catch (err: any) {
+            setError(err?.message || 'Failed to generate report. Please try again.');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
@@ -123,7 +146,7 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
                     <div>
                         <h3 className="text-xl font-bold text-gray-900 mb-2">{titles[type]}</h3>
                         <p className="text-sm text-gray-500">
-                            Ready to generate PDF report for period:<br/>
+                            Export CSV report for the last 30 days:<br/>
                             <span className="font-medium text-gray-900">{dateRange}</span>
                         </p>
                     </div>
@@ -134,16 +157,14 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-gray-900 truncate">{fileName}</p>
-                            <p className="text-xs text-gray-500">{fileSize} • PDF Document</p>
+                            <p className="text-xs text-gray-500">CSV Spreadsheet</p>
                         </div>
                     </div>
 
-                    <Button variant="black" className="w-full justify-center" icon={<Download size={16} />} onClick={() => {
-                        // In a real app, this would trigger the download
-                        console.log(`Downloading ${fileName}`);
-                        onClose();
-                    }}>
-                        Download Report
+                    {error && <p className="text-sm text-red-600">{error}</p>}
+
+                    <Button variant="black" className="w-full justify-center" icon={downloading ? undefined : <Download size={16} />} onClick={handleDownload} disabled={downloading}>
+                        {downloading ? 'Generating...' : 'Download Report'}
                     </Button>
                 </div>
             </div>
@@ -213,12 +234,12 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
     // Apply search filter
     if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
-        filteredCandidates = filteredCandidates.filter(c => 
-            c.name.toLowerCase().includes(query) ||
-            c.email.toLowerCase().includes(query) ||
-            c.role.toLowerCase().includes(query) ||
+        filteredCandidates = filteredCandidates.filter(c =>
+            c.name?.toLowerCase().includes(query) ||
+            c.email?.toLowerCase().includes(query) ||
+            c.role?.toLowerCase().includes(query) ||
             c.location?.toLowerCase().includes(query) ||
-            c.skills.some(skill => skill.toLowerCase().includes(query))
+            c.skills?.some(skill => skill.toLowerCase().includes(query))
         );
     }
 
@@ -265,19 +286,16 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                         <div className="mb-6 flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
                             <div className="flex-1">
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Move From Stage</label>
-                                <div className="relative">
-                                    <select 
-                                        value={sourceStage}
-                                        onChange={(e) => setSourceStage(e.target.value as CandidateStage)}
-                                        className="w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black appearance-none cursor-pointer"
-                                    >
-                                        {/* Note: "New"/"Waitlist" stage removed - candidates in "New" stage are not shown until CV is uploaded */}
-                                        <option value={CandidateStage.SCREENING}>Screening</option>
-                                        <option value={CandidateStage.INTERVIEW}>Interview</option>
-                                        <option value={CandidateStage.OFFER}>Offer</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                                </div>
+                                <CustomSelect
+                                    value={sourceStage}
+                                    onChange={(val) => setSourceStage(val as CandidateStage)}
+                                    className="px-3 py-2 rounded-lg"
+                                    options={[
+                                        { value: CandidateStage.SCREENING, label: 'Screening' },
+                                        { value: CandidateStage.INTERVIEW, label: 'Interview' },
+                                        { value: CandidateStage.OFFER, label: 'Offer' },
+                                    ]}
+                                />
                             </div>
                             <div className="flex items-center justify-center pt-5 text-gray-400">
                                 <ArrowRight size={20} />
@@ -300,7 +318,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                 placeholder="Search by name, email, role, location, or skills..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                             />
                         </div>
                     </div>
@@ -850,11 +868,7 @@ const Dashboard: React.FC = () => {
 
   // Show regular loader during data loading (loader is handled at Layout level for login)
   if (loading) {
-      return (
-          <div className="flex items-center justify-center min-h-screen bg-white">
-              <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-      );
+      return <PageLoader />;
   }
 
   const unreadCount = notifications.filter(n => n.unread).length;

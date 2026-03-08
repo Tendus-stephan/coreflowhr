@@ -4809,7 +4809,38 @@ export const api = {
                     console.error('Error logging integration disconnect activity:', logErr);
                 }
             }
-        }
+        },
+        getSlackWebhook: async (): Promise<string | null> => {
+            const userId = await getUserId();
+            if (!userId) return null;
+            const { data: membership } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            if (!membership?.workspace_id) return null;
+            const { data: ws } = await supabase
+                .from('workspaces')
+                .select('slack_webhook_url')
+                .eq('id', membership.workspace_id)
+                .maybeSingle();
+            return (ws as any)?.slack_webhook_url ?? null;
+        },
+        saveSlackWebhook: async (webhookUrl: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { data: membership } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            if (!membership?.workspace_id) throw new Error('Workspace not found');
+            const { error } = await supabase
+                .from('workspaces')
+                .update({ slack_webhook_url: webhookUrl || null })
+                .eq('id', membership.workspace_id);
+            if (error) throw error;
+        },
     },
     workspaces: {
         /**

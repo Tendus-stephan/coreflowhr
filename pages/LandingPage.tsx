@@ -861,9 +861,9 @@ const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
                 { icon: Calendar, name: "Google Calendar & Meet", desc: "Sync interviews and auto-generate meeting links for candidates.", color: "text-blue-600", comingSoon: false },
-                { icon: Video, name: "Microsoft Teams", desc: "Generate Teams meeting links for video interviews.", color: "text-indigo-600", comingSoon: false },
+                { icon: Video, name: "Microsoft Teams", desc: "Generate Teams meeting links for video interviews.", color: "text-indigo-600", comingSoon: true },
                 { icon: FileText, name: "E-Signatures", desc: "Send offer letters for candidates to sign electronically.", color: "text-emerald-600", comingSoon: false },
-                { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications and updates in your channels.", color: "text-gray-900", comingSoon: true },
+                { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications and updates in your channels.", color: "text-gray-900", comingSoon: false },
               ].map((tool, i) => (
                   <FadeIn key={i} delay={i * 100}>
                     <div className={`flex flex-col p-8 rounded-3xl border transition-all duration-300 group h-full ${tool.comingSoon ? 'bg-gray-50/80 border-gray-200 border-dashed' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}>

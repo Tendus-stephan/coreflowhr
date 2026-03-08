@@ -8,6 +8,7 @@ import {
   Users as UsersIcon, Search, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Session } from '../services/api';
 import { User, BillingPlan, EmailTemplate, Integration, Invoice, EmailWorkflow } from '../types';
@@ -19,64 +20,77 @@ import { EmailWorkflowBuilder } from '../components/EmailWorkflowBuilder';
 import { WorkflowExecutionHistory } from '../components/WorkflowExecutionHistory';
 
 // --- Card Brand Logo Component ---
-const CardBrandLogo = ({ brand, className = "w-12 h-8" }: { brand: string; className?: string }) => {
-  const normalizedBrand = brand.toLowerCase().replace(/\s+/g, '_');
-  
-  if (normalizedBrand === 'visa') {
+const CardBrandLogo = ({ brand, className = "w-14 h-9" }: { brand: string; className?: string }) => {
+  const b = brand.toLowerCase().replace(/[\s-]/g, '_');
+
+  if (b === 'visa') {
     return (
-      <div className={`${className} bg-white rounded border border-gray-200 flex items-center justify-center overflow-hidden p-1`}>
-        <svg viewBox="0 0 100 32" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          <rect width="100" height="32" fill="#1434CB" rx="3"/>
-          <text x="50" y="22" fontSize="18" fontWeight="700" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif" letterSpacing="2px">VISA</text>
+      <div className={`${className} rounded-md border border-gray-200 bg-white flex items-center justify-center overflow-hidden`}>
+        <svg viewBox="0 0 780 500" className="w-[70%] h-[60%]" preserveAspectRatio="xMidYMid meet">
+          <path d="M293.2 348.7l33.4-195.7h53.4l-33.4 195.7h-53.4zm246.8-191.1c-10.6-3.9-27.1-8.1-47.8-8.1-52.7 0-89.8 26.5-90.1 64.4-.3 28 26.6 43.7 46.9 53 20.8 9.5 27.8 15.6 27.7 24.1-.1 13-16.6 18.9-32 18.9-21.4 0-32.8-2.9-50.3-10.1l-6.9-3.1-7.5 43.6c12.5 5.4 35.5 10.1 59.5 10.3 56.1 0 92.5-26.2 93-66.9.2-22.3-14.1-39.3-45-53.3-18.7-9.1-30.2-15.1-30.1-24.3 0-8.1 9.7-16.8 30.7-16.8 17.5-.3 30.2 3.5 40.1 7.5l4.8 2.3 7.3-42.5zm137.4-5.6h-41.2c-12.8 0-22.4 3.5-28 16.2l-79.4 179.5h56.1s9.2-24.1 11.3-29.4c6.1 0 60.7.1 68.5.1 1.6 6.8 6.5 29.3 6.5 29.3h49.6L677.4 152zm-65.7 126.9c4.4-11.2 21.3-54.7 21.3-54.7s4.4-11.3 7.1-18.6l3.6 16.8s10.2 46.6 12.4 56.5h-44.4zm-339.3-126.9l-52.3 133.6-5.6-27.1c-9.7-31.1-40-64.9-73.9-81.8l47.8 171.1 56.5-.1 84.1-195.7h-56.6z" fill="#1A1F71"/>
+          <path d="M146.9 152h-86.2l-.7 4c67.1 16.2 111.5 55.4 129.9 102.5l-18.7-89.6c-3.2-12.3-12.5-16.5-24.3-16.9z" fill="#F9A533"/>
         </svg>
       </div>
     );
   }
-  
-  if (normalizedBrand === 'mastercard') {
+
+  if (b === 'mastercard') {
     return (
-      <div className={`${className} bg-white rounded border border-gray-200 flex items-center justify-center overflow-hidden relative`}>
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#EB001B] rounded-full opacity-95"></div>
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#F79E1B] rounded-full opacity-95"></div>
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-20"></div>
-      </div>
-    );
-  }
-  
-  if (normalizedBrand === 'verve') {
-    return (
-      <div className={`${className} bg-gradient-to-r from-[#5C2D91] via-[#5C2D91] to-[#00A651] rounded border border-gray-200 flex items-center justify-center overflow-hidden px-1`}>
-        <svg viewBox="0 0 80 32" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          <text x="40" y="21" fontSize="10" fontWeight="700" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif" letterSpacing="1px">VERVE</text>
+      <div className={`${className} rounded-md border border-gray-200 bg-white flex items-center justify-center overflow-hidden`}>
+        <svg viewBox="0 0 152 108" className="w-[80%] h-[75%]" preserveAspectRatio="xMidYMid meet">
+          <circle cx="52" cy="54" r="36" fill="#EB001B"/>
+          <circle cx="100" cy="54" r="36" fill="#F79E1B"/>
+          <path d="M76 25.8a36 36 0 0 1 0 56.4 36 36 0 0 1 0-56.4z" fill="#FF5F00"/>
         </svg>
       </div>
     );
   }
-  
-  if (normalizedBrand === 'amex' || normalizedBrand === 'american_express') {
+
+  if (b === 'amex' || b === 'american_express') {
     return (
-      <div className={`${className} bg-[#006FCF] rounded border border-gray-200 flex items-center justify-center overflow-hidden px-1`}>
-        <svg viewBox="0 0 80 32" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          <text x="40" y="21" fontSize="8" fontWeight="700" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif" letterSpacing="1px">AMEX</text>
+      <div className={`${className} rounded-md border border-gray-200 bg-[#007BC1] flex items-center justify-center overflow-hidden`}>
+        <svg viewBox="0 0 120 40" className="w-[80%] h-[65%]" preserveAspectRatio="xMidYMid meet">
+          <text x="60" y="27" fontSize="14" fontWeight="800" fill="white" textAnchor="middle" fontFamily="'Arial', sans-serif" letterSpacing="3">AMEX</text>
         </svg>
       </div>
     );
   }
-  
-  if (normalizedBrand === 'discover') {
+
+  if (b === 'discover') {
     return (
-      <div className={`${className} bg-[#FF6000] rounded border border-gray-200 flex items-center justify-center overflow-hidden px-1`}>
-        <svg viewBox="0 0 90 32" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-          <text x="45" y="21" fontSize="9" fontWeight="700" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif" letterSpacing="0.5px">DISCOVER</text>
+      <div className={`${className} rounded-md border border-gray-200 bg-white flex items-center justify-center overflow-hidden`}>
+        <svg viewBox="0 0 160 50" className="w-[90%] h-[80%]" preserveAspectRatio="xMidYMid meet">
+          <text x="20" y="33" fontSize="13" fontWeight="700" fill="#231F20" textAnchor="start" fontFamily="'Arial', sans-serif" letterSpacing="0.5">DISCOVER</text>
+          <circle cx="142" cy="25" r="17" fill="#F76F20"/>
         </svg>
       </div>
     );
   }
-  
-  // Generic card icon for unknown brands
+
+  if (b === 'verve') {
+    return (
+      <div className={`${className} rounded-md border border-gray-200 overflow-hidden`} style={{ background: 'linear-gradient(135deg,#4B0082 0%,#006400 100%)' }}>
+        <svg viewBox="0 0 100 40" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <text x="50" y="25" fontSize="11" fontWeight="800" fill="white" textAnchor="middle" fontFamily="'Arial', sans-serif" letterSpacing="2">VERVE</text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (b === 'unionpay' || b === 'union_pay') {
+    return (
+      <div className={`${className} rounded-md border border-gray-200 bg-[#D0001A] flex items-center justify-center overflow-hidden`}>
+        <svg viewBox="0 0 100 40" className="w-[80%] h-[70%]" preserveAspectRatio="xMidYMid meet">
+          <text x="50" y="26" fontSize="10" fontWeight="700" fill="white" textAnchor="middle" fontFamily="'Arial', sans-serif" letterSpacing="1">UnionPay</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // Generic fallback
   return (
-    <div className={`${className} bg-gray-100 rounded border border-gray-200 flex items-center justify-center`}>
-      <CreditCard size={16} className="text-gray-400" />
+    <div className={`${className} rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center`}>
+      <CreditCard size={18} className="text-gray-400" />
     </div>
   );
 };
@@ -104,7 +118,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                         </div>
                         <div>
                             <p className="text-sm font-bold text-gray-900">Email Support</p>
-                            <a href="mailto:teams@coreflowhr.com" className="text-xs text-gray-500 hover:text-gray-900 hover:underline">teams@coreflowhr.com</a>
+                            <a href="mailto:team@coreflowhr.com" className="text-xs text-gray-500 hover:text-gray-900 hover:underline">team@coreflowhr.com</a>
                         </div>
                     </div>
                 </div>
@@ -228,7 +242,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                         <label className="block text-sm font-bold text-gray-900 mb-1">Subject Line</label>
                         <input 
                             type="text" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
                             value={formData.subject}
                             onChange={(e) => setFormData({...formData, subject: e.target.value})}
                             disabled={isSaving || isGenerating}
@@ -237,7 +251,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                     <div>
                         <label className="block text-sm font-bold text-gray-900 mb-1">Email Body</label>
                         <textarea 
-                            className="w-full h-64 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none resize-none font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full h-64 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none font-mono disabled:opacity-50 disabled:cursor-not-allowed"
                             value={formData.content}
                             onChange={(e) => setFormData({...formData, content: e.target.value})}
                             disabled={isSaving || isGenerating}
@@ -306,6 +320,15 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
     const [validationError, setValidationError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
         if (!isOpen) {
             // Reset form when modal closes
             setCurrentPassword('');
@@ -364,7 +387,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                         <div className="relative">
                             <input
                                 type={showCurrentPassword ? "text" : "password"}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none pr-10"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black pr-10"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
                                 disabled={isLoading}
@@ -384,7 +407,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                         <div className="relative">
                             <input
                                 type={showNewPassword ? "text" : "password"}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none pr-10"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black pr-10"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 disabled={isLoading}
@@ -406,7 +429,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                         <div className="relative">
                             <input
                                 type={showConfirmPassword ? "text" : "password"}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none pr-10"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black pr-10"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 disabled={isLoading}
@@ -448,6 +471,15 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
     const [verificationCode, setVerificationCode] = useState('');
     const [step, setStep] = useState<'setup' | 'verify'>('setup');
     const [backupCodesCopied, setBackupCodesCopied] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -554,7 +586,7 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
                                         inputMode="numeric"
                                         pattern="[0-9]{6}"
                                         maxLength={6}
-                                        className="w-full px-4 py-3 text-center text-lg font-mono tracking-widest border border-gray-200 rounded-xl focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                                        className="w-full px-4 py-3 text-center text-lg font-mono tracking-widest border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         value={verificationCode}
                                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                         disabled={isLoading}
@@ -727,7 +759,7 @@ const TestWorkflowModal: React.FC<{
                                     value={testPlaceholders[placeholder] || ''}
                                     onChange={(e) => handlePlaceholderChange(placeholder, e.target.value)}
                                     placeholder={getDefaultValue(placeholder)}
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                     disabled={isTesting}
                                 />
                             </div>
@@ -787,6 +819,21 @@ const Settings: React.FC = () => {
     const [stripeSubscription, setStripeSubscription] = useState<any>(null);
     const [stripePaymentMethod, setStripePaymentMethod] = useState<any>(null);
     const [isConnectingIntegration, setIsConnectingIntegration] = useState<string | null>(null);
+    const [slackWebhookUrl, setSlackWebhookUrl] = useState<string | null>(null);
+    const [isSlackModalOpen, setIsSlackModalOpen] = useState(false);
+    const [slackWebhookInput, setSlackWebhookInput] = useState('');
+    const [isSavingSlack, setIsSavingSlack] = useState(false);
+    const [slackError, setSlackError] = useState<string | null>(null);
+
+    // Sourcing usage state (billing tab)
+    const [sourcingUsage, setSourcingUsage] = useState<{
+      is_free_access: boolean;
+      sourcing_provider: string;
+      sourcing_credits_monthly: number;
+      sourcing_credits_used_this_month: number;
+      sourcing_credits_reset_at: string | null;
+      jobBreakdown: { id: string; title: string; sourcing_candidates_count: number }[];
+    } | null>(null);
 
     // Team / workspace state
     const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; role: User['role']; isCurrentUser: boolean }[]>([]);
@@ -936,7 +983,53 @@ const Settings: React.FC = () => {
             setTemplates(t);
             const i = await api.settings.getIntegrations();
             setIntegrations(i);
-            
+
+            // Load Slack webhook
+            try {
+                const webhookUrl = await api.settings.getSlackWebhook();
+                setSlackWebhookUrl(webhookUrl);
+            } catch { /* non-critical */ }
+
+            // Load sourcing usage for billing tab
+            try {
+                const { data: { user: authUser } } = await supabase.auth.getUser();
+                if (authUser?.id) {
+                    const { data: membership } = await supabase
+                        .from('workspace_members')
+                        .select('workspace_id')
+                        .eq('user_id', authUser.id)
+                        .maybeSingle();
+                    if (membership?.workspace_id) {
+                        const wsId = membership.workspace_id as string;
+                        const [{ data: wsData }, { data: jobsData }] = await Promise.all([
+                            supabase
+                                .from('workspaces')
+                                .select('is_free_access, sourcing_provider, sourcing_credits_monthly, sourcing_credits_used_this_month, sourcing_credits_reset_at')
+                                .eq('id', wsId)
+                                .maybeSingle(),
+                            supabase
+                                .from('jobs')
+                                .select('id, title, sourcing_candidates_count')
+                                .eq('workspace_id', wsId)
+                                .gt('sourcing_candidates_count', 0)
+                                .order('sourcing_candidates_count', { ascending: false }),
+                        ]);
+                        if (wsData) {
+                            setSourcingUsage({
+                                is_free_access: (wsData as any).is_free_access,
+                                sourcing_provider: (wsData as any).sourcing_provider || 'pdl',
+                                sourcing_credits_monthly: (wsData as any).sourcing_credits_monthly ?? 200,
+                                sourcing_credits_used_this_month: (wsData as any).sourcing_credits_used_this_month ?? 0,
+                                sourcing_credits_reset_at: (wsData as any).sourcing_credits_reset_at,
+                                jobBreakdown: (jobsData || []) as { id: string; title: string; sourcing_candidates_count: number }[],
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[Settings] Error loading sourcing usage:', err);
+            }
+
             // Load notification preferences
             try {
                 const prefs = await api.settings.getNotificationPreferences();
@@ -1386,6 +1479,41 @@ const Settings: React.FC = () => {
         }
     };
 
+    // Slack webhook handlers
+    const handleSaveSlack = async () => {
+        const url = slackWebhookInput.trim();
+        if (!url.startsWith('https://hooks.slack.com/')) {
+            setSlackError('Please enter a valid Slack Incoming Webhook URL (starts with https://hooks.slack.com/)');
+            return;
+        }
+        setIsSavingSlack(true);
+        setSlackError(null);
+        try {
+            await api.settings.saveSlackWebhook(url);
+            setSlackWebhookUrl(url);
+            setIsSlackModalOpen(false);
+            setSlackWebhookInput('');
+            setSaveMessage({ type: 'success', text: 'Slack connected successfully!' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (err: any) {
+            setSlackError(err.message || 'Failed to save webhook URL');
+        } finally {
+            setIsSavingSlack(false);
+        }
+    };
+
+    const handleDisconnectSlack = async () => {
+        try {
+            await api.settings.saveSlackWebhook('');
+            setSlackWebhookUrl(null);
+            setSaveMessage({ type: 'success', text: 'Slack disconnected.' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (err: any) {
+            setSaveMessage({ type: 'error', text: err.message || 'Failed to disconnect Slack' });
+            setTimeout(() => setSaveMessage(null), 3000);
+        }
+    };
+
     // Security Handlers
     const handleChangePassword = async (currentPassword: string, newPassword: string) => {
         setIsChangingPassword(true);
@@ -1787,7 +1915,7 @@ const Settings: React.FC = () => {
                                         type="text" 
                                         value={profileData.name}
                                         onChange={(e) => setProfileData({...profileData, name: e.target.value})}
-                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
+                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1812,7 +1940,7 @@ const Settings: React.FC = () => {
                                                     setEmailChangeMessage(null);
                                                 }}
                                                 placeholder="New email address"
-                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
+                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                                             />
                                         </div>
                                         <div className="flex gap-2">
@@ -1824,7 +1952,7 @@ const Settings: React.FC = () => {
                                                     setEmailChangeMessage(null);
                                                 }}
                                                 placeholder="Current password (for security)"
-                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                             />
                                             <Button 
                                                 variant="outline" 
@@ -1865,7 +1993,7 @@ const Settings: React.FC = () => {
                                         value={profileData.jobTitle}
                                         onChange={(e) => setProfileData({...profileData, jobTitle: e.target.value})}
                                         placeholder="e.g. Senior Recruiter, Head of Talent"
-                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
+                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1875,7 +2003,7 @@ const Settings: React.FC = () => {
                                         value={profileData.phone}
                                         onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
                                         placeholder="+1 (555) 000-0000" 
-                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none" 
+                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                                     />
                                 </div>
                             </div>
@@ -1993,7 +2121,7 @@ const Settings: React.FC = () => {
                                                         setTeamPage(0);
                                                     }}
                                                     placeholder="Search by name…"
-                                                    className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none w-44"
+                                                    className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black w-44"
                                                 />
                                             </div>
                                         )}
@@ -2077,11 +2205,11 @@ const Settings: React.FC = () => {
                                                             {isSelf && <span className="ml-2 text-xs text-gray-500">(You)</span>}
                                                         </td>
                                                         <td className="px-4 py-3 text-gray-900">
-                                                            <select
+                                                            <CustomSelect
                                                                 value={member.role}
                                                                 disabled={!canChangeRole}
-                                                                onChange={async (e) => {
-                                                                    const newRole = e.target.value as User['role'];
+                                                                onChange={async (val) => {
+                                                                    const newRole = val as User['role'];
                                                                     try {
                                                                         await api.workspaces.updateMemberRole(member.userId, newRole);
                                                                         setTeamMembers(prev =>
@@ -2094,13 +2222,14 @@ const Settings: React.FC = () => {
                                                                         setTeamError(error.message || 'Failed to update member role.');
                                                                     }
                                                                 }}
-                                                                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                                                            >
-                                                                {isSelf && <option value="Admin">Admin</option>}
-                                                                <option value="Recruiter">Recruiter</option>
-                                                                <option value="HiringManager">Hiring Manager</option>
-                                                                <option value="Viewer">Viewer</option>
-                                                            </select>
+                                                                className="px-3 py-1.5 rounded-lg"
+                                                                options={[
+                                                                    ...(isSelf ? [{ value: 'Admin', label: 'Admin' }] : []),
+                                                                    { value: 'Recruiter', label: 'Recruiter' },
+                                                                    { value: 'HiringManager', label: 'Hiring Manager' },
+                                                                    { value: 'Viewer', label: 'Viewer' },
+                                                                ]}
+                                                            />
                                                         </td>
                                                         <td className="px-4 py-3 text-right text-xs text-gray-400">
                                                             {!canChangeRole && 'Role managed automatically'}
@@ -2162,20 +2291,21 @@ const Settings: React.FC = () => {
                                             value={inviteEmail}
                                             onChange={(e) => setInviteEmail(e.target.value)}
                                             placeholder="teammate@company.com"
-                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         />
                                     </div>
                                     <div className="w-full md:w-40 space-y-1">
                                         <label className="text-xs font-medium text-gray-700">Role</label>
-                                        <select
+                                        <CustomSelect
                                             value={inviteRole}
-                                            onChange={(e) => setInviteRole(e.target.value as User['role'])}
-                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
-                                        >
-                                            <option value="Recruiter">Recruiter</option>
-                                            <option value="HiringManager">Hiring Manager</option>
-                                            <option value="Viewer">Viewer</option>
-                                        </select>
+                                            onChange={(val) => setInviteRole(val as User['role'])}
+                                            className="px-3 py-2 rounded-xl"
+                                            options={[
+                                                { value: 'Recruiter', label: 'Recruiter' },
+                                                { value: 'HiringManager', label: 'Hiring Manager' },
+                                                { value: 'Viewer', label: 'Viewer' },
+                                            ]}
+                                        />
                                     </div>
                                     <div className="w-full md:w-auto">
                                         <Button
@@ -2302,6 +2432,60 @@ const Settings: React.FC = () => {
                                 </div>
                             </div>
                             
+                            {/* Sourcing Usage */}
+                            {sourcingUsage && (
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900 mb-4">Candidate Sourcing Usage</h3>
+                                    {sourcingUsage.is_free_access ? (
+                                        <div className="p-4 border border-gray-200 rounded-xl bg-gray-50">
+                                            <p className="text-sm text-gray-700 font-medium">Design Partner access</p>
+                                            <p className="text-xs text-gray-500 mt-1">Up to 20 candidates per job · No monthly cap</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="p-4 border border-gray-200 rounded-xl space-y-3">
+                                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                                    <span>Provider: <span className="font-medium text-gray-700">{sourcingUsage.sourcing_provider === 'reachstream' ? 'ReachStream' : 'PeopleDataLabs'}</span></span>
+                                                    <span>{sourcingUsage.sourcing_credits_used_this_month} / {sourcingUsage.sourcing_credits_monthly} credits used</span>
+                                                </div>
+                                                {(() => {
+                                                    const pct = Math.min(100, Math.round(sourcingUsage.sourcing_credits_used_this_month / Math.max(1, sourcingUsage.sourcing_credits_monthly) * 100));
+                                                    const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-orange-400' : pct >= 50 ? 'bg-yellow-400' : 'bg-green-400';
+                                                    return (
+                                                        <div className="w-full bg-gray-100 rounded-full h-2">
+                                                            <div className={`${barColor} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                                                        </div>
+                                                    );
+                                                })()}
+                                                {sourcingUsage.sourcing_credits_reset_at && (
+                                                    <p className="text-xs text-gray-400">
+                                                        Resets on {(() => {
+                                                            const d = new Date(sourcingUsage.sourcing_credits_reset_at!);
+                                                            d.setMonth(d.getMonth() + 1);
+                                                            d.setDate(1);
+                                                            return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+                                                        })()}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {sourcingUsage.jobBreakdown.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Per-job breakdown</p>
+                                                    <div className="space-y-1.5">
+                                                        {sourcingUsage.jobBreakdown.map((job) => (
+                                                            <div key={job.id} className="flex items-center justify-between px-3 py-2 border border-gray-100 rounded-lg text-sm">
+                                                                <span className="text-gray-700 truncate">{job.title}</span>
+                                                                <span className="ml-4 text-gray-500 flex-shrink-0">{job.sourcing_candidates_count} / 50</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Payment Method */}
                             <div>
                                 <h3 className="text-sm font-bold text-gray-900 mb-4">Payment Method</h3>
@@ -2310,47 +2494,48 @@ const Settings: React.FC = () => {
                                         <Loader2 size={20} className="animate-spin text-gray-400" />
                                     </div>
                                 ) : stripePaymentMethod ? (
-                                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
-                                    <div className="flex items-center gap-4">
-                                            <CardBrandLogo brand={stripePaymentMethod.type} />
+                                    <div className="flex items-center justify-between px-5 py-4 border border-gray-200 rounded-xl bg-gray-50">
+                                        <div className="flex items-center gap-4">
+                                            <CardBrandLogo brand={stripePaymentMethod.type} className="w-14 h-9" />
                                             <div>
-                                                <p className="text-sm font-bold text-gray-900">
-                                                    {stripePaymentMethod.type.charAt(0).toUpperCase() + stripePaymentMethod.type.slice(1).replace('_', ' ')} ending in {stripePaymentMethod.last4}
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    •••• •••• •••• {stripePaymentMethod.last4}
                                                 </p>
-                                                <p className="text-xs text-gray-500">
-                                                    Expires {String(stripePaymentMethod.expMonth).padStart(2, '0')}/{stripePaymentMethod.expYear}
+                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                    {stripePaymentMethod.type.charAt(0).toUpperCase() + stripePaymentMethod.type.slice(1).replace(/_/g, ' ')}
+                                                    {' · '}Expires {String(stripePaymentMethod.expMonth).padStart(2, '0')}/{String(stripePaymentMethod.expYear).slice(-2)}
                                                 </p>
                                             </div>
                                         </div>
-                                        <Button 
-                                            variant="ghost" 
+                                        <Button
+                                            variant="outline"
                                             size="sm"
                                             onClick={handleManageBilling}
                                             disabled={isProcessingPayment}
                                         >
-                                            Edit
+                                            Update
                                         </Button>
                                     </div>
                                 ) : (
-                                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-8 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                                <CreditCard size={16} className="text-gray-400" />
+                                    <div className="flex items-center justify-between px-5 py-4 border border-dashed border-gray-300 rounded-xl">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-9 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center">
+                                                <CreditCard size={18} className="text-gray-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-900">No card on file</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">Add a card to activate your subscription</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                                <p className="text-sm font-bold text-gray-900">No payment method on file</p>
-                                                <p className="text-xs text-gray-500">Add a payment method to subscribe to a plan</p>
-                                        </div>
-                                    </div>
-                                        <Button 
-                                            variant="ghost" 
+                                        <Button
+                                            variant="black"
                                             size="sm"
                                             onClick={() => handleUpgradePlan('professional', 'monthly')}
                                             disabled={isProcessingPayment}
                                         >
-                                            Add
+                                            Add card
                                         </Button>
-                                </div>
+                                    </div>
                                 )}
                             </div>
 
@@ -2358,69 +2543,68 @@ const Settings: React.FC = () => {
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-sm font-bold text-gray-900">Billing History</h3>
-                                    {isLoadingBilling && (
-                                        <Loader2 size={16} className="animate-spin text-gray-400" />
-                                    )}
+                                    {isLoadingBilling && <Loader2 size={14} className="animate-spin text-gray-400" />}
                                 </div>
                                 {invoices.length === 0 ? (
-                                    <div className="border border-gray-200 rounded-xl p-8 text-center">
-                                        <CreditCard size={32} className="mx-auto text-gray-400 mb-3" />
-                                        <p className="text-sm text-gray-500">No billing history available</p>
+                                    <div className="border border-gray-200 rounded-xl p-10 text-center bg-gray-50">
+                                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                                            <CreditCard size={18} className="text-gray-400" />
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-500">No invoices yet</p>
+                                        <p className="text-xs text-gray-400 mt-1">Invoices will appear here once you have an active plan</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
-                                        {invoices.map((invoice) => (
-                                            <div 
-                                                key={invoice.id} 
-                                                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors gap-3 sm:gap-4"
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden">
+                                        {/* Header row */}
+                                        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-5 py-2.5 bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                                            <span>Date</span>
+                                            <span>Amount</span>
+                                            <span>Status</span>
+                                            <span>Receipt</span>
+                                        </div>
+                                        {invoices.map((invoice, idx) => (
+                                            <div
+                                                key={invoice.id}
+                                                className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-5 py-3.5 ${idx !== invoices.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-gray-50 transition-colors`}
                                             >
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <DollarSign size={16} className="text-gray-400 flex-shrink-0" />
-                                                        <p className="text-sm font-bold text-gray-900 truncate">
-                                                            {invoice.amount}
-                                                        </p>
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                                            invoice.status === 'Paid' 
-                                                                ? 'bg-gray-100 text-gray-700' 
-                                                                : invoice.status === 'Pending'
-                                                                ? 'bg-gray-100 text-gray-600'
-                                                                : 'bg-gray-100 text-gray-700'
-                                                        }`}>
-                                                            {invoice.status}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs text-gray-500 ml-7">
-                                                        <Calendar size={12} />
-                                                        {new Date(invoice.date).toLocaleDateString('en-US', { 
-                                                            year: 'numeric', 
-                                                            month: 'long', 
-                                                            day: 'numeric' 
-                                                        })}
-                                                    </div>
+                                                {/* Date */}
+                                                <div>
+                                                    <p className="text-sm text-gray-900">
+                                                        {new Date(invoice.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 mt-0.5">Professional Plan</p>
                                                 </div>
-                                                <div className="flex items-center gap-2 ml-7 sm:ml-0">
+                                                {/* Amount */}
+                                                <p className="text-sm font-semibold text-gray-900 tabular-nums">{invoice.amount}</p>
+                                                {/* Status */}
+                                                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                                                    invoice.status === 'Paid'
+                                                        ? 'bg-emerald-50 text-emerald-700'
+                                                        : invoice.status === 'Pending'
+                                                        ? 'bg-amber-50 text-amber-700'
+                                                        : 'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                        invoice.status === 'Paid' ? 'bg-emerald-500' : invoice.status === 'Pending' ? 'bg-amber-500' : 'bg-gray-400'
+                                                    }`} />
+                                                    {invoice.status}
+                                                </span>
+                                                {/* Receipt links */}
+                                                <div className="flex items-center gap-1">
                                                     {(invoice as any).hostedInvoiceUrl && (
-                                                        <a
-                                                            href={(invoice as any).hostedInvoiceUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"
-                                                        >
-                                                            <ExternalLink size={12} />
-                                                            View Invoice
+                                                        <a href={(invoice as any).hostedInvoiceUrl} target="_blank" rel="noopener noreferrer"
+                                                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors" title="View invoice">
+                                                            <ExternalLink size={13} />
                                                         </a>
                                                     )}
                                                     {(invoice as any).invoicePdf && (
-                                                        <a
-                                                            href={(invoice as any).invoicePdf}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"
-                                                        >
-                                                            <Download size={12} />
-                                                            Download
+                                                        <a href={(invoice as any).invoicePdf} target="_blank" rel="noopener noreferrer"
+                                                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors" title="Download PDF">
+                                                            <Download size={13} />
                                                         </a>
+                                                    )}
+                                                    {!(invoice as any).hostedInvoiceUrl && !(invoice as any).invoicePdf && (
+                                                        <span className="text-xs text-gray-300">—</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -2575,6 +2759,43 @@ const Settings: React.FC = () => {
                                             </button>
                                         </div>
                                     ))}
+
+                                    {/* Slack Integration Card */}
+                                    <div className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
+                                                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#E01E5A"/>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-gray-900">Slack</h3>
+                                                <p className="text-sm text-gray-500">Get real-time notifications in your Slack channels.</p>
+                                                {slackWebhookUrl && (
+                                                    <p className="text-xs text-gray-500 mt-1">Connected via Incoming Webhook</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (slackWebhookUrl) {
+                                                    handleDisconnectSlack();
+                                                } else {
+                                                    setSlackWebhookInput('');
+                                                    setSlackError(null);
+                                                    setIsSlackModalOpen(true);
+                                                }
+                                            }}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                slackWebhookUrl
+                                                    ? 'bg-black text-white hover:bg-gray-800'
+                                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {slackWebhookUrl ? 'Disconnect' : 'Connect'}
+                                        </button>
+                                    </div>
                                 </div>
                         </div>
                     )}
@@ -2632,67 +2853,73 @@ const Settings: React.FC = () => {
 
                              {/* Active Sessions */}
                              <div>
-                                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-4">
-                                    <Monitor size={16} className="text-gray-400" /> Active Sessions
-                                 </h3>
-                                 <div className="space-y-3">
-                                     {sessions.length === 0 ? (
-                                         <div className="text-center py-8 text-gray-500 text-sm">
-                                             No active sessions found
-                                         </div>
-                                     ) : (
-                                         sessions.map(session => (
-                                             <div key={session.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-white hover:border-gray-300 transition-colors">
-                                                 <div className="flex items-center gap-4 flex-1">
-                                                     <div className="p-2 rounded-lg text-gray-600 bg-gray-50 border border-gray-100">
-                                                         {session.icon === 'mobile' ? <Smartphone size={20} /> : <Monitor size={20} />}
+                                 <div className="flex items-center justify-between mb-4">
+                                     <h3 className="text-sm font-bold text-gray-900">Active Sessions</h3>
+                                     <span className="text-xs text-gray-400">{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
+                                 </div>
+                                 {sessions.length === 0 ? (
+                                     <div className="text-center py-10 border border-gray-200 rounded-xl bg-gray-50">
+                                         <Monitor size={24} className="mx-auto text-gray-300 mb-2" />
+                                         <p className="text-sm text-gray-500">No active sessions found</p>
+                                     </div>
+                                 ) : (
+                                     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+                                         {sessions.map(session => (
+                                             <div key={session.id} className={`flex items-center justify-between px-5 py-4 ${session.current ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'} transition-colors`}>
+                                                 <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                     {/* Device icon */}
+                                                     <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${session.current ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                         {session.icon === 'mobile' ? <Smartphone size={17} /> : <Monitor size={17} />}
                                                      </div>
-                                                     <div className="flex-1">
-                                                         <div className="flex items-center gap-2">
-                                                            <p className="text-sm font-bold text-gray-900">{session.device}</p>
-                                                            {session.current && <span className="text-gray-700 text-[10px] font-bold bg-gray-50 px-2 py-0.5 rounded border border-gray-100 uppercase tracking-wide">Current</span>}
+                                                     {/* Details */}
+                                                     <div className="min-w-0 flex-1">
+                                                         <div className="flex items-center gap-2 flex-wrap">
+                                                             <p className="text-sm font-semibold text-gray-900 truncate">{session.device}</p>
+                                                             {session.current && (
+                                                                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                                     This device
+                                                                 </span>
+                                                             )}
                                                          </div>
-                                                         <p className="text-xs text-gray-500 mt-0.5">{session.location} • <span className="font-mono">{session.ip || '192.168.x.x'}</span></p>
-                                                         <p className="text-[10px] text-gray-400 mt-1">Last active: {session.time}</p>
+                                                         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                                                             <span>{session.location}</span>
+                                                             {session.ip && (
+                                                                 <>
+                                                                     <span className="text-gray-300">·</span>
+                                                                     <span className="font-mono text-gray-400">{session.ip}</span>
+                                                                 </>
+                                                             )}
+                                                             <span className="text-gray-300">·</span>
+                                                             <span className="text-gray-400">{session.time}</span>
+                                                         </div>
                                                      </div>
                                                  </div>
                                                  {!session.current && (
-                                                     <Button
-                                                         variant="ghost"
-                                                         size="sm"
+                                                     <button
                                                          onClick={() => handleRevokeSession(session.id)}
                                                          disabled={isRevokingSession === session.id}
-                                                         className="ml-4 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                         className="ml-4 flex-shrink-0 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-red-200 transition-colors disabled:opacity-50"
                                                      >
                                                          {isRevokingSession === session.id ? (
-                                                             <>
-                                                                 <Loader2 size={14} className="animate-spin mr-1" />
-                                                                 Revoking...
-                                                             </>
+                                                             <Loader2 size={12} className="animate-spin" />
                                                          ) : (
-                                                             <>
-                                                                 <X size={14} className="mr-1" />
-                                                                 Revoke
-                                                             </>
+                                                             'Sign out'
                                                          )}
-                                                     </Button>
+                                                     </button>
                                                  )}
                                              </div>
-                                         ))
-                                     )}
-                                 </div>
-                                 {sessions.length > 1 && (
-                                     <div className="mt-4 pt-4 border-t border-gray-200">
-                                         <Button
-                                             variant="outline"
-                                             size="sm"
-                                             onClick={handleRevokeAllSessions}
-                                             className="w-full text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-gray-200"
-                                         >
-                                             <LogOut size={14} className="mr-2" />
-                                             Revoke All Other Sessions
-                                         </Button>
+                                         ))}
                                      </div>
+                                 )}
+                                 {sessions.length > 1 && (
+                                     <button
+                                         onClick={handleRevokeAllSessions}
+                                         className="mt-3 w-full text-xs font-medium text-gray-500 hover:text-red-600 py-2.5 border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                     >
+                                         <LogOut size={13} />
+                                         Sign out all other sessions
+                                     </button>
                                  )}
                              </div>
                         </div>
@@ -2786,6 +3013,49 @@ const Settings: React.FC = () => {
                 isTesting={isTestingWorkflow}
             />
             </div>
+
+            {/* Slack Webhook Modal */}
+            {isSlackModalOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200">
+                        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-900">Connect Slack</h2>
+                            <button onClick={() => setIsSlackModalOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 rounded-full hover:bg-gray-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-sm text-gray-600 space-y-2">
+                                <p className="font-semibold text-gray-900">How to get your Slack Webhook URL:</p>
+                                <ol className="list-decimal list-inside space-y-1">
+                                    <li>Go to <span className="font-medium">api.slack.com/apps</span> and create or open an app</li>
+                                    <li>Enable <span className="font-medium">Incoming Webhooks</span> in the app settings</li>
+                                    <li>Click <span className="font-medium">Add New Webhook to Workspace</span></li>
+                                    <li>Select the channel and copy the webhook URL below</li>
+                                </ol>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Slack Webhook URL</label>
+                                <input
+                                    type="url"
+                                    value={slackWebhookInput}
+                                    onChange={(e) => { setSlackWebhookInput(e.target.value); setSlackError(null); }}
+                                    placeholder="https://hooks.slack.com/services/..."
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                />
+                                {slackError && <p className="text-xs text-red-600 mt-1">{slackError}</p>}
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
+                            <button onClick={() => setIsSlackModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50">Cancel</button>
+                            <button onClick={handleSaveSlack} disabled={isSavingSlack || !slackWebhookInput.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-black text-white hover:bg-gray-800 disabled:opacity-50">
+                                {isSavingSlack ? 'Connecting...' : 'Connect Slack'}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

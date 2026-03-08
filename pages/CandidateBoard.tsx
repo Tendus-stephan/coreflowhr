@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { PageLoader } from '../components/ui/PageLoader';
 import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Candidate, CandidateStage, Job } from '../types';
@@ -13,6 +14,7 @@ import { CandidateModal } from '../components/CandidateModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { Toast } from '../components/ui/Toast';
 import { api, Notification } from '../services/api';
+import { sendSlackNotification, buildCandidateStagedBlocks } from '../services/slack';
 
 const stageDisplayName: Record<CandidateStage, string> = {
   [CandidateStage.NEW]: 'Waitlist',
@@ -266,12 +268,24 @@ const CandidateBoard: React.FC = () => {
           // Play notification sound
           const { playNotificationSound } = await import('../utils/soundUtils');
           playNotificationSound();
-          
+
           // Show toast notification
           setToastMessage(`${updatedCandidate.name} moved to ${updatedCandidate.stage}`);
           setToastType('success');
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
+
+          // Fire Slack notification (non-blocking)
+          api.settings.getSlackWebhook().then((webhookUrl) => {
+              if (webhookUrl) {
+                  const jobTitle = jobs.find(j => j.id === updatedCandidate.jobId)?.title;
+                  sendSlackNotification(
+                      webhookUrl,
+                      `${updatedCandidate.name} moved to ${updatedCandidate.stage}`,
+                      buildCandidateStagedBlocks(updatedCandidate.name, updatedCandidate.stage, jobTitle)
+                  );
+              }
+          }).catch(() => {});
       }
       
       // Refresh notifications after candidate update (in case notification was created)
@@ -402,11 +416,7 @@ const CandidateBoard: React.FC = () => {
   }, [candidates]);
 
   if (loading) {
-      return (
-          <div className="flex items-center justify-center min-h-screen bg-white">
-              <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-      );
+      return <PageLoader />;
   }
 
   const unreadCount = notifications.filter(n => n.unread).length;
