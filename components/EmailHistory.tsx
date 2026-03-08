@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { EmailLog } from '../types';
 import { api } from '../services/api';
+import { toUserError } from '../utils/edgeFunctionError';
 import { Mail, CheckCircle, AlertCircle, Clock, ExternalLink, ArrowUpRight, ArrowDownLeft, RefreshCw, Reply } from 'lucide-react';
 
 const PREVIEW_LENGTH = 150;
@@ -43,7 +44,7 @@ export const EmailHistory: React.FC<EmailHistoryProps> = ({ candidateId, candida
             onUnreadCountChangeRef.current?.();
         } catch (err: any) {
             console.error('Error loading email history:', err);
-            setError(err.message || 'Failed to load email history');
+            setError(toUserError(err, 'Failed to load email history'));
         } finally {
             setLoading(false);
         }

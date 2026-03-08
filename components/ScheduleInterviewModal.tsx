@@ -3,16 +3,15 @@ import { createPortal } from 'react-dom';
 import { Candidate, Integration, CandidateStage } from '../types';
 import { X, Search, Users, Clock, Video, Link as LinkIcon, ChevronDown, MapPin, ExternalLink } from 'lucide-react';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { Avatar } from './ui/Avatar';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
+import { sanitizeError } from '../utils/edgeFunctionError';
 
 /** Never show raw Edge Function / non-2xx errors to users. */
 function userFacingError(message: string, fallback: string): string {
-  const raw = (message || '').trim();
-  if (!raw) return fallback;
-  if (/Edge Function|non-2xx|status code/i.test(raw)) return fallback;
-  return raw;
+  return sanitizeError(message, fallback);
 }
 
 interface ScheduleInterviewModalProps {
@@ -517,7 +516,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     <input 
                                         type="text" 
                                         placeholder="Search by name or email..." 
-                                        className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                        className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         autoFocus
@@ -553,7 +552,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 type="date" 
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                             />
                         </div>
                         <div className="space-y-2">
@@ -562,7 +561,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 type="time" 
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                             />
                         </div>
                     </div>
@@ -570,38 +569,34 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-gray-900">Interview Type</label>
-                            <div className="relative">
-                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <select 
-                                    value={interviewType}
-                                    onChange={(e) => {
-                                        setInterviewType(e.target.value as 'Video Call' | 'In Person');
-                                        setMeetingLink(''); // Clear meeting link when type changes
-                                        setAddress(''); // Clear address when type changes
-                                    }}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none appearance-none transition-all"
-                                >
-                                    <option value="Video Call">Video Call</option>
-                                    <option value="In Person">In Person</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                            </div>
+                            <CustomSelect
+                                value={interviewType}
+                                onChange={(val) => {
+                                    setInterviewType(val as 'Video Call' | 'In Person');
+                                    setMeetingLink('');
+                                    setAddress('');
+                                }}
+                                className="px-3 py-2.5 rounded-xl"
+                                leftIcon={<Users size={16} />}
+                                options={[
+                                    { value: 'Video Call', label: 'Video Call' },
+                                    { value: 'In Person', label: 'In Person' },
+                                ]}
+                            />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-gray-900">Duration</label>
-                            <div className="relative">
-                                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <select 
-                                    value={duration}
-                                    onChange={(e) => setDuration(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none appearance-none transition-all"
-                                >
-                                    <option value="30 min">30 min</option>
-                                    <option value="45 min">45 min</option>
-                                    <option value="60 min">60 min</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                            </div>
+                            <CustomSelect
+                                value={duration}
+                                onChange={setDuration}
+                                className="px-3 py-2.5 rounded-xl"
+                                leftIcon={<Clock size={16} />}
+                                options={[
+                                    { value: '30 min', label: '30 min' },
+                                    { value: '45 min', label: '45 min' },
+                                    { value: '60 min', label: '60 min' },
+                                ]}
+                            />
                         </div>
                     </div>
 
@@ -610,24 +605,16 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-gray-900">Platform</label>
                                 {integrations.length > 0 ? (
-                        <div className="relative">
-                            <Video className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                        <select 
-                                            value={selectedPlatform}
-                                            onChange={(e) => {
-                                                setSelectedPlatform(e.target.value);
-                                                setMeetingLink(''); // Clear meeting link when platform changes
-                                            }}
-                                            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none appearance-none transition-all"
-                                        >
-                                            {integrations.map((integration) => (
-                                                <option key={integration.id} value={integration.id}>
-                                                    {integration.name}
-                                                </option>
-                                            ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                        </div>
+                        <CustomSelect
+                            value={selectedPlatform}
+                            onChange={(val) => {
+                                setSelectedPlatform(val);
+                                setMeetingLink('');
+                            }}
+                            className="px-3 py-2.5 rounded-xl"
+                            leftIcon={<Video size={16} />}
+                            options={integrations.map(i => ({ value: i.id, label: i.name }))}
+                        />
                                 ) : (
                                     <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 text-center">
                                         No calendar integrations connected. You can still paste a meeting link below and send interview details by email.
@@ -665,7 +652,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                         }
                                     }}
                                     readOnly={integrations.length > 0}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none text-gray-600" 
+                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black text-gray-600" 
                                 />
                             </div>
                             )}
@@ -699,7 +686,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     placeholder="Enter interview address..." 
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                                 />
                             </div>
                         </div>

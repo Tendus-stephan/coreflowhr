@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { toUserError } from '../utils/edgeFunctionError';
 import {
   BarChart3,
   Download,
@@ -9,7 +10,6 @@ import {
   Users,
   Briefcase,
   Target,
-  ArrowRight,
   Loader2,
 } from 'lucide-react';
 import {
@@ -22,6 +22,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
+import { PageLoader } from '../components/ui/PageLoader';
 import { api } from '../services/api';
 
 const DATE_PRESETS = [
@@ -96,7 +98,7 @@ const Reports: React.FC = () => {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err?.message || 'Failed to load metrics');
+          setError(toUserError(err, 'Unable to load report data. Please check your connection and try again.'));
           setMetrics(null);
         }
       })
@@ -210,27 +212,26 @@ const Reports: React.FC = () => {
                           type="date"
                           value={customFrom}
                           onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                         />
               <span className="text-gray-400 text-sm">to</span>
                         <input
                           type="date"
                           value={customTo}
                           onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                         />
                       </div>
                     )}
-          <select
+          <CustomSelect
             value={jobId ?? ''}
-            onChange={(e) => setJobId(e.target.value || null)}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white min-w-[160px] focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-          >
-            <option value="">All Jobs</option>
-                  {jobs.map((j) => (
-              <option key={j.id} value={j.id}>{j.title}</option>
-            ))}
-          </select>
+            onChange={(val) => setJobId(val || null)}
+            className="px-3 py-1.5 rounded-lg min-w-[160px]"
+            options={[
+              { value: '', label: 'All Jobs' },
+              ...jobs.map((j) => ({ value: j.id, label: j.title })),
+            ]}
+          />
           {(jobId || useCustom) && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               Clear filters
@@ -240,10 +241,9 @@ const Reports: React.FC = () => {
         </div>
 
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 shadow-sm flex flex-col items-center justify-center gap-3">
-          <Loader2 size={32} className="text-gray-400 animate-spin" />
-          <p className="text-gray-500 text-sm font-medium">Loading reports…</p>
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <PageLoader fullScreen={false} />
+        </div>
       ) : !hasAnyData ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-12 shadow-sm text-center">
           {!metrics ? null : (jobId || useCustom) ? (
@@ -261,6 +261,46 @@ const Reports: React.FC = () => {
           </div>
       ) : (
         <>
+          {/* KPI summary tiles */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[
+              {
+                label: 'In pipeline',
+                value: (metrics!.pipelineConversion?.screening_count ?? 0) + (metrics!.pipelineConversion?.interview_count ?? 0) + (metrics!.pipelineConversion?.offer_count ?? 0) + (metrics!.pipelineConversion?.hired_count ?? 0),
+                suffix: '',
+                icon: <Users size={18} />,
+              },
+              {
+                label: 'Hired',
+                value: metrics!.pipelineConversion?.hired_count ?? 0,
+                suffix: '',
+                icon: <Briefcase size={18} />,
+              },
+              {
+                label: 'Acceptance rate',
+                value: metrics!.offerAcceptance?.acceptance_rate_pct ?? '—',
+                suffix: metrics!.offerAcceptance?.acceptance_rate_pct != null ? '%' : '',
+                icon: <Target size={18} />,
+              },
+              {
+                label: 'Avg time to hire',
+                value: metrics!.timeToHire?.avg_days ?? '—',
+                suffix: metrics!.timeToHire?.avg_days ? ' days' : '',
+                icon: <Calendar size={18} />,
+              },
+            ].map(({ label, value, suffix, icon }) => (
+              <div key={label} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900 flex-shrink-0">
+                  {icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-0.5 truncate">{label}</p>
+                  <p className="text-2xl font-bold text-gray-900 tracking-tight">{value}{suffix}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Time to hire — Dashboard-style card + chart */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
@@ -320,20 +360,35 @@ const Reports: React.FC = () => {
                 <h3 className="text-lg font-bold text-gray-900">Pipeline conversion</h3>
               </div>
               {(metrics?.pipelineConversion?.screening_count ?? 0) + (metrics?.pipelineConversion?.interview_count ?? 0) + (metrics?.pipelineConversion?.offer_count ?? 0) + (metrics?.pipelineConversion?.hired_count ?? 0) > 0 ? (
-                    <div className="space-y-2">
-                      {[
-                    { label: 'Screening', count: metrics!.pipelineConversion.screening_count, pct: null },
-                    { label: 'Interview', count: metrics!.pipelineConversion.interview_count, pct: metrics!.pipelineConversion.conversion_screening_to_interview_pct },
-                    { label: 'Offer', count: metrics!.pipelineConversion.offer_count, pct: metrics!.pipelineConversion.conversion_interview_to_offer_pct },
-                    { label: 'Hired', count: metrics!.pipelineConversion.hired_count, pct: metrics!.pipelineConversion.conversion_offer_to_hired_pct },
-                  ].map(({ label, count, pct }, i) => (
-                    <div key={label} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:border-gray-200 transition-colors">
-                      <span className="text-sm font-medium text-gray-700 w-24">{label}</span>
-                      <span className="font-bold text-gray-900 w-10">{count}</span>
-                      {pct != null && <span className="text-xs text-gray-500 flex-1">{pct}%</span>}
-                      {i < 3 && <ArrowRight size={14} className="text-gray-300 flex-shrink-0" />}
-                        </div>
-                      ))}
+                    <div className="space-y-4">
+                      {(() => {
+                        const stages = [
+                          { label: 'Screening', count: metrics!.pipelineConversion.screening_count, color: 'bg-blue-500', pct: null },
+                          { label: 'Interview', count: metrics!.pipelineConversion.interview_count, color: 'bg-indigo-500', pct: metrics!.pipelineConversion.conversion_screening_to_interview_pct },
+                          { label: 'Offer', count: metrics!.pipelineConversion.offer_count, color: 'bg-violet-500', pct: metrics!.pipelineConversion.conversion_interview_to_offer_pct },
+                          { label: 'Hired', count: metrics!.pipelineConversion.hired_count, color: 'bg-green-500', pct: metrics!.pipelineConversion.conversion_offer_to_hired_pct },
+                        ];
+                        const maxCount = stages[0].count || 1;
+                        return stages.map(({ label, count, color, pct }) => (
+                          <div key={label}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-medium text-gray-700">{label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-gray-900">{count}</span>
+                                {pct != null && (
+                                  <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md">{pct}%</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${color} rounded-full transition-all`}
+                                style={{ width: `${Math.max(4, Math.min(100, (count / maxCount) * 100))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                 ) : (
                 <p className="text-gray-500 text-sm italic">No pipeline activity in this period.</p>
@@ -430,7 +485,15 @@ const Reports: React.FC = () => {
                     <tbody>
                     {metrics!.sourceQuality!.rows.map((row) => (
                       <tr key={row.source} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="py-4 px-5 font-medium text-gray-900">{row.source}</td>
+                        <td className="py-4 px-5">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                            row.source === 'Sourced' ? 'bg-blue-50 text-blue-700' :
+                            row.source === 'Applied' ? 'bg-green-50 text-green-700' :
+                            row.source === 'Referred' ? 'bg-purple-50 text-purple-700' :
+                            row.source === 'LinkedIn' ? 'bg-sky-50 text-sky-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>{row.source}</span>
+                        </td>
                         <td className="py-4 px-5 text-right text-gray-700">{row.total}</td>
                         <td className="py-4 px-5 text-right text-gray-700">{row.interview_count}</td>
                         <td className="py-4 px-5 text-right text-gray-700">{row.offer_count}</td>

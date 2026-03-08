@@ -4,6 +4,7 @@ import { Interview } from '../types';
 import { X, Calendar as CalendarIcon, Clock, Video, Phone, MapPin, User, Briefcase, FileText, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { api } from '../services/api';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface InterviewDetailsModalProps {
   interview: Interview | null;
@@ -53,7 +54,7 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Error cancelling interview:', error);
-      alert(`Failed to cancel interview: ${error.message || 'Please try again.'}`);
+      alert(toUserError(error, 'Failed to cancel the interview. Please try again.'));
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
+import { sanitizeError } from '../utils/edgeFunctionError';
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState('');
@@ -84,7 +85,7 @@ const SignUp: React.FC = () => {
       const { error } = await signUp(email, password, name);
       if (error) {
         // Check if this is a "user already exists" error
-        const errorMsg = error.message || 'Failed to create account';
+        const errorMsg = sanitizeError(error.message, 'Failed to create account');
         const normalizedError = normalizePasswordError(errorMsg);
         
         if (normalizedError.includes('already exists') || normalizedError.includes('already registered')) {
@@ -107,7 +108,7 @@ const SignUp: React.FC = () => {
         }, 0);
       }
     } catch (err: any) {
-      const errorMsg = err.message || 'An unexpected error occurred';
+      const errorMsg = sanitizeError(err?.message, 'An unexpected error occurred');
       setError(normalizePasswordError(errorMsg));
     } finally {
       setLoading(false);
