@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, name?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any; requiresMFA?: boolean }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   verifyMFA: (code: string) => Promise<{ error: any }>;
@@ -20,6 +21,7 @@ const defaultAuthContext: AuthContextType = {
   loading: true,
   signUp: async () => ({ error: new Error('AuthProvider not initialized') }),
   signIn: async () => ({ error: new Error('AuthProvider not initialized') }),
+  signInWithGoogle: async () => ({ error: new Error('AuthProvider not initialized') }),
   signOut: async () => {},
   resetPassword: async () => ({ error: new Error('AuthProvider not initialized') }),
   verifyMFA: async () => ({ error: new Error('AuthProvider not initialized') })
@@ -393,6 +395,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    let redirectTo = `${window.location.origin}/dashboard`;
+    try {
+      const inviteToken = localStorage.getItem('workspaceInviteToken');
+      if (inviteToken) {
+        redirectTo = `${window.location.origin}/invite?token=${encodeURIComponent(inviteToken)}`;
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    return { error };
+  };
+
   const signOut = async () => {
     // Clear state immediately for instant UI feedback
     setUser(null);
@@ -440,6 +460,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     resetPassword,
     verifyMFA,
