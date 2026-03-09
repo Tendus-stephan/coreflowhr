@@ -3,6 +3,7 @@ import { EmailWorkflow } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
 import { Plus, Edit2, Trash2, Play, History, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface WorkflowListProps {
     onEdit: (workflow: EmailWorkflow) => void;
@@ -76,7 +77,7 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             });
         } catch (err: any) {
             console.error('Error loading workflows:', err);
-            setError(err.message || 'Failed to load workflows');
+            setError(toUserError(err, 'Failed to load workflows'));
         } finally {
             setLoading(false);
         }
@@ -97,7 +98,7 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             setWorkflows(workflows.map(w => w.id === workflow.id ? updated : w));
         } catch (err: any) {
             console.error('Error toggling workflow:', err);
-            alert(err.message || 'Failed to toggle workflow');
+            alert(toUserError(err, 'Failed to toggle workflow'));
         } finally {
             setTogglingId(null);
         }
@@ -114,7 +115,7 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             setWorkflows(workflows.filter(w => w.id !== workflow.id));
         } catch (err: any) {
             console.error('Error deleting workflow:', err);
-            alert(err.message || 'Failed to delete workflow');
+            alert(toUserError(err, 'Failed to delete workflow'));
         } finally {
             setDeletingId(null);
         }

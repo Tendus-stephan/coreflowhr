@@ -209,7 +209,7 @@ const TermsOfService: React.FC = () => {
                     related products and services that refer or link to these legal terms (the 'Legal Terms') (collectively, the 'Services').
                   </p>
                   <p>
-                    You can contact us by email at <a href="mailto:teams@coreflowhr.com" className="text-black hover:underline">teams@coreflowhr.com</a>, or by mail to our registered office.
+                    You can contact us by email at <a href="mailto:team@coreflowhr.com" className="text-black hover:underline">team@coreflowhr.com</a>, or by mail to our registered office.
                   </p>
                   <p>
                     These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ('you'), 
@@ -514,7 +514,7 @@ const TermsOfService: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 text-gray-600">
                         <span className="font-medium">Email:</span>
-                        <a href="mailto:teams@coreflowhr.com" className="hover:text-gray-900 hover:underline">teams@coreflowhr.com</a>
+                        <a href="mailto:team@coreflowhr.com" className="hover:text-gray-900 hover:underline">team@coreflowhr.com</a>
                       </div>
                     </div>
                   </div>

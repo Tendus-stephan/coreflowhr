@@ -140,6 +140,31 @@ serve(async (req) => {
       });
     }
 
+    // Slack notification — look up candidate name + workspace webhook
+    try {
+      const { data: offerData } = await supabase
+        .from('offers')
+        .select('candidate_id, position_title, candidates(name, workspace_id)')
+        .eq('id', String(offerId))
+        .maybeSingle();
+      const candidateName = (offerData?.candidates as any)?.name ?? 'Candidate';
+      const jobTitle = offerData?.position_title;
+      const workspaceId = (offerData?.candidates as any)?.workspace_id;
+      if (workspaceId) {
+        const { data: wsData } = await supabase
+          .from('workspaces').select('slack_webhook_url').eq('id', workspaceId).maybeSingle();
+        const slackWebhook = (wsData as any)?.slack_webhook_url;
+        if (slackWebhook) {
+          const slackBlocks = [
+            { type: 'section', text: { type: 'mrkdwn', text: `✍️ *${candidateName}* signed the offer${jobTitle ? ` for _${jobTitle}_` : ''}` } },
+          ];
+          await supabase.functions.invoke('notify-slack', {
+            body: { webhookUrl: slackWebhook, text: `${candidateName} signed the offer`, blocks: slackBlocks },
+          }).catch(() => {});
+        }
+      }
+    } catch { /* non-critical */ }
+
     return new Response(JSON.stringify({ received: true, offerId, path: storagePath }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

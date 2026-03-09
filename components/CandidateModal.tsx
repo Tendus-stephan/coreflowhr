@@ -17,6 +17,7 @@ import { OfferCard } from './OfferCard';
 import { supabase } from '../services/supabase';
 import { Plus } from 'lucide-react';
 import { useModal } from '../contexts/ModalContext';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -395,7 +396,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
           if (emailError) {
               console.error('Error sending email:', emailError);
-              setEmailError(emailError.message || 'Failed to send email');
+              setEmailError(toUserError(emailError, 'Failed to send email'));
           } else {
               console.log('[Send Email] Email sent successfully to candidate:', candidate.email);
               setEmailSent(true);
@@ -428,7 +429,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           }
       } catch (error: any) {
           console.error('Unexpected error sending email:', error);
-          setEmailError(error.message || 'Failed to send email');
+          setEmailError(toUserError(error, 'Failed to send email'));
       } finally {
           setSendingEmail(false);
       }
@@ -479,7 +480,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           });
       } catch (error: any) {
           console.error('Error generating outreach message:', error);
-          setEmailError(error.message || 'Failed to generate outreach message');
+          setEmailError(toUserError(error, 'Failed to generate outreach message'));
       } finally {
           setLoadingOutreach(false);
       }
@@ -730,7 +731,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                          document.body.removeChild(a);
                                      } catch (error: any) {
                                          console.error('Error downloading CV:', error);
-                                         alert(`Failed to download CV: ${error.message || 'Please try again.'}`);
+                                         alert(toUserError(error, 'Failed to download CV. Please try again.'));
                                      }
                                  }}
                                  className="flex items-center gap-1.5 text-xs font-medium bg-gray-100 px-3 py-1 rounded-md text-gray-700 hover:bg-gray-200 transition-colors"
@@ -1467,6 +1468,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                             <InterviewFeedbackForm
                                                                 interviewId={interview.id}
                                                                 candidateId={candidate.id}
+                                                                candidateName={candidate.name}
+                                                                jobTitle={interview.jobTitle}
                                                                 onFeedbackSubmitted={() => {
                                                                     setSelectedInterviewForFeedback(null);
                                                                     // Reload feedback
@@ -1606,7 +1609,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             setLoadingGeneralOffers(false);
                                         }
                                     } catch (err: any) {
-                                        alert(err.message || 'Failed to load general offers');
+                                        alert(toUserError(err, 'Failed to load general offers'));
                                         setLoadingGeneralOffers(false);
                                     }
                                 }}
@@ -1685,7 +1688,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 setLoadingGeneralOffers(false);
                                             }
                                         } catch (err: any) {
-                                            alert(err.message || 'Failed to load general offers');
+                                            alert(toUserError(err, 'Failed to load general offers'));
                                             setLoadingGeneralOffers(false);
                                         }
                                     }}
@@ -1719,7 +1722,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             const data = await api.offers.list({ candidateId: candidate.id });
                                             setOffers(data);
                                         } catch (err: any) {
-                                            alert(err.message || 'Failed to send offer');
+                                            alert(toUserError(err, 'Failed to send offer'));
                                         } finally {
                                             setSendingOfferId(null);
                                         }
@@ -1731,7 +1734,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             if (url) window.open(url, '_blank');
                                             else alert('Signed document is not available.');
                                         } catch (err: any) {
-                                            alert(err.message || 'Failed to load signed document');
+                                            alert(toUserError(err, 'Failed to load signed document'));
                                         }
                                     }}
                                 />
@@ -1860,7 +1863,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                           const { playNotificationSound } = await import('../utils/soundUtils');
                           playNotificationSound();
                         } catch (err: any) {
-                          alert(err.message || 'Failed to link offer');
+                          alert(toUserError(err, 'Failed to link offer'));
                         }
                       }}
                       className="w-full text-left p-4 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-all"

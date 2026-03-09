@@ -3,8 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Briefcase, Clock, Loader2, X, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toUserError } from '../utils/edgeFunctionError';
+import { sendSlackNotification, buildOfferRespondedBlocks } from '../services/slack';
 
 const OfferResponse: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -94,7 +97,7 @@ const OfferResponse: React.FC = () => {
                 // Don't set success for 'negotiating' - let user see the updated offer
 
             } catch (err: any) {
-                setError(err.message || 'Failed to load offer');
+                setError(toUserError(err, 'Failed to load offer'));
             } finally {
                 setLoading(false);
             }
@@ -102,6 +105,28 @@ const OfferResponse: React.FC = () => {
 
         loadOffer();
     }, [token]);
+
+    const notifySlack = (response: 'accepted' | 'declined' | 'negotiating') => {
+        if (!offer) return;
+        import('../services/supabase').then(({ supabase }) =>
+            supabase
+                .from('workspace_members')
+                .select('workspaces(slack_webhook_url)')
+                .eq('user_id', offer.userId)
+                .maybeSingle()
+                .then(({ data }) => {
+                    const webhookUrl = (data?.workspaces as any)?.slack_webhook_url;
+                    if (webhookUrl) {
+                        const name = candidateName || 'Candidate';
+                        sendSlackNotification(
+                            webhookUrl,
+                            `${name} ${response === 'negotiating' ? 'sent a counter offer' : response} the offer for ${jobTitle}`,
+                            buildOfferRespondedBlocks(name, response, jobTitle || undefined)
+                        );
+                    }
+                })
+        ).catch(() => {});
+    };
 
     const handleAccept = async () => {
         if (!token || !offer) return;
@@ -112,10 +137,9 @@ const OfferResponse: React.FC = () => {
         try {
             await api.offers.acceptByToken(token, responseNote.trim() || undefined);
             setSuccess('accepted');
+            notifySlack('accepted');
         } catch (err: any) {
-            const msg = err?.message || '';
-            const isTechnical = /failed to accept|schema cache|could not find|42883|postgres|supabase/i.test(msg);
-            setError(isTechnical ? 'Something went wrong on our end. Please try again or contact the company.' : msg);
+            setError(toUserError(err, 'Something went wrong on our end. Please try again or contact the company.'));
         } finally {
             setSubmitting(false);
         }
@@ -130,10 +154,9 @@ const OfferResponse: React.FC = () => {
         try {
             await api.offers.declineByToken(token, responseNote.trim() || undefined);
             setSuccess('declined');
+            notifySlack('declined');
         } catch (err: any) {
-            const msg = err?.message || '';
-            const isTechnical = /failed to decline|schema cache|could not find|42883|postgres|supabase/i.test(msg);
-            setError(isTechnical ? 'Something went wrong on our end. Please try again or contact the company.' : msg);
+            setError(toUserError(err, 'Something went wrong on our end. Please try again or contact the company.'));
         } finally {
             setSubmitting(false);
         }
@@ -147,21 +170,21 @@ const OfferResponse: React.FC = () => {
 
         try {
             const counterOfferData: any = {};
-            
+
             if (counterSalary) {
                 counterOfferData.salaryAmount = parseFloat(counterSalary);
             }
             counterOfferData.salaryCurrency = counterCurrency;
             counterOfferData.salaryPeriod = counterPeriod;
-            
+
             if (counterStartDate) {
                 counterOfferData.startDate = counterStartDate;
             }
-            
+
             if (counterBenefits.length > 0) {
                 counterOfferData.benefits = counterBenefits;
             }
-            
+
             if (counterNote.trim()) {
                 counterOfferData.notes = counterNote.trim();
             }
@@ -169,10 +192,9 @@ const OfferResponse: React.FC = () => {
             await api.offers.counterOfferByToken(token, counterOfferData);
             setSuccess('counter_offered');
             setShowCounterOffer(false);
+            notifySlack('negotiating');
         } catch (err: any) {
-            const msg = err?.message || '';
-            const isTechnical = /failed to|schema cache|could not find|42883|postgres|supabase/i.test(msg);
-            setError(isTechnical ? 'Something went wrong on our end. Please try again or contact the company.' : msg);
+            setError(toUserError(err, 'Something went wrong on our end. Please try again or contact the company.'));
         } finally {
             setSubmitting(false);
         }
@@ -497,7 +519,7 @@ const OfferResponse: React.FC = () => {
                                     value={responseNote}
                                     onChange={(e) => setResponseNote(e.target.value)}
                                     placeholder="Add a message to your response (optional)..."
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                                             rows={3}
                                 />
                             </div>
@@ -552,36 +574,38 @@ const OfferResponse: React.FC = () => {
                                                     value={counterSalary}
                                                     onChange={(e) => setCounterSalary(e.target.value)}
                                                     placeholder="Enter amount"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Currency
                                                 </label>
-                                                <select
+                                                <CustomSelect
                                                     value={counterCurrency}
-                                                    onChange={(e) => setCounterCurrency(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                                                >
-                                                    <option value="USD">USD ($)</option>
-                                                    <option value="EUR">EUR (€)</option>
-                                                    <option value="GBP">GBP (£)</option>
-                                                </select>
+                                                    onChange={setCounterCurrency}
+                                                    className="px-3 py-2 rounded-lg"
+                                                    options={[
+                                                        { value: 'USD', label: 'USD ($)' },
+                                                        { value: 'EUR', label: 'EUR (€)' },
+                                                        { value: 'GBP', label: 'GBP (£)' },
+                                                    ]}
+                                                />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Period
                                                 </label>
-                                                <select
+                                                <CustomSelect
                                                     value={counterPeriod}
-                                                    onChange={(e) => setCounterPeriod(e.target.value as 'hourly' | 'monthly' | 'yearly')}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                                                >
-                                                    <option value="yearly">Per Year</option>
-                                                    <option value="monthly">Per Month</option>
-                                                    <option value="hourly">Per Hour</option>
-                                                </select>
+                                                    onChange={(val) => setCounterPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                                    className="px-3 py-2 rounded-lg"
+                                                    options={[
+                                                        { value: 'yearly', label: 'Per Year' },
+                                                        { value: 'monthly', label: 'Per Month' },
+                                                        { value: 'hourly', label: 'Per Hour' },
+                                                    ]}
+                                                />
                                             </div>
                                         </div>
 
@@ -593,7 +617,7 @@ const OfferResponse: React.FC = () => {
                                                 type="date"
                                                 value={counterStartDate}
                                                 onChange={(e) => setCounterStartDate(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                             />
                                         </div>
 
@@ -608,7 +632,7 @@ const OfferResponse: React.FC = () => {
                                                     onChange={(e) => setNewBenefit(e.target.value)}
                                                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addBenefit())}
                                                     placeholder="Add a benefit"
-                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                                 />
                                                 <Button
                                                     variant="outline"
@@ -646,7 +670,7 @@ const OfferResponse: React.FC = () => {
                                                 value={counterNote}
                                                 onChange={(e) => setCounterNote(e.target.value)}
                                                 placeholder="Explain your counter offer or any additional requests..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                                                 rows={4}
                                             />
                                         </div>

@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { CheckCircle, AlertCircle, Mail, Briefcase } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const CandidateRegister: React.FC = () => {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -82,7 +83,7 @@ const CandidateRegister: React.FC = () => {
 
       } catch (err: any) {
         console.error('Error validating token:', err);
-        setError(err.message || 'Failed to validate registration link');
+        setError(toUserError(err, 'Failed to validate registration link'));
       } finally {
         setLoading(false);
       }
@@ -118,7 +119,7 @@ const CandidateRegister: React.FC = () => {
       setSuccess(true);
     } catch (err: any) {
       console.error('Error registering email:', err);
-      setError(err.message || 'Failed to register email. Please try again.');
+      setError(toUserError(err, 'Failed to register email. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -206,7 +207,7 @@ const CandidateRegister: React.FC = () => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all placeholder:text-gray-400"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all placeholder:text-gray-400"
               placeholder="your.email@example.com"
               required
               disabled={submitting || loading}

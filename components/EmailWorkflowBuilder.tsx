@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { EmailWorkflow, CandidateStage, EmailTemplate } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { X, Save } from 'lucide-react';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface EmailWorkflowBuilderProps {
     workflow?: EmailWorkflow | null;
@@ -64,7 +66,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
             setTemplates(data);
         } catch (err: any) {
             console.error('Error loading templates:', err);
-            setError(err.message || 'Failed to load email templates');
+            setError(toUserError(err, 'Failed to load email templates'));
         }
     };
 
@@ -202,7 +204,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
             onClose();
         } catch (err: any) {
             console.error('Error saving workflow:', err);
-            setError(err.message || 'Failed to save workflow');
+            setError(toUserError(err, 'Failed to save workflow'));
         } finally {
             setSaving(false);
         }
@@ -244,7 +246,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g., Send Screening Email"
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                         />
                     </div>
 
@@ -253,12 +255,11 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Trigger Stage *
                         </label>
-                        <select
+                        <CustomSelect
                             value={triggerStage}
-                            onChange={(e) => {
-                                const newStage = e.target.value as CandidateStage;
+                            onChange={(val) => {
+                                const newStage = val as CandidateStage;
                                 setTriggerStage(newStage);
-                                // Reset template selection if current template is not valid for new stage
                                 const filteredTemplates = templates.filter(template => {
                                     const stageToTemplateTypeMap: Record<CandidateStage, string[]> = {
                                         [CandidateStage.NEW]: [],
@@ -273,17 +274,14 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                                 });
                                 const currentTemplate = templates.find(t => t.id === emailTemplateId);
                                 if (currentTemplate && !filteredTemplates.find(t => t.id === currentTemplate.id)) {
-                                    setEmailTemplateId(''); // Clear invalid selection
+                                    setEmailTemplateId('');
                                 }
                             }}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        >
-                            {Object.values(CandidateStage)
-                                .filter(stage => stage !== CandidateStage.NEW) // Remove "New" - workflows are disabled for New stage
-                                .map(stage => (
-                                    <option key={stage} value={stage}>{stage}</option>
-                                ))}
-                        </select>
+                            className="px-3 py-2 rounded-lg"
+                            options={Object.values(CandidateStage)
+                                .filter(stage => stage !== CandidateStage.NEW)
+                                .map(stage => ({ value: stage, label: stage }))}
+                        />
                         <p className="text-xs text-gray-500 mt-1">
                             This workflow will trigger when a candidate moves to this stage
                         </p>
@@ -297,24 +295,16 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Email Template *
                         </label>
-                        <select
+                        <CustomSelect
                             value={emailTemplateId}
-                            onChange={(e) => setEmailTemplateId(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        >
-                            <option value="">Select a template...</option>
-                            {getFilteredTemplates().length === 0 ? (
-                                <option value="" disabled>
-                                    No templates available for {triggerStage} stage
-                                </option>
-                            ) : (
-                                getFilteredTemplates().map(template => (
-                                    <option key={template.id} value={template.id}>
-                                        {template.title} ({template.type})
-                                    </option>
-                                ))
-                            )}
-                        </select>
+                            onChange={setEmailTemplateId}
+                            placeholder="Select a template..."
+                            className="px-3 py-2 rounded-lg"
+                            options={getFilteredTemplates().map(template => ({
+                                value: template.id,
+                                label: `${template.title} (${template.type})`,
+                            }))}
+                        />
                         {getFilteredTemplates().length === 0 && (
                             <p className="text-xs text-amber-600 mt-1">
                                 Create a {triggerStage === CandidateStage.OFFER ? 'Offer' : 
@@ -350,7 +340,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                                 value={minMatchScore || ''}
                                 onChange={(e) => setMinMatchScore(e.target.value ? parseInt(e.target.value) : undefined)}
                                 placeholder="e.g., 70 (leave empty for no minimum)"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                             />
                             <p className="text-xs text-gray-500 mt-1">
                                 Only trigger if candidate's AI match score is at least this value
@@ -374,7 +364,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                                         }
                                     }}
                                     placeholder="e.g., LinkedIn, Job Board"
-                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                 />
                                 <Button
                                     variant="outline"
@@ -422,7 +412,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                                 min="0"
                                 value={delayMinutes}
                                 onChange={(e) => setDelayMinutes(Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                             />
                             <p className="text-xs text-gray-500 mt-1">
                                 Wait this many minutes before sending the email (0 = send immediately)

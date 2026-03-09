@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SourcingProvider } from './contexts/SourcingContext';
@@ -29,6 +29,43 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
 import Invite from './pages/Invite';
 import Reports from './pages/Reports';
+
+const PageTransitionBar: React.FC = () => {
+  const location = useLocation();
+  const [width, setWidth]     = useState(0);
+  const [visible, setVisible] = useState(false);
+  const prevPath              = useRef(location.pathname);
+  const timers                = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    if (location.pathname === prevPath.current) return;
+    prevPath.current = location.pathname;
+
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+
+    setVisible(true);
+    setWidth(0);
+
+    timers.current.push(setTimeout(() => setWidth(70), 20));
+    timers.current.push(setTimeout(() => setWidth(90), 200));
+    timers.current.push(setTimeout(() => setWidth(100), 380));
+    timers.current.push(setTimeout(() => setVisible(false), 560));
+
+    return () => timers.current.forEach(clearTimeout);
+  }, [location.pathname]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[9999] h-[2px] bg-transparent pointer-events-none">
+      <div
+        className="h-full bg-gray-900 transition-all ease-out"
+        style={{ width: `${width}%`, transitionDuration: width === 100 ? '120ms' : '300ms' }}
+      />
+    </div>
+  );
+};
 
 const Layout = () => {
   const location = useLocation();
@@ -121,6 +158,7 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100">
+      <PageTransitionBar />
       <Sidebar />
       <main className={`overflow-x-hidden relative transition-all duration-150 bg-white ${isExpanded ? 'md:ml-[256px]' : 'md:ml-[80px]'}`} style={{ paddingBottom: '80px' }}>
         <Outlet />

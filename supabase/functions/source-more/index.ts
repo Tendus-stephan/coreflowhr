@@ -1,10 +1,10 @@
 /**
  * source-more Edge Function
  *
- * Called when the user clicks "Source More" on a job that has been sourced before.
- * Fetches the next batch from PDL starting at the current pdl_offset.
+ * Called when the user clicks "Source More" on a job.
+ * Fetches the next batch using whichever provider is active.
  * Accepts: POST { job_id: string, workspace_id: string }
- * Auth: anon JWT (workspace member required).
+ * Auth: anon JWT (workspace member required — Admin or Recruiter role).
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
@@ -22,18 +22,13 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const pdlApiKey = Deno.env.get('PDL_API_KEY');
+    const supabaseUrl     = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const anonKey         = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const pdlApiKey       = Deno.env.get('PDL_API_KEY');
+    const rsApiKey        = Deno.env.get('REACHSTREAM_API_KEY');
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-
-    if (!pdlApiKey) {
-      return new Response(JSON.stringify({ ok: false, error: 'PDL_API_KEY not configured' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const envProvider     = (Deno.env.get('SOURCING_PROVIDER') || 'pdl') as 'pdl' | 'reachstream';
 
     const body = await req.json().catch(() => ({}));
     const { job_id, workspace_id } = body as { job_id?: string; workspace_id?: string };
@@ -45,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify caller is a workspace member
+    // Verify caller is a workspace member with sourcing permissions
     const authHeader = req.headers.get('authorization') || '';
     const anonClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { authorization: authHeader } },
@@ -64,7 +59,6 @@ serve(async (req) => {
       });
     }
 
-    // Only Admin and Recruiter can trigger sourcing
     if (!['Admin', 'Recruiter'].includes(membership.role)) {
       return new Response(JSON.stringify({ ok: false, error: 'Insufficient permissions' }), {
         status: 403,
@@ -72,17 +66,11 @@ serve(async (req) => {
       });
     }
 
-    // Invoke trigger-sourcing with 'manual' trigger type using service-role client
     const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-
-    // Inline the same runSourcing logic via internal function call
-    const result = await callTriggerSourcing(supabaseUrl, serviceRoleKey, {
-      job_id,
-      workspace_id,
-      trigger_type: 'manual',
-      pdl_api_key: pdlApiKey,
-      anthropic_api_key: anthropicApiKey,
-    }, serviceClient);
+    const result = await runSourcing(
+      serviceClient, job_id, workspace_id, 'manual',
+      pdlApiKey, rsApiKey, anthropicApiKey, envProvider
+    );
 
     return new Response(JSON.stringify({ ok: true, ...result }), {
       status: 200,
@@ -97,12 +85,172 @@ serve(async (req) => {
   }
 });
 
-const PDL_API_URL = 'https://api.peopledatalabs.com/v5/person/search';
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const PDL_API_URL   = 'https://api.peopledatalabs.com/v5/person/search';
+const RS_FILTER_URL = 'https://api-prd.reachstream.com/api/v2/async/records/filter/data';
+const RS_BATCH_URL  = 'https://api-prd.reachstream.com/api/v2/records/batch-process';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+const ANTHROPIC_MODEL   = 'claude-sonnet-4-20250514';
+
+const JOB_CAP_PAID = 50;
+const JOB_CAP_FREE = 20;
+const BATCH_SIZE   = 10;
+
+// ---------------------------------------------------------------------------
+// Provider helpers (identical to trigger-sourcing)
+// ---------------------------------------------------------------------------
 
 function getSourcingCap(isFreeAccess: boolean): number {
-  return isFreeAccess ? 30 : 100;
+  return isFreeAccess ? JOB_CAP_FREE : JOB_CAP_PAID;
+}
+
+async function searchPdl(
+  apiKey: string, jobTitle: string, _location: string, _skills: string[],
+  size: number, scrollToken: string | null
+): Promise<{ data: Record<string, unknown>[]; total: number; nextScrollToken: string | null; errorMessage?: string }> {
+  const escapedTitle = jobTitle.replace(/'/g, "''");
+  const sql = `SELECT * FROM person WHERE job_title LIKE '%${escapedTitle}%'`;
+
+  const url = new URL(PDL_API_URL);
+  url.searchParams.set('sql', sql);
+  url.searchParams.set('size', String(size));
+  if (scrollToken) url.searchParams.set('scroll_token', scrollToken);
+
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    headers: { 'X-Api-Key': apiKey },
+  });
+
+  const responseText = await res.text().catch(() => '');
+  if (!res.ok) {
+    let errorMsg = `PDL HTTP ${res.status}`;
+    try { errorMsg = (JSON.parse(responseText)?.error?.message as string) || errorMsg; } catch { /* ignore */ }
+    console.error('[source-more][PDL]', errorMsg);
+    return { data: [], total: 0, nextScrollToken: null, errorMessage: errorMsg };
+  }
+
+  const json = JSON.parse(responseText);
+  return { data: json.data || [], total: json.total || 0, nextScrollToken: json.scroll_token || null };
+}
+
+async function searchReachStream(
+  apiKey: string, jobTitle: string, location: string, skills: string[], size: number
+): Promise<{ data: Record<string, unknown>[]; total: number; errorMessage?: string }> {
+  const filter: Record<string, Record<string, string>> = {};
+
+  if (jobTitle) filter.job_title = { '0': jobTitle };
+
+  if (location) {
+    const parts = location.split(',').map((s: string) => s.trim());
+    if (parts.length >= 2) {
+      filter.company_address_city    = { '0': parts[0] };
+      filter.company_address_country = { '0': parts[parts.length - 1] };
+    } else {
+      filter.company_address_country = { '0': location };
+    }
+  }
+
+  if (skills.length > 0) {
+    filter.tech_keywords = Object.fromEntries(
+      skills.slice(0, 10).map((s: string, i: number) => [String(i), s])
+    );
+  }
+
+  try {
+    const initRes = await fetch(RS_FILTER_URL, {
+      method: 'POST',
+      headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ fetchCount: size, filter }),
+    });
+
+    if (!initRes.ok) {
+      const errText = await initRes.text().catch(() => '');
+      console.error(`[source-more][ReachStream] Initiate failed: ${initRes.status}`, errText);
+      return { data: [], total: 0, errorMessage: `ReachStream HTTP ${initRes.status}` };
+    }
+
+    const initJson = await initRes.json();
+    const batchId = initJson?.batch_process_id ?? initJson?.data?.batch_process_id;
+    if (!batchId) return { data: [], total: 0, errorMessage: 'No batch_process_id returned' };
+
+    for (let attempt = 0; attempt < 15; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const pollRes = await fetch(`${RS_BATCH_URL}?batch_process_id=${batchId}`, {
+        method: 'GET',
+        headers: { 'X-API-Key': apiKey, 'Accept': 'application/json' },
+      });
+
+      if (!pollRes.ok) return { data: [], total: 0, errorMessage: `ReachStream poll HTTP ${pollRes.status}` };
+
+      const pollJson = await pollRes.json();
+      const status = (pollJson?.status || pollJson?.record_status || '').toUpperCase();
+
+      if (status === 'READY') {
+        const records: Record<string, unknown>[] = pollJson?.data || pollJson?.records || [];
+        return { data: records, total: pollJson?.total_records ?? records.length };
+      }
+      if (status === 'INSUFFICIENT_BALANCE') return { data: [], total: 0, errorMessage: 'ReachStream insufficient credits' };
+    }
+
+    return { data: [], total: 0, errorMessage: 'ReachStream batch timed out' };
+  } catch (err) {
+    return { data: [], total: 0, errorMessage: String(err) };
+  }
+}
+
+function mapPdlPerson(p: Record<string, unknown>, jobId: string, workspaceId: string, userId: string): Record<string, unknown> {
+  const locality = (p.location_locality as string) || (p.job_company_location_locality as string) || '';
+  const country  = (p.location_country  as string) || (p.job_company_location_country  as string) || '';
+  const location = locality && country ? `${locality}, ${country}` : locality || country || (p.location_name as string) || '';
+  return {
+    job_id, workspace_id, user_id: userId,
+    name: (p.full_name as string) || `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown',
+    email: (p.work_email as string) || (Array.isArray(p.personal_emails) ? (p.personal_emails as string[])[0] : null) || null,
+    linkedin_url: (p.linkedin_url as string) || null,
+    role: (p.job_title as string) || null,
+    current_company: (p.job_company_name as string) || null,
+    location,
+    profile_picture_url: (p.profile_pic_url as string) || null,
+    skills: Array.isArray(p.skills) ? p.skills : [],
+    work_experience: Array.isArray(p.experience) ? p.experience : [],
+    education: Array.isArray(p.education) ? p.education : [],
+    pdl_id: (p.id as string) || null,
+    reachstream_id: null,
+    source: 'Sourced',
+    sourced_at: new Date().toISOString(),
+    stage: 'New',
+    applied_date: new Date().toISOString(),
+  };
+}
+
+function mapReachStreamPerson(p: Record<string, unknown>, jobId: string, workspaceId: string, userId: string): Record<string, unknown> {
+  const city    = (p.contact_address_city    as string) || '';
+  const country = (p.contact_address_country as string) || '';
+  const location = city && country ? `${city}, ${country}` : city || country || '';
+  const firstName = (p.contact_first_name as string) || '';
+  const lastName  = (p.contact_last_name  as string) || '';
+  const fullName  = (p.contact_name as string) || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || 'Unknown');
+  return {
+    job_id, workspace_id, user_id: userId,
+    name: fullName,
+    email: (p.contact_email_1 as string) || null,
+    linkedin_url: (p.contact_social_linkedin as string) || null,
+    role: (p.contact_job_title_1 as string) || null,
+    current_company: (p.company_company_name as string) || null,
+    location,
+    profile_picture_url: null,
+    skills: [], work_experience: [], education: [],
+    pdl_id: null,
+    reachstream_id: p.id != null ? String(p.id) : null,
+    source: 'Sourced',
+    sourced_at: new Date().toISOString(),
+    stage: 'New',
+    applied_date: new Date().toISOString(),
+  };
 }
 
 async function scoreCandidate(
@@ -132,43 +280,36 @@ Respond with exactly this JSON format and nothing else:
   try {
     const res = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 128,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: { 'x-api-key': anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 128, messages: [{ role: 'user', content: prompt }] }),
     });
-
     if (!res.ok) return { score: 0, reason: '' };
-
     const json = await res.json();
     const text: string = json?.content?.[0]?.text || '';
-    const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed = JSON.parse(text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim());
     return {
       score: Math.min(100, Math.max(0, Math.round(Number(parsed.score) || 0))),
       reason: typeof parsed.reason === 'string' ? parsed.reason.trim() : '',
     };
-  } catch {
-    return { score: 0, reason: '' };
-  }
+  } catch { return { score: 0, reason: '' }; }
 }
 
-// deno-lint-ignore no-explicit-any
-async function callTriggerSourcing(
-  _supabaseUrl: string,
-  _serviceRoleKey: string,
-  params: { job_id: string; workspace_id: string; trigger_type: string; pdl_api_key: string; anthropic_api_key: string | undefined },
-  // deno-lint-ignore no-explicit-any
-  supabase: any
-) {
-  const { job_id: jobId, workspace_id: workspaceId, trigger_type: triggerType, pdl_api_key: pdlApiKey, anthropic_api_key: anthropicApiKey } = params;
+// ---------------------------------------------------------------------------
+// Main sourcing orchestrator
+// ---------------------------------------------------------------------------
 
+// deno-lint-ignore no-explicit-any
+async function runSourcing(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  jobId: string,
+  workspaceId: string,
+  triggerType: string,
+  pdlApiKey: string | undefined,
+  rsApiKey: string | undefined,
+  anthropicApiKey: string | undefined,
+  envProvider: 'pdl' | 'reachstream'
+) {
   const { data: job } = await supabase
     .from('jobs')
     .select('id, title, description, location, skills, sourcing_candidates_count, sourcing_pdl_scroll_token, user_id')
@@ -180,153 +321,240 @@ async function callTriggerSourcing(
 
   const { data: workspace } = await supabase
     .from('workspaces')
-    .select('id, is_free_access, free_access_expires_at')
+    .select('id, is_free_access, free_access_expires_at, sourcing_provider, sourcing_credits_monthly, sourcing_credits_used_this_month, sourcing_credits_reset_at, sourcing_notifications_sent')
     .eq('id', workspaceId)
     .maybeSingle();
 
   if (!workspace) return { candidates_found: 0, candidates_created: 0, error: 'Workspace not found' };
 
   const isFreeAccess = workspace.is_free_access === true;
+
   if (isFreeAccess && workspace.free_access_expires_at && new Date(workspace.free_access_expires_at) < new Date()) {
     return { candidates_found: 0, candidates_created: 0, error: 'Design partner access expired' };
   }
 
   if (!isFreeAccess) {
     const { data: ownerSettings } = await supabase
-      .from('user_settings')
-      .select('subscription_status')
-      .eq('user_id', job.user_id)
-      .maybeSingle();
+      .from('user_settings').select('subscription_status').eq('user_id', job.user_id).maybeSingle();
     const subStatus = (ownerSettings?.subscription_status || '').toLowerCase();
-    if (subStatus !== 'active') {
-      return { candidates_found: 0, candidates_created: 0, error: 'No active subscription' };
+    if (subStatus !== 'active') return { candidates_found: 0, candidates_created: 0, error: 'No active subscription' };
+  }
+
+  const provider: 'pdl' | 'reachstream' =
+    (workspace.sourcing_provider as 'pdl' | 'reachstream') || envProvider;
+
+  const now = new Date();
+  let creditsUsed: number = workspace.sourcing_credits_used_this_month ?? 0;
+  let notifsSent: Record<string, boolean> = workspace.sourcing_notifications_sent ?? {};
+  const creditsMonthly: number = workspace.sourcing_credits_monthly ?? 200;
+
+  if (!isFreeAccess) {
+    const resetAt = new Date(workspace.sourcing_credits_reset_at || now);
+    const monthsSinceReset =
+      (now.getFullYear() - resetAt.getFullYear()) * 12 + (now.getMonth() - resetAt.getMonth());
+
+    if (monthsSinceReset >= 1) {
+      await supabase.from('workspaces').update({
+        sourcing_credits_used_this_month: 0,
+        sourcing_credits_reset_at: now.toISOString(),
+        sourcing_notifications_sent: {},
+      }).eq('id', workspaceId);
+      creditsUsed = 0;
+      notifsSent  = {};
+    }
+
+    if ((creditsMonthly - creditsUsed) <= 0) {
+      await supabase.from('notifications').insert({
+        workspace_id: workspaceId, type: 'sourcing_cap',
+        title: 'Monthly sourcing limit reached',
+        message: `Your workspace has used all ${creditsMonthly} sourcing credits for this month. Sourcing resumes on the 1st of next month.`,
+        metadata: { job_id: jobId }, created_at: now.toISOString(), read: false,
+      }).catch(() => {});
+      return { candidates_found: 0, candidates_created: 0, reason: 'monthly_cap_reached' };
     }
   }
 
-  const cap = getSourcingCap(isFreeAccess);
-  const currentCount: number = job.sourcing_candidates_count || 0;
-  if (currentCount >= cap) {
+  const JOB_CAP = getSourcingCap(isFreeAccess);
+  const currentCount: number = job.sourcing_candidates_count ?? 0;
+
+  if (currentCount >= JOB_CAP) {
     await supabase.from('jobs').update({ sourcing_status: 'completed', sourcing_maxed_out: true }).eq('id', jobId);
     return { candidates_found: 0, candidates_created: 0, maxed_out: true };
   }
 
-  const batchSize = Math.min(cap - currentCount, 20);
-  const pdlScrollToken: string | null = job.sourcing_pdl_scroll_token || null;
+  const creditsRemaining  = isFreeAccess ? JOB_CAP : (creditsMonthly - creditsUsed);
+  const remainingJobSlots = JOB_CAP - currentCount;
+  const batchSize = Math.min(BATCH_SIZE, remainingJobSlots, creditsRemaining);
+
+  if (batchSize <= 0) return { candidates_found: 0, candidates_created: 0, reason: 'no_capacity' };
 
   const { data: sourcingJobRow } = await supabase
     .from('sourcing_jobs')
     .insert({
-      job_id: jobId,
-      workspace_id: workspaceId,
-      trigger_type: triggerType,
-      status: 'running',
-      candidates_requested: batchSize,
-      pdl_offset_start: 0,
-      started_at: new Date().toISOString(),
+      job_id: jobId, workspace_id: workspaceId, trigger_type: triggerType,
+      status: 'running', candidates_requested: batchSize, pdl_offset_start: 0,
+      sourcing_provider: provider, started_at: now.toISOString(),
     })
-    .select()
-    .single();
+    .select().single();
 
   const sourcingJobId = sourcingJobRow?.id;
   await supabase.from('jobs').update({ sourcing_status: 'running' }).eq('id', jobId);
 
-  // Search PDL — SQL-style query with scroll_token pagination
-  const escapedTitle = (job.title || '').replace(/'/g, "''");
-  const sql = `SELECT * FROM person WHERE job_title LIKE '%${escapedTitle}%'`;
-  const pdlUrl = new URL(PDL_API_URL);
-  pdlUrl.searchParams.set('sql', sql);
-  pdlUrl.searchParams.set('size', String(batchSize));
-  if (pdlScrollToken) pdlUrl.searchParams.set('scroll_token', pdlScrollToken);
+  const pdlScrollToken: string | null = job.sourcing_pdl_scroll_token || null;
+  let persons: Record<string, unknown>[] = [];
+  let nextScrollToken: string | null = null;
+  let searchError: string | undefined;
+  let effectiveProvider = provider;
 
-  const pdlRes = await fetch(pdlUrl.toString(), {
-    method: 'GET',
-    headers: { 'X-Api-Key': pdlApiKey },
-  });
+  if (provider === 'reachstream' && rsApiKey) {
+    const rsResult = await searchReachStream(
+      rsApiKey, job.title || '', job.location || '',
+      Array.isArray(job.skills) ? job.skills : [], batchSize
+    );
+    persons = rsResult.data;
+    searchError = rsResult.errorMessage;
 
-  const pdlResText = await pdlRes.text().catch(() => '');
-  if (!pdlRes.ok) {
-    let pdlErrMsg = `PDL HTTP ${pdlRes.status}`;
-    try { pdlErrMsg = (JSON.parse(pdlResText)?.error?.message as string) || pdlErrMsg; } catch { /* ignore */ }
-    console.error('[source-more][PDL]', pdlErrMsg);
-    await supabase.from('jobs').update({ sourcing_status: 'failed', sourcing_error_message: pdlErrMsg }).eq('id', jobId);
-    if (sourcingJobId) await supabase.from('sourcing_jobs').update({ status: 'failed', completed_at: new Date().toISOString() }).eq('id', sourcingJobId);
-    return { candidates_found: 0, candidates_created: 0, error: pdlErrMsg };
+    if (persons.length === 0 && pdlApiKey) {
+      console.log('[source-more] ReachStream returned no results, falling back to PDL');
+      const pdlFallback = await searchPdl(
+        pdlApiKey, job.title || '', job.location || '',
+        Array.isArray(job.skills) ? job.skills : [], batchSize, pdlScrollToken
+      );
+      persons = pdlFallback.data;
+      nextScrollToken = pdlFallback.nextScrollToken;
+      searchError = pdlFallback.errorMessage;
+      effectiveProvider = 'pdl';
+    }
+  } else if (pdlApiKey) {
+    const pdlResult = await searchPdl(
+      pdlApiKey, job.title || '', job.location || '',
+      Array.isArray(job.skills) ? job.skills : [], batchSize, pdlScrollToken
+    );
+    persons = pdlResult.data;
+    nextScrollToken = pdlResult.nextScrollToken;
+    searchError = pdlResult.errorMessage;
+  } else {
+    searchError = 'No API key available for provider: ' + provider;
   }
-  const pdlJson = JSON.parse(pdlResText);
-  const persons: Record<string, unknown>[] = pdlJson.data || [];
-  const nextScrollToken: string | null = pdlJson.scroll_token || null;
+
+  if (searchError && persons.length === 0) {
+    await supabase.from('jobs').update({ sourcing_status: 'failed', sourcing_error_message: searchError }).eq('id', jobId);
+    if (sourcingJobId) await supabase.from('sourcing_jobs').update({ status: 'failed', completed_at: now.toISOString() }).eq('id', sourcingJobId);
+    return { candidates_found: 0, candidates_created: 0, error: searchError };
+  }
 
   // Dedup
   const { data: existingLinkedIn } = await supabase.from('candidates').select('linkedin_url').eq('job_id', jobId).not('linkedin_url', 'is', null);
-  const { data: existingPdlIds } = await supabase.from('candidates').select('pdl_id').eq('job_id', jobId).not('pdl_id', 'is', null);
+  const { data: existingPdlIds }   = await supabase.from('candidates').select('pdl_id').eq('job_id', jobId).not('pdl_id', 'is', null);
+  const { data: existingRsIds }    = await supabase.from('candidates').select('reachstream_id').eq('job_id', jobId).not('reachstream_id', 'is', null);
 
-  const linkedInSet = new Set((existingLinkedIn || []).map((r: { linkedin_url: string }) => r.linkedin_url));
-  const pdlIdSet = new Set((existingPdlIds || []).map((r: { pdl_id: string }) => r.pdl_id));
+  const linkedInSet = new Set((existingLinkedIn || []).map((r: { linkedin_url: string })   => r.linkedin_url));
+  const pdlIdSet    = new Set((existingPdlIds   || []).map((r: { pdl_id: string })         => r.pdl_id));
+  const rsIdSet     = new Set((existingRsIds    || []).map((r: { reachstream_id: string }) => r.reachstream_id));
 
   const newPersons = persons.filter((p) => {
-    if (p.linkedin_url && linkedInSet.has(p.linkedin_url)) return false;
-    if (p.id && pdlIdSet.has(p.id)) return false;
+    const liUrl = effectiveProvider === 'reachstream'
+      ? (p.contact_social_linkedin as string) : (p.linkedin_url as string);
+    const pId = effectiveProvider === 'reachstream'
+      ? (p.id != null ? String(p.id) : null) : (p.id as string);
+    if (liUrl && linkedInSet.has(liUrl)) return false;
+    if (effectiveProvider === 'pdl'         && pId && pdlIdSet.has(pId)) return false;
+    if (effectiveProvider === 'reachstream' && pId && rsIdSet.has(pId))  return false;
     return true;
   });
 
   if (newPersons.length === 0) {
-    await supabase.from('jobs').update({ sourcing_status: 'completed', sourcing_pdl_scroll_token: nextScrollToken, sourcing_last_run_at: new Date().toISOString() }).eq('id', jobId);
-    if (sourcingJobId) await supabase.from('sourcing_jobs').update({ status: 'completed', candidates_found: persons.length, candidates_created: 0, completed_at: new Date().toISOString() }).eq('id', sourcingJobId);
+    await supabase.from('jobs').update({ sourcing_status: 'completed', sourcing_pdl_scroll_token: nextScrollToken, sourcing_last_run_at: now.toISOString() }).eq('id', jobId);
+    if (sourcingJobId) await supabase.from('sourcing_jobs').update({ status: 'completed', candidates_found: persons.length, candidates_created: 0, completed_at: now.toISOString() }).eq('id', sourcingJobId);
     return { candidates_found: persons.length, candidates_created: 0, maxed_out: false };
   }
 
-  // Map candidates — field names must match the candidates table schema
-  const candidateRecords = newPersons.map((p) => {
-    const locality = (p.location_locality as string) || (p.job_company_location_locality as string) || '';
-    const country = (p.location_country as string) || (p.job_company_location_country as string) || '';
-    const location = locality && country ? `${locality}, ${country}` : locality || country || (p.location_name as string) || '';
-    return {
-      job_id: jobId,
-      workspace_id: workspaceId,
-      user_id: job.user_id,
-      name: (p.full_name as string) || `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown',
-      email: (p.work_email as string) || (Array.isArray(p.personal_emails) ? (p.personal_emails as string[])[0] : null) || null,
-      linkedin_url: (p.linkedin_url as string) || null,
-      role: (p.job_title as string) || null,               // 'role' = current job title
-      current_company: (p.job_company_name as string) || null,
-      location,
-      profile_picture_url: (p.profile_pic_url as string) || null,
-      skills: Array.isArray(p.skills) ? p.skills : [],
-      work_experience: Array.isArray(p.experience) ? p.experience : [],  // JSONB
-      education: Array.isArray(p.education) ? p.education : [],          // JSONB
-      pdl_id: (p.id as string) || null,
-      source: 'Sourced',
-      sourced_at: new Date().toISOString(),
-      stage: 'New',
-      applied_date: new Date().toISOString(),
-    };
-  });
-
-  // AI score
-  const scores = await Promise.all(
-    candidateRecords.map((c) => scoreCandidate(anthropicApiKey, { title: job.title || '', description: job.description || '', location: job.location || '', skills: Array.isArray(job.skills) ? job.skills : [] }, { fullName: c.name, currentTitle: (c.role as string) || '', location: c.location as string || '', skills: Array.isArray(c.skills) ? c.skills as string[] : [] }))
+  const candidateRecords = newPersons.map((p) =>
+    effectiveProvider === 'reachstream'
+      ? mapReachStreamPerson(p, jobId, workspaceId, job.user_id)
+      : mapPdlPerson(p, jobId, workspaceId, job.user_id)
   );
 
-  const scoredCandidates = candidateRecords.map((c, i) => ({ ...c, ai_match_score: scores[i]?.score ?? null, ai_match_reason: scores[i]?.reason ?? null }));
+  const scores = await Promise.all(
+    candidateRecords.map((c) => scoreCandidate(anthropicApiKey, {
+      title: job.title || '', description: job.description || '',
+      location: job.location || '', skills: Array.isArray(job.skills) ? job.skills : [],
+    }, {
+      fullName: (c.name as string) || '', currentTitle: (c.role as string) || '',
+      location: (c.location as string) || '', skills: Array.isArray(c.skills) ? (c.skills as string[]) : [],
+    }))
+  );
+
+  const scoredCandidates = candidateRecords.map((c, i) => ({
+    ...c, ai_match_score: scores[i]?.score ?? null, ai_match_reason: scores[i]?.reason ?? null,
+  }));
 
   const { data: inserted, error: insertError } = await supabase.from('candidates').insert(scoredCandidates).select('id');
-  const created = insertError ? 0 : (inserted || []).length;
+  const created  = insertError ? 0 : (inserted || []).length;
   const newCount = currentCount + created;
-  const maxedOut = newCount >= cap;
+  const maxedOut = newCount >= JOB_CAP;
 
-  await supabase.from('jobs').update({ sourcing_status: 'completed', sourcing_candidates_count: newCount, sourcing_maxed_out: maxedOut, sourcing_pdl_scroll_token: nextScrollToken, sourcing_last_run_at: new Date().toISOString(), sourcing_error_message: null }).eq('id', jobId);
+  await supabase.from('jobs').update({
+    sourcing_status: 'completed', sourcing_candidates_count: newCount,
+    sourcing_maxed_out: maxedOut, sourcing_pdl_scroll_token: nextScrollToken,
+    sourcing_last_run_at: now.toISOString(), sourcing_error_message: null,
+  }).eq('id', jobId);
 
   if (sourcingJobId) {
-    await supabase.from('sourcing_jobs').update({ status: 'completed', candidates_found: persons.length, candidates_created: created, completed_at: new Date().toISOString() }).eq('id', sourcingJobId);
+    await supabase.from('sourcing_jobs').update({
+      status: 'completed', candidates_found: persons.length, candidates_created: created,
+      sourcing_provider: effectiveProvider, completed_at: now.toISOString(),
+    }).eq('id', sourcingJobId);
+  }
+
+  if (!isFreeAccess) {
+    const newTotal    = creditsUsed + created;
+    const percentUsed = (newTotal / creditsMonthly) * 100;
+
+    if (percentUsed >= 50 && !notifsSent['50']) {
+      await supabase.from('notifications').insert({
+        workspace_id: workspaceId, type: 'sourcing_credits',
+        title: 'Sourcing credits at 50%',
+        message: `Your workspace has used ${newTotal} of ${creditsMonthly} sourcing credits this month.`,
+        metadata: { job_id: jobId }, created_at: now.toISOString(), read: false,
+      }).catch(() => {});
+      notifsSent['50'] = true;
+    }
+    if (percentUsed >= 80 && !notifsSent['80']) {
+      await supabase.from('notifications').insert({
+        workspace_id: workspaceId, type: 'sourcing_credits',
+        title: 'Sourcing credits at 80%',
+        message: `Your workspace has used ${newTotal} of ${creditsMonthly} sourcing credits this month. At this rate you will run out before the month ends.`,
+        metadata: { job_id: jobId }, created_at: now.toISOString(), read: false,
+      }).catch(() => {});
+      notifsSent['80'] = true;
+    }
+    if (percentUsed >= 100 && !notifsSent['100']) {
+      await supabase.from('notifications').insert({
+        workspace_id: workspaceId, type: 'sourcing_credits',
+        title: 'Monthly sourcing credits exhausted',
+        message: `Your workspace has used all ${creditsMonthly} sourcing credits for this month. Sourcing resumes on the 1st of next month. Contact us at team@coreflowhr.com if you need more.`,
+        metadata: { job_id: jobId }, created_at: now.toISOString(), read: false,
+      }).catch(() => {});
+      notifsSent['100'] = true;
+    }
+
+    await supabase.from('workspaces').update({
+      sourcing_credits_used_this_month: newTotal,
+      sourcing_notifications_sent: notifsSent,
+    }).eq('id', workspaceId).catch(() => {});
   }
 
   const message = maxedOut
-    ? `Sourcing complete for "${job.title}" — reached the sourcing cap. ${created} candidate${created !== 1 ? 's' : ''} added.`
+    ? `Sourcing complete for "${job.title}" — reached the ${JOB_CAP}-candidate cap. ${created} candidate${created !== 1 ? 's' : ''} added.`
     : `Sourcing complete for "${job.title}" — ${created} new candidate${created !== 1 ? 's' : ''} added.`;
 
-  try {
-    await supabase.from('notifications').insert({ workspace_id: workspaceId, type: 'sourcing_complete', title: 'Sourcing complete', message, metadata: { job_id: jobId, candidates_created: created, maxed_out: maxedOut }, created_at: new Date().toISOString(), read: false });
-  } catch { /* non-critical */ }
+  await supabase.from('notifications').insert({
+    workspace_id: workspaceId, type: 'sourcing_complete',
+    title: 'Sourcing complete', message,
+    metadata: { job_id: jobId, candidates_created: created, maxed_out: maxedOut },
+    created_at: now.toISOString(), read: false,
+  }).catch(() => {});
 
   return { candidates_found: persons.length, candidates_created: created, maxed_out: maxedOut };
 }

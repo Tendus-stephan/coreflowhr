@@ -16,7 +16,7 @@ WHERE direction IS NULL OR read IS NULL;
 
 -- Optional: table for inbound replies that couldn't be matched to a candidate
 CREATE TABLE IF NOT EXISTS public.unmatched_inbound_emails (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   from_email TEXT NOT NULL,
   to_email TEXT,
   subject TEXT,

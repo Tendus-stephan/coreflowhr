@@ -2,18 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { InterviewFeedback } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { Star, Save, X } from 'lucide-react';
+import { toUserError } from '../utils/edgeFunctionError';
+import { sendSlackNotification, buildFeedbackSubmittedBlocks } from '../services/slack';
 
 interface InterviewFeedbackFormProps {
     interviewId: string;
     candidateId: string;
     onFeedbackSubmitted: () => void;
+    candidateName?: string;
+    jobTitle?: string;
 }
 
 export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
     interviewId,
     candidateId,
-    onFeedbackSubmitted
+    onFeedbackSubmitted,
+    candidateName,
+    jobTitle,
 }) => {
     const [loading, setLoading] = useState(false);
     const [loadingExisting, setLoadingExisting] = useState(true);
@@ -75,10 +82,21 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                 recommendation: recommendation || undefined
             });
 
+            // Slack notification (fire-and-forget)
+            api.workspaces.getSlackWebhook().then((webhookUrl) => {
+                if (webhookUrl) {
+                    sendSlackNotification(
+                        webhookUrl,
+                        `Interview feedback submitted for ${candidateName || 'Candidate'}`,
+                        buildFeedbackSubmittedBlocks(candidateName || 'Candidate', jobTitle, recommendation || undefined, candidateId)
+                    );
+                }
+            }).catch(() => {});
+
             onFeedbackSubmitted();
         } catch (err: any) {
             console.error('Error submitting feedback:', err);
-            setError(err.message || 'Failed to submit feedback');
+            setError(toUserError(err, 'Failed to submit feedback'));
         } finally {
             setLoading(false);
         }
@@ -169,18 +187,19 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                         Recommendation
                     </label>
-                    <select
+                    <CustomSelect
                         value={recommendation}
-                        onChange={(e) => setRecommendation(e.target.value as any)}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                    >
-                        <option value="">Select recommendation...</option>
-                        <option value="Strong Yes">Strong Yes</option>
-                        <option value="Yes">Yes</option>
-                        <option value="Maybe">Maybe</option>
-                        <option value="No">No</option>
-                        <option value="Strong No">Strong No</option>
-                    </select>
+                        onChange={(val) => setRecommendation(val as any)}
+                        placeholder="Select recommendation..."
+                        className="px-3 py-2 rounded-lg"
+                        options={[
+                            { value: 'Strong Yes', label: 'Strong Yes' },
+                            { value: 'Yes', label: 'Yes' },
+                            { value: 'Maybe', label: 'Maybe' },
+                            { value: 'No', label: 'No' },
+                            { value: 'Strong No', label: 'Strong No' },
+                        ]}
+                    />
                 </div>
 
                 {/* Strengths */}
@@ -192,7 +211,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                         value={strengths}
                         onChange={(e) => setStrengths(e.target.value)}
                         placeholder="What did the candidate do well?"
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                         rows={4}
                     />
                 </div>
@@ -206,7 +225,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                         value={weaknesses}
                         onChange={(e) => setWeaknesses(e.target.value)}
                         placeholder="What areas could the candidate improve?"
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                         rows={4}
                     />
                 </div>
@@ -220,7 +239,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                         value={overallImpression}
                         onChange={(e) => setOverallImpression(e.target.value)}
                         placeholder="Provide your overall thoughts and impressions..."
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                         rows={4}
                     />
                 </div>

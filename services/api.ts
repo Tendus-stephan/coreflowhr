@@ -4815,16 +4815,10 @@ export const api = {
             if (!userId) return null;
             const { data: membership } = await supabase
                 .from('workspace_members')
-                .select('workspace_id')
+                .select('workspaces(slack_webhook_url)')
                 .eq('user_id', userId)
                 .maybeSingle();
-            if (!membership?.workspace_id) return null;
-            const { data: ws } = await supabase
-                .from('workspaces')
-                .select('slack_webhook_url')
-                .eq('id', membership.workspace_id)
-                .maybeSingle();
-            return (ws as any)?.slack_webhook_url ?? null;
+            return (membership as any)?.workspaces?.slack_webhook_url ?? null;
         },
         saveSlackWebhook: async (webhookUrl: string): Promise<void> => {
             const userId = await getUserId();
@@ -4948,16 +4942,17 @@ export const api = {
         /**
          * Update current workspace (e.g. company_logo_url). Caller must be Admin or Recruiter.
          */
-        updateWorkspace: async (updates: { companyLogoUrl?: string | null }): Promise<void> => {
+        updateWorkspace: async (updates: { companyLogoUrl?: string | null; name?: string }): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
             const workspaceId = await getCurrentWorkspaceId();
             if (!workspaceId) throw new Error('Workspace not found');
+            const updateData: Record<string, any> = {};
+            if (updates.companyLogoUrl !== undefined) updateData.company_logo_url = updates.companyLogoUrl;
+            if (updates.name !== undefined) updateData.name = updates.name;
             const { error } = await supabase
                 .from('workspaces')
-                .update({
-                    company_logo_url: updates.companyLogoUrl ?? undefined,
-                })
+                .update(updateData)
                 .eq('id', workspaceId);
             if (error) throw error;
         },
@@ -5118,12 +5113,7 @@ export const api = {
                     `<p style="margin:0 0 12px;">Hi,</p>`,
                     `<p style="margin:0 0 16px;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p>`,
                     `<p style="margin:0 0 24px;">Click the button below to accept the invitation and create your account:</p>`,
-                    `<p style="margin:0 0 24px;text-align:center;">`,
-                    `  <a href="${inviteLink}"`,
-                    `     style="display:inline-block;padding:12px 28px;border-radius:8px;background-color:#111827;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;line-height:20px;min-width:220px;text-align:center;">`,
-                    `    Accept Invitation`,
-                    `  </a>`,
-                    `</p>`,
+                    `<p style="margin:0 0 24px;text-align:center;"><a href="${inviteLink}" style="display:inline-block;padding:12px 28px;border-radius:8px;background-color:#111827;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;line-height:1;min-width:220px;text-align:center;">Accept Invitation</a></p>`,
                     `<p style="margin:0 0 8px;font-size:12px;color:#6b7280;">If you weren’t expecting this, you can safely ignore this email.</p>`,
                 ].join('\n');
 

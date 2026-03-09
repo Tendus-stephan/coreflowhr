@@ -258,10 +258,21 @@ const CandidateBoard: React.FC = () => {
       
       // Update candidate in local state - this ensures the candidate appears only in the NEW stage
       // The database enforces one stage per candidate, so updating the stage REPLACES the old value
-      setCandidates(prev => prev.map(c => 
+      setCandidates(prev => prev.map(c =>
           c.id === updatedCandidate.id ? updatedCandidate : c
       ));
-      setSelectedCandidate(updatedCandidate);
+
+      // Close the modal when the stage changes so the user can see the candidate in its new column
+      if (stageChanged) {
+          setSelectedCandidate(null);
+          setInitialTabFromUrl(undefined);
+          setInitialEmailSubTabFromUrl(undefined);
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete('candidateId');
+          setSearchParams(newSearchParams, { replace: true });
+      } else {
+          setSelectedCandidate(updatedCandidate);
+      }
       
       // Show toast and play sound if stage changed
       if (stageChanged && oldCandidate) {

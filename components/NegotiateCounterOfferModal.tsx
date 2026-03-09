@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Offer } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface NegotiateCounterOfferModalProps {
     offer: Offer;
@@ -73,7 +75,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
             onSave();
             onClose();
         } catch (err: any) {
-            setError(err.message || 'Failed to send negotiation response');
+            setError(toUserError(err, 'Failed to send negotiation response'));
         } finally {
             setSaving(false);
         }
@@ -123,37 +125,39 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                     value={salaryAmount || ''}
                                     onChange={(e) => setSalaryAmount(e.target.value ? parseFloat(e.target.value) : undefined)}
                                     placeholder="0.00"
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Currency
                                 </label>
-                                <select
+                                <CustomSelect
                                     value={salaryCurrency}
-                                    onChange={(e) => setSalaryCurrency(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                                >
-                                    <option value="USD">USD ($)</option>
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="GBP">GBP (£)</option>
-                                    <option value="CAD">CAD (C$)</option>
-                                </select>
+                                    onChange={setSalaryCurrency}
+                                    className="px-3 py-2 rounded-lg"
+                                    options={[
+                                        { value: 'USD', label: 'USD ($)' },
+                                        { value: 'EUR', label: 'EUR (€)' },
+                                        { value: 'GBP', label: 'GBP (£)' },
+                                        { value: 'CAD', label: 'CAD (C$)' },
+                                    ]}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Period
                                 </label>
-                                <select
+                                <CustomSelect
                                     value={salaryPeriod}
-                                    onChange={(e) => setSalaryPeriod(e.target.value as 'hourly' | 'monthly' | 'yearly')}
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                                >
-                                    <option value="yearly">Per Year</option>
-                                    <option value="monthly">Per Month</option>
-                                    <option value="hourly">Per Hour</option>
-                                </select>
+                                    onChange={(val) => setSalaryPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                    className="px-3 py-2 rounded-lg"
+                                    options={[
+                                        { value: 'yearly', label: 'Per Year' },
+                                        { value: 'monthly', label: 'Per Month' },
+                                        { value: 'hourly', label: 'Per Hour' },
+                                    ]}
+                                />
                             </div>
                         </div>
 
@@ -166,7 +170,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                             />
                         </div>
 
@@ -187,7 +191,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                         }
                                     }}
                                     placeholder="e.g., Health Insurance"
-                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                 />
                                 <Button
                                     type="button"
@@ -230,7 +234,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="Add any additional notes or comments for the candidate..."
                                 rows={4}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                             />
                         </div>
                     </div>

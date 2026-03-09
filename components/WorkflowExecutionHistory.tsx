@@ -3,6 +3,7 @@ import { WorkflowExecution, EmailWorkflow } from '../types';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { CheckCircle, XCircle, Clock, SkipForward } from 'lucide-react';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface WorkflowExecutionHistoryProps {
     workflow: EmailWorkflow;
@@ -59,7 +60,7 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
             setExecutions(executionsWithNames);
         } catch (err: any) {
             console.error('Error loading executions:', err);
-            setError(err.message || 'Failed to load execution history');
+            setError(toUserError(err, 'Failed to load execution history'));
         } finally {
             setLoading(false);
         }

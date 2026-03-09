@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { FileText, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface CandidateNotesProps {
     candidateId: string;
@@ -29,7 +30,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                 setNotes(fetchedNotes);
             } catch (err: any) {
                 console.error('Error loading notes:', err);
-                setError(err.message || 'Failed to load notes');
+                setError(toUserError(err, 'Failed to load notes'));
             } finally {
                 setLoading(false);
             }
@@ -50,7 +51,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
             setIsAdding(false);
         } catch (err: any) {
             console.error('Error adding note:', err);
-            setError(err.message || 'Failed to add note');
+            setError(toUserError(err, 'Failed to add note'));
         }
     };
 
@@ -74,7 +75,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
             setEditContent('');
         } catch (err: any) {
             console.error('Error updating note:', err);
-            setError(err.message || 'Failed to update note');
+            setError(toUserError(err, 'Failed to update note'));
         }
     };
 
@@ -87,7 +88,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
             setNotes(notes.filter(n => n.id !== noteId));
         } catch (err: any) {
             console.error('Error deleting note:', err);
-            setError(err.message || 'Failed to delete note');
+            setError(toUserError(err, 'Failed to delete note'));
         } finally {
             setDeletingId(null);
         }
@@ -148,7 +149,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                         value={newNoteContent}
                         onChange={(e) => setNewNoteContent(e.target.value)}
                         placeholder="Write a note about this candidate..."
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                         rows={4}
                         autoFocus
                     />
@@ -194,7 +195,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                 <textarea
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                                     rows={4}
                                     autoFocus
                                 />

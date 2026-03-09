@@ -4,6 +4,7 @@ import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const ChangeEmail: React.FC = () => {
     const { session, loading: authLoading, signOut } = useAuth();
@@ -86,7 +87,7 @@ const ChangeEmail: React.FC = () => {
                     window.history.replaceState(null, '', window.location.pathname);
                 }
             } catch (err) {
-                setMessage({ type: 'error', text: (err as Error).message || 'Something went wrong' });
+                setMessage({ type: 'error', text: toUserError(err, 'Something went wrong') });
                 window.history.replaceState(null, '', window.location.pathname);
             }
         })();
@@ -259,7 +260,7 @@ const ChangeEmail: React.FC = () => {
                 setMessage({ type: 'error', text: result.error || 'Failed to send confirmation' });
             }
         } catch (err) {
-            setMessage({ type: 'error', text: (err as Error).message || 'Something went wrong' });
+            setMessage({ type: 'error', text: toUserError(err, 'Something went wrong') });
         } finally {
             setIsUpdating(false);
         }
@@ -418,7 +419,7 @@ const ChangeEmail: React.FC = () => {
                                 setMessage(null);
                             }}
                             placeholder="you@example.com"
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                             disabled={isUpdating}
                         />
                     </div>

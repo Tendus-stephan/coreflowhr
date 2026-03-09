@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -43,7 +44,7 @@ const Login: React.FC = () => {
     try {
       const { error, requiresMFA: mfaRequired } = await signIn(email, password);
       if (error) {
-        setError(error.message || 'Failed to sign in');
+        setError(toUserError(error, 'Failed to sign in'));
       } else if (mfaRequired) {
         // MFA is required - create challenge and show code input
         // Note: TOTP codes come from authenticator app, not email/SMS
@@ -53,7 +54,7 @@ const Login: React.FC = () => {
         await handleLoginSuccess();
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      setError(toUserError(err, 'An unexpected error occurred'));
     } finally {
       setLoading(false);
     }
@@ -72,14 +73,14 @@ const Login: React.FC = () => {
     try {
       const { error } = await verifyMFA(mfaCode);
       if (error) {
-        setError(error.message || 'Invalid verification code. Please try again.');
+        setError(toUserError(error, 'Invalid verification code. Please try again.'));
         setMfaCode('');
       } else {
         // MFA verified - proceed with login
         await handleLoginSuccess();
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to verify code');
+      setError(toUserError(err, 'Failed to verify code'));
       setMfaCode('');
     } finally {
       setVerifyingMFA(false);

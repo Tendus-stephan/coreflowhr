@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -20,12 +21,12 @@ const ForgotPassword: React.FC = () => {
     try {
       const { error } = await resetPassword(email);
       if (error) {
-        setError(error.message || 'Failed to send reset email');
+        setError(toUserError(error, 'Failed to send reset email'));
       } else {
         setSuccess(true);
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      setError(toUserError(err, 'An unexpected error occurred'));
     } finally {
       setLoading(false);
     }

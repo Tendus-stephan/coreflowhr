@@ -368,6 +368,20 @@ serve(async (req) => {
       unread: true,
     });
 
+    // Slack notification
+    const { data: membership } = await supabase
+      .from('workspace_members').select('workspaces(slack_webhook_url)').eq('user_id', userId).maybeSingle();
+    const slackWebhook = (membership as any)?.workspaces?.slack_webhook_url;
+    if (slackWebhook) {
+      const slackBlocks = [
+        { type: 'section', text: { type: 'mrkdwn', text: `💬 *${candidateName}* replied to your email` } },
+        { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'View Conversation', emoji: true }, url: `https://www.coreflowhr.com/candidates?candidateId=${candidateId}&tab=email` }] },
+      ];
+      await supabase.functions.invoke('notify-slack', {
+        body: { webhookUrl: slackWebhook, text: `${candidateName} replied to your email`, blocks: slackBlocks },
+      }).catch(() => {});
+    }
+
     return new Response(JSON.stringify({ received: true, candidateId }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

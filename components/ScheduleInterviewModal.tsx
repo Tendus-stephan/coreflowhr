@@ -8,6 +8,7 @@ import { Avatar } from './ui/Avatar';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { sanitizeError } from '../utils/edgeFunctionError';
+import { sendSlackNotification, buildInterviewScheduledBlocks } from '../services/slack';
 
 /** Never show raw Edge Function / non-2xx errors to users. */
 function userFacingError(message: string, fallback: string): string {
@@ -454,6 +455,18 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             } catch (notifError) {
                 console.error('Error creating notification:', notifError);
             }
+
+            // Slack notification (non-blocking)
+            api.settings.getSlackWebhook().then((webhookUrl) => {
+                if (webhookUrl) {
+                    const dateLabel = new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    sendSlackNotification(
+                        webhookUrl,
+                        `Interview scheduled with ${selectedCandidate.name} for ${interviewData.jobTitle} on ${dateLabel}`,
+                        buildInterviewScheduledBlocks(selectedCandidate.name, interviewData.jobTitle, dateLabel)
+                    );
+                }
+            }).catch(() => {});
 
             // Play notification sound for successful interview scheduling
             try {

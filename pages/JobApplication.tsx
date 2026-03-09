@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Briefcase, MapPin, DollarSign, Clock, FileText, Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const JobApplication: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
@@ -108,7 +109,7 @@ const JobApplication: React.FC = () => {
         }
       } catch (err: any) {
         console.error('Error loading job:', err);
-        setError(err.message || 'Failed to load job details');
+        setError(toUserError(err, 'Failed to load job details'));
       } finally {
         setLoading(false);
       }
@@ -201,7 +202,7 @@ const JobApplication: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error submitting application:', err);
-      setError(err.message || 'Failed to submit application. Please try again.');
+      setError(toUserError(err, 'Failed to submit application. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -361,7 +362,7 @@ const JobApplication: React.FC = () => {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                   placeholder="John Doe"
                 />
               </div>
@@ -377,7 +378,7 @@ const JobApplication: React.FC = () => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                   placeholder="john.doe@example.com"
                 />
               </div>
@@ -392,7 +393,7 @@ const JobApplication: React.FC = () => {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                   placeholder="+1 (555) 123-4567"
                 />
               </div>
@@ -407,7 +408,7 @@ const JobApplication: React.FC = () => {
                   rows={6}
                   value={formData.coverLetter}
                   onChange={(e) => setFormData(prev => ({ ...prev, coverLetter: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                   placeholder="Tell us why you're interested in this position..."
                 />
               </div>
