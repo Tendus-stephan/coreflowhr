@@ -156,7 +156,7 @@ const Reports: React.FC = () => {
   }
 
   return (
-    <div className="p-6 pb-12">
+    <div className="px-10 py-10 pb-12">
       {/* Header — matches Dashboard */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
@@ -303,7 +303,7 @@ const Reports: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Time to hire — Dashboard-style card + chart */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
@@ -352,7 +352,7 @@ const Reports: React.FC = () => {
               </div>
 
             {/* Pipeline conversion — list-style like Dashboard */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-5">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
                   <Users size={18} />
@@ -396,7 +396,7 @@ const Reports: React.FC = () => {
               </div>
 
             {/* Offer acceptance — stat + bar chart feel */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
@@ -433,7 +433,7 @@ const Reports: React.FC = () => {
               </div>
 
               {/* Interview–offer ratio */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
                   <BarChart3 size={18} />

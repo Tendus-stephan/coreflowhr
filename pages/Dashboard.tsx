@@ -19,13 +19,14 @@ import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { api, Notification } from '../services/api';
 import { getNotificationLink } from '../utils/notificationLinks';
+import { toUserError } from '../utils/edgeFunctionError';
 
 // --- Helper Components ---
 
 const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month" }: any) => (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white border border-gray-100 rounded-xl p-6 flex items-start justify-between hover:border-gray-200 transition-colors">
         <div>
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
+            <p className="label-overline mb-2">{title}</p>
             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
             <div className="flex items-center gap-1 mt-1">
                 <TrendingUp size={12} className={trend.startsWith('+') ? 'text-gray-700' : 'text-gray-400'} />
@@ -124,7 +125,7 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
             URL.revokeObjectURL(url);
             onClose();
         } catch (err: any) {
-            setError(err?.message || 'Failed to generate report. Please try again.');
+            setError(toUserError(err, 'Failed to generate report. Please try again.'));
         } finally {
             setDownloading(false);
         }
@@ -501,7 +502,7 @@ const QuickActions = ({
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-full flex flex-col" ref={dropdownRef}>
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 h-full flex flex-col" ref={dropdownRef}>
             <div className="mb-6">
                 <h3 className="font-bold text-gray-900 text-lg">Quick Actions</h3>
             </div>
@@ -874,7 +875,7 @@ const Dashboard: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="pt-8 px-8 pb-2 space-y-6 max-w-[1600px] mx-auto bg-white font-sans text-gray-900 relative">
+    <div className="pt-10 px-10 pb-4 space-y-6 max-w-[1600px] mx-auto font-sans text-gray-900 relative">
       
       {/* Payment Success Message */}
       {showSuccessMessage && (
@@ -1009,7 +1010,7 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Recruitment Flow */}
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+          <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-6 flex flex-col">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Recruitment Flow</h2>
                   <div className="flex gap-1 mt-2 sm:mt-0">
@@ -1057,7 +1058,7 @@ const Dashboard: React.FC = () => {
 
       {/* Row 3: Operational */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-gray-100 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Upcoming Interviews</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
                 <div className="space-y-3">
                     {interviews.slice(0, 3).map((interview) => (
@@ -1070,7 +1071,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <button onClick={() => navigate('/calendar')} className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View Calendar</button>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-gray-100 rounded-2xl p-6">
              <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><Plus size={16}/></Button></div>
              <div className="space-y-3">
                 {jobs.slice(0, 3).map((job) => (
@@ -1083,7 +1084,7 @@ const Dashboard: React.FC = () => {
              </div>
              <button onClick={() => navigate('/jobs')} className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View All Jobs</button>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col">
                 <div className="flex items-center justify-between mb-6"><h3 className="font-bold text-gray-900 flex items-center gap-2 text-lg"><Activity size={18} /> Activity Feed</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
                 <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 flex-1 overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
                     {activityFeed.length > 0 ? activityFeed.slice(0, 4).map((item) => (
@@ -1101,7 +1102,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 4: Recently Sourced */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <div className="bg-white border border-gray-100 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-gray-900 text-lg">Recently Sourced</h3>
             <div className="relative hidden sm:block">

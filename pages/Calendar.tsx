@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { PageLoader } from '../components/ui/PageLoader';
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, addDays } from 'date-fns';
@@ -8,43 +9,74 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Interview, CalendarEvent } from '../types';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
+import { toUserError } from '../utils/edgeFunctionError';
 import { Button } from '../components/ui/Button';
 import { InterviewDetailsModal } from '../components/InterviewDetailsModal';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, AlertTriangle, CheckCircle, Video, Phone, MapPin } from 'lucide-react';
 
-// Add custom styles for drag feedback - event should follow cursor
+// Inject modern calendar styles
 if (typeof document !== 'undefined') {
-  const styleId = 'rbc-drag-feedback-styles';
+  const styleId = 'rbc-modern-styles';
   if (!document.getElementById(styleId)) {
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
-      .rbc-event.rbc-addons-dnd-dragging {
-        opacity: 0.5 !important;
-        cursor: grabbing !important;
+      /* Base calendar */
+      .rbc-calendar { font-family: inherit; }
+      .rbc-toolbar { display: none; }
+
+      /* Month grid */
+      .rbc-month-view { border: none; border-radius: 12px; overflow: hidden; }
+      .rbc-month-row { border-color: #f3f4f6; }
+      .rbc-day-bg { border-color: #f3f4f6 !important; }
+      .rbc-off-range-bg { background: #fafafa; }
+      .rbc-today { background: #eff6ff !important; }
+      .rbc-header { padding: 10px 0; font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; border-color: #f3f4f6; background: #fff; }
+      .rbc-date-cell { padding: 6px 8px; font-size: 13px; font-weight: 500; color: #374151; }
+      .rbc-date-cell.rbc-now { font-weight: 700; }
+      .rbc-date-cell.rbc-now a {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 26px; height: 26px; border-radius: 50%;
+        background: #111827; color: #fff; font-weight: 700;
       }
-      .rbc-addons-dnd-drag-preview {
-        opacity: 0.85 !important;
-        cursor: grabbing !important;
-        z-index: 9999 !important;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.4) !important;
-        transform: rotate(2deg);
-        pointer-events: none !important;
-      }
-      .rbc-addons-dnd-over {
-        background-color: rgba(66, 133, 244, 0.1) !important;
-      }
+      .rbc-off-range { color: #d1d5db; }
+
+      /* Events */
       .rbc-event {
-        cursor: grab !important;
-        transition: opacity 0.2s;
+        border-radius: 5px !important; border: none !important;
+        font-size: 12px !important; font-weight: 500 !important;
+        padding: 2px 6px !important; cursor: grab !important;
+        transition: opacity 0.15s, transform 0.1s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
       }
-      .rbc-event:active {
-        cursor: grabbing !important;
+      .rbc-event:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+      .rbc-event:active { cursor: grabbing !important; }
+      .rbc-event-content { pointer-events: none; }
+      .rbc-show-more { color: #6366f1; font-size: 11px; font-weight: 600; padding: 0 4px; }
+
+      /* Week / Day view */
+      .rbc-time-view { border: none; border-radius: 12px; overflow: hidden; }
+      .rbc-time-header { border-color: #f3f4f6; }
+      .rbc-time-content { border-color: #f3f4f6; }
+      .rbc-timeslot-group { border-color: #f9fafb; min-height: 40px; }
+      .rbc-time-slot { border-color: #f9fafb !important; }
+      .rbc-current-time-indicator { background: #3b82f6; height: 2px; }
+      .rbc-current-time-indicator::before { background: #3b82f6; }
+      .rbc-label { font-size: 11px; color: #9ca3af; font-weight: 500; padding-right: 8px; }
+      .rbc-day-slot .rbc-time-slot { border-color: #f9fafb !important; }
+      .rbc-day-slot .rbc-event { border-radius: 6px !important; }
+
+      /* Drag */
+      .rbc-event.rbc-addons-dnd-dragging { opacity: 0.4 !important; }
+      .rbc-addons-dnd-drag-preview {
+        opacity: 0.85 !important; cursor: grabbing !important;
+        z-index: 9999 !important; pointer-events: none !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25) !important;
+        transform: rotate(1deg) scale(1.02);
       }
-      .rbc-event-content {
-        pointer-events: none;
-      }
+      .rbc-addons-dnd-over { background-color: rgba(59,130,246,0.06) !important; }
+      .rbc-slot-selecting { background: rgba(59,130,246,0.08) !important; }
     `;
     document.head.appendChild(style);
   }
@@ -351,7 +383,7 @@ const Calendar: React.FC = () => {
       handleCalendarUpdate();
     } catch (error: any) {
       console.error('Error updating interview duration:', error);
-      alert(`Failed to update interview duration: ${error.message || 'Please try again.'}`);
+      alert(toUserError(error, 'Failed to update interview. Please try again.'));
       handleCalendarUpdate(); // Refresh to revert visual change
     }
   };
@@ -428,116 +460,112 @@ const Calendar: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-white min-h-screen">
+    <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between mb-4">
+      <div className="border-b border-gray-100 bg-white">
+        {/* Title row */}
+        <div className="px-6 pt-5 pb-3 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Interview Calendar</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage and schedule interviews</p>
+            <p className="text-sm text-gray-500 mt-0.5">Schedule and manage interviews</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-              <Filter size={16} />
-              Filters
-            </Button>
-            {!isViewer && (
+          {!isViewer && (
             <Button variant="black" size="sm" onClick={handleScheduleClick}>
               <Plus size={16} />
               Schedule Interview
             </Button>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Filters */}
-        {showFilters && (
-          <div className="flex gap-3 mt-4 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <label className="text-xs font-medium text-gray-700 mb-1 block">Type</label>
-              <select
-                value={filters.type || 'all'}
-                onChange={(e) => setFilters({
-                  ...filters,
-                  type: e.target.value === 'all' ? undefined : e.target.value as any
-                })}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="all">All Types</option>
-                <option value="Google Meet">Google Meet</option>
-                <option value="Phone">Phone</option>
-                <option value="In-Person">In-Person</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-700 mb-1 block">Status</label>
-              <select
-                value={filters.status || 'all'}
-                onChange={(e) => setFilters({
-                  ...filters,
-                  status: e.target.value === 'all' ? undefined : e.target.value as any
-                })}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="all">All Statuses</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('prev')}>
+        {/* Controls row — nav + filters + view switcher */}
+        <div className="px-6 py-2 flex flex-wrap items-center gap-2 border-t border-gray-50">
+          {/* Date navigation */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate('prev')}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            >
               <ChevronLeft size={16} />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('today')}>
+            </button>
+            <button
+              onClick={() => navigate('today')}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
               Today
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('next')}>
+            </button>
+            <button
+              onClick={() => navigate('next')}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            >
               <ChevronRight size={16} />
-            </Button>
-            <span className="text-lg font-semibold text-gray-900 ml-4">
+            </button>
+            <span className="text-base font-semibold text-gray-900 ml-2 whitespace-nowrap">
               {view === 'month' && format(currentDate, 'MMMM yyyy')}
-              {view === 'week' && `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')} - ${format(addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), 6), 'MMM d, yyyy')}`}
+              {view === 'week' && `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')} – ${format(addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), 6), 'MMM d, yyyy')}`}
               {view === 'day' && format(currentDate, 'EEEE, MMMM d, yyyy')}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={view === 'month' ? 'black' : 'outline'}
-              size="sm"
-              onClick={() => setView('month')}
-            >
-              Month
-            </Button>
-            <Button
-              variant={view === 'week' ? 'black' : 'outline'}
-              size="sm"
-              onClick={() => setView('week')}
-            >
-              Week
-            </Button>
-            <Button
-              variant={view === 'day' ? 'black' : 'outline'}
-              size="sm"
-              onClick={() => setView('day')}
-            >
-              Day
-            </Button>
+
+          <div className="flex-1" />
+
+          {/* Type filter chips */}
+          <div className="flex items-center gap-1">
+            {([
+              { value: undefined, label: 'All types', icon: null },
+              { value: 'Google Meet' as const, label: 'Meet', icon: <Video size={11} /> },
+              { value: 'Phone' as const, label: 'Phone', icon: <Phone size={11} /> },
+              { value: 'In-Person' as const, label: 'In-Person', icon: <MapPin size={11} /> },
+            ]).map(({ value, label, icon }) => (
+              <button
+                key={value ?? 'all'}
+                onClick={() => setFilters({ ...filters, type: value })}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  filters.type === value
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
           </div>
+
+          {/* View switcher */}
+          <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 ml-1">
+            {(['month', 'week', 'day'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors capitalize ${
+                  view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Color legend */}
+        <div className="px-6 pb-2.5 flex items-center gap-5">
+          {[
+            { label: 'Google Meet', color: 'bg-[#4285f4]' },
+            { label: 'Phone', color: 'bg-[#34a853]' },
+            { label: 'In-Person', color: 'bg-[#ea4335]' },
+          ].map(({ label, color }) => (
+            <div key={label} className="flex items-center gap-1.5 text-xs text-gray-400">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`} />
+              {label}
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Calendar */}
       <div className="flex-1 p-6 overflow-hidden bg-white" style={{ minHeight: 'calc(100vh - 200px)' }}>
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-gray-500">Loading calendar...</div>
-          </div>
+          <PageLoader fullScreen={false} />
         ) : (
           <DragAndDropCalendar
             localizer={localizer}

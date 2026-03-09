@@ -21,6 +21,10 @@
     <meta name="twitter:title" content="CoreFlow | Built for Recruitment Agencies">
     <meta name="twitter:description" content="CoreFlow is the all-in-one ATS for recruitment agencies.">
     <meta name="twitter:image" content="https://coreflowhr.com/assets/images/android-chrome-512x512.png">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="512x512" href="/assets/images/android-chrome-512x512.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/android-chrome-192x192.png">
@@ -42,14 +46,16 @@
                 extend: {
                     colors: {
                         background: '#f9fafb', // gray-50
-                        surface: '#ffffff', // white
+                        surface: '#ffffff',
                         surfaceHighlight: '#f3f4f6', // gray-100
-                        primary: '#4f46e5', // indigo-600
-                        primaryHover: '#4338ca', // indigo-700
-                        border: '#e5e7eb', // gray-200
+                        primary: '#111827', // gray-900 — single dark primary
+                        primaryHover: '#000000',
+                        accent: '#2563eb', // electric blue — used sparingly
+                        border: '#f3f4f6', // gray-100 — softer borders
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Inter', 'system-ui', 'sans-serif'],
                     }
                 }
             }
@@ -57,15 +63,31 @@
     </script>
     <style>
         html {
-            font-size: 14px; /* Reduced from default 16px to make everything smaller */
+            font-size: 15px;
         }
         body {
-            background-color: #ffffff;
-            color: #18181b;
+            background-color: #f9fafb; /* gray-50 — very slight off-white like Attio */
+            color: #111827;
             font-family: 'Inter', sans-serif;
+            font-feature-settings: 'cv11', 'ss01'; /* Inter optical features */
             margin: 0;
             padding: 0;
             overflow-x: hidden;
+        }
+
+        /* Headings use optical sizing for crisper rendering at large sizes */
+        h1, h2, h3 {
+            font-optical-sizing: auto;
+            letter-spacing: -0.02em;
+        }
+
+        /* Overline labels — small caps tracking */
+        .label-overline {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9ca3af;
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {

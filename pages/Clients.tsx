@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PageLoader } from '../components/ui/PageLoader';
 import { Plus, Edit, Trash2, Building2, Mail, Phone, MapPin, Search, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api, Client } from '../services/api';
@@ -113,15 +114,11 @@ const Clients: React.FC = () => {
   );
 
   if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen bg-white">
+    <div className="px-10 py-10 max-w-7xl mx-auto min-h-screen">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -142,7 +139,7 @@ const Clients: React.FC = () => {
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none shadow-sm transition-all hover:shadow-md"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm transition-all hover:shadow-md"
           />
         </div>
       </div>
@@ -263,7 +260,7 @@ const Clients: React.FC = () => {
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. TechCorp Inc."
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm hover:shadow-md"
                   required
                 />
               </div>
@@ -275,7 +272,7 @@ const Clients: React.FC = () => {
                   value={formData.contactEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
                   placeholder="contact@company.com"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm hover:shadow-md"
                 />
               </div>
 
@@ -286,7 +283,7 @@ const Clients: React.FC = () => {
                   value={formData.contactPhone}
                   onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
                   placeholder="+1 (555) 123-4567"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm hover:shadow-md"
                 />
               </div>
 
@@ -297,7 +294,7 @@ const Clients: React.FC = () => {
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="123 Main St, City, State"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm hover:shadow-md"
                 />
               </div>
 
@@ -308,7 +305,7 @@ const Clients: React.FC = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   placeholder="Additional notes about this client..."
                   rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none resize-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none transition-all shadow-sm hover:shadow-md"
                 />
               </div>
 

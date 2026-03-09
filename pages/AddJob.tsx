@@ -3,8 +3,11 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2, Save } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
+import { PageLoader } from '../components/ui/PageLoader';
 import { api } from '../services/api';
 import type { JobTemplate } from '../types';
+import { sendSlackNotification, buildJobStatusBlocks } from '../services/slack';
 
 const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string; location: string; type: 'Full-time' | 'Contract' | 'Part-time'; skills: string; description: string; remote: boolean }> = [
   { name: 'Software Engineer', title: 'Software Engineer', department: 'Engineering', location: '', type: 'Full-time', skills: 'JavaScript, TypeScript, React, Node.js', description: 'We are looking for a software engineer to build and maintain our products.', remote: false },
@@ -366,6 +369,17 @@ const AddJob: React.FC = () => {
               });
           }
 
+          // Slack notification (fire-and-forget)
+          api.workspaces.getSlackWebhook().then((webhookUrl) => {
+              if (webhookUrl) {
+                  sendSlackNotification(
+                      webhookUrl,
+                      `Job "${createdJob.title}" published`,
+                      buildJobStatusBlocks(createdJob.title, 'opened', undefined, createdJob.id)
+                  );
+              }
+          }).catch(() => {});
+
           // Navigate to pipeline — sourcing starts automatically in the background
           navigate(`/candidates?job=${createdJob.id}&sourcing=started`);
       } catch (e) {
@@ -385,32 +399,26 @@ const AddJob: React.FC = () => {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto relative">
+    <div className="px-10 py-10 max-w-4xl mx-auto relative">
       {/* Modal Injection */}
       <PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} data={formData} />
       
 
       {loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-              <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-          </div>
+          <PageLoader fullScreen={false} />
       ) : (
           <>
       <div className="mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Job' : 'Post a New Job'}</h1>
-          <p className="text-sm text-gray-500">{isEditing ? 'Update your job listing details.' : 'Create a job listing to start finding candidates.'}</p>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Job' : 'Post a New Job'}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{isEditing ? 'Update your job listing details.' : 'Fill in the details below — candidates will be sourced automatically after posting.'}</p>
       </div>
 
       {!isEditing && (templates.length > 0 || BUILTIN_TEMPLATES.length > 0) && (
-        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-          <label className="block text-sm font-bold text-gray-900 mb-2">Start from a template</label>
-          <select
-            className="w-full max-w-md px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black"
+        <div className="mb-8 p-5 bg-gray-50 border border-gray-200 rounded-2xl">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Start from a template</p>
+          <CustomSelect
             value=""
-            onChange={(e) => {
-              const v = e.target.value;
+            onChange={(v) => {
               if (!v) return;
               if (v.startsWith('builtin-')) {
                 const i = parseInt(v.replace('builtin-', ''), 10);
@@ -420,19 +428,30 @@ const AddJob: React.FC = () => {
                 if (t) applyTemplate(t);
               }
             }}
-          >
-            <option value="">Blank job</option>
-            {BUILTIN_TEMPLATES.map((b, i) => (
-              <option key={`builtin-${i}`} value={`builtin-${i}`}>{b.name} (built-in)</option>
-            ))}
-            {templates.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
+            className="px-4 py-2.5 rounded-xl bg-white"
+            options={[
+              { value: '', label: 'Blank — start fresh' },
+              ...BUILTIN_TEMPLATES.map((b, i) => ({ value: `builtin-${i}`, label: b.name })),
+              ...templates.map(t => ({ value: t.id, label: t.name })),
+            ]}
+          />
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+          {/* Candidate count banner */}
+          <div className="px-8 py-5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                  <p className="text-sm font-semibold text-gray-700">Candidates sourced per job</p>
+                  <p className="text-xs text-gray-400 mt-0.5">AI-scored from PeopleDataLabs after posting</p>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                  <AnimatedCounter target={50} />
+                  <span className="text-sm text-gray-500 font-medium">candidates</span>
+              </div>
+          </div>
+
+          <div className="p-8">
           {/* Save as template (when editing) */}
           {isEditing && id && (
             <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -470,24 +489,13 @@ const AddJob: React.FC = () => {
             </div>
           )}
 
-          {/* Candidate Count Display */}
-          <div className="mb-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between">
-                  <div>
-                      <p className="text-sm text-gray-600 font-medium mb-1">Candidates Available</p>
-                      <p className="text-xs text-gray-500">Maximum candidates you can source for this job</p>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                      <AnimatedCounter target={50} />
-                      <span className="text-sm text-gray-500 font-medium">candidates</span>
-                  </div>
-              </div>
-          </div>
-
-          <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-10" onSubmit={(e) => e.preventDefault()}>
               {/* Basic Info */}
               <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">Basic Information</h3>
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                      <div className="w-1 h-5 bg-gray-900 rounded-full"></div>
+                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Basic Information</h3>
+                  </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -498,25 +506,21 @@ const AddJob: React.FC = () => {
                             value={formData.title}
                             onChange={handleChange}
                             placeholder="e.g. Senior Product Designer" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                             required
                           />
                       </div>
                       <div className="space-y-2">
                           <label className="text-sm font-bold text-gray-900">Client (Agency) *</label>
-                          <select
-                            name="clientId"
+                          <CustomSelect
                             value={formData.clientId || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value || undefined }))}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                            onChange={(val) => setFormData(prev => ({ ...prev, clientId: val || undefined }))}
+                            placeholder="Select a client"
+                            className="px-4 py-2.5 rounded-lg"
                             disabled={loadingClients}
                             required
-                          >
-                            <option value="">Select a client</option>
-                            {clients.map(client => (
-                              <option key={client.id} value={client.id}>{client.name}</option>
-                            ))}
-                          </select>
+                            options={clients.map(client => ({ value: client.id, label: client.name }))}
+                          />
                           {clients.length === 0 && !loadingClients && (
                             <p className="text-xs text-gray-500 mt-1">
                               <Link to="/clients" className="text-gray-900 underline">Create a client</Link> to organize jobs by company
@@ -531,7 +535,7 @@ const AddJob: React.FC = () => {
                             value={formData.company}
                             onChange={handleChange}
                             placeholder="e.g. CoreFlow Inc." 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                             required
                           />
                       </div>
@@ -546,27 +550,24 @@ const AddJob: React.FC = () => {
                             value={formData.location}
                             onChange={handleChange}
                             placeholder="e.g. New York, NY" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                           />
                       </div>
                       
                       {/* Custom Dropdown: Job Type */}
                       <div className="space-y-2">
                           <label className="text-sm font-bold text-gray-900">Job Type *</label>
-                          <div className="relative">
-                            <select 
-                                name="type"
-                                value={formData.type}
-                                onChange={handleChange}
-                                className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none cursor-pointer"
-                                required
-                            >
-                                <option>Full-time</option>
-                                <option>Part-time</option>
-                                <option>Contract</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                          </div>
+                          <CustomSelect
+                            value={formData.type}
+                            onChange={(val) => setFormData(prev => ({ ...prev, type: val as typeof prev.type }))}
+                            className="px-4 py-2.5 rounded-xl"
+                            required
+                            options={[
+                              { value: 'Full-time', label: 'Full-time' },
+                              { value: 'Part-time', label: 'Part-time' },
+                              { value: 'Contract', label: 'Contract' },
+                            ]}
+                          />
                       </div>
 
                   </div>
@@ -580,7 +581,7 @@ const AddJob: React.FC = () => {
                             value={formData.salary}
                             onChange={handleChange}
                             placeholder="e.g. $120k - $150k" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
                             required
                           />
                       </div>
@@ -600,7 +601,10 @@ const AddJob: React.FC = () => {
 
               {/* Details */}
               <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">Job Details</h3>
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                      <div className="w-1 h-5 bg-gray-900 rounded-full"></div>
+                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Job Details</h3>
+                  </div>
                   
                   <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-900">Required Skills *</label>
@@ -610,7 +614,7 @@ const AddJob: React.FC = () => {
                         value={formData.skills}
                         onChange={handleChange}
                         placeholder="e.g. React, TypeScript, Node.js (comma separated)"
-                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                         required
                       />
                       <p className="text-xs text-gray-500">Skills are used to automatically source and AI-score matching candidates from PeopleDataLabs after job creation.</p>
@@ -623,7 +627,7 @@ const AddJob: React.FC = () => {
                         value={formData.description}
                         onChange={handleChange}
                         placeholder="Describe the role, responsibilities, and requirements..." 
-                        className="w-full h-64 px-4 py-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full h-64 px-4 py-4 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black resize-none"
                         required
                       ></textarea>
                   </div>
@@ -646,21 +650,24 @@ const AddJob: React.FC = () => {
 
 
               {/* Actions */}
-              <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
-                  <Button 
-                      variant="outline" 
-                      type="button" 
-                      onClick={handleSaveDraft}
-                      disabled={isSubmitting}
-                  >
-                      {isSubmitting ? 'Saving...' : 'Save as Draft'}
-                  </Button>
-                  <Button variant="outline" type="button" onClick={() => setIsPreviewOpen(true)}>Preview</Button>
-                  <Button variant="black" type="button" onClick={handlePost} disabled={isSubmitting}>
-                      {isSubmitting ? (isEditing ? 'Updating...' : 'Posting...') : (isEditing ? 'Update Job' : 'Post Job')}
-                  </Button>
+              <div className="pt-6 border-t border-gray-100 flex items-center justify-between gap-4">
+                  <Button variant="outline" size="sm" type="button" onClick={() => setIsPreviewOpen(true)}>Preview</Button>
+                  <div className="flex items-center gap-3">
+                      <Button
+                          variant="outline"
+                          type="button"
+                          onClick={handleSaveDraft}
+                          disabled={isSubmitting}
+                      >
+                          {isSubmitting ? 'Saving...' : 'Save as Draft'}
+                      </Button>
+                      <Button variant="black" type="button" onClick={handlePost} disabled={isSubmitting}>
+                          {isSubmitting ? (isEditing ? 'Updating...' : 'Posting...') : (isEditing ? 'Update Job' : 'Post Job →')}
+                      </Button>
+                  </div>
               </div>
           </form>
+          </div>
       </div>
           </>
       )}

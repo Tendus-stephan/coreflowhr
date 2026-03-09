@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Offer } from '../types';
+import { PageLoader } from '../components/ui/PageLoader';
 import { api } from '../services/api';
 import { OfferCard } from '../components/OfferCard';
 import { OfferModal } from '../components/OfferModal';
 import { NegotiateCounterOfferModal } from '../components/NegotiateCounterOfferModal';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { Plus, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const Offers: React.FC = () => {
     const [offers, setOffers] = useState<Offer[]>([]);
@@ -100,7 +103,7 @@ const Offers: React.FC = () => {
             }
         } catch (err: any) {
             console.error('Error loading offers:', err);
-            setError(err.message || 'Failed to load offers');
+            setError(toUserError(err, 'Failed to load offers'));
         } finally {
             setLoading(false);
         }
@@ -128,7 +131,7 @@ const Offers: React.FC = () => {
             playNotificationSound();
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to send offer');
+            alert(toUserError(err, 'Failed to send offer'));
         } finally {
             setSendingOfferId(null);
         }
@@ -142,7 +145,7 @@ const Offers: React.FC = () => {
             await api.offers.update(offer.id, { archived: true });
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to archive offer');
+            alert(toUserError(err, 'Failed to archive offer'));
         } finally {
             setArchivingOfferId(null);
         }
@@ -155,7 +158,7 @@ const Offers: React.FC = () => {
             await api.offers.update(offer.id, { archived: false });
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to restore offer');
+            alert(toUserError(err, 'Failed to restore offer'));
         } finally {
             setArchivingOfferId(null);
         }
@@ -170,7 +173,7 @@ const Offers: React.FC = () => {
             alert('Counter offer accepted! Candidate has been notified.');
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to accept counter offer');
+            alert(toUserError(err, 'Failed to accept counter offer'));
         }
     };
 
@@ -183,7 +186,7 @@ const Offers: React.FC = () => {
             alert('Counter offer declined. Candidate has been notified.');
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to decline counter offer');
+            alert(toUserError(err, 'Failed to decline counter offer'));
         }
     };
 
@@ -198,7 +201,7 @@ const Offers: React.FC = () => {
             if (url) window.open(url, '_blank');
             else alert('Signed document is not available.');
         } catch (err: any) {
-            alert(err.message || 'Failed to load signed document');
+            alert(toUserError(err, 'Failed to load signed document'));
         }
     };
 
@@ -217,20 +220,12 @@ const Offers: React.FC = () => {
     ];
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-white">
-                <div className="p-8">
-                    <div className="flex items-center justify-center py-12">
-                        <div className="text-sm text-gray-500">Loading offers...</div>
-                    </div>
-                </div>
-            </div>
-        );
+        return <PageLoader />;
     }
 
     return (
-        <div className="min-h-screen bg-white">
-            <div className="p-8 max-w-7xl mx-auto">
+        <div className="min-h-screen">
+            <div className="px-10 py-10 max-w-7xl mx-auto">
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -258,22 +253,17 @@ const Offers: React.FC = () => {
                             placeholder="Search by reference, candidate, job, or position..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                         />
                     </div>
                     <div className="flex items-center gap-2">
                         <Filter size={18} className="text-gray-400" />
-                        <select
+                        <CustomSelect
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value as Offer['status'] | 'all')}
-                            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        >
-                            {statusOptions.map(option => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={(val) => setStatusFilter(val as Offer['status'] | 'all')}
+                            className="px-3 py-2 rounded-lg"
+                            options={statusOptions.map(o => ({ value: o.value, label: o.label }))}
+                        />
                     </div>
                 </div>
             </div>

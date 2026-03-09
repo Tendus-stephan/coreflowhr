@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { PageLoader } from '../components/ui/PageLoader';
 import { createPortal } from 'react-dom';
 import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { Link, useNavigate } from 'react-router-dom';
 import { Job, Candidate, CandidateStage, UserRole } from '../types';
 import { Avatar } from '../components/ui/Avatar';
@@ -9,6 +11,8 @@ import { NotificationDropdown } from '../components/NotificationDropdown';
 import { CandidateModal } from '../components/CandidateModal';
 import { api, Notification } from '../services/api';
 import { supabase } from '../services/supabase';
+import { toUserError } from '../utils/edgeFunctionError';
+import { sendSlackNotification, buildJobStatusBlocks } from '../services/slack';
 
 // --- Job Settings Modal ---
 const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: boolean, onClose: () => void }) => {
@@ -77,7 +81,7 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
             }, 1500);
         } catch (error: any) {
             console.error('Error saving settings:', error);
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to save settings' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to save settings') });
         } finally {
             setIsSaving(false);
         }
@@ -159,19 +163,17 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
                         
                         <div className="space-y-2">
                              <label className="text-sm font-medium text-gray-900 block">Data Retention Period</label>
-                             <div className="relative">
-                                <select 
-                                    value={retention}
-                                    onChange={(e) => setRetention(e.target.value)}
-                                    className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black cursor-pointer appearance-none hover:bg-gray-100 transition-colors"
-                                >
-                                    <option value="3 months">3 months</option>
-                                    <option value="6 months">6 months</option>
-                                    <option value="12 months">12 months</option>
-                                    <option value="24 months">24 months</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                             </div>
+                             <CustomSelect
+                                value={retention}
+                                onChange={setRetention}
+                                className="px-4 py-2.5 rounded-lg"
+                                options={[
+                                    { value: '3 months', label: '3 months' },
+                                    { value: '6 months', label: '6 months' },
+                                    { value: '12 months', label: '12 months' },
+                                    { value: '24 months', label: '24 months' },
+                                ]}
+                             />
                         </div>
 
                         <div className="flex items-center justify-between pt-2">
@@ -698,7 +700,7 @@ const Jobs: React.FC = () => {
                       })
                       .catch((error: any) => {
                           console.error('Error deleting job:', error);
-                          alert(error.message || 'Failed to delete job. Please try again.');
+                          alert(toUserError(error, 'Failed to delete job. Please try again.'));
                       });
               }
               break;
@@ -712,18 +714,29 @@ const Jobs: React.FC = () => {
       try {
           // Update job status to Closed in database (this will log the activity)
           await api.jobs.update(jobToClose.id, { status: 'Closed' });
-          
+
           // Update local state
           setJobs(prev => prev.map(j => j.id === jobToClose.id ? { ...j, status: 'Closed' } : j));
-          
+
+          // Slack notification (fire-and-forget)
+          api.workspaces.getSlackWebhook().then((webhookUrl) => {
+              if (webhookUrl) {
+                  sendSlackNotification(
+                      webhookUrl,
+                      `Job "${jobToClose.title}" closed`,
+                      buildJobStatusBlocks(jobToClose.title, 'closed', jobToClose.candidateCount, jobToClose.id)
+                  );
+              }
+          }).catch(() => {});
+
           // Play notification sound
           const { playNotificationSound } = await import('../utils/soundUtils');
           playNotificationSound();
-          
+
           setJobToClose(null);
       } catch (error: any) {
           console.error('Error closing job:', error);
-          alert(error.message || 'Failed to close job. Please try again.');
+          alert(toUserError(error, 'Failed to close job. Please try again.'));
       } finally {
           setClosingJob(false);
       }
@@ -736,17 +749,13 @@ const Jobs: React.FC = () => {
   };
 
   if (loading) {
-      return (
-          <div className="flex items-center justify-center min-h-screen bg-white">
-              <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-      );
+      return <PageLoader />;
   }
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto flex flex-col bg-white min-h-screen" style={{ position: 'relative', overflow: 'visible' }}>
+    <div className="px-10 py-10 max-w-[1600px] mx-auto flex flex-col min-h-screen" style={{ position: 'relative', overflow: 'visible' }}>
       {/* Modal */}
       {selectedJob && (
         <JobManageModal
@@ -874,18 +883,18 @@ const Jobs: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                   />
               </div>
-              <div className="relative flex-1" style={{ position: 'relative' }}>
-                  <select 
+              <div className="flex-1">
+                  <CustomSelect
                       value={selectedJobType}
-                      onChange={(e) => setSelectedJobType(e.target.value)}
-                      className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
-                      style={{ position: 'relative' }}
-                  >
-                      <option>All Job Types</option>
-                      <option>Full-time</option>
-                      <option>Part-time</option>
-                      <option>Contract</option>
-                  </select>
+                      onChange={setSelectedJobType}
+                      className="px-4 py-2.5 rounded-lg"
+                      options={[
+                          { value: 'All Job Types', label: 'All Job Types' },
+                          { value: 'Full-time', label: 'Full-time' },
+                          { value: 'Part-time', label: 'Part-time' },
+                          { value: 'Contract', label: 'Contract' },
+                      ]}
+                  />
               </div>
           </div>
       </div>

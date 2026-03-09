@@ -18,6 +18,8 @@ import { createCheckoutSession, createPortalSession, PLANS } from '../services/s
 import { WorkflowList } from '../components/WorkflowList';
 import { EmailWorkflowBuilder } from '../components/EmailWorkflowBuilder';
 import { WorkflowExecutionHistory } from '../components/WorkflowExecutionHistory';
+import { toUserError } from '../utils/edgeFunctionError';
+import { PageLoader } from '../components/ui/PageLoader';
 
 // --- Card Brand Logo Component ---
 const CardBrandLogo = ({ brand, className = "w-14 h-9" }: { brand: string; className?: string }) => {
@@ -179,7 +181,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
             });
         } catch (error: any) {
             console.error('Error generating template:', error);
-            let errorMessage = error.message || 'Failed to generate template. Please try again.';
+            let errorMessage = toUserError(error, 'Failed to generate template. Please try again.');
             
             // Provide more helpful error message for API key issues
             if (errorMessage.includes('API key') || errorMessage.includes('VITE_API_KEY')) {
@@ -850,6 +852,10 @@ const Settings: React.FC = () => {
     const [inviteRole, setInviteRole] = useState<User['role']>('Recruiter');
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [inviteMessage, setInviteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [workspaceNameInput, setWorkspaceNameInput] = useState('');
+    const [isRenamingWorkspace, setIsRenamingWorkspace] = useState(false);
+    const [renameWorkspaceError, setRenameWorkspaceError] = useState<string | null>(null);
+    const [renameWorkspaceSuccess, setRenameWorkspaceSuccess] = useState(false);
 
     // Security State
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -1336,7 +1342,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'Avatar uploaded successfully! Click Save Changes to apply.' });
         } catch (error: any) {
             console.error('Error uploading avatar:', error);
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to upload avatar' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to upload avatar') });
         } finally {
             setIsUploading(false);
             // Reset file input
@@ -1388,7 +1394,7 @@ const Settings: React.FC = () => {
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
             console.error('Error saving profile:', error);
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to save profile' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to save profile') });
         } finally {
             setIsSaving(false);
         }
@@ -1417,7 +1423,7 @@ const Settings: React.FC = () => {
             console.error('Error updating template:', error);
             setTemplateSaveMessage({ 
                 type: 'error', 
-                text: error.message || 'Failed to save template. Please try again.' 
+                text: toUserError(error, 'Failed to save template. Please try again.')
             });
         } finally {
             setIsSavingTemplate(false);
@@ -1472,7 +1478,7 @@ const Settings: React.FC = () => {
                 }
             } catch (error: any) {
                 console.error('Error connecting integration:', error);
-                setSaveMessage({ type: 'error', text: error.message || 'Failed to connect integration' });
+                setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to connect integration') });
                 setTimeout(() => setSaveMessage(null), 3000);
                 setIsConnectingIntegration(null);
             }
@@ -1496,7 +1502,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'Slack connected successfully!' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (err: any) {
-            setSlackError(err.message || 'Failed to save webhook URL');
+            setSlackError(toUserError(err, 'Failed to save webhook URL'));
         } finally {
             setIsSavingSlack(false);
         }
@@ -1509,7 +1515,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'Slack disconnected.' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (err: any) {
-            setSaveMessage({ type: 'error', text: err.message || 'Failed to disconnect Slack' });
+            setSaveMessage({ type: 'error', text: toUserError(err, 'Failed to disconnect Slack') });
             setTimeout(() => setSaveMessage(null), 3000);
         }
     };
@@ -1533,7 +1539,7 @@ const Settings: React.FC = () => {
                 setIsPasswordModalOpen(false);
             }, 2000);
         } catch (error: any) {
-            setPasswordChangeError(error.message || 'Failed to change password');
+            setPasswordChangeError(toUserError(error, 'Failed to change password'));
         } finally {
             setIsChangingPassword(false);
         }
@@ -1551,8 +1557,8 @@ const Settings: React.FC = () => {
             setTwoFactorFactorId(result.factorId || null); // Store factor ID
             setIs2FASetupModalOpen(true);
         } catch (error: any) {
-            setTwoFactorError(error.message || 'Failed to enable 2FA');
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to enable 2FA' });
+            setTwoFactorError(toUserError(error, 'Failed to enable 2FA'));
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to enable 2FA') });
             setTimeout(() => setSaveMessage(null), 3000);
         } finally {
             setIsEnabling2FA(false);
@@ -1578,7 +1584,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'Two-factor authentication enabled successfully!' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
-            setTwoFactorError(error.message || 'Failed to verify 2FA code');
+            setTwoFactorError(toUserError(error, 'Failed to verify 2FA code'));
         } finally {
             setIsVerifying2FA(false);
         }
@@ -1597,7 +1603,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'Two-factor authentication disabled successfully' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to disable 2FA' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to disable 2FA') });
             setTimeout(() => setSaveMessage(null), 3000);
         } finally {
             setIsEnabling2FA(false);
@@ -1650,7 +1656,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'Session revoked successfully' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to revoke session' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to revoke session') });
             setTimeout(() => setSaveMessage(null), 3000);
         } finally {
             setIsRevokingSession(null);
@@ -1669,7 +1675,7 @@ const Settings: React.FC = () => {
             setSaveMessage({ type: 'success', text: 'All sessions revoked successfully. You will need to sign in again on other devices.' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to revoke sessions' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to revoke sessions') });
             setTimeout(() => setSaveMessage(null), 3000);
         }
     };
@@ -1687,7 +1693,7 @@ const Settings: React.FC = () => {
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
             console.error('Error updating notification preferences:', error);
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to update notification preferences' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to update notification preferences') });
             setTimeout(() => setSaveMessage(null), 3000);
         }
     };
@@ -1703,7 +1709,7 @@ const Settings: React.FC = () => {
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (error: any) {
             console.error('Error updating compliance settings:', error);
-            setSaveMessage({ type: 'error', text: error.message || 'Failed to update compliance settings' });
+            setSaveMessage({ type: 'error', text: toUserError(error, 'Failed to update compliance settings') });
             setTimeout(() => setSaveMessage(null), 3000);
         }
     };
@@ -1728,7 +1734,7 @@ const Settings: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Error creating checkout session:', error);
-            setBillingError(error.message || 'Failed to start checkout. Please try again.');
+            setBillingError(toUserError(error, 'Failed to start checkout. Please try again.'));
         } finally {
             setIsProcessingPayment(false);
         }
@@ -1756,8 +1762,7 @@ const Settings: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Error opening billing portal:', error);
-            const errorMessage = error.message || 'Failed to open billing portal. Please try again.';
-            setBillingError(errorMessage + ' Check Supabase Edge Function logs for details.');
+            setBillingError(toUserError(error, 'Failed to open billing portal. Please try again.'));
         } finally {
             setIsProcessingPayment(false);
         }
@@ -1800,6 +1805,7 @@ const Settings: React.FC = () => {
                 if (!cancelled) {
                     setTeamMembers(workspace.members);
                     setWorkspaceInfo({ workspaceId: workspace.workspaceId, name: workspace.name, companyLogoUrl: workspace.companyLogoUrl });
+                    setWorkspaceNameInput(workspace.name || '');
                 }
             })
             .catch((err: any) => {
@@ -1820,17 +1826,11 @@ const Settings: React.FC = () => {
             .catch(() => setProfileWorkspaceName('Your company'));
     }, [activeTab, user?.id]);
 
-    if (!user) return (
-        <div className="min-h-screen bg-white">
-            <div className="p-8">
-                <div className="text-sm text-gray-500">Loading...</div>
-            </div>
-        </div>
-    );
+    if (!user) return <PageLoader />;
 
     return (
-        <div className="min-h-screen bg-white">
-            <div className="p-8 max-w-6xl mx-auto">
+        <div className="min-h-screen">
+            <div className="px-10 py-10 max-w-6xl mx-auto">
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
             
             <div className="flex items-center justify-between mb-8">
@@ -2070,7 +2070,7 @@ const Settings: React.FC = () => {
                                                     await api.workspaces.updateWorkspace({ companyLogoUrl: publicUrl });
                                                     setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: publicUrl } : null);
                                                 } catch (err: any) {
-                                                    setLogoUploadError(err?.message || 'Upload failed');
+                                                    setLogoUploadError(toUserError(err, 'Upload failed'));
                                                 } finally {
                                                     setIsUploadingLogo(false);
                                                     e.target.value = '';
@@ -2097,6 +2097,51 @@ const Settings: React.FC = () => {
                                             <span className="text-white text-sm font-medium">{workspaceInfo?.name || 'Company name'}</span>
                                         )}
                                     </div>
+                                </div>
+
+                                {/* Workspace name */}
+                                <div className="pt-3 border-t border-gray-100">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Workspace name</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={workspaceNameInput}
+                                            onChange={(e) => {
+                                                setWorkspaceNameInput(e.target.value);
+                                                setRenameWorkspaceError(null);
+                                                setRenameWorkspaceSuccess(false);
+                                            }}
+                                            placeholder="e.g. Acme Recruiting"
+                                            maxLength={80}
+                                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+                                        />
+                                        <Button
+                                            variant="black"
+                                            size="sm"
+                                            disabled={isRenamingWorkspace || !workspaceNameInput.trim() || workspaceNameInput.trim() === workspaceInfo?.name}
+                                            onClick={async () => {
+                                                const trimmed = workspaceNameInput.trim();
+                                                if (!trimmed) return;
+                                                setIsRenamingWorkspace(true);
+                                                setRenameWorkspaceError(null);
+                                                setRenameWorkspaceSuccess(false);
+                                                try {
+                                                    await api.workspaces.updateWorkspace({ name: trimmed });
+                                                    setWorkspaceInfo(prev => prev ? { ...prev, name: trimmed } : null);
+                                                    setRenameWorkspaceSuccess(true);
+                                                    setTimeout(() => setRenameWorkspaceSuccess(false), 3000);
+                                                } catch (err: any) {
+                                                    setRenameWorkspaceError(toUserError(err, 'Failed to update workspace name'));
+                                                } finally {
+                                                    setIsRenamingWorkspace(false);
+                                                }
+                                            }}
+                                        >
+                                            {isRenamingWorkspace ? 'Saving…' : 'Save'}
+                                        </Button>
+                                    </div>
+                                    {renameWorkspaceError && <p className="text-xs text-red-600 mt-1">{renameWorkspaceError}</p>}
+                                    {renameWorkspaceSuccess && <p className="text-xs text-green-600 mt-1">Workspace name updated.</p>}
                                 </div>
                             </div>
 
@@ -2219,7 +2264,7 @@ const Settings: React.FC = () => {
                                                                         );
                                                                     } catch (error: any) {
                                                                         console.error('Error updating member role:', error);
-                                                                        setTeamError(error.message || 'Failed to update member role.');
+                                                                        setTeamError(toUserError(error, 'Failed to update member role.'));
                                                                     }
                                                                 }}
                                                                 className="px-3 py-1.5 rounded-lg"
@@ -2333,7 +2378,7 @@ const Settings: React.FC = () => {
                                                     console.error('Error creating invite:', error);
                                                     setInviteMessage({
                                                         type: 'error',
-                                                        text: error.message || 'Failed to create invite. Please try again.',
+                                                        text: toUserError(error, 'Failed to create invite. Please try again.'),
                                                     });
                                                 } finally {
                                                     setIsSendingInvite(false);
@@ -3005,7 +3050,7 @@ const Settings: React.FC = () => {
                         setTestingWorkflow(null);
                         setTestPlaceholders({});
                     } catch (err: any) {
-                        alert(err.message || 'Failed to send test email');
+                        alert(toUserError(err, 'Failed to send test email'));
                     } finally {
                         setIsTestingWorkflow(false);
                     }
