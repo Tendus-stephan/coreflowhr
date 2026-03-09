@@ -23,6 +23,9 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "@octokit/rest": "^20.0.0",
+    "@radix-ui/react-progress": "^1.1.8",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@sentry/node": "^10.35.0",
     "@sentry/react": "^10.35.0",
     "@stripe/react-stripe-js": "^5.4.1",
@@ -32,6 +35,8 @@
     "@types/react-big-calendar": "^1.16.3",
     "axios": "^1.6.0",
     "cheerio": "^1.1.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.3.0",
@@ -45,7 +50,8 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
     "recharts": "^3.4.1",
-    "stripe": "^20.0.0"
+    "stripe": "^20.0.0",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
@@ -62,6 +68,7 @@
     "concurrently": "^8.2.2",
     "jsdom": "^25.0.1",
     "postcss": "^8.5.6",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.17",
     "tsx": "^4.7.0",
     "typescript": "~5.8.2",
