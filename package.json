@@ -41,11 +41,12 @@
     "mammoth": "^1.11.0",
     "openai": "^6.15.0",
     "pdfjs-dist": "^5.4.449",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-big-calendar": "^1.19.4",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
-    "recharts": "^3.4.1",
+    "recharts": "^2.15.4",
     "stripe": "^20.0.0",
     "tailwind-merge": "^3.5.0"
   },
