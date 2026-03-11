@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Briefcase, Clock, Loader2, X, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -559,29 +560,33 @@ const OfferResponse: React.FC = () => {
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Currency
                                                 </label>
-                                                <select
+                                                <CustomSelect
+                                                    inputStyle
                                                     value={counterCurrency}
-                                                    onChange={(e) => setCounterCurrency(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
-                                                >
-                                                    <option value="USD">USD ($)</option>
-                                                    <option value="EUR">EUR (€)</option>
-                                                    <option value="GBP">GBP (£)</option>
-                                                </select>
+                                                    onChange={setCounterCurrency}
+                                                    className="px-3 py-2 rounded-lg"
+                                                    options={[
+                                                        { value: 'USD', label: 'USD ($)' },
+                                                        { value: 'EUR', label: 'EUR (€)' },
+                                                        { value: 'GBP', label: 'GBP (£)' },
+                                                    ]}
+                                                />
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                     Period
                                                 </label>
-                                                <select
+                                                <CustomSelect
+                                                    inputStyle
                                                     value={counterPeriod}
-                                                    onChange={(e) => setCounterPeriod(e.target.value as 'hourly' | 'monthly' | 'yearly')}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
-                                                >
-                                                    <option value="yearly">Per Year</option>
-                                                    <option value="monthly">Per Month</option>
-                                                    <option value="hourly">Per Hour</option>
-                                                </select>
+                                                    onChange={(val) => setCounterPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                                    className="px-3 py-2 rounded-lg"
+                                                    options={[
+                                                        { value: 'yearly', label: 'Per Year' },
+                                                        { value: 'monthly', label: 'Per Month' },
+                                                        { value: 'hourly', label: 'Per Hour' },
+                                                    ]}
+                                                />
                                             </div>
                                         </div>
 

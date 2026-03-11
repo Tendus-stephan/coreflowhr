@@ -842,6 +842,9 @@ const Settings: React.FC = () => {
     const [teamError, setTeamError] = useState<string | null>(null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+    const [workspaceNameInput, setWorkspaceNameInput] = useState('');
+    const [isSavingWorkspaceName, setIsSavingWorkspaceName] = useState(false);
+    const [workspaceNameMsg, setWorkspaceNameMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [profileWorkspaceName, setProfileWorkspaceName] = useState<string>('');
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [teamPage, setTeamPage] = useState(0);
@@ -1800,11 +1803,12 @@ const Settings: React.FC = () => {
                 if (!cancelled) {
                     setTeamMembers(workspace.members);
                     setWorkspaceInfo({ workspaceId: workspace.workspaceId, name: workspace.name, companyLogoUrl: workspace.companyLogoUrl });
+                    setWorkspaceNameInput(workspace.name || '');
                 }
             })
             .catch((err: any) => {
                 console.error('Error loading team:', err);
-                if (!cancelled) setTeamError('We couldn’t load your team members. Please try again.');
+                if (!cancelled) setTeamError("We could not load your team members. Please try again.");
             })
             .finally(() => {
                 if (!cancelled) setIsLoadingTeam(false);
@@ -1983,7 +1987,7 @@ const Settings: React.FC = () => {
                                         </p>
                                     )}
                                     <p className="text-xs text-gray-500">
-                                        We’ll send a verification link to your new email. After you confirm it, you must sign in again with your new email address. If login with the new email ever fails, in Supabase turn off &quot;Secure email change&quot; (Authentication → Email) or click the link in both emails.
+                                        We'll send a verification link to your new email. After you confirm it, you must sign in again with your new email address. If login with the new email ever fails, in Supabase turn off &quot;Secure email change&quot; (Authentication → Email) or click the link in both emails.
                                     </p>
                                 </div>
                                 <div className="space-y-2">
@@ -2042,6 +2046,51 @@ const Settings: React.FC = () => {
                             {/* Company profile / logo */}
                             <div className="rounded-xl border border-gray-200 p-4 space-y-4">
                                 <h3 className="text-sm font-bold text-gray-900">Company profile</h3>
+
+                                {/* Workspace name */}
+                                <div>
+                                    <label className="text-xs font-medium text-gray-700 block mb-1">Workspace name</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={workspaceNameInput}
+                                            onChange={(e) => { setWorkspaceNameInput(e.target.value); setWorkspaceNameMsg(null); }}
+                                            placeholder="e.g. Acme Recruiting"
+                                            disabled={!teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black disabled:opacity-50 disabled:bg-gray-50"
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={isSavingWorkspaceName || !workspaceNameInput.trim() || workspaceNameInput.trim() === workspaceInfo?.name || !teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                            onClick={async () => {
+                                                if (!workspaceNameInput.trim()) return;
+                                                setIsSavingWorkspaceName(true);
+                                                setWorkspaceNameMsg(null);
+                                                try {
+                                                    await api.workspaces.updateWorkspace({ name: workspaceNameInput.trim() });
+                                                    setWorkspaceInfo(prev => prev ? { ...prev, name: workspaceNameInput.trim() } : null);
+                                                    setWorkspaceNameMsg({ type: 'success', text: 'Workspace name updated' });
+                                                } catch (err: any) {
+                                                    setWorkspaceNameMsg({ type: 'error', text: err.message || 'Failed to update name' });
+                                                } finally {
+                                                    setIsSavingWorkspaceName(false);
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {isSavingWorkspaceName ? 'Saving…' : 'Save'}
+                                        </button>
+                                    </div>
+                                    {workspaceNameMsg && (
+                                        <p className={`text-xs mt-1 ${workspaceNameMsg.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                            {workspaceNameMsg.text}
+                                        </p>
+                                    )}
+                                    {!teamMembers.find(m => m.isCurrentUser && m.role === 'Admin') && (
+                                        <p className="text-xs text-gray-400 mt-1">Only Admins can change the workspace name.</p>
+                                    )}
+                                </div>
+
                                 <p className="text-xs text-gray-500">Logo appears in the header of offer letters. PNG, JPG, or SVG. Max 2MB. Transparent background recommended.</p>
                                 <div className="flex flex-wrap items-start gap-6">
                                     <div className="flex flex-col gap-2">
@@ -2134,11 +2183,12 @@ const Settings: React.FC = () => {
                                                     const workspace = await api.workspaces.getWorkspaceWithMembers();
                                                     setTeamMembers(workspace.members);
                                                     setWorkspaceInfo({ workspaceId: workspace.workspaceId, name: workspace.name, companyLogoUrl: workspace.companyLogoUrl });
+                                                    setWorkspaceNameInput(workspace.name || '');
                                                     setTeamPage(0);
                                                     setTeamSearchQuery('');
                                                 } catch (error: any) {
                                                     console.error('Error loading team:', error);
-                                                    setTeamError('We couldn’t load your team members. Please try again.');
+                                                    setTeamError("We could not load your team members. Please try again.");
                                                 } finally {
                                                     setIsLoadingTeam(false);
                                                 }
@@ -2346,7 +2396,7 @@ const Settings: React.FC = () => {
                                     </div>
                                 </div>
                                 <p className="text-xs text-gray-500">
-                                    Invites expire after 3 days. When a teammate signs up with the invite link, they’ll be added to this workspace with the selected role.
+                                    Invites expire after 3 days. When a teammate signs up with the invite link, they'll be added to this workspace with the selected role.
                                 </p>
                             </div>
                         </div>

@@ -9,6 +9,7 @@ import { Interview, CalendarEvent } from '../types';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { PageLoader } from '../components/ui/PageLoader';
 import { InterviewDetailsModal } from '../components/InterviewDetailsModal';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
@@ -458,35 +459,33 @@ const Calendar: React.FC = () => {
           <div className="flex gap-3 mt-4 p-4 bg-gray-50 rounded-lg">
             <div>
               <label className="text-xs font-medium text-gray-700 mb-1 block">Type</label>
-              <select
+              <CustomSelect
+                inputStyle
                 value={filters.type || 'all'}
-                onChange={(e) => setFilters({
-                  ...filters,
-                  type: e.target.value === 'all' ? undefined : e.target.value as any
-                })}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="all">All Types</option>
-                <option value="Google Meet">Google Meet</option>
-                <option value="Phone">Phone</option>
-                <option value="In-Person">In-Person</option>
-              </select>
+                onChange={(val) => setFilters({ ...filters, type: val === 'all' ? undefined : val as any })}
+                className="px-3 py-2 rounded-lg"
+                options={[
+                  { value: 'all', label: 'All Types' },
+                  { value: 'Google Meet', label: 'Google Meet' },
+                  { value: 'Phone', label: 'Phone' },
+                  { value: 'In-Person', label: 'In-Person' },
+                ]}
+              />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-700 mb-1 block">Status</label>
-              <select
+              <CustomSelect
+                inputStyle
                 value={filters.status || 'all'}
-                onChange={(e) => setFilters({
-                  ...filters,
-                  status: e.target.value === 'all' ? undefined : e.target.value as any
-                })}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
-              >
-                <option value="all">All Statuses</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
+                onChange={(val) => setFilters({ ...filters, status: val === 'all' ? undefined : val as any })}
+                className="px-3 py-2 rounded-lg"
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'Scheduled', label: 'Scheduled' },
+                  { value: 'Completed', label: 'Completed' },
+                  { value: 'Cancelled', label: 'Cancelled' },
+                ]}
+              />
             </div>
           </div>
         )}

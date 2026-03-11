@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { PageLoader } from '../components/ui/PageLoader';
 import { Link, useNavigate } from 'react-router-dom';
 import { Job, Candidate, CandidateStage, UserRole } from '../types';
@@ -160,19 +161,18 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
                         
                         <div className="space-y-2">
                              <label className="text-sm font-medium text-gray-900 block">Data Retention Period</label>
-                             <div className="relative">
-                                <select 
-                                    value={retention}
-                                    onChange={(e) => setRetention(e.target.value)}
-                                    className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black cursor-pointer appearance-none hover:bg-gray-100 transition-colors"
-                                >
-                                    <option value="3 months">3 months</option>
-                                    <option value="6 months">6 months</option>
-                                    <option value="12 months">12 months</option>
-                                    <option value="24 months">24 months</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                             </div>
+                             <CustomSelect
+                                inputStyle
+                                value={retention}
+                                onChange={setRetention}
+                                className="px-4 py-2.5 rounded-lg"
+                                options={[
+                                    { value: '3 months', label: '3 months' },
+                                    { value: '6 months', label: '6 months' },
+                                    { value: '12 months', label: '12 months' },
+                                    { value: '24 months', label: '24 months' },
+                                ]}
+                             />
                         </div>
 
                         <div className="flex items-center justify-between pt-2">
@@ -869,18 +869,19 @@ const Jobs: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
                   />
               </div>
-              <div className="relative flex-1" style={{ position: 'relative' }}>
-                  <select 
+              <div className="relative flex-1">
+                  <CustomSelect
+                      inputStyle
                       value={selectedJobType}
-                      onChange={(e) => setSelectedJobType(e.target.value)}
-                      className="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors"
-                      style={{ position: 'relative' }}
-                  >
-                      <option>All Job Types</option>
-                      <option>Full-time</option>
-                      <option>Part-time</option>
-                      <option>Contract</option>
-                  </select>
+                      onChange={setSelectedJobType}
+                      className="px-4 py-2.5 rounded-lg"
+                      options={[
+                          { value: 'All Job Types', label: 'All Job Types' },
+                          { value: 'Full-time', label: 'Full-time' },
+                          { value: 'Part-time', label: 'Part-time' },
+                          { value: 'Contract', label: 'Contract' },
+                      ]}
+                  />
               </div>
           </div>
       </div>

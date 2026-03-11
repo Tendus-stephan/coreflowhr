@@ -501,19 +501,17 @@ const AddJob: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                           <label className="text-sm font-bold text-gray-900">Client (Agency) *</label>
-                          <select
-                            name="clientId"
+                          <CustomSelect
+                            inputStyle
                             value={formData.clientId || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value || undefined }))}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                            onChange={(val) => setFormData(prev => ({ ...prev, clientId: val || undefined }))}
+                            className="px-4 py-2.5 rounded-lg"
                             disabled={loadingClients}
-                            required
-                          >
-                            <option value="">Select a client</option>
-                            {clients.map(client => (
-                              <option key={client.id} value={client.id}>{client.name}</option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: '', label: loadingClients ? 'Loading clients…' : 'Select a client' },
+                              ...clients.map(c => ({ value: c.id, label: c.name }))
+                            ]}
+                          />
                           {clients.length === 0 && !loadingClients && (
                             <p className="text-xs text-gray-500 mt-1">
                               <Link to="/clients" className="text-gray-900 underline">Create a client</Link> to organize jobs by company
@@ -547,23 +545,20 @@ const AddJob: React.FC = () => {
                           />
                       </div>
                       
-                      {/* Custom Dropdown: Job Type */}
+                      {/* Job Type */}
                       <div className="space-y-2">
                           <label className="text-sm font-bold text-gray-900">Job Type *</label>
-                          <div className="relative">
-                            <select 
-                                name="type"
-                                value={formData.type}
-                                onChange={handleChange}
-                                className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all appearance-none cursor-pointer"
-                                required
-                            >
-                                <option>Full-time</option>
-                                <option>Part-time</option>
-                                <option>Contract</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                          </div>
+                          <CustomSelect
+                            inputStyle
+                            value={formData.type}
+                            onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
+                            className="px-4 py-2.5 rounded-xl"
+                            options={[
+                              { value: 'Full-time', label: 'Full-time' },
+                              { value: 'Part-time', label: 'Part-time' },
+                              { value: 'Contract', label: 'Contract' },
+                            ]}
+                          />
                       </div>
 
                   </div>

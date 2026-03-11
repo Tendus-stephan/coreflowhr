@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { EmailWorkflow, CandidateStage, EmailTemplate } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { X, Save } from 'lucide-react';
 
 interface EmailWorkflowBuilderProps {
@@ -253,37 +254,31 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Trigger Stage *
                         </label>
-                        <select
+                        <CustomSelect
+                            inputStyle
                             value={triggerStage}
-                            onChange={(e) => {
-                                const newStage = e.target.value as CandidateStage;
+                            onChange={(val) => {
+                                const newStage = val as CandidateStage;
                                 setTriggerStage(newStage);
-                                // Reset template selection if current template is not valid for new stage
-                                const filteredTemplates = templates.filter(template => {
-                                    const stageToTemplateTypeMap: Record<CandidateStage, string[]> = {
-                                        [CandidateStage.NEW]: [],
-                                        [CandidateStage.SCREENING]: ['Screening'],
-                                        [CandidateStage.INTERVIEW]: ['Interview', 'Reschedule'],
-                                        [CandidateStage.OFFER]: ['Offer'],
-                                        [CandidateStage.HIRED]: ['Hired'],
-                                        [CandidateStage.REJECTED]: ['Rejection']
-                                    };
-                                    const allowedTypes = stageToTemplateTypeMap[newStage] || [];
-                                    return allowedTypes.includes(template.type);
-                                });
+                                const stageToTemplateTypeMap: Record<CandidateStage, string[]> = {
+                                    [CandidateStage.NEW]: [],
+                                    [CandidateStage.SCREENING]: ['Screening'],
+                                    [CandidateStage.INTERVIEW]: ['Interview', 'Reschedule'],
+                                    [CandidateStage.OFFER]: ['Offer'],
+                                    [CandidateStage.HIRED]: ['Hired'],
+                                    [CandidateStage.REJECTED]: ['Rejection'],
+                                };
+                                const allowedTypes = stageToTemplateTypeMap[newStage] || [];
                                 const currentTemplate = templates.find(t => t.id === emailTemplateId);
-                                if (currentTemplate && !filteredTemplates.find(t => t.id === currentTemplate.id)) {
-                                    setEmailTemplateId(''); // Clear invalid selection
+                                if (currentTemplate && !allowedTypes.includes(currentTemplate.type)) {
+                                    setEmailTemplateId('');
                                 }
                             }}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        >
-                            {Object.values(CandidateStage)
-                                .filter(stage => stage !== CandidateStage.NEW) // Remove "New" - workflows are disabled for New stage
-                                .map(stage => (
-                                    <option key={stage} value={stage}>{stage}</option>
-                                ))}
-                        </select>
+                            className="px-3 py-2 rounded-lg"
+                            options={Object.values(CandidateStage)
+                                .filter(stage => stage !== CandidateStage.NEW)
+                                .map(stage => ({ value: stage, label: stage }))}
+                        />
                         <p className="text-xs text-gray-500 mt-1">
                             This workflow will trigger when a candidate moves to this stage
                         </p>
@@ -297,24 +292,16 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Email Template *
                         </label>
-                        <select
+                        <CustomSelect
+                            inputStyle
                             value={emailTemplateId}
-                            onChange={(e) => setEmailTemplateId(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        >
-                            <option value="">Select a template...</option>
-                            {getFilteredTemplates().length === 0 ? (
-                                <option value="" disabled>
-                                    No templates available for {triggerStage} stage
-                                </option>
-                            ) : (
-                                getFilteredTemplates().map(template => (
-                                    <option key={template.id} value={template.id}>
-                                        {template.title} ({template.type})
-                                    </option>
-                                ))
-                            )}
-                        </select>
+                            onChange={setEmailTemplateId}
+                            className="px-3 py-2 rounded-lg"
+                            options={[
+                                { value: '', label: getFilteredTemplates().length === 0 ? `No templates for ${triggerStage} stage` : 'Select a template...' },
+                                ...getFilteredTemplates().map(t => ({ value: t.id, label: `${t.title} (${t.type})` })),
+                            ]}
+                        />
                         {getFilteredTemplates().length === 0 && (
                             <p className="text-xs text-amber-600 mt-1">
                                 Create a {triggerStage === CandidateStage.OFFER ? 'Offer' : 

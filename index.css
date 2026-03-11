@@ -78,6 +78,13 @@ textarea:focus {
   border-color: #111827 !important;
 }
 
+/* Chat / AI assistant input: suppress the dark ring so the container handles focus styling */
+.no-focus-ring:focus {
+  box-shadow: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+}
+
 /* Buttons / links — no ring */
 button:focus,
 button:focus-visible,

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Offer, Candidate, Job } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { X, Plus, Trash2, Send, Save, Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -368,35 +369,26 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Candidate <span className="text-gray-400 text-xs font-normal">(Optional - leave blank for general offer)</span>
                             </label>
-                            <select
+                            <CustomSelect
+                                inputStyle
                                 value={selectedCandidateId}
-                                onChange={(e) => {
-                                    setSelectedCandidateId(e.target.value);
-                                    const selected = candidates.find(c => c.id === e.target.value);
-                                    if (selected) {
-                                        setPositionTitle(selected.role || '');
-                                        setJobId(selected.jobId || '');
+                                onChange={(val) => {
+                                    setSelectedCandidateId(val);
+                                    const sel = candidates.find(c => c.id === val);
+                                    if (sel) {
+                                        setPositionTitle(sel.role || '');
+                                        setJobId(sel.jobId || '');
                                     }
                                 }}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                            >
-                                <option value="">Select a candidate...</option>
-                                {jobId && filteredCandidates.length > 0 ? (
-                                    // Show filtered candidates if job is selected and there are matches
-                                    filteredCandidates.map(c => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name} - {c.role}
-                                        </option>
-                                    ))
-                                ) : (
-                                    // Show all candidates if no job selected or no matches
-                                    candidates.map(c => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name} - {c.role} {c.jobId ? `(${jobs.find(j => j.id === c.jobId)?.title || 'Job'})` : ''}
-                                        </option>
-                                    ))
-                                )}
-                            </select>
+                                className="px-3 py-2 rounded-lg"
+                                options={[
+                                    { value: '', label: 'Select a candidate...' },
+                                    ...(jobId && filteredCandidates.length > 0 ? filteredCandidates : candidates).map(c => ({
+                                        value: c.id,
+                                        label: `${c.name} - ${c.role}${(!jobId || filteredCandidates.length === 0) && c.jobId ? ` (${jobs.find(j => j.id === c.jobId)?.title || 'Job'})` : ''}`,
+                                    }))
+                                ]}
+                            />
                             {jobId && filteredCandidates.length === 0 && candidates.length > 0 && (
                                 <p className="text-xs text-gray-500 mt-1">
                                     No candidates found for this job. Select a candidate from all available candidates.
@@ -435,26 +427,23 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Job *
                             </label>
-                            <select
+                            <CustomSelect
+                                inputStyle
                                 value={jobId}
-                                onChange={(e) => {
-                                    setJobId(e.target.value);
-                                    // Auto-select candidate if only one matches
-                                    const filtered = candidates.filter(c => c.jobId === e.target.value);
+                                onChange={(val) => {
+                                    setJobId(val);
+                                    const filtered = candidates.filter(c => c.jobId === val);
                                     if (filtered.length === 1 && !selectedCandidateId) {
                                         setSelectedCandidateId(filtered[0].id);
                                         setPositionTitle(filtered[0].role || '');
                                     }
                                 }}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                            >
-                                <option value="">Select a job...</option>
-                                {jobs.map(job => (
-                                    <option key={job.id} value={job.id}>
-                                        {job.title} - {job.company || 'Company'}
-                                    </option>
-                                ))}
-                            </select>
+                                className="px-3 py-2 rounded-lg"
+                                options={[
+                                    { value: '', label: 'Select a job...' },
+                                    ...jobs.map(j => ({ value: j.id, label: `${j.title} - ${j.company || 'Company'}` }))
+                                ]}
+                            />
                         </div>
                     </div>
 
@@ -491,29 +480,33 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Currency
                             </label>
-                            <select
+                            <CustomSelect
+                                inputStyle
                                 value={salaryCurrency}
-                                onChange={(e) => setSalaryCurrency(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                            >
-                                <option value="USD">USD ($)</option>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="GBP">GBP (£)</option>
-                            </select>
+                                onChange={setSalaryCurrency}
+                                className="px-3 py-2 rounded-lg"
+                                options={[
+                                    { value: 'USD', label: 'USD ($)' },
+                                    { value: 'EUR', label: 'EUR (€)' },
+                                    { value: 'GBP', label: 'GBP (£)' },
+                                ]}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Period
                             </label>
-                            <select
+                            <CustomSelect
+                                inputStyle
                                 value={salaryPeriod}
-                                onChange={(e) => setSalaryPeriod(e.target.value as 'hourly' | 'monthly' | 'yearly')}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                            >
-                                <option value="hourly">Per Hour</option>
-                                <option value="monthly">Per Month</option>
-                                <option value="yearly">Per Year</option>
-                            </select>
+                                onChange={(val) => setSalaryPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                className="px-3 py-2 rounded-lg"
+                                options={[
+                                    { value: 'hourly', label: 'Per Hour' },
+                                    { value: 'monthly', label: 'Per Month' },
+                                    { value: 'yearly', label: 'Per Year' },
+                                ]}
+                            />
                         </div>
                     </div>
 

@@ -186,7 +186,7 @@ export const AIAssistantMenu: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
               placeholder="Ask me anything about recruitment..."
-              className="flex-1 bg-transparent border-none outline-none text-[12px] text-gray-900 placeholder:text-gray-400 py-2"
+              className="no-focus-ring flex-1 bg-transparent border-none outline-none text-[12px] text-gray-700 placeholder:text-gray-400 py-2 caret-gray-900"
             />
             <button
               onClick={() => handleSend(input)}

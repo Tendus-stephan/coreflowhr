@@ -4948,16 +4948,17 @@ export const api = {
         /**
          * Update current workspace (e.g. company_logo_url). Caller must be Admin or Recruiter.
          */
-        updateWorkspace: async (updates: { companyLogoUrl?: string | null }): Promise<void> => {
+        updateWorkspace: async (updates: { companyLogoUrl?: string | null; name?: string }): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
             const workspaceId = await getCurrentWorkspaceId();
             if (!workspaceId) throw new Error('Workspace not found');
+            const payload: Record<string, unknown> = {};
+            if (updates.companyLogoUrl !== undefined) payload.company_logo_url = updates.companyLogoUrl;
+            if (updates.name !== undefined) payload.name = updates.name;
             const { error } = await supabase
                 .from('workspaces')
-                .update({
-                    company_logo_url: updates.companyLogoUrl ?? undefined,
-                })
+                .update(payload)
                 .eq('id', workspaceId);
             if (error) throw error;
         },
@@ -5151,13 +5152,18 @@ export const api = {
         /**
          * Get invite details by token (no auth required). Used to show "invite sent to X" and to check email match before accepting.
          */
-        getInviteByToken: async (token: string): Promise<{ found: boolean; email?: string; role?: string }> => {
+        getInviteByToken: async (token: string): Promise<{ found: boolean; email?: string; role?: string; workspaceName?: string }> => {
             const trimmed = token.trim();
             if (!trimmed) return { found: false };
             const { data, error } = await supabase.rpc('get_invite_by_token', { p_token: trimmed });
             if (error || !data) return { found: false };
             if (data.found === true && data.email) {
-                return { found: true, email: data.email as string, role: data.role as string };
+                return {
+                    found: true,
+                    email: data.email as string,
+                    role: data.role as string,
+                    workspaceName: (data.workspace_name as string | undefined) || undefined,
+                };
             }
             return { found: false };
         },

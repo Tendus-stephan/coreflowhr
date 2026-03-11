@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Offer } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -130,30 +131,34 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Currency
                                 </label>
-                                <select
+                                <CustomSelect
+                                    inputStyle
                                     value={salaryCurrency}
-                                    onChange={(e) => setSalaryCurrency(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                                >
-                                    <option value="USD">USD ($)</option>
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="GBP">GBP (£)</option>
-                                    <option value="CAD">CAD (C$)</option>
-                                </select>
+                                    onChange={setSalaryCurrency}
+                                    className="px-3 py-2 rounded-lg"
+                                    options={[
+                                        { value: 'USD', label: 'USD ($)' },
+                                        { value: 'EUR', label: 'EUR (€)' },
+                                        { value: 'GBP', label: 'GBP (£)' },
+                                        { value: 'CAD', label: 'CAD (C$)' },
+                                    ]}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Period
                                 </label>
-                                <select
+                                <CustomSelect
+                                    inputStyle
                                     value={salaryPeriod}
-                                    onChange={(e) => setSalaryPeriod(e.target.value as 'hourly' | 'monthly' | 'yearly')}
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                                >
-                                    <option value="yearly">Per Year</option>
-                                    <option value="monthly">Per Month</option>
-                                    <option value="hourly">Per Hour</option>
-                                </select>
+                                    onChange={(val) => setSalaryPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                    className="px-3 py-2 rounded-lg"
+                                    options={[
+                                        { value: 'yearly', label: 'Per Year' },
+                                        { value: 'monthly', label: 'Per Month' },
+                                        { value: 'hourly', label: 'Per Hour' },
+                                    ]}
+                                />
                             </div>
                         </div>
 

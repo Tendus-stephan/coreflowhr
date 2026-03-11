@@ -25,6 +25,7 @@ const Invite: React.FC = () => {
   const acceptStartedRef = useRef(false);
 
   const token = searchParams.get('token') || '';
+  const [inviteWorkspaceName, setInviteWorkspaceName] = useState<string | null>(null);
 
   // Persist token only when invite is usable and not wrong-account (so after email verification we can return to /invite).
   const isWrongAccount = !!(inviteEmail && user?.email && inviteEmail.trim().toLowerCase() !== (user.email || '').trim().toLowerCase());
@@ -57,6 +58,7 @@ const Invite: React.FC = () => {
       if (!cancelled) {
         if (r.found && r.email) {
           setInviteEmail(r.email);
+          if (r.workspaceName) setInviteWorkspaceName(r.workspaceName);
         } else {
           setInviteEmail(null);
           setStatus('expired');
@@ -165,7 +167,7 @@ const Invite: React.FC = () => {
       <div className="w-full max-w-lg rounded-xl border border-gray-100 p-10 bg-white">
         <h1 className="text-xl font-bold text-gray-900 mb-2">{status === 'expired' ? 'Invite no longer valid' : 'Workspace Invitation'}</h1>
         <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-          You’ve been invited to join a CoreFlowHR workspace. Accept the invitation to start collaborating with your team.
+          You've been invited to join{inviteWorkspaceName ? <> <strong>{inviteWorkspaceName}</strong></> : ' a workspace on CoreFlowHR'}. Accept the invitation to start collaborating with your team.
         </p>
 
         {status === 'expired' && (
@@ -273,8 +275,8 @@ const Invite: React.FC = () => {
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
               {inviteEmail
-                ? `This invite was sent to ${inviteEmail}. Log in or sign up with that email to accept and join the workspace.`
-                : 'To accept this invite, please log in or create an account. After signing in, return to this link to join the workspace.'}
+                ? `This invite was sent to ${inviteEmail}. Log in or sign up with that email to accept and join ${inviteWorkspaceName ? inviteWorkspaceName : 'the workspace'}.`
+                : `To accept this invite, please log in or create an account. After signing in, return to this link to join ${inviteWorkspaceName ? inviteWorkspaceName : 'the workspace'}.`}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button

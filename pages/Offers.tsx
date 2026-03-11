@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Offer } from '../types';
 import { api } from '../services/api';
 import { PageLoader } from '../components/ui/PageLoader';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { OfferCard } from '../components/OfferCard';
 import { OfferModal } from '../components/OfferModal';
 import { NegotiateCounterOfferModal } from '../components/NegotiateCounterOfferModal';
@@ -256,17 +257,13 @@ const Offers: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <Filter size={18} className="text-gray-400" />
-                        <select
+                        <CustomSelect
+                            inputStyle
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value as Offer['status'] | 'all')}
-                            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        >
-                            {statusOptions.map(option => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={(val) => setStatusFilter(val as Offer['status'] | 'all')}
+                            className="px-3 py-2 rounded-lg min-w-[160px]"
+                            options={statusOptions.map(o => ({ value: o.value, label: o.label }))}
+                        />
                     </div>
                 </div>
             </div>

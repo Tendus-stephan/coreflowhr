@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InterviewFeedback } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
+import { CustomSelect } from './ui/CustomSelect';
 import { Star, Save, X } from 'lucide-react';
 
 interface InterviewFeedbackFormProps {
@@ -169,18 +170,20 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                         Recommendation
                     </label>
-                    <select
+                    <CustomSelect
+                        inputStyle
                         value={recommendation}
-                        onChange={(e) => setRecommendation(e.target.value as any)}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                    >
-                        <option value="">Select recommendation...</option>
-                        <option value="Strong Yes">Strong Yes</option>
-                        <option value="Yes">Yes</option>
-                        <option value="Maybe">Maybe</option>
-                        <option value="No">No</option>
-                        <option value="Strong No">Strong No</option>
-                    </select>
+                        onChange={(val) => setRecommendation(val as any)}
+                        className="px-3 py-2 rounded-lg"
+                        options={[
+                            { value: '', label: 'Select recommendation...' },
+                            { value: 'Strong Yes', label: 'Strong Yes' },
+                            { value: 'Yes', label: 'Yes' },
+                            { value: 'Maybe', label: 'Maybe' },
+                            { value: 'No', label: 'No' },
+                            { value: 'Strong No', label: 'Strong No' },
+                        ]}
+                    />
                 </div>
 
                 {/* Strengths */}
