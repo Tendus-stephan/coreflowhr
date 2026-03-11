@@ -37,6 +37,7 @@ export const AIAssistantMenu: React.FC = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const lastRequestTime = useRef<number>(0);
   const MIN_REQUEST_INTERVAL = 8000; // 8 seconds — keeps under free-tier ~15 req/min so you hit rate limit less
 
@@ -48,6 +49,18 @@ export const AIAssistantMenu: React.FC = () => {
       });
     }
   }, [messages, isLoading]);
+
+  // Collapse panel when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -93,7 +106,7 @@ export const AIAssistantMenu: React.FC = () => {
     : 0;
 
   return createPortal(
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4" style={{ pointerEvents: 'none' }}>
+    <div ref={containerRef} className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4" style={{ pointerEvents: 'none' }}>
       
       {/* Chat Panel - larger so structured answers fit */}
       <div 

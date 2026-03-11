@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { PageLoader } from './ui/PageLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -316,11 +317,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Show loading state while checking auth or subscription
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-white">
-        <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   // If user exists but email not confirmed, redirect to verify email
@@ -340,11 +337,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Show loading only while checking access for the first time
   if (accessLoading && !accessChecked) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-white">
-        <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   // No workspace-with-subscription and no own subscription → pricing (except settings)
