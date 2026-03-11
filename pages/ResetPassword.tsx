@@ -49,6 +49,8 @@ const ResetPassword: React.FC = () => {
     if (error) {
       setError(error.message || 'Failed to update password.');
     } else {
+      // Sign out so the user must log in with their new password
+      await supabase.auth.signOut();
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
     }

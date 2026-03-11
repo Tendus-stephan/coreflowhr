@@ -302,15 +302,6 @@ const AppRoutes: React.FC = () => {
             </PublicRoute>
           } 
         />
-        <Route
-          path="/forgot-password"
-          element={
-            <PublicRoute>
-              <ForgotPassword />
-            </PublicRoute>
-          }
-        />
-        <Route path="/reset-password" element={<ResetPassword />} />
         <Route 
           path="/verify-email" 
           element={
@@ -437,6 +428,8 @@ const AppRoutes: React.FC = () => {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
     </Routes>
   );
 };
