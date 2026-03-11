@@ -55,8 +55,8 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="w-full max-w-md">
         <Link to="/login" className="flex justify-center items-center gap-2 mb-3 text-gray-400 hover:text-gray-900 transition-colors group">
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm font-medium">Back to Sign in</span>
@@ -77,7 +77,7 @@ const ResetPassword: React.FC = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-8 w-full max-w-md">
         <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
           {!ready && !success && (
             <p className="text-sm text-gray-500 text-center">Verifying reset link…</p>
