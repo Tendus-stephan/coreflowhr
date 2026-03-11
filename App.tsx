@@ -16,6 +16,7 @@ import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import AddJob from './pages/AddJob';
 import Settings from './pages/Settings';
@@ -301,14 +302,15 @@ const AppRoutes: React.FC = () => {
             </PublicRoute>
           } 
         />
-        <Route 
-          path="/forgot-password" 
+        <Route
+          path="/forgot-password"
           element={
             <PublicRoute>
               <ForgotPassword />
             </PublicRoute>
-          } 
+          }
         />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route 
           path="/verify-email" 
           element={
