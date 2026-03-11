@@ -1,17 +1,30 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
 import { toUserError } from '../utils/edgeFunctionError';
 import {
   Download, TrendingUp, TrendingDown, Filter, Calendar,
-  Users, Briefcase, Target, Loader2, Clock,
+  Users, Briefcase, Target, Loader2, Clock, Award, Zap,
 } from 'lucide-react';
 import {
-  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie,
+  BarChart, Bar, XAxis, CartesianGrid,
+  PieChart, Pie, Sector, Label,
+  RadialBarChart, RadialBar, PolarRadiusAxis,
 } from 'recharts';
+import type { PieSectorDataItem } from 'recharts/types/polar/Pie';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { PageLoader } from '../components/ui/PageLoader';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  ChartContainer, ChartLegend, ChartLegendContent,
+  ChartTooltip, ChartTooltipContent, ChartStyle,
+  type ChartConfig,
+} from '../components/ui/chart';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '../components/ui/select';
 import { api } from '../services/api';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DATE_PRESETS = [
   { label: 'Last 30 days', days: 30 },
@@ -20,7 +33,7 @@ const DATE_PRESETS = [
   { label: 'Last year', days: 365 },
 ] as const;
 
-function getPresetRange(days: number): { from: string; to: string } {
+function getPresetRange(days: number) {
   const to = new Date();
   const from = new Date(to);
   from.setDate(from.getDate() - days);
@@ -29,16 +42,8 @@ function getPresetRange(days: number): { from: string; to: string } {
 
 type Metrics = Awaited<ReturnType<typeof api.reports.getMetrics>> | null;
 
-const tooltipStyle = {
-  backgroundColor: '#fff',
-  border: '1px solid #e5e7eb',
-  borderRadius: '8px',
-  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-  padding: '10px 12px',
-  fontSize: '12px',
-};
+// ─── Delta Badge ──────────────────────────────────────────────────────────────
 
-// Teal delta badge — matches Figma's +4% pill
 const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string }) => (
   <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
     value >= 0 ? 'bg-cyan-100 text-cyan-700' : 'bg-red-100 text-red-600'
@@ -48,43 +53,43 @@ const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string })
   </span>
 );
 
-// Donut ring — Activity card style
-const RingChart = ({ pct, color, label, valueLabel }: { pct: number; color: string; label: string; valueLabel: string }) => {
-  const safe = Math.max(0, Math.min(100, pct || 0));
-  const data = [{ v: safe }, { v: 100 - safe }];
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ width: 88, height: 88 }}>
-        <PieChart width={88} height={88}>
-          <Pie data={data} cx={40} cy={40} innerRadius={28} outerRadius={40}
-            startAngle={90} endAngle={-270} dataKey="v" strokeWidth={0}>
-            <Cell fill={color} />
-            <Cell fill="#f3f4f6" />
-          </Pie>
-        </PieChart>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-sm font-bold text-gray-900 leading-none">{valueLabel}</span>
-        </div>
-      </div>
-      <span className="text-xs text-gray-500 font-medium text-center leading-tight">{label}</span>
-    </div>
-  );
-};
+// ─── Chart configs ────────────────────────────────────────────────────────────
+
+const tthChartConfig = {
+  avgDays: { label: 'Avg Days', color: 'var(--chart-1)' },
+  target:  { label: 'Target',   color: 'var(--chart-5)' },
+} satisfies ChartConfig;
+
+const pipelineChartConfig = {
+  toInterview: { label: 'Screening → Interview', color: 'var(--chart-1)' },
+  toOffer:     { label: 'Interview → Offer',     color: 'var(--chart-2)' },
+} satisfies ChartConfig;
+
+const offerChartConfig = {
+  accepted:    { label: 'Accepted',    color: 'var(--chart-1)' },
+  sent:        { label: 'Sent',        color: 'var(--chart-5)' },
+  viewed:      { label: 'Viewed',      color: 'var(--chart-2)' },
+  declined:    { label: 'Declined',    color: '#f87171' },
+  negotiating: { label: 'Negotiating', color: 'var(--chart-4)' },
+} satisfies ChartConfig;
+
+// ─── Reports Page ─────────────────────────────────────────────────────────────
 
 const Reports: React.FC = () => {
-  const [preset, setPreset] = useState<number>(30);
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
-  const [useCustom, setUseCustom] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
-  const [metrics, setMetrics] = useState<Metrics>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('');
-  const [exporting, setExporting] = useState(false);
+  const [preset, setPreset] = React.useState<number>(30);
+  const [customFrom, setCustomFrom] = React.useState('');
+  const [customTo, setCustomTo] = React.useState('');
+  const [useCustom, setUseCustom] = React.useState(false);
+  const [jobId, setJobId] = React.useState<string | null>(null);
+  const [jobs, setJobs] = React.useState<{ id: string; title: string }[]>([]);
+  const [metrics, setMetrics] = React.useState<Metrics>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [userRole, setUserRole] = React.useState<string>('');
+  const [exporting, setExporting] = React.useState(false);
+  const [activeOfferSlice, setActiveOfferSlice] = React.useState('accepted');
 
-  const { dateFrom, dateTo } = useMemo(() => {
+  const { dateFrom, dateTo } = React.useMemo(() => {
     if (useCustom && customFrom && customTo) {
       return {
         dateFrom: new Date(customFrom).toISOString(),
@@ -98,18 +103,18 @@ const Reports: React.FC = () => {
     };
   }, [useCustom, customFrom, customTo, preset]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     api.jobs.list({}).then((res) => {
       const list = res?.data ?? [];
       setJobs(list.map((j: { id: string; title: string }) => ({ id: j.id, title: j.title || 'Untitled' })));
     });
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -136,25 +141,74 @@ const Reports: React.FC = () => {
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setExporting(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setExporting(false); }
   };
 
   const canExport = userRole === 'Admin' || userRole === 'Recruiter';
+  const clearFilters = () => { setUseCustom(false); setPreset(30); setJobId(null); };
+
+  // ── Derived data ────────────────────────────────────────────────────────────
+
+  const pc  = metrics?.pipelineConversion;
+  const tth = metrics?.timeToHire;
+  const oa  = metrics?.offerAcceptance;
+  const ior = metrics?.interviewOfferRatio;
+  const sq  = metrics?.sourceQuality;
+
+  const totalPipeline = (pc?.screening_count ?? 0) + (pc?.interview_count ?? 0) +
+    (pc?.offer_count ?? 0) + (pc?.hired_count ?? 0);
+
   const hasAnyData = metrics && (
-    (metrics.timeToHire?.weekly_series?.length ?? 0) > 0 ||
-    (metrics.pipelineConversion?.screening_count ?? 0) + (metrics.pipelineConversion?.interview_count ?? 0) +
-      (metrics.pipelineConversion?.offer_count ?? 0) + (metrics.pipelineConversion?.hired_count ?? 0) > 0 ||
-    ((metrics.offerAcceptance?.counts?.sent ?? 0) + (metrics.offerAcceptance?.counts?.accepted ?? 0) +
-      (metrics.offerAcceptance?.counts?.declined ?? 0)) > 0 ||
-    (metrics.interviewOfferRatio?.interview_count ?? 0) + (metrics.interviewOfferRatio?.offer_count ?? 0) > 0 ||
-    (metrics.sourceQuality?.rows?.length ?? 0) > 0
+    (tth?.weekly_series?.length ?? 0) > 0 ||
+    totalPipeline > 0 ||
+    ((oa?.counts?.sent ?? 0) + (oa?.counts?.accepted ?? 0) + (oa?.counts?.declined ?? 0)) > 0 ||
+    (ior?.interview_count ?? 0) + (ior?.offer_count ?? 0) > 0 ||
+    (sq?.rows?.length ?? 0) > 0
   );
 
-  const clearFilters = () => { setUseCustom(false); setPreset(30); setJobId(null); };
+  // Time-to-hire bar data — stacks actual vs a ghost "benchmark" bar
+  const TTH_BENCHMARK = 21; // 21-day benchmark
+  const tthBarData = (tth?.weekly_series ?? []).map((entry, i, arr) => {
+    const days = entry.avg_days ?? 0;
+    return {
+      week: entry.week
+        ? new Date(entry.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : `W${i + 1}`,
+      avgDays: Math.min(days, TTH_BENCHMARK),
+      target:  Math.max(0, days - TTH_BENCHMARK), // overflow above benchmark
+      isLatest: i === arr.length - 1,
+      total: days,
+    };
+  });
+
+  // Pipeline radial — 2 stacked arcs: toInterview% and toOffer%
+  const toInterviewRate = pc && pc.screening_count > 0
+    ? Math.round((pc.interview_count / pc.screening_count) * 100) : 0;
+  const toOfferRate = pc && pc.interview_count > 0
+    ? Math.round((pc.offer_count / pc.interview_count) * 100) : 0;
+  const pipelineRadialData = [{ month: 'pipeline', toInterview: toInterviewRate, toOffer: toOfferRate }];
+  const overallFunnelRate = pc && pc.screening_count > 0
+    ? Math.round(((pc.hired_count ?? 0) / pc.screening_count) * 100) : 0;
+
+  // Offer acceptance pie data
+  const offerPieData = React.useMemo(() => {
+    if (!oa?.counts) return [];
+    return (['accepted', 'sent', 'viewed', 'declined', 'negotiating'] as const)
+      .map((k) => ({ month: k, desktop: oa.counts![k] ?? 0, fill: `var(--color-${k})` }))
+      .filter((d) => d.desktop > 0);
+  }, [oa]);
+
+  const activeOfferIndex = React.useMemo(
+    () => offerPieData.findIndex((d) => d.month === activeOfferSlice),
+    [offerPieData, activeOfferSlice]
+  );
+
+  // Source performance ranking
+  const sourceRows = sq?.rows ?? [];
+  const topSource = sourceRows.length > 0
+    ? [...sourceRows].sort((a, b) => b.hire_rate_pct - a.hire_rate_pct)[0]
+    : null;
 
   if (error) {
     return (
@@ -167,42 +221,6 @@ const Reports: React.FC = () => {
     );
   }
 
-  // Derived values
-  const pc = metrics?.pipelineConversion;
-  const tth = metrics?.timeToHire;
-  const oa = metrics?.offerAcceptance;
-  const ior = metrics?.interviewOfferRatio;
-  const sq = metrics?.sourceQuality;
-
-  const totalPipeline = (pc?.screening_count ?? 0) + (pc?.interview_count ?? 0) +
-    (pc?.offer_count ?? 0) + (pc?.hired_count ?? 0);
-
-  // Time to hire bar chart — dark bars, purple = latest week
-  const tthBarData = (tth?.weekly_series ?? []).map((entry, i, arr) => ({
-    week: entry.week
-      ? new Date(entry.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-      : `W${i + 1}`,
-    days: entry.avg_days,
-    isLatest: i === arr.length - 1,
-  }));
-
-  // Source quality grouped bar chart (Analytics 1 style)
-  const sourceBarData = (sq?.rows ?? []).map((row) => ({
-    name: row.source,
-    Interviews: row.interview_count,
-    Offers: row.offer_count,
-    Hires: row.hired_count,
-  }));
-
-  // Ring chart percentages
-  const ringInterviewRate = pc && pc.screening_count > 0
-    ? Math.round((pc.interview_count / pc.screening_count) * 100) : 0;
-  const ringOfferRate = pc && pc.interview_count > 0
-    ? Math.round((pc.offer_count / pc.interview_count) * 100) : 0;
-  const ringHireRate = oa?.acceptance_rate_pct ?? 0;
-  const overallFunnelRate = pc && pc.screening_count > 0
-    ? Math.round(((pc.hired_count ?? 0) / pc.screening_count) * 100) : 0;
-
   return (
     <div className="p-6 pb-12 space-y-6">
 
@@ -213,12 +231,9 @@ const Reports: React.FC = () => {
           <p className="text-gray-500 text-sm mt-1">Track your hiring performance</p>
         </div>
         {canExport && (
-          <Button
-            variant="black" size="sm"
+          <Button variant="black" size="sm"
             icon={exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            onClick={handleExport}
-            disabled={exporting || !hasAnyData}
-          >
+            onClick={handleExport} disabled={exporting || !hasAnyData}>
             {exporting ? 'Exporting…' : 'Export CSV'}
           </Button>
         )}
@@ -238,8 +253,7 @@ const Reports: React.FC = () => {
                   !useCustom && preset === days
                     ? 'bg-gray-900 text-white border-gray-900'
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                }`}>
-                {label}
+                }`}>{label}
               </button>
             ))}
             <button onClick={() => setUseCustom(true)}
@@ -252,18 +266,15 @@ const Reports: React.FC = () => {
           {useCustom && (
             <div className="flex items-center gap-2">
               <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black" />
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-black" />
               <span className="text-gray-400 text-sm">to</span>
               <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-black focus:ring-1 focus:ring-black" />
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white focus:outline-none focus:border-black" />
             </div>
           )}
-          <CustomSelect
-            value={jobId ?? ''}
-            onChange={(val) => setJobId(val || null)}
+          <CustomSelect value={jobId ?? ''} onChange={(val) => setJobId(val || null)}
             className="px-3 py-1.5 rounded-lg min-w-[160px]"
-            options={[{ value: '', label: 'All Jobs' }, ...jobs.map((j) => ({ value: j.id, label: j.title }))]}
-          />
+            options={[{ value: '', label: 'All Jobs' }, ...jobs.map((j) => ({ value: j.id, label: j.title }))]} />
           {(jobId || useCustom) && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>Clear filters</Button>
           )}
@@ -276,15 +287,13 @@ const Reports: React.FC = () => {
         </div>
       ) : !hasAnyData ? (
         <div className="bg-white border border-gray-100 rounded-xl p-12 text-center">
-          {!metrics ? null : (jobId || useCustom) ? (
+          {(jobId || useCustom) ? (
             <>
-              <p className="text-gray-600">No data for the selected filters. Try a different date range or job.</p>
+              <p className="text-gray-600">No data for the selected filters.</p>
               <Button variant="outline" className="mt-4" onClick={clearFilters}>Clear filters</Button>
             </>
           ) : (
-            <p className="text-gray-600">
-              No hiring data yet. Your metrics will appear here once you start adding candidates and moving them through your pipeline.
-            </p>
+            <p className="text-gray-600">No hiring data yet. Metrics appear once candidates move through your pipeline.</p>
           )}
         </div>
       ) : (
@@ -292,21 +301,10 @@ const Reports: React.FC = () => {
           {/* KPI tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'In pipeline', value: totalPipeline, icon: <Users size={18} />, delta: null },
-              { label: 'Hired', value: pc?.hired_count ?? 0, icon: <Briefcase size={18} />, delta: null },
-              {
-                label: 'Acceptance rate',
-                value: oa?.acceptance_rate_pct != null ? `${oa.acceptance_rate_pct}%` : '—',
-                icon: <Target size={18} />,
-                delta: oa?.trend_pct ?? null,
-              },
-              {
-                label: 'Avg time to hire',
-                value: tth?.avg_days ? `${tth.avg_days}d` : '—',
-                icon: <Clock size={18} />,
-                // negate: faster = improvement = positive badge
-                delta: tth?.trend_pct != null ? -tth.trend_pct : null,
-              },
+              { label: 'In pipeline',      value: totalPipeline,                                           icon: <Users size={18} />,    delta: null },
+              { label: 'Hired',            value: pc?.hired_count ?? 0,                                    icon: <Briefcase size={18} />, delta: null },
+              { label: 'Acceptance rate',  value: oa?.acceptance_rate_pct != null ? `${oa.acceptance_rate_pct}%` : '—', icon: <Target size={18} />,   delta: oa?.trend_pct ?? null },
+              { label: 'Avg time to hire', value: tth?.avg_days ? `${tth.avg_days}d` : '—',               icon: <Clock size={18} />,    delta: tth?.trend_pct != null ? -tth.trend_pct : null },
             ].map(({ label, value, icon, delta }) => (
               <div key={label} className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between hover:border-gray-200 transition-colors">
                 <div>
@@ -319,233 +317,304 @@ const Reports: React.FC = () => {
             ))}
           </div>
 
-          {/* Row 2: Time to Hire bar + Pipeline rings */}
+          {/* Row 2: Time to Hire (stacked bar) + Pipeline Health (radial stacked) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* Time to Hire — Revenue 2 bar style */}
-            <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-                    <Clock size={16} className="text-gray-900" />
-                  </div>
-                  <h3 className="text-base font-bold text-gray-900">Time to Hire</h3>
-                </div>
-                {tth?.trend_pct != null && <DeltaBadge value={-tth.trend_pct} />}
-              </div>
-              <p className="text-xs text-gray-400 mb-3 ml-10">Average days per week to close a hire</p>
-              {tth?.avg_days != null && (
-                <p className="text-3xl font-bold text-gray-900 tracking-tight mb-4">
-                  {tth.avg_days}
-                  <span className="text-base font-medium text-gray-400 ml-1">days avg</span>
-                </p>
-              )}
-              {tthBarData.length > 0 ? (
-                <div className="h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={tthBarData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }} barCategoryGap="30%">
-                      <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
-                      <XAxis dataKey="week" stroke="#9ca3af" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis stroke="#9ca3af" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={tooltipStyle} formatter={(val: number) => [`${val} days`, 'Avg']} />
-                      <Bar dataKey="days" radius={[6, 6, 0, 0]}>
-                        {tthBarData.map((entry, i) => (
-                          <Cell key={i} fill={entry.isLatest ? '#7c3aed' : '#111827'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 italic">No weekly data in this period.</p>
-              )}
-            </div>
-
-            {/* Pipeline Health — Activity donut ring style */}
-            <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-                  <Target size={16} className="text-gray-900" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900">Pipeline Health</h3>
-              </div>
-              <div className="flex items-center justify-around flex-1 py-2">
-                <RingChart pct={ringInterviewRate} color="#7c3aed" label="To Interview" valueLabel={`${ringInterviewRate}%`} />
-                <RingChart pct={ringOfferRate} color="#84cc16" label="To Offer" valueLabel={`${ringOfferRate}%`} />
-                <RingChart pct={ringHireRate} color="#0ea5e9" label="Offer Accepted" valueLabel={`${ringHireRate}%`} />
-              </div>
-              <div className="mt-5 pt-4 border-t border-gray-50">
-                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gray-900 rounded-full transition-all" style={{ width: `${overallFunnelRate}%` }} />
-                </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Overall funnel efficiency: <span className="font-semibold text-gray-700">{overallFunnelRate}%</span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 3: Source quality grouped bars + Offer/Ratio cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {/* Source quality grouped bar — Analytics 1 style */}
-            {sourceBarData.length > 0 && (
-              <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-                <div className="flex items-start justify-between mb-1">
+            {/* ── Time to Hire — stacked bar (shadcn style) ── */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-                      <Users size={16} className="text-gray-900" />
+                      <Clock size={16} className="text-gray-900" />
                     </div>
-                    <h3 className="text-base font-bold text-gray-900">Source Quality</h3>
+                    <div>
+                      <CardTitle>Time to Hire</CardTitle>
+                      <CardDescription>Weekly avg · {TTH_BENCHMARK}d benchmark</CardDescription>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm border border-gray-300"
-                        style={{ backgroundImage: 'repeating-linear-gradient(45deg,#9ca3af 0,#9ca3af 1px,transparent 0,transparent 50%)', backgroundSize: '4px 4px' }} />
-                      Interviews
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-violet-600" />
-                      Offers
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-gray-900" />
-                      Hires
-                    </span>
-                  </div>
+                  {tth?.trend_pct != null && <DeltaBadge value={-tth.trend_pct} />}
                 </div>
-                <p className="text-xs text-gray-400 mb-4 ml-10">Interviews · Offers · Hires by candidate source</p>
-                <div className="h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sourceBarData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }} barCategoryGap="25%" barGap={2}>
-                      <defs>
-                        <pattern id="hatchSrc" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
-                          <line x1="0" y1="0" x2="0" y2="6" stroke="#9ca3af" strokeWidth="2.5" />
-                        </pattern>
-                      </defs>
-                      <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
-                      <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis stroke="#9ca3af" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="Interviews" fill="url(#hatchSrc)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Offers" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Hires" fill="#111827" radius={[4, 4, 0, 0]} />
+                {tth?.avg_days != null && (
+                  <p className="text-3xl font-bold text-gray-900 tracking-tight mt-2">
+                    {tth.avg_days}
+                    <span className="text-base font-medium text-gray-400 ml-1">days avg</span>
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent>
+                {tthBarData.length > 0 ? (
+                  <ChartContainer config={tthChartConfig} className="h-[200px] w-full">
+                    <BarChart data={tthBarData} barCategoryGap="30%">
+                      <CartesianGrid vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8}
+                        tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(0, 6)} />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value, name) => (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500">{name === 'avgDays' ? 'Within target' : 'Over target'}</span>
+                                <span className="font-bold text-gray-900 ml-auto">{String(value)}d</span>
+                              </div>
+                            )}
+                          />
+                        }
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Bar dataKey="avgDays" stackId="a" fill="var(--color-avgDays)" radius={[0, 0, 4, 4]} />
+                      <Bar dataKey="target"  stackId="a" fill="var(--color-target)"  radius={[4, 4, 0, 0]} />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No weekly data in this period.</p>
+                )}
+              </CardContent>
+              <CardFooter className="flex-col items-start gap-1 text-sm">
+                <div className="flex gap-2 leading-none font-medium text-gray-700">
+                  {tth?.trend_pct != null && (tth.trend_pct < 0 ? 'Hiring faster' : 'Hiring slower')} this period
+                  <TrendingUp className="h-4 w-4 text-violet-600" />
                 </div>
-              </div>
-            )}
-
-            {/* Offer acceptance + Interview-offer ratio stacked */}
-            <div className={`flex flex-col gap-6 ${sourceBarData.length === 0 ? 'lg:col-span-3 lg:flex-row' : ''}`}>
-
-              {oa?.counts && (oa.counts.sent + oa.counts.accepted + oa.counts.declined) > 0 && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6 flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-                        <Briefcase size={16} className="text-gray-900" />
-                      </div>
-                      <h3 className="text-base font-bold text-gray-900">Offer Acceptance</h3>
-                    </div>
-                    {oa.trend_pct != null && <DeltaBadge value={oa.trend_pct} />}
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900 tracking-tight mb-4">
-                    {oa.acceptance_rate_pct}
-                    <span className="text-base font-medium text-gray-400">%</span>
-                  </p>
-                  <div className="space-y-2.5">
-                    {(['accepted', 'sent', 'viewed', 'declined', 'negotiating'] as const).map((k) => {
-                      const count = oa.counts![k];
-                      if (!count) return null;
-                      const dotColors: Record<string, string> = {
-                        accepted: 'bg-violet-600', sent: 'bg-gray-900',
-                        viewed: 'bg-gray-400', declined: 'bg-red-400', negotiating: 'bg-amber-400',
-                      };
-                      return (
-                        <div key={k} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColors[k]}`} />
-                            <span className="text-xs text-gray-600 capitalize">{k}</span>
-                          </div>
-                          <span className="text-xs font-bold text-gray-900">{count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="text-xs text-gray-400">
+                  Purple = within {TTH_BENCHMARK}d · Grey = over benchmark
                 </div>
-              )}
+              </CardFooter>
+            </Card>
 
-              {((ior?.interview_count ?? 0) + (ior?.offer_count ?? 0)) > 0 && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6 flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-                      <Target size={16} className="text-gray-900" />
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900">Interview–Offer Ratio</h3>
+            {/* ── Pipeline Health — radial stacked ── */}
+            <Card className="flex flex-col">
+              <CardHeader className="items-center pb-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+                    <Target size={16} className="text-gray-900" />
                   </div>
-                  <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                    {ior!.ratio}
-                    <span className="text-sm font-medium text-gray-400 ml-1">per offer</span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{ior!.interview_count} interviews · {ior!.offer_count} offers</p>
-                  {ior?.trend_pct != null && (
-                    <div className="mt-3"><DeltaBadge value={ior.trend_pct} /></div>
-                  )}
+                  <CardTitle>Pipeline Health</CardTitle>
                 </div>
-              )}
-            </div>
+                <CardDescription>Conversion rates by stage</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-1 items-center pb-0">
+                <ChartContainer config={pipelineChartConfig} className="mx-auto w-full max-w-[240px] aspect-square">
+                  <RadialBarChart data={pipelineRadialData} endAngle={180} innerRadius={70} outerRadius={120}>
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                    <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                      <Label
+                        content={({ viewBox }) => {
+                          if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                            return (
+                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                                <tspan x={viewBox.cx} y={(viewBox.cy || 0) - 14}
+                                  className="fill-foreground text-2xl font-bold" style={{ fontSize: 22, fontWeight: 700, fill: '#111827' }}>
+                                  {overallFunnelRate}%
+                                </tspan>
+                                <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 6}
+                                  style={{ fontSize: 11, fill: '#6b7280' }}>
+                                  hired
+                                </tspan>
+                              </text>
+                            );
+                          }
+                        }}
+                      />
+                    </PolarRadiusAxis>
+                    <RadialBar dataKey="toInterview" stackId="a" cornerRadius={5}
+                      fill="var(--color-toInterview)" className="stroke-transparent stroke-2" />
+                    <RadialBar dataKey="toOffer" stackId="a" cornerRadius={5}
+                      fill="var(--color-toOffer)" className="stroke-transparent stroke-2" />
+                  </RadialBarChart>
+                </ChartContainer>
+              </CardContent>
+              <CardFooter className="flex-col gap-2 text-sm pb-6">
+                <div className="flex items-center gap-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-violet-600 inline-block" />
+                    {toInterviewRate}% to interview
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />
+                    {toOfferRate}% to offer
+                  </span>
+                </div>
+                <div className="text-xs text-gray-400">
+                  {pc?.screening_count ?? 0} screened · {pc?.hired_count ?? 0} hired
+                </div>
+              </CardFooter>
+            </Card>
           </div>
 
-          {/* Source quality detail table */}
-          {(sq?.rows?.length ?? 0) > 0 && (
-            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-              <div className="flex items-center gap-3 p-6 border-b border-gray-100">
-                <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
-                  <Users size={18} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">Source breakdown</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/80">
-                      {['Source', 'Total', 'Interviews', 'Offers', 'Hires', 'Hire rate'].map((h, i) => (
-                        <th key={h} className={`py-4 px-5 font-semibold text-gray-600 text-xs uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sq!.rows.map((row) => (
-                      <tr key={row.source} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="py-4 px-5">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                            row.source === 'Sourced' ? 'bg-blue-50 text-blue-700' :
-                            row.source === 'Applied' ? 'bg-green-50 text-green-700' :
-                            row.source === 'Referred' ? 'bg-purple-50 text-purple-700' :
-                            row.source === 'LinkedIn' ? 'bg-sky-50 text-sky-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>{row.source}</span>
-                        </td>
-                        <td className="py-4 px-5 text-right text-gray-700">{row.total}</td>
-                        <td className="py-4 px-5 text-right text-gray-700">{row.interview_count}</td>
-                        <td className="py-4 px-5 text-right text-gray-700">{row.offer_count}</td>
-                        <td className="py-4 px-5 text-right text-gray-700">{row.hired_count}</td>
-                        <td className="py-4 px-5 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="font-bold text-gray-900 min-w-[2.5rem]">{row.hire_rate_pct}%</span>
-                            <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-gray-900 rounded-full" style={{ width: `${Math.min(100, row.hire_rate_pct)}%` }} />
+          {/* Row 3: Offer Acceptance (pie) + Source Performance */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* ── Offer Acceptance — interactive pie ── */}
+            {offerPieData.length > 0 && (() => {
+              const pieId = 'offer-pie';
+              return (
+                <Card className="flex flex-col">
+                  <ChartStyle id={pieId} config={offerChartConfig} />
+                  <CardHeader className="flex-row items-start space-y-0 pb-0">
+                    <div className="grid gap-1">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+                          <Briefcase size={16} className="text-gray-900" />
+                        </div>
+                        <CardTitle>Offer Acceptance</CardTitle>
+                      </div>
+                      <CardDescription className="ml-10">
+                        {oa?.acceptance_rate_pct ?? 0}% acceptance rate
+                        {oa?.trend_pct != null && (
+                          <span className="ml-2 inline-flex"><DeltaBadge value={oa.trend_pct} /></span>
+                        )}
+                      </CardDescription>
+                    </div>
+                    <Select value={activeOfferSlice} onValueChange={setActiveOfferSlice}>
+                      <SelectTrigger className="ml-auto h-7 w-[120px]" aria-label="Select status">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {offerPieData.map((d) => (
+                          <SelectItem key={d.month} value={d.month}>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                style={{ backgroundColor: `var(--color-${d.month})` }} />
+                              <span className="capitalize">{d.month}</span>
                             </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 justify-center pb-0" data-chart={pieId}>
+                    <ChartContainer id={pieId} config={offerChartConfig}
+                      className="mx-auto aspect-square w-full max-w-[280px]">
+                      <PieChart>
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                        <Pie data={offerPieData} dataKey="desktop" nameKey="month"
+                          innerRadius={60} strokeWidth={4}
+                          activeIndex={activeOfferIndex}
+                          activeShape={({ outerRadius = 0, ...props }: PieSectorDataItem) => (
+                            <g>
+                              <Sector {...props} outerRadius={outerRadius + 10} />
+                              <Sector {...props} outerRadius={outerRadius + 24} innerRadius={outerRadius + 12} />
+                            </g>
+                          )}
+                        >
+                          <Label
+                            content={({ viewBox }) => {
+                              if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                                const active = offerPieData[activeOfferIndex];
+                                return (
+                                  <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                                    <tspan x={viewBox.cx} y={viewBox.cy}
+                                      style={{ fontSize: 26, fontWeight: 700, fill: '#111827' }}>
+                                      {active?.desktop ?? 0}
+                                    </tspan>
+                                    <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 22}
+                                      style={{ fontSize: 11, fill: '#6b7280' }} className="capitalize">
+                                      {activeOfferSlice}
+                                    </tspan>
+                                  </text>
+                                );
+                              }
+                            }}
+                          />
+                        </Pie>
+                      </PieChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* ── Source Performance — recruiter scorecard ── */}
+            <Card className={`flex flex-col ${offerPieData.length === 0 ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+                    <Award size={16} className="text-gray-900" />
+                  </div>
+                  <div>
+                    <CardTitle>Source Performance</CardTitle>
+                    <CardDescription>Ranked by hire rate · focus your sourcing effort</CardDescription>
+                  </div>
+                </div>
+                {topSource && (
+                  <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-100 rounded-lg">
+                    <Zap size={14} className="text-violet-600 flex-shrink-0" />
+                    <span className="text-xs text-violet-700 font-medium">
+                      <span className="font-bold">{topSource.source}</span> is your top-performing source at {topSource.hire_rate_pct}% hire rate
+                    </span>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="flex-1">
+                {sourceRows.length > 0 ? (
+                  <div className="space-y-4">
+                    {[...sourceRows]
+                      .sort((a, b) => b.hire_rate_pct - a.hire_rate_pct)
+                      .map((row, i) => {
+                        const tier = row.hire_rate_pct >= 30 ? 'excellent'
+                          : row.hire_rate_pct >= 15 ? 'good' : 'low';
+                        const tierColors = {
+                          excellent: 'bg-violet-100 text-violet-700 border-violet-200',
+                          good:      'bg-cyan-100 text-cyan-700 border-cyan-200',
+                          low:       'bg-gray-100 text-gray-500 border-gray-200',
+                        };
+                        const sourceBadgeColors: Record<string, string> = {
+                          Sourced:  'bg-blue-50 text-blue-700',
+                          Applied:  'bg-green-50 text-green-700',
+                          Referred: 'bg-purple-50 text-purple-700',
+                          LinkedIn: 'bg-sky-50 text-sky-700',
+                        };
+                        return (
+                          <div key={row.source} className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-gray-300 w-4 text-right flex-shrink-0">
+                              {i + 1}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-semibold flex-shrink-0 ${sourceBadgeColors[row.source] ?? 'bg-gray-100 text-gray-700'}`}>
+                              {row.source}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-gray-500">{row.total} candidates · {row.hired_count} hired</span>
+                                <span className="text-xs font-bold text-gray-900">{row.hire_rate_pct}%</span>
+                              </div>
+                              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, row.hire_rate_pct)}%`,
+                                    backgroundColor: tier === 'excellent' ? '#7c3aed' : tier === 'good' ? '#0ea5e9' : '#d1d5db',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0 ${tierColors[tier]}`}>
+                              {tier}
+                            </span>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No source data in this period.</p>
+                )}
+              </CardContent>
+
+              {/* Interview-offer ratio footer */}
+              {((ior?.interview_count ?? 0) + (ior?.offer_count ?? 0)) > 0 && (
+                <div className="mx-6 mb-6 mt-2 pt-4 border-t border-gray-50 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Interview–Offer Ratio</p>
+                    <p className="text-xl font-bold text-gray-900 mt-0.5">
+                      {ior!.ratio}
+                      <span className="text-sm font-medium text-gray-400 ml-1">interviews per offer</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{ior!.interview_count} interviews · {ior!.offer_count} offers</p>
+                  </div>
+                  {ior?.trend_pct != null && <DeltaBadge value={ior.trend_pct} />}
+                </div>
+              )}
+            </Card>
+          </div>
         </>
       )}
     </div>
