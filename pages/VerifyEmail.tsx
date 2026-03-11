@@ -133,8 +133,8 @@ const VerifyEmail: React.FC = () => {
         </Link>
         
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <Mail className="text-blue-600" size={32} />
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+            <Mail className="text-gray-700" size={32} />
           </div>
         </div>
 
@@ -142,7 +142,7 @@ const VerifyEmail: React.FC = () => {
           Check your email
         </h2>
         
-        <div className="mt-8 bg-white py-8 px-4 shadow-[0_0_50px_-12px_rgb(0,0,0,0.12)] sm:rounded-2xl sm:px-10 border border-gray-100">
+        <div className="mt-8 bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
           <div className="text-center space-y-4">
             <p className="text-gray-600">
               We've sent a verification link to
@@ -156,7 +156,7 @@ const VerifyEmail: React.FC = () => {
               Click the link in the email to verify your account and activate it.
             </p>
 
-            <div className="pt-4 border-t border-gray-200">
+            <div className="pt-4 border-t border-gray-100">
               <p className="text-sm text-gray-600 mb-4">
                 Didn't receive the email?
               </p>

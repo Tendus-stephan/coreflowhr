@@ -142,7 +142,7 @@ const SignUp: React.FC = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-[0_0_50px_-12px_rgb(0,0,0,0.12)] sm:rounded-2xl sm:px-10 border border-gray-100">
+        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
           {inviteInvalid && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
               This invite has expired or is invalid. Ask your admin to send a new invitation.
@@ -160,7 +160,7 @@ const SignUp: React.FC = () => {
                 type="button"
                 onClick={() => signInWithGoogle()}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none transition-colors transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -194,7 +194,7 @@ const SignUp: React.FC = () => {
                   required 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white" 
                 />
               </div>
             </div>
@@ -211,7 +211,7 @@ const SignUp: React.FC = () => {
                   value={email}
                   onChange={(e) => !inviteEmailLocked && setEmail(e.target.value)}
                   readOnly={inviteEmailLocked}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white disabled:bg-gray-50 disabled:text-gray-700" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white disabled:bg-gray-50 disabled:text-gray-700" 
                 />
                 {inviteEmailLocked && (
                   <p className="mt-1 text-xs text-gray-500">This invite was sent to this email address.</p>
@@ -230,7 +230,7 @@ const SignUp: React.FC = () => {
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 pr-10 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white" 
                 />
                 <button
                   type="button"
@@ -254,7 +254,7 @@ const SignUp: React.FC = () => {
                   required 
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 pr-10 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white" 
                 />
                 <button
                   type="button"
@@ -268,7 +268,7 @@ const SignUp: React.FC = () => {
             </div>
 
             <div className="flex items-center">
-                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black bg-white" required />
+                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-black bg-white" required />
                 <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
                     I agree to the <Link to="/terms" className="text-black font-medium hover:underline">Terms</Link> and <Link to="/privacy" className="text-black font-medium hover:underline">Privacy Policy</Link>
                 </label>

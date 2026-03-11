@@ -101,7 +101,7 @@ const Sidebar: React.FC = () => {
   }
 
   return (
-    <div className={`${isExpanded ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 flex flex-col fixed top-0 left-0 bottom-0 shadow-sm z-20 transition-all duration-150 hidden md:flex`} style={{ overflow: 'hidden' }}>
+    <div className={`${isExpanded ? 'w-64' : 'w-20'} bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 bottom-0 z-20 transition-all duration-150 hidden md:flex`} style={{ overflow: 'hidden' }}>
       <div className={`${isExpanded ? 'px-6' : 'px-4'} ${isExpanded ? 'py-4' : 'py-6'} ${isExpanded ? 'mb-1' : 'mb-2'} flex items-center ${isExpanded ? 'justify-between' : 'justify-center'} flex-shrink-0`}>
         <Link to="/dashboard" className="flex items-center gap-3">
           {isExpanded ? (
@@ -151,21 +151,21 @@ const Sidebar: React.FC = () => {
         </div>
       )}
 
-      <nav className={`flex-1 ${isExpanded ? 'px-4' : 'px-2'} space-y-2 overflow-y-auto`} style={{ overflowX: 'hidden' }}>
+      <nav className={`flex-1 ${isExpanded ? 'px-3' : 'px-2'} space-y-1 overflow-y-auto`} style={{ overflowX: 'hidden' }}>
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center ${isExpanded ? 'gap-3 px-3' : 'justify-center px-2'} py-2.5 rounded-lg transition-all duration-150 group relative ${
-                isActive 
-                  ? 'bg-gray-100 text-gray-900' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              className={`flex items-center ${isExpanded ? 'gap-3 px-3' : 'justify-center px-2'} py-2.5 rounded-lg transition-colors duration-100 group relative ${
+                isActive
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
               }`}
               title={!isExpanded ? item.name : ''}
             >
-              <item.icon size={16} className={`transition-colors flex-shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`} />
+              <item.icon size={15} className={`transition-colors flex-shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-600'}`} />
               {isExpanded && (
                 <span className="text-sm font-medium whitespace-nowrap">{item.name}</span>
               )}
@@ -179,7 +179,7 @@ const Sidebar: React.FC = () => {
         })}
       </nav>
 
-      <div className={`${isExpanded ? 'p-4' : 'p-2'} border-t border-gray-200 relative flex-shrink-0 bg-white`} ref={profileRef} style={{ marginTop: 'auto' }}>
+      <div className={`${isExpanded ? 'p-3' : 'p-2'} border-t border-gray-100 relative flex-shrink-0 bg-white`} ref={profileRef} style={{ marginTop: 'auto' }}>
         {/* Profile Button */}
         <div 
             onClick={() => setIsProfileOpen(!isProfileOpen)}

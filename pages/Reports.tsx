@@ -145,7 +145,7 @@ const Reports: React.FC = () => {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm max-w-md mx-auto text-center">
+        <div className="bg-white border border-gray-100 rounded-xl p-8  max-w-md mx-auto text-center">
           <p className="text-red-600 font-medium">{error}</p>
           <Button variant="outline" className="mt-4" onClick={() => setError(null)}>
             Try again
@@ -177,7 +177,7 @@ const Reports: React.FC = () => {
       </div>
 
       {/* Filters — Dashboard-style pills */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm mb-6">
+      <div className="bg-white border border-gray-100 rounded-xl p-4  mb-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-gray-500">
             <Filter size={16} />
@@ -241,11 +241,11 @@ const Reports: React.FC = () => {
         </div>
 
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-100 rounded-xl  overflow-hidden">
           <PageLoader fullScreen={false} />
         </div>
       ) : !hasAnyData ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 shadow-sm text-center">
+        <div className="bg-white border border-gray-100 rounded-xl p-12  text-center">
           {!metrics ? null : (jobId || useCustom) ? (
             <>
               <p className="text-gray-600">No data for the selected filters. Try a different date range or job.</p>
@@ -289,7 +289,7 @@ const Reports: React.FC = () => {
                 icon: <Calendar size={18} />,
               },
             ].map(({ label, value, suffix, icon }) => (
-              <div key={label} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+              <div key={label} className="bg-white border border-gray-100 rounded-xl p-5  flex items-center gap-4">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900 flex-shrink-0">
                   {icon}
                 </div>
@@ -303,7 +303,7 @@ const Reports: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Time to hire — Dashboard-style card + chart */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+            <div className="bg-white border border-gray-100 rounded-xl p-6  flex flex-col">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
@@ -352,7 +352,7 @@ const Reports: React.FC = () => {
               </div>
 
             {/* Pipeline conversion — list-style like Dashboard */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-xl p-6 ">
               <div className="flex items-center gap-3 mb-5">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
                   <Users size={18} />
@@ -396,7 +396,7 @@ const Reports: React.FC = () => {
               </div>
 
             {/* Offer acceptance — stat + bar chart feel */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-xl p-6 ">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
@@ -433,7 +433,7 @@ const Reports: React.FC = () => {
               </div>
 
               {/* Interview–offer ratio */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-xl p-6 ">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
                   <BarChart3 size={18} />
@@ -462,7 +462,7 @@ const Reports: React.FC = () => {
             </div>
 
           {/* Source quality table — Dashboard-style card */}
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden ">
             <div className="flex items-center gap-3 p-6 border-b border-gray-100">
               <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900">
                 <Users size={18} />

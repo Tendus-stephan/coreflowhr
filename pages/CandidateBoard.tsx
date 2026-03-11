@@ -197,7 +197,7 @@ const CandidateBoard: React.FC = () => {
 
   // --- Stats Card Component (Updated to match Dashboard) ---
   const MetricCard = ({ title, value, subtext, trend, icon: Icon }: any) => (
-      <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between shadow-sm hover:shadow-md transition-shadow">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between transition-shadow">
           <div>
               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
               <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
@@ -536,7 +536,7 @@ const CandidateBoard: React.FC = () => {
           </div>
 
           {/* Filter Bar Container */}
-          <div className="bg-white border border-gray-200 rounded-xl p-2 shadow-sm space-y-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-2 space-y-4">
               
               {/* Pills Row */}
               <div className="flex items-center gap-2 border-b border-gray-100 pb-2 px-2 pt-2 overflow-x-auto">
@@ -555,7 +555,7 @@ const CandidateBoard: React.FC = () => {
                            onClick={() => setSelectedStageFilter(pill.name)}
                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                                selectedStageFilter === pill.name 
-                               ? 'bg-gray-100 text-gray-900 shadow-sm ring-1 ring-gray-200' 
+                               ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-200' 
                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                            }`}
                        >

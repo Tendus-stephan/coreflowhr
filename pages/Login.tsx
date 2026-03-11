@@ -137,7 +137,7 @@ const Login: React.FC = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-[0_0_50px_-12px_rgb(0,0,0,0.12)] sm:rounded-2xl sm:px-10 border border-gray-100">
+        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
           {emailChanged && (
             <div className="mb-4 p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
               Your email was updated. Sign in with your new email to access your dashboard.
@@ -155,7 +155,7 @@ const Login: React.FC = () => {
                 type="button"
                 onClick={() => signInWithGoogle()}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none transition-colors transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -188,7 +188,7 @@ const Login: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
-                    className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
+                    className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
                   />
                 </div>
               </div>
@@ -205,7 +205,7 @@ const Login: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
-                    className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
+                    className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 pr-10 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
                   />
                   <button
                     type="button"
@@ -221,7 +221,7 @@ const Login: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black bg-white" />
+                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-black bg-white" />
                   <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">Remember me</label>
                 </div>
 
@@ -269,7 +269,7 @@ const Login: React.FC = () => {
                   disabled={verifyingMFA}
                   autoFocus
                   placeholder="000000"
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-4 py-3 text-center text-lg font-mono tracking-widest placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-4 py-3 text-center text-lg font-mono tracking-widest placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
                 />
               </div>
 

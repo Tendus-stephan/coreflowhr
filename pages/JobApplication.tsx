@@ -218,7 +218,7 @@ const JobApplication: React.FC = () => {
   if (error && !job) {
     return (
       <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center mb-0">
+        <div className="bg-white rounded-xl border border-gray-100 p-8 max-w-md w-full text-center mb-0">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
           <p className="text-gray-600 mb-6 whitespace-normal">{error.trim()}</p>
@@ -233,7 +233,7 @@ const JobApplication: React.FC = () => {
   if (success) {
     return (
       <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center mb-0">
+        <div className="bg-white rounded-xl border border-gray-100 p-8 max-w-md w-full text-center mb-0">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
           <p className="text-gray-600 mb-6">
@@ -249,7 +249,7 @@ const JobApplication: React.FC = () => {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Job Details Sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 aspect-square max-h-[500px] sticky top-8">
+          <div className="bg-white rounded-xl border border-gray-100 p-6 aspect-square max-h-[500px] sticky top-8">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Job Details</h2>
             
             <div className="space-y-4 text-sm">
@@ -325,7 +325,7 @@ const JobApplication: React.FC = () => {
 
         {/* Application Form */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+          <div className="bg-white rounded-xl border border-gray-100 p-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Apply for {job?.title}</h1>
             <p className="text-gray-600 mb-8">Fill out the form below to submit your application</p>
 

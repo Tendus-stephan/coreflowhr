@@ -865,7 +865,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     {candidate.cvFileUrl && (
                     <div className="grid grid-cols-2 gap-4">
                         {/* Skills Assessment Pie Chart */}
-                        <div className="border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col h-64">
+                        <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">
                              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Skills Assessment</h4>
                              <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -899,7 +899,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </div>
 
                         {/* Interview Readiness Bar Chart */}
-                        <div className="border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col h-64">
+                        <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">
                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Interview Readiness</h4>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">

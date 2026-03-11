@@ -18,10 +18,10 @@ export const Button: React.FC<ButtonProps> = ({
   
   const variants = {
     // Primary is now Black to match branding
-    primary: "bg-gray-900 hover:bg-gray-800 text-white shadow-lg shadow-gray-900/20 focus:ring-gray-900 border border-transparent",
-    black: "bg-gray-900 hover:bg-gray-800 text-white shadow-lg shadow-gray-900/20 border border-gray-800 focus:ring-gray-900",
-    white: "bg-white hover:bg-gray-100 text-black shadow-lg shadow-white/10 border border-transparent focus:ring-white",
-    secondary: "bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200 shadow-sm focus:ring-gray-200",
+    primary: "bg-gray-900 hover:bg-gray-800 text-white focus:ring-gray-900 border border-transparent",
+    black: "bg-gray-900 hover:bg-gray-800 text-white border border-gray-800 focus:ring-gray-900",
+    white: "bg-white hover:bg-gray-100 text-black border border-gray-200 focus:ring-white",
+    secondary: "bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200 focus:ring-gray-200",
     outline: "bg-transparent border border-gray-300 text-gray-700 hover:border-gray-900 hover:text-gray-900 hover:bg-white focus:ring-gray-200",
     ghost: "bg-transparent hover:bg-white text-gray-600 hover:text-gray-900 focus:ring-gray-200"
   };

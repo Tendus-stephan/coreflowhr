@@ -65,9 +65,9 @@ const DraggableCandidateCard: React.FC<{
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onClick={handleClick}
-            className={`bg-white p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-gray-300 transition-all group relative mb-2 ${
+            className={`bg-white p-4 rounded-xl border hover:border-gray-300 transition-colors group relative mb-2 ${
                 draggable ? 'cursor-move' : 'cursor-pointer'
-            } ${isDragging ? 'opacity-50 border-gray-400' : 'border-gray-200'}
+            } ${isDragging ? 'opacity-50 border-gray-300' : 'border-gray-100'}
             `}
         >
             <div className="flex items-start justify-between mb-2">

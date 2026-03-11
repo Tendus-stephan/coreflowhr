@@ -127,7 +127,7 @@ const CandidateRegister: React.FC = () => {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 max-w-md w-full">
+        <div className="bg-white rounded-xl border border-gray-100 p-10 max-w-md w-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
             <p className="text-sm text-gray-500">Validating registration link...</p>
@@ -140,7 +140,7 @@ const CandidateRegister: React.FC = () => {
   if (success) {
     return (
       <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 max-w-md w-full">
+        <div className="bg-white rounded-xl border border-gray-100 p-10 max-w-md w-full">
           <div className="text-center">
             <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <CheckCircle size={28} className="text-gray-700" />
@@ -158,7 +158,7 @@ const CandidateRegister: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-gray-50 flex items-center justify-center px-4 py-8 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 max-w-md w-full">
+      <div className="bg-white rounded-xl border border-gray-100 p-10 max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">

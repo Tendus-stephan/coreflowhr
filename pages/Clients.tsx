@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Building2, Mail, Phone, MapPin, Search, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { PageLoader } from '../components/ui/PageLoader';
 import { api, Client } from '../services/api';
 
 const Clients: React.FC = () => {
@@ -112,13 +113,7 @@ const Clients: React.FC = () => {
     client.contactEmail?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   return (
     <div className="p-8 max-w-7xl mx-auto min-h-screen bg-white">
@@ -142,14 +137,14 @@ const Clients: React.FC = () => {
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none shadow-sm transition-all hover:shadow-md"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-0 focus:border-gray-900 outline-none transition-all"
           />
         </div>
       </div>
 
       {/* Clients List */}
       {filteredClients.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-16 text-center shadow-sm">
+        <div className="bg-white border border-gray-100 rounded-xl p-16 text-center ">
           <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
             <Building2 className="text-gray-400" size={40} />
           </div>
@@ -180,7 +175,7 @@ const Clients: React.FC = () => {
               
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-900 to-gray-700 text-white flex items-center justify-center font-bold text-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-900 to-gray-700 text-white flex items-center justify-center font-bold text-xl group-hover:scale-110 transition-transform duration-300">
                     {client.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -263,7 +258,7 @@ const Clients: React.FC = () => {
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. TechCorp Inc."
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-0 focus:border-gray-900 outline-none transition-all"
                   required
                 />
               </div>
@@ -275,7 +270,7 @@ const Clients: React.FC = () => {
                   value={formData.contactEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
                   placeholder="contact@company.com"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-0 focus:border-gray-900 outline-none transition-all"
                 />
               </div>
 
@@ -286,7 +281,7 @@ const Clients: React.FC = () => {
                   value={formData.contactPhone}
                   onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
                   placeholder="+1 (555) 123-4567"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-0 focus:border-gray-900 outline-none transition-all"
                 />
               </div>
 
@@ -297,7 +292,7 @@ const Clients: React.FC = () => {
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="123 Main St, City, State"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-0 focus:border-gray-900 outline-none transition-all"
                 />
               </div>
 
@@ -308,7 +303,7 @@ const Clients: React.FC = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                   placeholder="Additional notes about this client..."
                   rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none resize-none transition-all shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-0 focus:border-gray-900 outline-none resize-none transition-all"
                 />
               </div>
 

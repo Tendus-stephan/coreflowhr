@@ -58,7 +58,7 @@ const ForgotPassword: React.FC = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-[0_0_50px_-12px_rgb(0,0,0,0.12)] sm:rounded-2xl sm:px-10 border border-gray-100">
+        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
           {error && (
             <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
               {error}
@@ -81,7 +81,7 @@ const ForgotPassword: React.FC = () => {
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full appearance-none rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm transition-colors bg-white" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-3 py-2 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white" 
                 />
               </div>
             </div>

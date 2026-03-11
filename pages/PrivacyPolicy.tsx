@@ -82,7 +82,7 @@ const PrivacyPolicy: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <nav className="fixed top-0 w-full h-16 bg-white border-b border-gray-200 z-50 flex items-center px-4 justify-between shadow-sm">
+      <nav className="fixed top-0 w-full h-16 bg-white border-b border-gray-200 z-50 flex items-center px-4 justify-between">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -116,7 +116,7 @@ const PrivacyPolicy: React.FC = () => {
                   onClick={() => scrollToSection(section.id)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-all
                     ${activeId === section.id 
-                      ? 'bg-gray-100 text-gray-900 shadow-sm border-l-4 border-gray-900 pl-2' 
+                      ? 'bg-gray-100 text-gray-900 border-l-4 border-gray-900 pl-2' 
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                 >
                   {sidebarCollapsed ? (
@@ -156,7 +156,7 @@ const PrivacyPolicy: React.FC = () => {
                       onClick={() => scrollToSection(section.id)}
                       className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-all
                         ${activeId === section.id 
-                          ? 'bg-gray-100 text-gray-900 shadow-sm border-l-4 border-gray-900 pl-2' 
+                          ? 'bg-gray-100 text-gray-900 border-l-4 border-gray-900 pl-2' 
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                     >
                       {section.label}
@@ -336,7 +336,7 @@ const PrivacyPolicy: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">12. Contact Us</h2>
                 <div className="text-gray-700 leading-relaxed space-y-4">
                   <p>If you have any questions about this Privacy Policy, please contact us at:</p>
-                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <p className="font-bold text-gray-900 mb-4 text-lg">CoreflowHR Legal Department</p>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 text-gray-600">

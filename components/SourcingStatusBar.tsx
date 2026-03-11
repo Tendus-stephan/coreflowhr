@@ -108,7 +108,7 @@ export const SourcingStatusBar: React.FC<Props> = ({ jobId, workspaceId: workspa
   if (!sourcing_status) return null;
 
   return (
-    <div className="mx-8 mb-3 flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm border bg-white shadow-sm">
+    <div className="mx-8 mb-3 flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm border border-gray-100 bg-white">
       {sourcing_status === 'pending' || sourcing_status === 'running' ? (
         <>
           <Loader2 size={16} className="text-blue-500 animate-spin flex-shrink-0" />

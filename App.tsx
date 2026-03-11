@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet, useNavigate } from 'react-router-dom';
+import { PageLoader } from './components/ui/PageLoader';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SourcingProvider } from './contexts/SourcingContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
@@ -30,11 +31,34 @@ import Clients from './pages/Clients';
 import Invite from './pages/Invite';
 import Reports from './pages/Reports';
 
+// Shows the PageLoader for one paint frame then hands off to the real page.
+// This ensures every route change shows the spinner before the page data loads.
+const NavLoader: React.FC<{ onMount: () => void }> = ({ onMount }) => {
+  useEffect(() => {
+    // Use two rAF so the spinner is actually painted before we swap back
+    const id = requestAnimationFrame(() => requestAnimationFrame(onMount));
+    return () => cancelAnimationFrame(id);
+  }, [onMount]);
+  return <PageLoader />;
+};
+
 const Layout = () => {
   const location = useLocation();
   const { isExpanded } = useSidebar();
   const { isCandidateModalOpen } = useModal(); // Move this BEFORE any conditional returns
-  
+
+  // Route-transition loader — shows in content area, sidebar stays visible
+  const [navigating, setNavigating] = useState(false);
+  const prevPathRef = useRef(location.pathname);
+  useEffect(() => {
+    if (location.pathname !== prevPathRef.current) {
+      prevPathRef.current = location.pathname;
+      setNavigating(true);
+    }
+  }, [location.pathname]);
+  // Hide the nav loader once the new page's own content has rendered
+  const hideNavLoader = () => setNavigating(false);
+
   // Check sessionStorage synchronously to avoid flash - use function initializer
   const [showLoader, setShowLoader] = useState(() => {
     if (location.pathname === '/dashboard') {
@@ -123,7 +147,11 @@ const Layout = () => {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
       <main className={`overflow-x-hidden relative transition-all duration-150 bg-white ${isExpanded ? 'md:ml-[256px]' : 'md:ml-[80px]'}`} style={{ paddingBottom: '80px' }}>
-        <Outlet />
+        {navigating ? (
+          <NavLoader onMount={hideNavLoader} />
+        ) : (
+          <Outlet />
+        )}
       </main>
       {/* CoreFlow AI notification - hidden on onboarding */}
       {showAIButton && <AIAssistantMenu />}

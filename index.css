@@ -1,0 +1,143 @@
+/* ─── Attio-inspired design tokens ──────────────────────────────────────────
+   Flat surfaces, border-based hierarchy, Inter optical sizing.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* CSS custom properties — semantic color layer */
+:root {
+  --color-bg:              #f9fafb;   /* gray-50  — page shell */
+  --color-surface:         #ffffff;   /* white    — cards, sidebar */
+  --color-surface-subtle:  #f9fafb;   /* gray-50  — inputs, inner panels */
+  --color-border:          #f3f4f6;   /* gray-100 — default borders */
+  --color-border-strong:   #e5e7eb;   /* gray-200 — dividers, table rules */
+  --color-text-primary:    #111827;   /* gray-900 */
+  --color-text-secondary:  #6b7280;   /* gray-500 */
+  --color-text-tertiary:   #9ca3af;   /* gray-400 */
+  --color-accent:          #2563eb;   /* blue-600 — used sparingly */
+  --color-accent-subtle:   #eff6ff;   /* blue-50  */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────── */
+
+/* Headings — tight tracking, optical sizing */
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  font-optical-sizing: auto;
+  font-variation-settings: 'opsz' 28;
+}
+
+h5, h6 {
+  letter-spacing: -0.01em;
+}
+
+/* Overline / label utility */
+.label-overline {
+  font-size: 0.6875rem;   /* 11px */
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* ─── Flat card surfaces ─────────────────────────────────────────────────── */
+
+/* Kill ambient shadow on cards — Attio uses border-only hierarchy */
+.shadow-sm {
+  box-shadow: none !important;
+  border-color: var(--color-border) !important;
+}
+.shadow-sm:hover,
+.hover\:shadow-md:hover,
+.hover\:shadow-sm:hover {
+  box-shadow: none !important;
+  border-color: var(--color-border-strong) !important;
+}
+
+/* Modals still lift — single strong shadow */
+.shadow-xl, .shadow-2xl {
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.16), 0 8px 24px -8px rgba(0,0,0,0.08) !important;
+}
+
+/* ─── Page shell backgrounds ─────────────────────────────────────────────── */
+#root > div[class*="flex"] > main,
+#root > div[class*="flex"] > div[class*="flex-1"] {
+  background-color: var(--color-bg);
+}
+
+/* ─── Focus rings ────────────────────────────────────────────────────────── */
+
+/* Inputs — single dark-grey ring, no glow */
+select:focus,
+input:focus,
+textarea:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 1px #111827 !important;
+  border-color: #111827 !important;
+}
+
+/* Buttons / links — no ring */
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible,
+[role="option"]:focus,
+[role="menuitem"]:focus,
+[role="listbox"]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Checkboxes / radios — dark grey outline */
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+  outline: 2px solid #111827 !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Badge / pill utilities ─────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.badge-neutral  { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+.badge-green    { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.badge-blue     { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.badge-amber    { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.badge-red      { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+
+/* ─── Table rows ─────────────────────────────────────────────────────────── */
+.table-row-hover:hover {
+  background-color: #f9fafb;
+  cursor: pointer;
+}
+
+/* ─── CoreLoader animation ───────────────────────────────────────────────── */
+@keyframes loading {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; visibility: hidden; }
+}
+.fill-mode-forwards { animation-fill-mode: forwards; }

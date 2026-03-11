@@ -215,7 +215,7 @@ const OfferResponse: React.FC = () => {
     if (error && !offer) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+                <div className="bg-white rounded-xl border border-gray-100 p-8 max-w-md w-full text-center">
                     <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
                     <p className="text-gray-600 mb-6">{error}</p>
@@ -227,7 +227,7 @@ const OfferResponse: React.FC = () => {
     if (success) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+                <div className="bg-white rounded-xl border border-gray-100 p-8 max-w-md w-full text-center">
                     {success === 'accepted' ? (
                         <>
                             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -270,7 +270,7 @@ const OfferResponse: React.FC = () => {
         return (
             <div className="min-h-screen bg-gray-50 py-12 px-4">
                 <div className="max-w-4xl mx-auto">
-                    <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                         <div className="bg-gray-900 text-white px-8 py-6">
                             <h1 className="text-2xl font-bold">{companyName || 'Company'}</h1>
                             <p className="text-gray-300 text-sm mt-1">Job Offer Letter</p>
@@ -299,7 +299,7 @@ const OfferResponse: React.FC = () => {
         <div className="min-h-screen bg-gray-50 py-12 px-4">
             <div className="max-w-4xl mx-auto">
                 {/* Letter-style offer document (only when not eSignature sign-via-email flow) */}
-                <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                     {/* Header with company name and date */}
                     <div className="bg-gray-900 text-white px-8 py-6">
                         <div className="flex items-center justify-between">
@@ -497,7 +497,7 @@ const OfferResponse: React.FC = () => {
                                     value={responseNote}
                                     onChange={(e) => setResponseNote(e.target.value)}
                                     placeholder="Add a message to your response (optional)..."
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none resize-none"
                                             rows={3}
                                 />
                             </div>
@@ -552,7 +552,7 @@ const OfferResponse: React.FC = () => {
                                                     value={counterSalary}
                                                     onChange={(e) => setCounterSalary(e.target.value)}
                                                     placeholder="Enter amount"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
                                                 />
                                             </div>
                                             <div>
@@ -562,7 +562,7 @@ const OfferResponse: React.FC = () => {
                                                 <select
                                                     value={counterCurrency}
                                                     onChange={(e) => setCounterCurrency(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
                                                 >
                                                     <option value="USD">USD ($)</option>
                                                     <option value="EUR">EUR (€)</option>
@@ -576,7 +576,7 @@ const OfferResponse: React.FC = () => {
                                                 <select
                                                     value={counterPeriod}
                                                     onChange={(e) => setCounterPeriod(e.target.value as 'hourly' | 'monthly' | 'yearly')}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
                                                 >
                                                     <option value="yearly">Per Year</option>
                                                     <option value="monthly">Per Month</option>
@@ -593,7 +593,7 @@ const OfferResponse: React.FC = () => {
                                                 type="date"
                                                 value={counterStartDate}
                                                 onChange={(e) => setCounterStartDate(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
                                             />
                                         </div>
 
@@ -608,7 +608,7 @@ const OfferResponse: React.FC = () => {
                                                     onChange={(e) => setNewBenefit(e.target.value)}
                                                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addBenefit())}
                                                     placeholder="Add a benefit"
-                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
                                                 />
                                                 <Button
                                                     variant="outline"
@@ -646,7 +646,7 @@ const OfferResponse: React.FC = () => {
                                                 value={counterNote}
                                                 onChange={(e) => setCounterNote(e.target.value)}
                                                 placeholder="Explain your counter offer or any additional requests..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none resize-none"
                                                 rows={4}
                                             />
                                         </div>

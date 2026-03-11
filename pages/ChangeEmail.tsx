@@ -284,7 +284,7 @@ const ChangeEmail: React.FC = () => {
                         <ArrowLeft size={16} />
                         Back to dashboard
                     </Link>
-                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+                    <div className="bg-white border border-gray-100 rounded-xl  p-8">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-gray-100 rounded-xl">
                                 <Mail size={24} className="text-gray-700" />
@@ -320,7 +320,7 @@ const ChangeEmail: React.FC = () => {
                         <ArrowLeft size={16} />
                         Back to dashboard
                     </Link>
-                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+                    <div className="bg-white border border-gray-100 rounded-xl  p-8">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-gray-100 rounded-xl">
                                 <Mail size={24} className="text-gray-700" />
@@ -350,7 +350,7 @@ const ChangeEmail: React.FC = () => {
                         <ArrowLeft size={16} />
                         Back to Home
                     </Link>
-                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+                    <div className="bg-white border border-gray-100 rounded-xl  p-8">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="p-2 bg-gray-100 rounded-xl">
                                 <Mail size={24} className="text-gray-700" />
@@ -387,7 +387,7 @@ const ChangeEmail: React.FC = () => {
                 <ArrowLeft size={16} />
                 Back to dashboard
             </Link>
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+            <div className="bg-white border border-gray-100 rounded-xl  p-8">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-gray-100 rounded-xl">
                         <Mail size={24} className="text-gray-700" />

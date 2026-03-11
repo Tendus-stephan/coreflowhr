@@ -640,7 +640,7 @@ const NotificationToggle = ({ label, description, checked, onChange }: {
                 disabled={isUpdating}
                 className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/20 disabled:opacity-50 disabled:cursor-not-allowed ${checked ? 'bg-black' : 'bg-gray-200'}`}
             >
-                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
         </div>
     );
@@ -1848,7 +1848,7 @@ const Settings: React.FC = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
                         >
                             <tab.icon size={18} />
                             {tab.label}
@@ -1857,7 +1857,7 @@ const Settings: React.FC = () => {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 bg-white border border-gray-200 rounded-2xl shadow-sm p-8 min-h-[500px]">
+                <div className="flex-1 bg-white border border-gray-100 rounded-xl  p-8 min-h-[500px]">
                     {activeTab === 'profile' && (
                         <div className="space-y-8">
                             <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4">Profile Information</h2>
@@ -2725,7 +2725,7 @@ const Settings: React.FC = () => {
                             )}
                             <div className="grid grid-cols-1 gap-4">
                                     {integrations.filter(integration => integration.id !== 'teams' && integration.name !== 'Google Integration').map((integration) => (
-                                        <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
+                                        <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl transition-all">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
                                                     <img src={integration.logo} alt={integration.name} className="w-full h-full object-contain" />
@@ -2761,7 +2761,7 @@ const Settings: React.FC = () => {
                                     ))}
 
                                     {/* Slack Integration Card */}
-                                    <div className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-sm transition-all">
+                                    <div className="flex items-center justify-between p-6 border border-gray-200 rounded-xl transition-all">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
                                                 <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2808,7 +2808,7 @@ const Settings: React.FC = () => {
                              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
                                 <div className="flex items-start justify-between">
                                     <div className="flex gap-4">
-                                        <div className="w-10 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center text-gray-900 shadow-sm">
+                                        <div className="w-10 h-10 bg-white rounded-lg border border-gray-200 flex items-center justify-center text-gray-900">
                                             <Shield size={20} />
                                         </div>
                                         <div>
@@ -2828,7 +2828,7 @@ const Settings: React.FC = () => {
                                         disabled={isEnabling2FA}
                                         className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/20 disabled:opacity-50 disabled:cursor-not-allowed ${twoFactorEnabled ? 'bg-black' : 'bg-gray-300'}`}
                                     >
-                                        <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out ${twoFactorEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${twoFactorEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>
                                 </div>
                              </div>

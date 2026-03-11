@@ -23,7 +23,7 @@ import { getNotificationLink } from '../utils/notificationLinks';
 // --- Helper Components ---
 
 const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month" }: any) => (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between hover:border-gray-200 transition-colors">
         <div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
@@ -140,7 +140,7 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
                     </button>
                 </div>
                 <div className="p-8 flex flex-col items-center text-center space-y-6">
-                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-900 shadow-sm">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-900">
                         <FileText size={32} />
                     </div>
                     <div>
@@ -501,7 +501,7 @@ const QuickActions = ({
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-full flex flex-col" ref={dropdownRef}>
+        <div className="bg-white border border-gray-100 rounded-xl p-6  h-full flex flex-col" ref={dropdownRef}>
             <div className="mb-6">
                 <h3 className="font-bold text-gray-900 text-lg">Quick Actions</h3>
             </div>
@@ -509,7 +509,7 @@ const QuickActions = ({
                 {!isViewer && (
                 <button 
                     onClick={onSchedule}
-                    className="w-full bg-black text-white rounded-lg py-4 px-4 flex items-center justify-center gap-3 font-bold hover:bg-gray-900 transition-all shadow-md active:scale-[0.98]"
+                    className="w-full bg-black text-white rounded-lg py-4 px-4 flex items-center justify-center gap-3 font-bold hover:bg-gray-900 transition-all active:scale-[0.98]"
                 >
                     <Calendar size={20} />
                     <span>Schedule Interview</span>
@@ -1009,7 +1009,7 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Recruitment Flow */}
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+          <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-6  flex flex-col">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Recruitment Flow</h2>
                   <div className="flex gap-1 mt-2 sm:mt-0">
@@ -1057,12 +1057,12 @@ const Dashboard: React.FC = () => {
 
       {/* Row 3: Operational */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-gray-100 rounded-xl p-6 ">
                 <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Upcoming Interviews</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
                 <div className="space-y-3">
                     {interviews.slice(0, 3).map((interview) => (
                         <div key={interview.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:border-gray-300 transition-colors cursor-pointer group">
-                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex flex-col items-center justify-center shadow-sm group-hover:shadow-md transition-shadow"><span className="text-lg font-bold text-gray-900 leading-none">{new Date(interview.date).getDate()}</span><span className="text-[9px] text-gray-400 uppercase font-bold">{new Date(interview.date).toLocaleString('default', { month: 'short' })}</span></div>
+                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex flex-col items-center justify-center transition-colors"><span className="text-lg font-bold text-gray-900 leading-none">{new Date(interview.date).getDate()}</span><span className="text-[9px] text-gray-400 uppercase font-bold">{new Date(interview.date).toLocaleString('default', { month: 'short' })}</span></div>
                             <div className="flex-1 min-w-0"><p className="text-sm font-bold text-gray-900 truncate">{interview.candidateName}</p><div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5"><Clock size={12} /><span>{interview.time}</span><span className="w-1 h-1 rounded-full bg-gray-300"></span><span className="truncate">{interview.type}</span></div></div>
                         </div>
                     ))}
@@ -1070,12 +1070,12 @@ const Dashboard: React.FC = () => {
                 </div>
                 <button onClick={() => navigate('/calendar')} className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View Calendar</button>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-gray-100 rounded-xl p-6 ">
              <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><Plus size={16}/></Button></div>
              <div className="space-y-3">
                 {jobs.slice(0, 3).map((job) => (
                     <div key={job.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 transition-all group bg-gray-50/30">
-                        <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-sm shadow-sm">{job.title.charAt(0)}</div><div><p className="text-sm font-bold text-gray-900 truncate w-32">{job.title}</p><p className="text-xs text-gray-500">{job.department}</p></div></div>
+                        <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-sm">{job.title.charAt(0)}</div><div><p className="text-sm font-bold text-gray-900 truncate w-32">{job.title}</p><p className="text-xs text-gray-500">{job.department}</p></div></div>
                         <div className="text-right"><p className="text-sm font-bold text-gray-900">{job.applicantsCount}</p><p className="text-[9px] text-gray-500 uppercase tracking-wide">Applied</p></div>
                     </div>
                 ))}
@@ -1083,7 +1083,7 @@ const Dashboard: React.FC = () => {
              </div>
              <button onClick={() => navigate('/jobs')} className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View All Jobs</button>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col">
+          <div className="bg-white border border-gray-100 rounded-xl p-6  flex flex-col">
                 <div className="flex items-center justify-between mb-6"><h3 className="font-bold text-gray-900 flex items-center gap-2 text-lg"><Activity size={18} /> Activity Feed</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
                 <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 flex-1 overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
                     {activityFeed.length > 0 ? activityFeed.slice(0, 4).map((item) => (
@@ -1101,7 +1101,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 4: Recently Sourced */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <div className="bg-white border border-gray-100 rounded-xl p-6 ">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-gray-900 text-lg">Recently Sourced</h3>
             <div className="relative hidden sm:block">

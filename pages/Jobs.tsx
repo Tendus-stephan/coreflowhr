@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { PageLoader } from '../components/ui/PageLoader';
 import { Link, useNavigate } from 'react-router-dom';
 import { Job, Candidate, CandidateStage, UserRole } from '../types';
 import { Avatar } from '../components/ui/Avatar';
@@ -91,7 +92,7 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
             onClick={onChange}
             className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/20 ${checked ? 'bg-black' : 'bg-gray-200'}`}
         >
-            <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
     );
 
@@ -342,7 +343,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                 <div className="p-10 overflow-y-auto bg-gray-50/50 space-y-10">
                     
                     {/* Job Header Card & Assigned Members */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 flex flex-col md:flex-row justify-between items-start gap-8">
+                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-8 flex flex-col md:flex-row justify-between items-start gap-8">
                         <div className="flex gap-6 flex-1">
                             <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
                                 <Briefcase size={28} />
@@ -414,14 +415,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     </div>
 
                     {/* Pipeline Overview */}
-                    <div className="bg-white border border-gray-200 rounded-2xl p-10 shadow-sm">
+                    <div className="bg-white border border-gray-100 rounded-xl p-10 ">
                         <h3 className="text-xl font-bold text-gray-900 mb-10">Pipeline Overview</h3>
                         <div className="flex items-center justify-between relative px-6">
                             {stages.map((stage, index) => (
                                 <React.Fragment key={stage.name}>
                                     {/* Step */}
                                     <div className="flex flex-col items-center z-10 relative">
-                                        <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-4 shadow-sm">
+                                        <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-4">
                                             <span className="text-xl font-bold text-gray-900">{stage.count}</span>
                                         </div>
                                         <span className="text-sm font-medium text-gray-600">{stage.name}</span>
@@ -440,7 +441,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                         {/* Left Col: Description & Skills */}
                         <div className="lg:col-span-2 space-y-8">
-                            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+                            <div className="bg-white border border-gray-100 rounded-xl p-8 ">
                                 <h3 className="text-xl font-bold text-gray-900 mb-5">Job Description</h3>
                                 <div className="prose prose-base max-w-none text-gray-600 leading-relaxed">
                                     {job.description}
@@ -448,7 +449,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                             </div>
                             
                             {job.skills && job.skills.length > 0 && (
-                                <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+                                <div className="bg-white border border-gray-100 rounded-xl p-8 ">
                                     <h3 className="text-xl font-bold text-gray-900 mb-5">Required Skills</h3>
                                     <div className="flex flex-wrap gap-2">
                                         {job.skills.map(skill => (
@@ -463,7 +464,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
 
                         {/* Right Col: Candidates — list only for non-Viewer; Viewer sees aggregate count only */}
                         <div className="lg:col-span-1 min-h-0 flex flex-col">
-                            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm h-full flex flex-col min-h-[320px]">
+                            <div className="bg-white border border-gray-100 rounded-xl p-8  h-full flex flex-col min-h-[320px]">
                                 <div className="flex items-center justify-between mb-5">
                                     <h3 className="text-xl font-bold text-gray-900">Candidates</h3>
                                     <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold">{jobCandidates.length}</span>
@@ -735,13 +736,7 @@ const Jobs: React.FC = () => {
       }
   };
 
-  if (loading) {
-      return (
-          <div className="flex items-center justify-center min-h-screen bg-white">
-              <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-      );
-  }
+  if (loading) return <PageLoader />;
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -835,7 +830,7 @@ const Jobs: React.FC = () => {
       </div>
 
       {/* Controls Container */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-6 space-y-4" style={{ position: 'relative', zIndex: 2 }}>
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 space-y-4" style={{ position: 'relative', zIndex: 2 }}>
           
           {/* Status Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
@@ -845,7 +840,7 @@ const Jobs: React.FC = () => {
                     onClick={() => setActiveTab(tab)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                         activeTab === tab 
-                        ? 'bg-gray-100 text-gray-900 ring-1 ring-black/5 shadow-sm' 
+                        ? 'bg-gray-100 text-gray-900 ring-1 ring-black/5' 
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
                     }`}
                   >
@@ -855,7 +850,7 @@ const Jobs: React.FC = () => {
                           tab === 'Closed' ? 'bg-black' : 'bg-black'
                       }`}></span>
                       {tab}
-                      <span className="ml-1 bg-white px-1.5 py-0.5 rounded-md text-xs border border-gray-200 text-gray-500 shadow-sm">
+                      <span className="ml-1 bg-white px-1.5 py-0.5 rounded-md text-xs border border-gray-200 text-gray-500">
                           {counts[tab]}
                       </span>
                   </button>
@@ -899,7 +894,7 @@ const Jobs: React.FC = () => {
       {/* Job List */}
       <div className="grid gap-4 flex-1 content-start">
         {currentJobs.map(job => (
-            <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 hover:shadow-md transition-all group relative">
+            <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 transition-all group relative">
                 <div className="flex-1 cursor-pointer" onClick={() => setSelectedJob(job)}>
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-black transition-colors">{job.title}</h3>

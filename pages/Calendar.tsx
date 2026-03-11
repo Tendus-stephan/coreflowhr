@@ -9,6 +9,7 @@ import { Interview, CalendarEvent } from '../types';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { Button } from '../components/ui/Button';
+import { PageLoader } from '../components/ui/PageLoader';
 import { InterviewDetailsModal } from '../components/InterviewDetailsModal';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Plus, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -426,6 +427,8 @@ const Calendar: React.FC = () => {
     
     setCurrentDate(newDate);
   };
+
+  if (loading) return <PageLoader />;
 
   return (
     <div className="flex flex-col bg-white min-h-screen">

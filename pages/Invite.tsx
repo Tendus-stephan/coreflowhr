@@ -162,7 +162,7 @@ const Invite: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-200 shadow-sm p-10 bg-white">
+      <div className="w-full max-w-lg rounded-xl border border-gray-100 p-10 bg-white">
         <h1 className="text-xl font-bold text-gray-900 mb-2">{status === 'expired' ? 'Invite no longer valid' : 'Workspace Invitation'}</h1>
         <p className="text-sm text-gray-600 mb-6 leading-relaxed">
           You’ve been invited to join a CoreFlowHR workspace. Accept the invitation to start collaborating with your team.

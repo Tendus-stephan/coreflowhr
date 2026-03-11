@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Offer } from '../types';
 import { api } from '../services/api';
+import { PageLoader } from '../components/ui/PageLoader';
 import { OfferCard } from '../components/OfferCard';
 import { OfferModal } from '../components/OfferModal';
 import { NegotiateCounterOfferModal } from '../components/NegotiateCounterOfferModal';
@@ -217,15 +218,7 @@ const Offers: React.FC = () => {
     ];
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-white">
-                <div className="p-8">
-                    <div className="flex items-center justify-center py-12">
-                        <div className="text-sm text-gray-500">Loading offers...</div>
-                    </div>
-                </div>
-            </div>
-        );
+        return <PageLoader />;
     }
 
     return (

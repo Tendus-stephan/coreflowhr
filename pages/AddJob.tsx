@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2, Save } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { api } from '../services/api';
 import type { JobTemplate } from '../types';
 
@@ -82,7 +83,7 @@ const PreviewModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose: () 
                         <h3 className="text-lg font-bold text-gray-900">Required Skills</h3>
                         <div className="flex flex-wrap gap-2">
                             {data.skills ? data.skills.split(',').map((skill: string, i: number) => (
-                                <span key={i} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 font-medium shadow-sm">
+                                <span key={i} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
                                     {skill.trim()}
                                 </span>
                             )) : <span className="text-gray-400 italic">No specific skills listed.</span>}
@@ -404,13 +405,11 @@ const AddJob: React.FC = () => {
       </div>
 
       {!isEditing && (templates.length > 0 || BUILTIN_TEMPLATES.length > 0) && (
-        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
           <label className="block text-sm font-bold text-gray-900 mb-2">Start from a template</label>
-          <select
-            className="w-full max-w-md px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black"
+          <CustomSelect
             value=""
-            onChange={(e) => {
-              const v = e.target.value;
+            onChange={(v) => {
               if (!v) return;
               if (v.startsWith('builtin-')) {
                 const i = parseInt(v.replace('builtin-', ''), 10);
@@ -420,19 +419,17 @@ const AddJob: React.FC = () => {
                 if (t) applyTemplate(t);
               }
             }}
-          >
-            <option value="">Blank job</option>
-            {BUILTIN_TEMPLATES.map((b, i) => (
-              <option key={`builtin-${i}`} value={`builtin-${i}`}>{b.name} (built-in)</option>
-            ))}
-            {templates.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
+            className="px-4 py-2.5 rounded-lg min-w-[260px]"
+            options={[
+              { value: '', label: 'Blank job' },
+              ...BUILTIN_TEMPLATES.map((b, i) => ({ value: `builtin-${i}`, label: `${b.name} (built-in)` })),
+              ...templates.map(t => ({ value: t.id, label: t.name })),
+            ]}
+          />
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+      <div className="bg-white border border-gray-100 rounded-xl p-8 ">
           {/* Save as template (when editing) */}
           {isEditing && id && (
             <div className="mb-6 flex flex-wrap items-center gap-3">
