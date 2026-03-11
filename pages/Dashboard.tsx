@@ -2,14 +2,17 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PageLoader } from '../components/ui/PageLoader';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Sector, Label,
+  RadialBarChart, RadialBar, PolarRadiusAxis,
 } from 'recharts';
-import { 
-    Users, Briefcase, CheckCircle, Clock, Activity, TrendingUp, Filter, 
-    ChevronRight, MoreHorizontal, Plus, Calendar, Download, ChevronDown, 
+import type { PieSectorDataItem } from 'recharts/types/polar/Pie';
+import {
+    Users, Briefcase, CheckCircle, Clock, Activity, TrendingUp, TrendingDown, Filter,
+    ChevronRight, MoreHorizontal, Plus, Calendar, Download, ChevronDown,
     BarChart2, Search, X, Video, Link as LinkIcon, CheckSquare, Square, Bell,
-    FileText, File, ArrowRight
+    FileText, File, ArrowRight, Award, Zap,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
@@ -19,6 +22,43 @@ import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { api, Notification } from '../services/api';
 import { getNotificationLink } from '../utils/notificationLinks';
+import {
+  ChartContainer, ChartLegend, ChartLegendContent,
+  ChartTooltip, ChartTooltipContent, ChartStyle,
+  type ChartConfig,
+} from '../components/ui/chart';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+
+type HiringMetrics = Awaited<ReturnType<typeof api.reports.getMetrics>> | null;
+
+const TTH_BENCHMARK = 21;
+
+const tthChartConfig = {
+  avgDays: { label: 'Within target',  color: 'var(--chart-1)' },
+  target:  { label: 'Over benchmark', color: '#e5e7eb' },
+} satisfies ChartConfig;
+
+const pipelineChartConfig = {
+  toInterview: { label: 'Screening → Interview', color: 'var(--chart-1)' },
+  toOffer:     { label: 'Interview → Offer',     color: 'var(--chart-2)' },
+} satisfies ChartConfig;
+
+const offerChartConfig = {
+  accepted:    { label: 'Accepted',    color: 'var(--chart-1)' },
+  sent:        { label: 'Sent',        color: '#111827' },
+  viewed:      { label: 'Viewed',      color: 'var(--chart-2)' },
+  declined:    { label: 'Declined',    color: '#f87171' },
+  negotiating: { label: 'Negotiating', color: 'var(--chart-4)' },
+} satisfies ChartConfig;
+
+const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string }) => (
+  <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+    value >= 0 ? 'bg-cyan-100 text-cyan-700' : 'bg-red-100 text-red-600'
+  }`}>
+    {value >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+    {value >= 0 ? '+' : ''}{value}{suffix}
+  </span>
+);
 
 // --- Helper Components ---
 
@@ -596,6 +636,8 @@ const Dashboard: React.FC = () => {
   
   const [recentSearch, setRecentSearch] = useState('');
   const notificationRef = useRef<HTMLDivElement>(null);
+  const [hiringMetrics, setHiringMetrics] = useState<HiringMetrics>(null);
+  const [activeOfferSlice, setActiveOfferSlice] = useState('accepted');
 
   // Dynamic flow data based on actual data
   const flowData = useMemo(() => {
@@ -803,6 +845,16 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
       loadData();
+  }, []);
+
+  // Load hiring analytics metrics (non-blocking — loads after main data)
+  useEffect(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 90);
+    api.reports
+      .getMetrics({ dateFrom: from.toISOString(), dateTo: new Date().toISOString() })
+      .then(setHiringMetrics)
+      .catch(() => {});
   }, []);
 
   // Real-time subscription for notifications (to play sound on new notifications)
@@ -1129,6 +1181,291 @@ const Dashboard: React.FC = () => {
             {filteredCandidates.length === 0 && <p className="text-sm text-gray-500 col-span-4 text-center py-4">No candidates found.</p>}
          </div>
       </div>
+
+      {/* ── Hiring Analytics ─────────────────────────────────────────────── */}
+      {hiringMetrics && (() => {
+        const pc  = hiringMetrics.pipelineConversion;
+        const tth = hiringMetrics.timeToHire;
+        const oa  = hiringMetrics.offerAcceptance;
+        const ior = hiringMetrics.interviewOfferRatio;
+        const sq  = hiringMetrics.sourceQuality;
+
+        const hasData =
+          (tth?.weekly_series?.length ?? 0) > 0 ||
+          (pc?.screening_count ?? 0) + (pc?.hired_count ?? 0) > 0 ||
+          (oa?.counts?.sent ?? 0) + (oa?.counts?.accepted ?? 0) > 0 ||
+          (sq?.rows?.length ?? 0) > 0;
+
+        if (!hasData) return null;
+
+        // Time to hire bars
+        const tthBars = (tth?.weekly_series ?? []).map((e, i, arr) => ({
+          week: e.week
+            ? new Date(e.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            : `W${i + 1}`,
+          avgDays: Math.min(e.avg_days ?? 0, TTH_BENCHMARK),
+          target:  Math.max(0, (e.avg_days ?? 0) - TTH_BENCHMARK),
+          isLatest: i === arr.length - 1,
+        }));
+
+        // Pipeline radial
+        const toInterviewRate = pc && pc.screening_count > 0
+          ? Math.round((pc.interview_count / pc.screening_count) * 100) : 0;
+        const toOfferRate = pc && pc.interview_count > 0
+          ? Math.round((pc.offer_count / pc.interview_count) * 100) : 0;
+        const overallFunnelRate = pc && pc.screening_count > 0
+          ? Math.round(((pc.hired_count ?? 0) / pc.screening_count) * 100) : 0;
+        const radialData = [{ month: 'pipeline', toInterview: toInterviewRate, toOffer: toOfferRate }];
+
+        // Offer pie
+        const pieData = oa?.counts
+          ? (['accepted', 'sent', 'viewed', 'declined', 'negotiating'] as const)
+              .map((k) => ({ month: k, desktop: oa.counts![k] ?? 0, fill: `var(--color-${k})` }))
+              .filter((d) => d.desktop > 0)
+          : [];
+        const activeIdx = Math.max(0, pieData.findIndex((d) => d.month === activeOfferSlice));
+
+        // Source rows
+        const sourceRows = [...(sq?.rows ?? [])].sort((a, b) => b.hire_rate_pct - a.hire_rate_pct);
+        const topSource = sourceRows[0] ?? null;
+        const pieId = 'dash-offer-pie';
+
+        return (
+          <>
+            {/* Section header */}
+            <div className="flex items-center gap-4 pt-2">
+              <h2 className="text-lg font-bold text-gray-900 whitespace-nowrap">Hiring Analytics</h2>
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-xs text-gray-400 whitespace-nowrap">Last 90 days</span>
+            </div>
+
+            {/* Analytics Row 1: Time to Hire + Pipeline Health */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* Time to Hire */}
+              <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Clock size={18} /></div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Time to Hire</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">Weekly avg · {TTH_BENCHMARK}d benchmark</p>
+                    </div>
+                  </div>
+                  {tth?.trend_pct != null && <DeltaBadge value={-tth.trend_pct} />}
+                </div>
+                {tth?.avg_days != null && (
+                  <p className="text-3xl font-bold text-gray-900 tracking-tight mt-4 mb-4">
+                    {tth.avg_days}<span className="text-base font-medium text-gray-400 ml-1">days avg</span>
+                  </p>
+                )}
+                {tthBars.length > 0 ? (
+                  <>
+                    <ChartContainer config={tthChartConfig} className="h-[200px] w-full">
+                      <BarChart data={tthBars} barCategoryGap="32%">
+                        <CartesianGrid vertical={false} stroke="#f3f4f6" />
+                        <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8}
+                          tick={{ fontSize: 10, fill: '#9ca3af' }} tickFormatter={(v) => v.slice(0, 6)} />
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="avgDays" stackId="a" fill="var(--color-avgDays)" radius={[0, 0, 4, 4]} />
+                        <Bar dataKey="target"  stackId="a" fill="var(--color-target)"  radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                    <p className="text-xs text-gray-400 mt-3">Violet = within {TTH_BENCHMARK}d · Grey = over benchmark</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 italic mt-4">No weekly data yet.</p>
+                )}
+              </div>
+
+              {/* Pipeline Health */}
+              <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><TrendingUp size={18} /></div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Pipeline Health</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Conversion by stage</p>
+                  </div>
+                </div>
+                <div className="flex flex-1 items-center justify-center">
+                  <ChartContainer config={pipelineChartConfig} className="w-full max-w-[220px] aspect-square">
+                    <RadialBarChart data={radialData} endAngle={180} innerRadius={70} outerRadius={120}>
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                      <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                        <Label content={({ viewBox }) => {
+                          if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                            return (
+                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                                <tspan x={viewBox.cx} y={(viewBox.cy || 0) - 14}
+                                  style={{ fontSize: 24, fontWeight: 700, fill: '#111827' }}>{overallFunnelRate}%</tspan>
+                                <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 6}
+                                  style={{ fontSize: 11, fill: '#6b7280' }}>overall</tspan>
+                              </text>
+                            );
+                          }
+                        }} />
+                      </PolarRadiusAxis>
+                      <RadialBar dataKey="toInterview" stackId="a" cornerRadius={5} fill="var(--color-toInterview)" className="stroke-transparent stroke-2" />
+                      <RadialBar dataKey="toOffer"     stackId="a" cornerRadius={5} fill="var(--color-toOffer)"     className="stroke-transparent stroke-2" />
+                    </RadialBarChart>
+                  </ChartContainer>
+                </div>
+                <div className="pt-4 border-t border-gray-50 space-y-2 mt-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-gray-500">
+                      <span className="w-2 h-2 rounded-full bg-violet-600 inline-block" />Screening → Interview
+                    </span>
+                    <span className="font-bold text-gray-900">{toInterviewRate}%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-gray-500">
+                      <span className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Interview → Offer
+                    </span>
+                    <span className="font-bold text-gray-900">{toOfferRate}%</span>
+                  </div>
+                  <p className="text-xs text-gray-400 pt-1 border-t border-gray-50">
+                    {pc?.screening_count ?? 0} screened · {pc?.hired_count ?? 0} hired
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Analytics Row 2: Offer Acceptance + Source Performance */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* Offer Acceptance */}
+              {pieData.length > 0 && (
+                <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
+                  <ChartStyle id={pieId} config={offerChartConfig} />
+                  <div className="flex items-start justify-between mb-1">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Briefcase size={18} /></div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Offer Acceptance</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {oa?.acceptance_rate_pct ?? 0}% rate
+                          {oa?.trend_pct != null && <span className="ml-2 inline-flex align-middle"><DeltaBadge value={oa.trend_pct} /></span>}
+                        </p>
+                      </div>
+                    </div>
+                    <Select value={activeOfferSlice} onValueChange={setActiveOfferSlice}>
+                      <SelectTrigger className="h-7 w-[110px]" aria-label="Select status">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {pieData.map((d) => (
+                          <SelectItem key={d.month} value={d.month}>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: `var(--color-${d.month})` }} />
+                              <span className="capitalize">{d.month}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-1 items-center justify-center py-2" data-chart={pieId}>
+                    <ChartContainer id={pieId} config={offerChartConfig} className="w-full max-w-[200px] aspect-square">
+                      <PieChart>
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                        <Pie data={pieData} dataKey="desktop" nameKey="month" innerRadius={56} strokeWidth={4}
+                          activeIndex={activeIdx}
+                          activeShape={({ outerRadius = 0, ...props }: PieSectorDataItem) => (
+                            <g>
+                              <Sector {...props} outerRadius={outerRadius + 8} />
+                              <Sector {...props} outerRadius={outerRadius + 20} innerRadius={outerRadius + 10} />
+                            </g>
+                          )}>
+                          <Label content={({ viewBox }) => {
+                            if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                              const active = pieData[activeIdx];
+                              return (
+                                <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                                  <tspan x={viewBox.cx} y={viewBox.cy} style={{ fontSize: 26, fontWeight: 700, fill: '#111827' }}>{active?.desktop ?? 0}</tspan>
+                                  <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 20} style={{ fontSize: 11, fill: '#6b7280' }} className="capitalize">{activeOfferSlice}</tspan>
+                                </text>
+                              );
+                            }
+                          }} />
+                        </Pie>
+                      </PieChart>
+                    </ChartContainer>
+                  </div>
+                  <div className="pt-3 border-t border-gray-50 space-y-1.5">
+                    {pieData.map((d) => (
+                      <div key={d.month} className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 text-gray-500 capitalize">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.fill }} />{d.month}
+                        </span>
+                        <span className="font-bold text-gray-900">{d.desktop}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Source Performance */}
+              <div className={`bg-white border border-gray-100 rounded-xl p-6 flex flex-col ${pieData.length === 0 ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Award size={18} /></div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Source Performance</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Ranked by hire rate</p>
+                  </div>
+                </div>
+                {topSource && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-100 rounded-lg mb-4">
+                    <Zap size={13} className="text-violet-600 flex-shrink-0" />
+                    <span className="text-xs text-violet-700">
+                      <span className="font-bold">{topSource.source}</span> is your best source at {topSource.hire_rate_pct}% hire rate
+                    </span>
+                  </div>
+                )}
+                {sourceRows.length > 0 ? (
+                  <div className="space-y-3 flex-1">
+                    {sourceRows.map((row, i) => {
+                      const tier = row.hire_rate_pct >= 30 ? 'excellent' : row.hire_rate_pct >= 15 ? 'good' : 'low';
+                      const ts = { excellent: { bar: '#7c3aed', badge: 'bg-violet-100 text-violet-700 border-violet-200' }, good: { bar: '#0ea5e9', badge: 'bg-cyan-100 text-cyan-700 border-cyan-200' }, low: { bar: '#d1d5db', badge: 'bg-gray-100 text-gray-500 border-gray-200' } }[tier];
+                      const sb: Record<string, string> = { Sourced: 'bg-blue-50 text-blue-700', Applied: 'bg-green-50 text-green-700', Referred: 'bg-purple-50 text-purple-700', LinkedIn: 'bg-sky-50 text-sky-700' };
+                      return (
+                        <div key={row.source} className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-gray-300 w-4 text-right flex-shrink-0">{i + 1}</span>
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-semibold flex-shrink-0 ${sb[row.source] ?? 'bg-gray-100 text-gray-700'}`}>{row.source}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-gray-400">{row.total} candidates · {row.hired_count} hired</span>
+                              <span className="text-xs font-bold text-gray-900">{row.hire_rate_pct}%</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, row.hire_rate_pct)}%`, backgroundColor: ts.bar }} />
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0 ${ts.badge}`}>{tier}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No source data yet.</p>
+                )}
+                {((ior?.interview_count ?? 0) + (ior?.offer_count ?? 0)) > 0 && (
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Interview–Offer Ratio</p>
+                      <p className="text-xl font-bold text-gray-900 mt-0.5">
+                        {ior!.ratio}<span className="text-sm font-medium text-gray-400 ml-1">per offer</span>
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">{ior!.interview_count} interviews · {ior!.offer_count} offers</p>
+                    </div>
+                    {ior?.trend_pct != null && <DeltaBadge value={ior.trend_pct} />}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Report Modal */}
       <ReportModal isOpen={!!reportModalType} onClose={() => setReportModalType(null)} type={reportModalType} />
