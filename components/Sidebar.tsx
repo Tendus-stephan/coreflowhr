@@ -71,7 +71,7 @@ const Sidebar: React.FC = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="w-[220px] bg-[#111111] flex flex-col fixed top-0 left-0 bottom-0 z-20 hidden md:flex select-none">
+    <div className="w-[220px] bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 bottom-0 z-20 hidden md:flex select-none">
 
       {/* Logo */}
       <div className="px-4 pt-5 pb-4 flex-shrink-0">
@@ -80,9 +80,8 @@ const Sidebar: React.FC = () => {
             src="/assets/images/coreflow-favicon-logo.png"
             alt="CoreFlow"
             className="w-6 h-6 object-contain flex-shrink-0"
-            style={{ filter: 'brightness(0) invert(1)' }}
           />
-          <span className="text-sm font-semibold text-white tracking-tight">CoreFlow</span>
+          <span className="text-sm font-semibold text-gray-900 tracking-tight">CoreFlow</span>
         </Link>
       </div>
 
@@ -97,13 +96,13 @@ const Sidebar: React.FC = () => {
               to={item.path}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100 ${
                 isActive
-                  ? 'bg-[#1d1d1d] text-white'
-                  : 'text-[#777777] hover:text-white hover:bg-[#1a1a1a]'
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
               <item.icon
                 size={14}
-                className={`flex-shrink-0 transition-colors ${isActive ? 'text-white' : 'text-[#555555]'}`}
+                className={`flex-shrink-0 transition-colors ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
               />
               {item.name}
             </Link>
@@ -112,11 +111,11 @@ const Sidebar: React.FC = () => {
       </nav>
 
       {/* Profile */}
-      <div className="p-2 border-t border-[#1d1d1d] relative flex-shrink-0" ref={profileRef}>
+      <div className="p-2 border-t border-gray-100 relative flex-shrink-0" ref={profileRef}>
         <div
           onClick={() => setIsProfileOpen(!isProfileOpen)}
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-            isProfileOpen ? 'bg-[#1d1d1d]' : 'hover:bg-[#1a1a1a]'
+            isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-50'
           }`}
         >
           <Avatar
@@ -126,14 +125,14 @@ const Sidebar: React.FC = () => {
           />
           <div className="flex-1 min-w-0">
             {!profileLoaded ? (
-              <div className="h-2.5 w-20 bg-[#2a2a2a] rounded animate-pulse" />
+              <div className="h-2.5 w-20 bg-gray-100 rounded animate-pulse" />
             ) : (
               <>
-                <p className="text-[13px] font-medium text-white truncate leading-none">
+                <p className="text-[13px] font-medium text-gray-900 truncate leading-none">
                   {userName || 'User'}
                 </p>
                 {userRole && (
-                  <p className="text-[10px] text-[#555555] mt-0.5 truncate">{roleLabel}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{roleLabel}</p>
                 )}
               </>
             )}
@@ -142,23 +141,23 @@ const Sidebar: React.FC = () => {
 
         {/* Dropdown */}
         {isProfileOpen && (
-          <div className="absolute bottom-full left-2 right-2 mb-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden shadow-xl z-30">
+          <div className="absolute bottom-full left-2 right-2 mb-1 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xl z-30">
             <div className="py-1">
-              <div className="px-3 py-2 border-b border-[#2a2a2a]">
-                <p className="text-xs font-medium text-white truncate">{userName || 'User'}</p>
-                <p className="text-[11px] text-[#555555] truncate mt-0.5">{userEmail || user?.email || ''}</p>
+              <div className="px-3 py-2 border-b border-gray-100">
+                <p className="text-xs font-medium text-gray-900 truncate">{userName || 'User'}</p>
+                <p className="text-[11px] text-gray-400 truncate mt-0.5">{userEmail || user?.email || ''}</p>
               </div>
               <Link
                 to="/settings"
                 onClick={() => setIsProfileOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#888888] hover:text-white hover:bg-[#222222] transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-[13px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
               >
                 <UserIcon size={13} />
                 Profile & Settings
               </Link>
               <button
                 onClick={signOut}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[#888888] hover:text-white hover:bg-[#222222] transition-colors text-left"
+                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors text-left"
               >
                 <LogOut size={13} />
                 Log out
