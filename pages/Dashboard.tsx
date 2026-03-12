@@ -12,7 +12,7 @@ import {
     Users, Briefcase, CheckCircle, Clock, Activity, TrendingUp, TrendingDown, Filter,
     ChevronRight, MoreHorizontal, Plus, Calendar, Download, ChevronDown,
     BarChart2, Search, X, Video, Link as LinkIcon, CheckSquare, Square, Bell,
-    FileText, File, ArrowRight, Award, Zap,
+    FileText, File, ArrowRight, Zap,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
@@ -32,11 +32,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 type HiringMetrics = Awaited<ReturnType<typeof api.reports.getMetrics>> | null;
 
 const TTH_BENCHMARK = 21;
-
-const tthChartConfig = {
-  avgDays: { label: 'Within target',  color: 'var(--chart-1)' },
-  target:  { label: 'Over benchmark', color: '#e5e7eb' },
-} satisfies ChartConfig;
 
 const pipelineChartConfig = {
   toInterview: { label: 'Screening → Interview', color: 'var(--chart-1)' },
@@ -1198,15 +1193,35 @@ const Dashboard: React.FC = () => {
 
         if (!hasData) return null;
 
-        // Time to hire bars
-        const tthBars = (tth?.weekly_series ?? []).map((e, i, arr) => ({
-          week: e.week
-            ? new Date(e.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-            : `W${i + 1}`,
-          avgDays: Math.min(e.avg_days ?? 0, TTH_BENCHMARK),
-          target:  Math.max(0, (e.avg_days ?? 0) - TTH_BENCHMARK),
-          isLatest: i === arr.length - 1,
+        // Candidate drop-off funnel
+        const totalApplied = candidates.length;
+        const funnelStages = [
+          { label: 'Applied',    count: totalApplied,          color: '#111827' },
+          { label: 'Screened',   count: pc?.screening_count  ?? 0, color: '#7c3aed' },
+          { label: 'Interviewed',count: pc?.interview_count  ?? 0, color: '#0ea5e9' },
+          { label: 'Offered',    count: pc?.offer_count      ?? 0, color: '#f59e0b' },
+          { label: 'Hired',      count: pc?.hired_count      ?? 0, color: '#10b981' },
+        ];
+        const funnelMax = Math.max(totalApplied, 1);
+
+        // Hiring velocity (weekly TTH trend)
+        const velocitySeries = (tth?.weekly_series ?? []).map((e, i) => ({
+          week: e.week ? new Date(e.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : `W${i + 1}`,
+          days: e.avg_days ?? 0,
         }));
+        const velocityFirst = velocitySeries[0]?.days ?? 0;
+        const velocityLast  = velocitySeries[velocitySeries.length - 1]?.days ?? 0;
+        const velocityDelta = velocityFirst > 0 ? Math.round(((velocityLast - velocityFirst) / velocityFirst) * 100) : 0;
+        const velocityBest  = velocitySeries.reduce((b, e) => (e.days < b ? e.days : b), Infinity);
+        const velocityWorst = velocitySeries.reduce((w, e) => (e.days > w ? e.days : w), 0);
+
+        // Job health
+        const today = Date.now();
+        const jobHealth = jobs.map((j) => {
+          const daysOpen = j.postedDate ? Math.floor((today - new Date(j.postedDate).getTime()) / 86_400_000) : 0;
+          const status = daysOpen > 45 ? 'Stale' : daysOpen > 30 ? 'At Risk' : 'Healthy';
+          return { ...j, daysOpen, status };
+        }).sort((a, b) => b.daysOpen - a.daysOpen).slice(0, 5);
 
         // Pipeline radial
         const toInterviewRate = pc && pc.screening_count > 0
@@ -1225,9 +1240,6 @@ const Dashboard: React.FC = () => {
           : [];
         const activeIdx = Math.max(0, pieData.findIndex((d) => d.month === activeOfferSlice));
 
-        // Source rows
-        const sourceRows = [...(sq?.rows ?? [])].sort((a, b) => b.hire_rate_pct - a.hire_rate_pct);
-        const topSource = sourceRows[0] ?? null;
         const pieId = 'dash-offer-pie';
 
         return (
@@ -1239,44 +1251,52 @@ const Dashboard: React.FC = () => {
               <span className="text-xs text-gray-400 whitespace-nowrap">Last 90 days</span>
             </div>
 
-            {/* Analytics Row 1: Time to Hire + Pipeline Health */}
+            {/* Analytics Row 1: Drop-off Funnel + Pipeline Health */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              {/* Time to Hire */}
+              {/* Candidate Drop-off Funnel */}
               <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-                <div className="flex items-start justify-between mb-1">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Clock size={18} /></div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">Time to Hire</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Weekly avg · {TTH_BENCHMARK}d benchmark</p>
-                    </div>
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Users size={18} /></div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Candidate Drop-off Funnel</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Where candidates exit your pipeline</p>
                   </div>
-                  {tth?.trend_pct != null && <DeltaBadge value={-tth.trend_pct} />}
                 </div>
-                {tth?.avg_days != null && (
-                  <p className="text-3xl font-bold text-gray-900 tracking-tight mt-4 mb-4">
-                    {tth.avg_days}<span className="text-base font-medium text-gray-400 ml-1">days avg</span>
-                  </p>
-                )}
-                {tthBars.length > 0 ? (
-                  <>
-                    <ChartContainer config={tthChartConfig} className="h-[200px] w-full">
-                      <BarChart data={tthBars} barCategoryGap="32%">
-                        <CartesianGrid vertical={false} stroke="#f3f4f6" />
-                        <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8}
-                          tick={{ fontSize: 10, fill: '#9ca3af' }} tickFormatter={(v) => v.slice(0, 6)} />
-                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Bar dataKey="avgDays" stackId="a" fill="var(--color-avgDays)" radius={[0, 0, 4, 4]} />
-                        <Bar dataKey="target"  stackId="a" fill="var(--color-target)"  radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ChartContainer>
-                    <p className="text-xs text-gray-400 mt-3">Violet = within {TTH_BENCHMARK}d · Grey = over benchmark</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-400 italic mt-4">No weekly data yet.</p>
-                )}
+                <div className="space-y-3 flex-1">
+                  {funnelStages.map((stage, i) => {
+                    const pct = funnelMax > 0 ? Math.round((stage.count / funnelMax) * 100) : 0;
+                    const dropPct = i > 0 && funnelStages[i - 1].count > 0
+                      ? Math.round(((funnelStages[i - 1].count - stage.count) / funnelStages[i - 1].count) * 100)
+                      : null;
+                    return (
+                      <div key={stage.label}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-700">{stage.label}</span>
+                            {dropPct !== null && dropPct > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 border border-red-100 font-medium">
+                                −{dropPct}% drop
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold text-gray-900">{stage.count.toLocaleString()}</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, backgroundColor: stage.color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-5 pt-4 border-t border-gray-50 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Overall conversion</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    {funnelMax > 0 ? Math.round(((pc?.hired_count ?? 0) / funnelMax) * 100) : 0}%
+                    <span className="text-xs font-normal text-gray-400 ml-1">applied → hired</span>
+                  </span>
+                </div>
               </div>
 
               {/* Pipeline Health */}
@@ -1405,62 +1425,107 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* Source Performance */}
-              <div className={`bg-white border border-gray-100 rounded-xl p-6 flex flex-col ${pieData.length === 0 ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
+              {/* Hiring Velocity */}
+              <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Award size={18} /></div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Zap size={18} /></div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">Source Performance</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">Ranked by hire rate</p>
+                    <h3 className="text-lg font-bold text-gray-900">Hiring Velocity</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Speed trend over 90 days</p>
                   </div>
                 </div>
-                {topSource && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-100 rounded-lg mb-4">
-                    <Zap size={13} className="text-violet-600 flex-shrink-0" />
-                    <span className="text-xs text-violet-700">
-                      <span className="font-bold">{topSource.source}</span> is your best source at {topSource.hire_rate_pct}% hire rate
-                    </span>
+                {tth?.avg_days != null && (
+                  <div className="flex items-end justify-between mb-4">
+                    <div>
+                      <p className="text-3xl font-bold text-gray-900 tracking-tight">
+                        {tth.avg_days}<span className="text-sm font-medium text-gray-400 ml-1">days avg</span>
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">vs {TTH_BENCHMARK}d benchmark</p>
+                    </div>
+                    {tth.trend_pct != null && <DeltaBadge value={-tth.trend_pct} />}
                   </div>
                 )}
-                {sourceRows.length > 0 ? (
-                  <div className="space-y-3 flex-1">
-                    {sourceRows.map((row, i) => {
-                      const tier = row.hire_rate_pct >= 30 ? 'excellent' : row.hire_rate_pct >= 15 ? 'good' : 'low';
-                      const ts = { excellent: { bar: '#7c3aed', badge: 'bg-violet-100 text-violet-700 border-violet-200' }, good: { bar: '#0ea5e9', badge: 'bg-cyan-100 text-cyan-700 border-cyan-200' }, low: { bar: '#d1d5db', badge: 'bg-gray-100 text-gray-500 border-gray-200' } }[tier];
-                      const sb: Record<string, string> = { Sourced: 'bg-blue-50 text-blue-700', Applied: 'bg-green-50 text-green-700', Referred: 'bg-purple-50 text-purple-700', LinkedIn: 'bg-sky-50 text-sky-700' };
+                {velocitySeries.length > 1 ? (
+                  <div className="flex-1">
+                    <ChartContainer config={{}} className="h-[120px] w-full">
+                      <BarChart data={velocitySeries} barCategoryGap="28%">
+                        <CartesianGrid vertical={false} stroke="#f3f4f6" />
+                        <XAxis dataKey="week" tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#9ca3af' }} tickFormatter={(v) => v.slice(0, 5)} />
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        <Bar dataKey="days" radius={[3, 3, 0, 0]}
+                          fill="var(--chart-2)"
+                          label={false} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic flex-1">Not enough weekly data yet.</p>
+                )}
+                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-50">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Best week</p>
+                    <p className="text-base font-bold text-gray-900">{velocityBest === Infinity ? '—' : `${velocityBest}d`}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Slowest week</p>
+                    <p className="text-base font-bold text-gray-900">{velocityWorst > 0 ? `${velocityWorst}d` : '—'}</p>
+                  </div>
+                </div>
+                {((ior?.interview_count ?? 0) + (ior?.offer_count ?? 0)) > 0 && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Interview–Offer Ratio</p>
+                      <p className="text-base font-bold text-gray-900">{ior!.ratio}<span className="text-xs font-normal text-gray-400 ml-1">per offer</span></p>
+                    </div>
+                    {ior?.trend_pct != null && <DeltaBadge value={ior.trend_pct} />}
+                  </div>
+                )}
+              </div>
+
+              {/* Job Health Score */}
+              <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Briefcase size={18} /></div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Job Health</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Open reqs by urgency</p>
+                  </div>
+                </div>
+                {jobHealth.length > 0 ? (
+                  <div className="space-y-2.5 flex-1">
+                    {jobHealth.map((job) => {
+                      const styles = {
+                        Healthy:  { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                        'At Risk':{ dot: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+                        Stale:    { dot: 'bg-red-400',     badge: 'bg-red-50 text-red-600 border-red-200' },
+                      }[job.status] ?? { dot: 'bg-gray-300', badge: 'bg-gray-100 text-gray-500 border-gray-200' };
                       return (
-                        <div key={row.source} className="flex items-center gap-3">
-                          <span className="text-xs font-bold text-gray-300 w-4 text-right flex-shrink-0">{i + 1}</span>
-                          <span className={`px-2 py-0.5 rounded-md text-xs font-semibold flex-shrink-0 ${sb[row.source] ?? 'bg-gray-100 text-gray-700'}`}>{row.source}</span>
+                        <div key={job.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-gray-400">{row.total} candidates · {row.hired_count} hired</span>
-                              <span className="text-xs font-bold text-gray-900">{row.hire_rate_pct}%</span>
-                            </div>
-                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, row.hire_rate_pct)}%`, backgroundColor: ts.bar }} />
-                            </div>
+                            <p className="text-xs font-semibold text-gray-900 truncate">{job.title}</p>
+                            <p className="text-[10px] text-gray-400">{job.applicantsCount} applicants · {job.daysOpen}d open</p>
                           </div>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0 ${ts.badge}`}>{tier}</span>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0 ${styles.badge}`}>{job.status}</span>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400 italic">No source data yet.</p>
+                  <p className="text-sm text-gray-400 italic flex-1">No active jobs.</p>
                 )}
-                {((ior?.interview_count ?? 0) + (ior?.offer_count ?? 0)) > 0 && (
-                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Interview–Offer Ratio</p>
-                      <p className="text-xl font-bold text-gray-900 mt-0.5">
-                        {ior!.ratio}<span className="text-sm font-medium text-gray-400 ml-1">per offer</span>
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{ior!.interview_count} interviews · {ior!.offer_count} offers</p>
-                    </div>
-                    {ior?.trend_pct != null && <DeltaBadge value={ior.trend_pct} />}
-                  </div>
-                )}
+                <div className="mt-4 pt-3 border-t border-gray-50 grid grid-cols-3 gap-2 text-center">
+                  {(['Healthy', 'At Risk', 'Stale'] as const).map((s) => {
+                    const count = jobHealth.filter(j => j.status === s).length;
+                    const colors = { Healthy: 'text-emerald-600', 'At Risk': 'text-amber-600', Stale: 'text-red-500' }[s];
+                    return (
+                      <div key={s}>
+                        <p className={`text-base font-bold ${colors}`}>{count}</p>
+                        <p className="text-[10px] text-gray-400">{s}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </>
