@@ -80,6 +80,7 @@ const Sidebar: React.FC = () => {
             src="/assets/images/coreflow-favicon-logo.png"
             alt="CoreFlow"
             className="w-6 h-6 object-contain flex-shrink-0"
+            style={{ filter: 'brightness(0) invert(1)' }}
           />
           <span className="text-sm font-semibold text-white tracking-tight">CoreFlow</span>
         </Link>
