@@ -741,8 +741,8 @@ const Jobs: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto flex flex-col bg-white min-h-screen" style={{ position: 'relative', overflow: 'visible' }}>
-      {/* Modal */}
+    <div className="pt-8 px-8 pb-8 max-w-[1600px] mx-auto bg-white min-h-screen" style={{ position: 'relative', overflow: 'visible' }}>
+      {/* Modals */}
       {selectedJob && (
         <JobManageModal
           job={selectedJob}
@@ -791,262 +791,271 @@ const Jobs: React.FC = () => {
       )}
 
       {/* Page Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-gray-900">Your Active Job Postings</h1>
-            <p className="text-gray-500 mt-1">Manage candidates for open roles.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Jobs</h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {counts['Active']} active
+            {counts['Draft'] > 0 ? ` · ${counts['Draft']} draft` : ''}
+            {counts['Closed'] > 0 ? ` · ${counts['Closed']} closed` : ''}
+          </p>
         </div>
-        <div className="flex gap-3 items-center">
-            <div className="relative" ref={notificationRef}>
-                <button 
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-900 text-gray-900' : 'border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300'}`}
-                >
-                    <Bell size={18} />
-                    {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                    )}
-                </button>
-
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                    <NotificationDropdown
-                        notifications={notifications}
-                        onMarkAllRead={async () => {
-                            await api.notifications.markRead();
-                            const updated = await api.notifications.list();
-                            setNotifications(updated);
-                        }}
-                    />
-                )}
-            </div>
-
-            {canCreateJobs && (
-                <Link to="/jobs/new">
-                    <Button variant="black" size="sm" icon={<Plus size={14}/>}>Post a Job</Button>
-                </Link>
+        <div className="flex items-center gap-2.5">
+          <div className="relative" ref={notificationRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>
+              )}
+            </button>
+            {showNotifications && (
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkAllRead={async () => {
+                  await api.notifications.markRead();
+                  const updated = await api.notifications.list();
+                  setNotifications(updated);
+                }}
+              />
             )}
+          </div>
+          {canCreateJobs && (
+            <Link to="/jobs/new">
+              <Button variant="black" size="sm" icon={<Plus size={14} />}>Post a Job</Button>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Controls Container */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 space-y-4" style={{ position: 'relative', zIndex: 2 }}>
-          
-          {/* Status Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-              {(['Active', 'Draft', 'Closed', 'All'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                        activeTab === tab 
-                        ? 'bg-gray-100 text-gray-900 ring-1 ring-black/5' 
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                    }`}
-                  >
-                      <span className={`w-2 h-2 rounded-full ${
-                          tab === 'Active' ? 'bg-black' : 
-                          tab === 'Draft' ? 'bg-black' : 
-                          tab === 'Closed' ? 'bg-black' : 'bg-black'
-                      }`}></span>
-                      {tab}
-                      <span className="ml-1 bg-white px-1.5 py-0.5 rounded-md text-xs border border-gray-200 text-gray-500">
-                          {counts[tab]}
-                      </span>
-                  </button>
-              ))}
-          </div>
+      {/* Tabs + Search Row */}
+      <div className="flex items-center justify-between border-b border-gray-100 mb-0" style={{ position: 'relative', zIndex: 2 }}>
+        {/* Inline underline tabs */}
+        <div className="flex items-end gap-0">
+          {(['Active', 'Draft', 'Closed', 'All'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
+                activeTab === tab
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              {tab}
+              <span className="text-xs text-gray-400 font-normal">{counts[tab]}</span>
+            </button>
+          ))}
+        </div>
 
-          {/* Filters Row */}
-          <div className="flex flex-col md:flex-row gap-4" style={{ position: 'relative' }}>
-              <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Search jobs, companies, or locations..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                  />
-              </div>
-              <div className="relative flex-1">
-                  <CustomSelect
-                      inputStyle
-                      value={selectedJobType}
-                      onChange={setSelectedJobType}
-                      className="px-4 py-2.5 rounded-lg"
-                      options={[
-                          { value: 'All Job Types', label: 'All Job Types' },
-                          { value: 'Full-time', label: 'Full-time' },
-                          { value: 'Part-time', label: 'Part-time' },
-                          { value: 'Contract', label: 'Contract' },
-                      ]}
-                  />
-              </div>
+        {/* Search + Type filter */}
+        <div className="flex items-center gap-2 pb-2" style={{ position: 'relative' }}>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors w-52"
+            />
           </div>
+          <div className="w-36">
+            <CustomSelect
+              inputStyle
+              value={selectedJobType}
+              onChange={setSelectedJobType}
+              className="py-1.5 text-sm"
+              options={[
+                { value: 'All Job Types', label: 'All Job Types' },
+                { value: 'Full-time', label: 'Full-time' },
+                { value: 'Part-time', label: 'Part-time' },
+                { value: 'Contract', label: 'Contract' },
+              ]}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Results Count */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4 px-1" style={{ position: 'relative', zIndex: 0 }}>
-          <Filter size={14} />
-          <span>{filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} found</span>
-      </div>
+      {/* Job Table */}
+      <div className="border border-gray-100 rounded-xl overflow-hidden mt-4">
+        {/* Table Header */}
+        <div className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] bg-gray-50 border-b border-gray-100 px-5 py-2.5">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Role</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Department</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Location</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Candidates</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Status</span>
+          <span></span>
+        </div>
 
-      {/* Job List */}
-      <div className="grid gap-4 flex-1 content-start">
-        {currentJobs.map(job => (
-            <div key={job.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between hover:border-gray-300 transition-all group relative">
-                <div className="flex-1 cursor-pointer" onClick={() => setSelectedJob(job)}>
-                    <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-black transition-colors">{job.title}</h3>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                            'bg-gray-100 text-gray-700 border-gray-200'
-                        }`}>
-                            {job.status}
-                        </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                        <div className="flex items-center gap-1.5">
-                            <Briefcase size={14} />
-                            {job.department}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <MapPin size={14} />
-                            {job.location}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <Clock size={14} />
-                            {job.type}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-400">
-                            <span>•</span>
-                            Posted {new Date(job.postedDate).toLocaleDateString()}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-600 font-medium">
-                            <Users size={14} />
-                            {(job.candidateCount ?? 0) > 0
-                                ? `${job.candidateCount} candidate${job.candidateCount !== 1 ? 's' : ''}`
-                                : 'No candidates yet'}
-                        </div>
-                    </div>
-                </div>
+        {/* Job Rows */}
+        {currentJobs.length > 0 ? (
+          currentJobs.map((job) => (
+            <div
+              key={job.id}
+              className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] px-5 py-3.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer group items-center"
+              onClick={() => setSelectedJob(job)}
+            >
+              {/* Role */}
+              <div>
+                <p className="text-sm font-semibold text-gray-900 leading-snug">{job.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {job.type}
+                  {job.postedDate ? ` · Posted ${new Date(job.postedDate).toLocaleDateString()}` : ''}
+                </p>
+              </div>
 
-                <div className="flex items-center gap-6 mt-4 md:mt-0 w-full md:w-auto justify-between md:justify-end relative" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-2 relative">
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-9"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setSelectedJob(job);
-                            }}
+              {/* Department */}
+              <span className="text-sm text-gray-500 truncate">{job.department || '—'}</span>
+
+              {/* Location */}
+              <span className="text-sm text-gray-500 truncate">{job.location || '—'}</span>
+
+              {/* Candidates */}
+              <span className="text-sm text-gray-500">
+                {(job.candidateCount ?? 0) > 0
+                  ? `${job.candidateCount} candidate${job.candidateCount !== 1 ? 's' : ''}`
+                  : <span className="text-gray-300">—</span>}
+              </span>
+
+              {/* Status badge */}
+              <div>
+                {job.status === 'Active' && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+                    Active
+                  </span>
+                )}
+                {job.status === 'Draft' && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+                    Draft
+                  </span>
+                )}
+                {job.status === 'Closed' && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0"></span>
+                    Closed
+                  </span>
+                )}
+                {job.status !== 'Active' && job.status !== 'Draft' && job.status !== 'Closed' && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0"></span>
+                    {job.status}
+                  </span>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end relative" onClick={(e) => e.stopPropagation()}>
+                {userRole !== 'Viewer' && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleActionMenu(e, job.id);
+                      }}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+                        openActionMenuId === job.id
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+
+                    {openActionMenuId === job.id && (
+                      <div
+                        ref={actionMenuRef}
+                        className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                        style={{ zIndex: 1000 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => handleAction('edit', job)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
                         >
-                            Manage
-                        </Button>
-                        
-                        {userRole !== 'Viewer' && (
-                        <>
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                toggleActionMenu(e, job.id);
-                            }}
-                            className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors border border-transparent hover:border-gray-200 ${openActionMenuId === job.id ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'}`}
-                        >
-                            <MoreVertical size={18} />
+                          <Edit size={13} /> Edit Job
                         </button>
-
-                        {/* Action Menu Dropdown */}
-                        {openActionMenuId === job.id && (
-                            <div 
-                                ref={actionMenuRef}
-                                className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
-                                style={{ zIndex: 1000, position: 'absolute' }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <button 
-                                    onClick={() => handleAction('edit', job)}
-                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
-                                >
-                                    <Edit size={14} /> Edit Job
-                                </button>
-                                <button 
-                                    onClick={() => handleAction('settings', job)}
-                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
-                                >
-                                    <Settings size={14} /> Settings
-                                </button>
-                                <button 
-                                    onClick={() => handleAction('close', job)}
-                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
-                                >
-                                    <Archive size={14} /> Close Job
-                                </button>
-                                <button 
-                                    onClick={() => handleAction('delete', job)}
-                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-800 font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <Trash2 size={14} /> Delete Job
-                                </button>
-                            </div>
-                        )}
-                        </>
-                        )}
-                    </div>
-                </div>
+                        <button
+                          onClick={() => handleAction('settings', job)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
+                        >
+                          <Settings size={13} /> Settings
+                        </button>
+                        <button
+                          onClick={() => handleAction('close', job)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
+                        >
+                          <Archive size={13} /> Close Job
+                        </button>
+                        <button
+                          onClick={() => handleAction('delete', job)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-800 font-medium transition-colors flex items-center gap-2"
+                        >
+                          <Trash2 size={13} /> Delete Job
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-        ))}
-        
-        {filteredJobs.length === 0 && (
-            <div className="text-center py-20 bg-white border border-gray-200 rounded-xl border-dashed">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search size={24} className="text-gray-400" />
-                </div>
-                <h3 className="text-gray-900 font-bold text-lg mb-1">No jobs found</h3>
-                <p className="text-gray-500 text-sm mb-6">Try adjusting your search or filters to find what you're looking for.</p>
-                <Button variant="outline" onClick={() => {setSearchQuery(''); setActiveTab('All')}}>Clear Filters</Button>
+          ))
+        ) : (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-20 border-dashed">
+            <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mb-3">
+              <Search size={20} className="text-gray-300" />
             </div>
+            <p className="text-sm font-semibold text-gray-700 mb-1">No jobs found</p>
+            <p className="text-xs text-gray-400 mb-4 text-center max-w-xs">
+              Try adjusting your search or filters to find what you're looking for.
+            </p>
+            <button
+              onClick={() => { setSearchQuery(''); setActiveTab('All'); }}
+              className="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Clear filters
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Pagination Controls */}
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-200 pt-6 mt-6">
-            <p className="text-sm text-gray-500">
-                Showing <span className="font-bold text-gray-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, filteredJobs.length)}</span> of <span className="font-bold text-gray-900">{filteredJobs.length}</span> jobs
-            </p>
-            <div className="flex items-center gap-2">
-                <button 
-                    onClick={() => changePage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    <ChevronLeft size={18} />
-                </button>
-                {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                        key={i}
-                        onClick={() => changePage(i + 1)}
-                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === i + 1 
-                                ? 'bg-black text-white' 
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
-                        }`}
-                    >
-                        {i + 1}
-                    </button>
-                ))}
-                <button 
-                    onClick={() => changePage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    <ChevronRight size={18} />
-                </button>
-            </div>
+        <div className="flex items-center justify-end gap-1 border-t border-gray-100 pt-4 mt-4">
+          <button
+            onClick={() => changePage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => changePage(i + 1)}
+              className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === i + 1
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => changePage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
     </div>
