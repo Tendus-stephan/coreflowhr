@@ -243,7 +243,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     } else {
       setOnboardingChecked(true);
     }
-  }, [session, user, location.pathname]);
+  }, [session, user]);
 
   // Check for revoked sessions periodically and on navigation (non-blocking)
   useEffect(() => {
@@ -304,16 +304,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
     window.addEventListener('focus', handleFocus);
 
-    // Don't check on every route change - too aggressive
-    // Only check on initial mount and periodically
-
     return () => {
       isMounted = false;
       clearTimeout(initialTimeout);
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [session, user, location.pathname]);
+  }, [session, user]);
 
   // Show loading state while checking auth or subscription
   if (loading) {

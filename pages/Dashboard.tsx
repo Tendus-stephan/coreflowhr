@@ -800,32 +800,15 @@ const Dashboard: React.FC = () => {
               setCandidates(candidatesResult.data || []);
               setNotifications(n);
 
-              // Check for expired jobs and refresh notifications if any were created
-              // Note: checkJobExpirations has built-in debouncing (1 hour minimum between checks)
-              // to prevent duplicate notifications
-              try {
-                  const { checkJobExpirations } = await import('../services/jobExpirationChecker');
-                  await checkJobExpirations();
-                  // Only refresh notifications if checkJobExpirations didn't skip (due to debounce)
-                  // This prevents unnecessary API calls
-                  const updatedNotifications = await api.notifications.list();
-                  setNotifications(updatedNotifications);
-              } catch (expError) {
-                  console.error('Error checking job expirations:', expError);
-              }
-
-              // In-app reminders: past interviews (feedback) and upcoming (coming soon)
-              try {
-                  await api.interviews.ensureFeedbackReminders();
-                  await api.interviews.ensureUpcomingInterviewReminders();
-                  const updatedAfterReminders = await api.notifications.list();
-                  setNotifications(updatedAfterReminders);
-              } catch (_) {}
-
-              // Inactivity nudge: update last_seen_at; create "Welcome back" if away 7+ days
-              try {
-                  await api.settings.recordSeen();
-              } catch (_) {}
+              // Run all background tasks in parallel, then fetch notifications once
+              await Promise.allSettled([
+                  import('../services/jobExpirationChecker').then(m => m.checkJobExpirations()).catch(() => {}),
+                  api.interviews.ensureFeedbackReminders().catch(() => {}),
+                  api.interviews.ensureUpcomingInterviewReminders().catch(() => {}),
+                  api.settings.recordSeen().catch(() => {}),
+              ]);
+              const finalNotifications = await api.notifications.list();
+              setNotifications(finalNotifications);
           } catch (error) {
               console.error("Error loading dashboard", error);
           } finally {

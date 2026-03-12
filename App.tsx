@@ -45,7 +45,6 @@ const NavLoader: React.FC<{ onMount: () => void }> = ({ onMount }) => {
 
 const Layout = () => {
   const location = useLocation();
-  const { isExpanded } = useSidebar();
   const { isCandidateModalOpen } = useModal(); // Move this BEFORE any conditional returns
 
   // Route-transition loader — shows in content area, sidebar stays visible
@@ -134,8 +133,6 @@ const Layout = () => {
     return <Outlet />;
   }
 
-  const sidebarWidth = isExpanded ? '256px' : '80px';
-  
   // Don't show AI button on onboarding page or when candidate modal is open
   const showAIButton = location.pathname !== '/onboarding' && !isCandidateModalOpen;
 
@@ -147,7 +144,7 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
-      <main className={`overflow-x-hidden relative transition-all duration-150 bg-white ${isExpanded ? 'md:ml-[256px]' : 'md:ml-[80px]'}`} style={{ paddingBottom: '80px' }}>
+      <main className="overflow-x-hidden relative bg-white md:ml-[220px]" style={{ paddingBottom: '80px' }}>
         {navigating ? (
           <NavLoader onMount={hideNavLoader} />
         ) : (
