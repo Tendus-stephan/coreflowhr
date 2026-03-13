@@ -71,7 +71,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   }, [open]);
 
   const buttonBase = inputStyle
-    ? `inline-flex w-full items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${className}`
+    ? `inline-flex w-full items-center gap-2 px-3 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${className}`
     : `inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${className}`;
 
   const emptyLabel = !selected ? (inputStyle ? 'text-gray-400' : 'text-gray-500') : '';
@@ -104,7 +104,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
                 opt.value === value
                   ? 'font-semibold text-gray-900 bg-gray-50'
                   : opt.value === ''

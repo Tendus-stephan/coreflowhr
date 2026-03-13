@@ -8,6 +8,7 @@ import {
   Users as UsersIcon, Search, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { PageLoader } from '../components/ui/PageLoader';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Session } from '../services/api';
@@ -143,6 +144,15 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
             setFormData({ ...template });
         }
     }, [template]);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     const handleSave = async () => {
         if (!formData) return;
@@ -1824,44 +1834,43 @@ const Settings: React.FC = () => {
             .catch(() => setProfileWorkspaceName('Your company'));
     }, [activeTab, user?.id]);
 
-    if (!user) return (
-        <div className="min-h-screen bg-white">
-            <div className="p-8">
-                <div className="text-sm text-gray-500">Loading...</div>
-            </div>
-        </div>
-    );
+    if (!user) return <PageLoader />;
 
     return (
-        <div className="min-h-screen bg-white">
-            <div className="p-8 max-w-6xl mx-auto">
+        <div className="flex flex-col h-full bg-gray-50/40">
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-            
-            <div className="flex items-center justify-between mb-8">
+
+            {/* Page header */}
+            <div className="px-8 pt-8 pb-5 border-b border-gray-100 bg-white flex items-start justify-between gap-4 flex-shrink-0">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-                    <p className="text-gray-500 text-sm mt-1">Manage your account, billing, and preferences.</p>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-none">Settings</h1>
+                    <p className="mt-1.5 text-sm text-gray-400 font-normal">Manage your account, billing, and preferences.</p>
                 </div>
-                <Button variant="outline" onClick={() => setIsHelpOpen(true)}>Help & Support</Button>
+                <Button variant="outline" size="sm" onClick={() => setIsHelpOpen(true)}>Help & Support</Button>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-8">
+            <div className="flex flex-1 min-h-0 overflow-hidden">
                 {/* Sidebar */}
-                <div className="w-full md:w-64 flex-shrink-0 space-y-1">
+                <div className="w-56 flex-shrink-0 border-r border-gray-100 bg-white py-4 px-3 space-y-0.5 overflow-y-auto">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                                activeTab === tab.id
+                                    ? 'bg-gray-100 text-gray-900'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                            }`}
                         >
-                            <tab.icon size={18} />
+                            <tab.icon size={16} className={activeTab === tab.id ? 'text-gray-900' : 'text-gray-400'} />
                             {tab.label}
                         </button>
                     ))}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 bg-white border border-gray-100 rounded-xl  p-8 min-h-[500px]">
+                <div className="flex-1 overflow-y-auto">
+                <div className="p-8 max-w-3xl">
                     {activeTab === 'profile' && (
                         <div className="space-y-8">
                             <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4">Profile Information</h2>
@@ -2344,12 +2353,13 @@ const Settings: React.FC = () => {
                                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         />
                                     </div>
-                                    <div className="w-full md:w-40 space-y-1">
+                                    <div className="w-full md:w-44 space-y-1">
                                         <label className="text-xs font-medium text-gray-700">Role</label>
                                         <CustomSelect
+                                            inputStyle
                                             value={inviteRole}
                                             onChange={(val) => setInviteRole(val as User['role'])}
-                                            className="px-3 py-2 rounded-xl"
+                                            className="py-2 rounded-xl"
                                             options={[
                                                 { value: 'Recruiter', label: 'Recruiter' },
                                                 { value: 'HiringManager', label: 'Hiring Manager' },

@@ -10,6 +10,7 @@ import {
     Filter, MoreHorizontal, TrendingUp, Download, Bell, Loader2, AlertTriangle, Info
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { CandidateModal } from '../components/CandidateModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { Toast } from '../components/ui/Toast';
@@ -423,284 +424,192 @@ const CandidateBoard: React.FC = () => {
 
   return (
     <div className="flex flex-col bg-white min-h-full" style={{ height: '100%' }}>
-      
-      {/* Fixed Header Section */}
-      <div className="px-8 pt-8 pb-4 space-y-6 flex-shrink-0">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Candidates Overview</h1>
-                <p className="text-gray-500 text-sm mt-1">Manage and review candidates for your open positions.</p>
-            </div>
-            <div className="flex gap-3 items-center">
-                <div className="relative" ref={notificationRef}>
-                    <button 
-                        onClick={() => setShowNotifications(!showNotifications)}
-                        className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-900 text-gray-900' : 'border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300'}`}
-                    >
-                        <Bell size={18} />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
-                    </button>
 
-                    {/* Notifications Dropdown */}
-                    {showNotifications && (
-                        <NotificationDropdown
-                            notifications={notifications}
-                            onMarkAllRead={async () => {
-                                await api.notifications.markRead();
-                                const updated = await api.notifications.list();
-                                setNotifications(updated);
-                            }}
-                        />
-                    )}
-                </div>
-                <Button 
-                    variant="black" 
-                    icon={<Download size={16} />}
-                    onClick={async () => {
-                        try {
-                            // Export all filtered candidates to CSV
-                            // Check export limit
-                            const exportCheck = await api.plan.canExportCandidates(filteredCandidates.length);
-                            if (!exportCheck.allowed) {
-                                alert(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export. Please filter to fewer candidates or upgrade to Professional.`);
-                                return;
-                            }
-                            
-                            const csvContent = [
-                                ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
-                                ...filteredCandidates.map(c => [
-                                    `"${c.name}"`,
-                                    `"${c.email || ''}"`,
-                                    `"${c.role || ''}"`,
-                                    `"${c.stage}"`,
-                                    c.aiMatchScore || '',
-                                    `"${(c.skills || []).join('; ')}"`,
-                                    `"${c.location || ''}"`,
-                                    c.experience || ''
-                                ].join(','))
-                            ].join('\n');
-                            
-                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                            const link = document.createElement('a');
-                            const url = URL.createObjectURL(blob);
-                            link.setAttribute('href', url);
-                            link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
-                            link.style.visibility = 'hidden';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(url);
-                        } catch (error) {
-                            console.error('Error exporting candidates:', error);
-                            alert('Failed to export candidates. Please try again.');
-                        }
-                    }}
-                >
-                    Export
-                </Button>
-            </div>
+      {/* Page Header */}
+      <div className="px-8 pt-8 pb-5 border-b border-gray-100 flex items-start justify-between gap-4 flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-none">Candidates</h1>
+          <p className="mt-1.5 text-sm text-gray-400 font-normal">
+            Move candidates through your hiring pipeline and track their progress.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative" ref={notificationRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
+              )}
+            </button>
+            {showNotifications && (
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkAllRead={async () => {
+                  await api.notifications.markRead();
+                  const updated = await api.notifications.list();
+                  setNotifications(updated);
+                }}
+              />
+            )}
           </div>
-
-          {/* Metrics Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard 
-                title="Total Candidates" 
-                value={metrics.total} 
-                subtext="from last month" 
-                trend="+12%" 
-                icon={Users} 
-              />
-              <MetricCard 
-                title="Qualified Candidates" 
-                value={metrics.qualified} 
-                subtext="from last week" 
-                trend="+8%" 
-                icon={CheckCircle} 
-              />
-              <MetricCard 
-                title="Waitlist" 
-                value={metrics.waitlist} 
-                subtext="from last week" 
-                trend="+5%" 
-                icon={Clock} 
-              />
-              <MetricCard 
-                title="Avg Match Score" 
-                value={`${metrics.avgScore}%`} 
-                subtext="from last week" 
-                trend="+3%" 
-                icon={Sparkles} 
-              />
-          </div>
-
-          {/* Filter Bar Container */}
-          <div className="bg-white border border-gray-200 rounded-xl p-2 space-y-4">
-              
-              {/* Pills Row */}
-              <div className="flex items-center gap-2 border-b border-gray-100 pb-2 px-2 pt-2 overflow-x-auto">
-                   {[
-                       { name: 'Qualified', color: 'bg-black' },
-                       { name: 'Interview', color: 'bg-black' },
-                       { name: 'Rejected', color: 'bg-black' },
-                       { name: 'Waitlist', color: 'bg-black' },
-                       { name: 'Offer', color: 'bg-black' },
-                       { name: 'Hired', color: 'bg-black' },
-                       { name: 'Screening', color: 'bg-black' },
-                       { name: 'All', color: 'bg-black' }
-                   ].map(pill => (
-                       <button
-                           key={pill.name}
-                           onClick={() => setSelectedStageFilter(pill.name)}
-                           className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                               selectedStageFilter === pill.name 
-                               ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-200' 
-                               : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                           }`}
-                       >
-                           <span className={`w-2 h-2 rounded-full ${pill.color}`}></span>
-                           {pill.name}
-                           <span className="ml-1 bg-white border border-gray-200 px-1.5 rounded-md text-xs font-medium text-gray-500">
-                               {counts[pill.name as keyof typeof counts]}
-                           </span>
-                       </button>
-                   ))}
-              </div>
-
-              {/* Search & Dropdowns Row */}
-              <div className="flex flex-col md:flex-row gap-4 px-2 pb-2">
-                  <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                      <input 
-                        type="text" 
-                        placeholder="Search candidates, jobs, or skills..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-colors"
-                      />
-                  </div>
-                  <div className="relative min-w-[200px]" ref={jobDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => setJobDropdownOpen(!jobDropdownOpen)}
-                        className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-black focus:ring-1 focus:ring-black cursor-pointer hover:bg-gray-50 transition-colors text-left flex items-center justify-between"
-                      >
-                          <span className="truncate">{selectedJob === 'all' ? 'All jobs' : jobs.find(j => j.id === selectedJob)?.title ?? 'All jobs'}</span>
-                          <ChevronDown size={16} className={`text-gray-400 flex-shrink-0 ml-2 transition-transform ${jobDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {jobDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 max-h-60 overflow-y-auto">
-                          <button type="button" onClick={() => { setSelectedJob('all'); setJobDropdownOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">All jobs</button>
-                          {jobs.map(job => (
-                            <button key={job.id} type="button" onClick={() => { setSelectedJob(job.id); setJobDropdownOpen(false); }} className={`w-full text-left px-4 py-2.5 text-sm truncate hover:bg-gray-50 ${selectedJob === job.id ? 'bg-blue-50 text-blue-900 font-medium' : 'text-gray-700'}`}>{job.title}</button>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-              </div>
-          </div>
+          <Button
+            variant="black"
+            size="sm"
+            icon={<Download size={14} />}
+            onClick={async () => {
+              try {
+                const exportCheck = await api.plan.canExportCandidates(filteredCandidates.length);
+                if (!exportCheck.allowed) {
+                  alert(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export.`);
+                  return;
+                }
+                const csvContent = [
+                  ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
+                  ...filteredCandidates.map(c => [
+                    `"${c.name}"`, `"${c.email || ''}"`, `"${c.role || ''}"`, `"${c.stage}"`,
+                    c.aiMatchScore || '', `"${(c.skills || []).join('; ')}"`, `"${c.location || ''}"`, c.experience || ''
+                  ].join(','))
+                ].join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              } catch {
+                alert('Failed to export candidates. Please try again.');
+              }
+            }}
+          >
+            Export
+          </Button>
+        </div>
       </div>
 
-      {/* Sourcing status bar — shown only when a specific job is selected */}
+      {/* Compact Stats Bar */}
+      <div className="px-8 py-3 border-b border-gray-100 flex items-center gap-5 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">Total</span>
+          <span className="text-sm font-semibold text-gray-900">{metrics.total}</span>
+        </div>
+        <div className="w-px h-3.5 bg-gray-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">Qualified</span>
+          <span className="text-sm font-semibold text-gray-900">{metrics.qualified}</span>
+        </div>
+        <div className="w-px h-3.5 bg-gray-200" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">Waitlist</span>
+          <span className="text-sm font-semibold text-gray-900">{metrics.waitlist}</span>
+        </div>
+        {metrics.avgScore > 0 && (
+          <>
+            <div className="w-px h-3.5 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400">Avg match</span>
+              <span className="text-sm font-semibold text-gray-900">{metrics.avgScore}%</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Filter Row: stage tabs + search + job select */}
+      <div className="px-8 flex items-center justify-between border-b border-gray-100 flex-shrink-0" style={{ position: 'relative', zIndex: 2 }}>
+        <div className="flex items-end gap-0">
+          {(['All', 'Waitlist', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'] as const).map((stage) => (
+            <button
+              key={stage}
+              onClick={() => setSelectedStageFilter(stage)}
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
+                selectedStageFilter === stage
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              {stage}
+              <span className="text-xs text-gray-400 font-normal tabular-nums">
+                {counts[stage]}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 pb-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search candidates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors w-48"
+            />
+          </div>
+          <div className="w-40">
+            <CustomSelect
+              inputStyle
+              value={selectedJob}
+              onChange={setSelectedJob}
+              className="py-1.5 text-sm"
+              options={[
+                { value: 'all', label: 'All jobs' },
+                ...jobs.map(j => ({ value: j.id, label: j.title }))
+              ]}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Sourcing status bar */}
       {selectedJob !== 'all' && (
         <SourcingStatusBar
           jobId={selectedJob}
           isReadOnly={isViewer}
           onCandidatesAdded={() => {
-            // Reload candidates when sourcing completes
             api.candidates.list({ page: 1, pageSize: 1000 }).then((r) => setCandidates(r.data || [])).catch(() => {});
           }}
         />
       )}
 
-      {/* Flexible Board Area with Horizontal Scroll */}
+      {/* Board */}
       <div
         ref={boardRef}
         onDragOver={handleBoardDragOver}
-        className="flex-1 bg-white px-8"
+        className="flex-1 bg-white px-8 pt-4"
         style={{ overflowX: 'auto', overflowY: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}
       >
-          <div className="flex gap-6 w-max snap-x snap-mandatory pb-4" style={{ height: '100%' }}>
-            <PipelineColumn 
-                title="Waitlist" 
-                stage={CandidateStage.NEW} 
-                candidates={getCandidatesByStage(CandidateStage.NEW)} 
-                onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={isViewer ? undefined : handleDropCandidate}
-                isValidDropTarget={isValidStageTransition}
-                jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
-                readOnly={isViewer}
-            />
-            <PipelineColumn 
-                title="Screening" 
-                stage={CandidateStage.SCREENING} 
-                candidates={getCandidatesByStage(CandidateStage.SCREENING)} 
-                onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={isViewer ? undefined : handleDropCandidate}
-                isValidDropTarget={isValidStageTransition}
-                jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
-                readOnly={isViewer}
-            />
-            <PipelineColumn 
-                title="Interview" 
-                stage={CandidateStage.INTERVIEW} 
-                candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} 
-                onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={isViewer ? undefined : handleDropCandidate}
-                isValidDropTarget={isValidStageTransition}
-                jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
-                readOnly={isViewer}
-            />
-            <PipelineColumn 
-                title="Offer" 
-                stage={CandidateStage.OFFER} 
-                candidates={getCandidatesByStage(CandidateStage.OFFER)} 
-                onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={isViewer ? undefined : handleDropCandidate}
-                isValidDropTarget={isValidStageTransition}
-                jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
-                readOnly={isViewer}
-            />
-            <PipelineColumn 
-                title="Hired" 
-                stage={CandidateStage.HIRED} 
-                candidates={getCandidatesByStage(CandidateStage.HIRED)} 
-                onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={isViewer ? undefined : handleDropCandidate}
-                isValidDropTarget={isValidStageTransition}
-                jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
-                readOnly={isViewer}
-            />
-            <PipelineColumn 
-                title="Rejected" 
-                stage={CandidateStage.REJECTED} 
-                candidates={getCandidatesByStage(CandidateStage.REJECTED)} 
-                onSelectCandidate={setSelectedCandidate}
-                onDropCandidate={isViewer ? undefined : handleDropCandidate}
-                isValidDropTarget={isValidStageTransition}
-                jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined}
-                readOnly={isViewer}
-            />
-          </div>
+        <div className="flex gap-3 w-max snap-x snap-mandatory pb-4" style={{ height: '100%' }}>
+          <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+          <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+          <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+          <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+          <PipelineColumn title="Hired" stage={CandidateStage.HIRED} candidates={getCandidatesByStage(CandidateStage.HIRED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+          <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+        </div>
       </div>
 
       {selectedCandidate && (
-          <CandidateModal
-            candidate={selectedCandidate}
-            isOpen={!!selectedCandidate}
-            onClose={() => {
-              setSelectedCandidate(null);
-              setInitialTabFromUrl(undefined);
-              setInitialEmailSubTabFromUrl(undefined);
-              const newSearchParams = new URLSearchParams(searchParams);
-              newSearchParams.delete('candidateId');
-              setSearchParams(newSearchParams, { replace: true });
-            }}
-            onUpdate={handleCandidateUpdate}
-            initialActiveTab={initialTabFromUrl as 'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers' | undefined}
-            initialEmailSubTab={initialEmailSubTabFromUrl as 'compose' | 'history' | undefined}
-          />
+        <CandidateModal
+          candidate={selectedCandidate}
+          isOpen={!!selectedCandidate}
+          onClose={() => {
+            setSelectedCandidate(null);
+            setInitialTabFromUrl(undefined);
+            setInitialEmailSubTabFromUrl(undefined);
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete('candidateId');
+            setSearchParams(newSearchParams, { replace: true });
+          }}
+          onUpdate={handleCandidateUpdate}
+          initialActiveTab={initialTabFromUrl as 'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers' | undefined}
+          initialEmailSubTab={initialEmailSubTabFromUrl as 'compose' | 'history' | undefined}
+        />
       )}
 
       {/* Move candidate confirmation (after drag) */}
@@ -719,9 +628,7 @@ const CandidateBoard: React.FC = () => {
                   <strong>{stageDisplayName[pendingMove.toStage]}</strong>?
                 </p>
                 <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setPendingMove(null)} disabled={isMoving}>
-                    Cancel
-                  </Button>
+                  <Button variant="outline" onClick={() => setPendingMove(null)} disabled={isMoving}>Cancel</Button>
                   <Button variant="black" onClick={confirmMoveCandidate} disabled={isMoving}>
                     {isMoving ? 'Moving...' : 'Yes, move'}
                   </Button>
@@ -733,13 +640,7 @@ const CandidateBoard: React.FC = () => {
         document.body
       )}
 
-      {/* Toast Notification */}
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        isVisible={showToast}
-        onClose={() => setShowToast(false)}
-      />
+      <Toast message={toastMessage} type={toastType} isVisible={showToast} onClose={() => setShowToast(false)} />
     </div>
   );
 };

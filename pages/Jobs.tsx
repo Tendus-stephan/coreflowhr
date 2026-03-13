@@ -733,6 +733,7 @@ const Jobs: React.FC = () => {
   const changePage = (page: number) => {
       if (page > 0 && page <= totalPages) {
           setCurrentPage(page);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
       }
   };
 
@@ -791,20 +792,18 @@ const Jobs: React.FC = () => {
       )}
 
       {/* Page Header */}
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-5 pb-5 border-b border-gray-100 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Jobs</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {counts['Active']} active
-            {counts['Draft'] > 0 ? ` · ${counts['Draft']} draft` : ''}
-            {counts['Closed'] > 0 ? ` · ${counts['Closed']} closed` : ''}
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-none">Jobs</h1>
+          <p className="mt-1.5 text-sm text-gray-400 font-normal">
+            Manage your open roles, track candidates, and keep your hiring pipeline moving.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
+              className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
             >
               <Bell size={16} />
               {unreadCount > 0 && (
@@ -831,7 +830,7 @@ const Jobs: React.FC = () => {
       </div>
 
       {/* Tabs + Search Row */}
-      <div className="flex items-center justify-between border-b border-gray-100 mb-0" style={{ position: 'relative', zIndex: 2 }}>
+      <div className="flex items-center justify-between border-b border-gray-100" style={{ position: 'relative', zIndex: 2 }}>
         {/* Inline underline tabs */}
         <div className="flex items-end gap-0">
           {(['Active', 'Draft', 'Closed', 'All'] as const).map((tab) => (
@@ -880,11 +879,11 @@ const Jobs: React.FC = () => {
       </div>
 
       {/* Job Table */}
-      <div className="border border-gray-100 rounded-xl overflow-hidden mt-4">
+      <div className="border border-gray-100 rounded-xl mt-4">
         {/* Table Header */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] bg-gray-50 border-b border-gray-100 px-5 py-2.5">
+        <div className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] bg-gray-50 border-b border-gray-100 px-5 py-2.5 rounded-t-xl">
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Role</span>
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Department</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Type</span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Location</span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Candidates</span>
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Status</span>
@@ -902,14 +901,15 @@ const Jobs: React.FC = () => {
               {/* Role */}
               <div>
                 <p className="text-sm font-semibold text-gray-900 leading-snug">{job.title}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {job.type}
-                  {job.postedDate ? ` · Posted ${new Date(job.postedDate).toLocaleDateString()}` : ''}
-                </p>
+                {job.postedDate && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Posted {new Date(job.postedDate).toLocaleDateString()}
+                  </p>
+                )}
               </div>
 
-              {/* Department */}
-              <span className="text-sm text-gray-500 truncate">{job.department || '—'}</span>
+              {/* Type */}
+              <span className="text-sm text-gray-500 truncate">{job.type || '—'}</span>
 
               {/* Location */}
               <span className="text-sm text-gray-500 truncate">{job.location || '—'}</span>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { WorkflowExecution, EmailWorkflow } from '../types';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
-import { CheckCircle, XCircle, Clock, SkipForward } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, SkipForward, X } from 'lucide-react';
 
 interface WorkflowExecutionHistoryProps {
     workflow: EmailWorkflow;
@@ -24,143 +24,116 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (isOpen) {
-            loadExecutions();
-        }
+        if (isOpen) loadExecutions();
     }, [isOpen, workflow.id]);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     const loadExecutions = async () => {
         try {
             setLoading(true);
             setError(null);
             const data = await api.workflows.getExecutions(workflow.id);
-            
-            // Get candidate names for each execution (skip test executions where candidate_id = user_id)
             const userId = (await supabase.auth.getUser()).data.user?.id;
             const realCandidateIds = [...new Set(data.filter(e => e.candidateId !== userId).map(e => e.candidateId))];
-            
             let candidateMap = new Map<string, string>();
             if (realCandidateIds.length > 0) {
                 const { data: candidates } = await supabase
                     .from('candidates')
                     .select('id, name')
                     .in('id', realCandidateIds);
-
                 candidateMap = new Map((candidates || []).map(c => [c.id, c.name]));
             }
-
-            const executionsWithNames = data.map(execution => ({
+            setExecutions(data.map(execution => ({
                 ...execution,
-                candidateName: execution.candidateId === userId 
-                    ? 'Test Execution' 
+                candidateName: execution.candidateId === userId
+                    ? 'Test Execution'
                     : (candidateMap.get(execution.candidateId) || 'Unknown Candidate')
-            }));
-
-            setExecutions(executionsWithNames);
+            })));
         } catch (err: any) {
-            console.error('Error loading executions:', err);
             setError(err.message || 'Failed to load execution history');
         } finally {
             setLoading(false);
         }
     };
 
-    const getStatusIcon = (status: WorkflowExecution['status']) => {
-        switch (status) {
-            case 'sent':
-                return <CheckCircle size={16} className="text-gray-500" />;
-            case 'failed':
-                return <XCircle size={16} className="text-gray-500" />;
-            case 'pending':
-                return <Clock size={16} className="text-gray-500" />;
-            case 'skipped':
-                return <SkipForward size={16} className="text-gray-500" />;
-            default:
-                return <Clock size={16} className="text-gray-500" />;
-        }
+    const statusIcon = (status: WorkflowExecution['status']) => {
+        const cls = 'flex-shrink-0';
+        if (status === 'sent') return <CheckCircle size={13} className={`${cls} text-green-500`} />;
+        if (status === 'failed') return <XCircle size={13} className={`${cls} text-red-500`} />;
+        if (status === 'skipped') return <SkipForward size={13} className={`${cls} text-gray-400`} />;
+        return <Clock size={13} className={`${cls} text-amber-500`} />;
     };
 
-    const getStatusColor = (status: WorkflowExecution['status']) => {
-        return 'bg-gray-100 text-gray-700';
+    const statusBadge = (status: WorkflowExecution['status']) => {
+        const base = 'text-[10px] font-semibold px-1.5 py-0.5 rounded-full';
+        if (status === 'sent') return `${base} bg-green-50 text-green-700`;
+        if (status === 'failed') return `${base} bg-red-50 text-red-600`;
+        if (status === 'skipped') return `${base} bg-gray-100 text-gray-500`;
+        return `${base} bg-amber-50 text-amber-600`;
     };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
-        });
+    const formatDate = (d: string) => {
+        const date = new Date(d);
+        return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-gray-200 flex flex-col max-h-[80vh]">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Execution History</h2>
-                        <p className="text-sm text-gray-500 mt-1">{workflow.name}</p>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                    <div className="min-w-0">
+                        <h2 className="text-base font-bold text-gray-900 leading-none">Execution History</h2>
+                        <p className="text-xs text-gray-400 mt-1 truncate">{workflow.name}</p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                        <span className="text-gray-500">✕</span>
+                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0">
+                        <X size={16} />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto">
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="text-sm text-gray-500">Loading history...</div>
-                        </div>
+                        <div className="flex items-center justify-center py-12 text-sm text-gray-400">Loading...</div>
                     ) : error ? (
-                        <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                            {error}
-                        </div>
+                        <div className="m-4 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600">{error}</div>
                     ) : executions.length === 0 ? (
-                        <div className="text-center py-12">
-                            <p className="text-sm text-gray-500">No executions yet</p>
-                            <p className="text-xs text-gray-400 mt-2">
-                                This workflow hasn't been triggered yet. It will execute automatically when candidates move to the {workflow.triggerStage} stage.
+                        <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                            <Clock size={20} className="text-gray-300 mb-3" />
+                            <p className="text-sm font-semibold text-gray-700">No executions yet</p>
+                            <p className="text-xs text-gray-400 mt-1 max-w-xs">
+                                This workflow will run automatically when a candidate moves to the <strong>{workflow.triggerStage}</strong> stage.
                             </p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="divide-y divide-gray-100">
                             {executions.map((execution) => (
-                                <div
-                                    key={execution.id}
-                                    className="bg-gray-50 border border-gray-200 rounded-xl p-4"
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                {getStatusIcon(execution.status)}
-                                                <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusColor(execution.status)}`}>
-                                                    {execution.status.toUpperCase()}
-                                                </span>
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {execution.errorMessage?.includes('[TEST]') 
-                                                        ? 'Test Execution' 
-                                                        : (execution.candidateName || 'Unknown Candidate')}
-                                                </span>
-                                            </div>
-                                            <div className="text-xs text-gray-500">
-                                                {formatDate(execution.executedAt)}
-                                            </div>
-                                            {execution.errorMessage && (
-                                                <div className="mt-2 text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded p-2">
-                                                    {execution.errorMessage}
-                                                </div>
-                                            )}
+                                <div key={execution.id} className="px-6 py-3 hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            {statusIcon(execution.status)}
+                                            <span className="text-sm font-medium text-gray-900 truncate">
+                                                {execution.errorMessage?.includes('[TEST]') ? 'Test Execution' : (execution.candidateName || 'Unknown Candidate')}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <span className="text-xs text-gray-400">{formatDate(execution.executedAt)}</span>
+                                            <span className={statusBadge(execution.status)}>{execution.status}</span>
                                         </div>
                                     </div>
+                                    {execution.errorMessage && !execution.errorMessage.includes('[TEST]') && (
+                                        <p className="mt-1.5 text-xs text-gray-500 pl-5">{execution.errorMessage}</p>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -170,4 +143,3 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
         </div>
     );
 };
-

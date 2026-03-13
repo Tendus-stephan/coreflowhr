@@ -570,13 +570,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-gray-900">Interview Type</label>
                             <CustomSelect
+                                inputStyle
                                 value={interviewType}
                                 onChange={(val) => {
                                     setInterviewType(val as 'Video Call' | 'In Person');
                                     setMeetingLink('');
                                     setAddress('');
                                 }}
-                                className="px-3 py-2.5 rounded-xl"
+                                className="py-2.5 rounded-xl"
                                 leftIcon={<Users size={16} />}
                                 options={[
                                     { value: 'Video Call', label: 'Video Call' },
@@ -587,9 +588,10 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-gray-900">Duration</label>
                             <CustomSelect
+                                inputStyle
                                 value={duration}
                                 onChange={setDuration}
-                                className="px-3 py-2.5 rounded-xl"
+                                className="py-2.5 rounded-xl"
                                 leftIcon={<Clock size={16} />}
                                 options={[
                                     { value: '30 min', label: '30 min' },
@@ -606,12 +608,13 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         <label className="text-sm font-bold text-gray-900">Platform</label>
                                 {integrations.length > 0 ? (
                         <CustomSelect
+                            inputStyle
                             value={selectedPlatform}
                             onChange={(val) => {
                                 setSelectedPlatform(val);
                                 setMeetingLink('');
                             }}
-                            className="px-3 py-2.5 rounded-xl"
+                            className="py-2.5 rounded-xl"
                             leftIcon={<Video size={16} />}
                             options={integrations.map(i => ({ value: i.id, label: i.name }))}
                         />

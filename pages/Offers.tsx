@@ -7,7 +7,7 @@ import { OfferCard } from '../components/OfferCard';
 import { OfferModal } from '../components/OfferModal';
 import { NegotiateCounterOfferModal } from '../components/NegotiateCounterOfferModal';
 import { Button } from '../components/ui/Button';
-import { Plus, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 const Offers: React.FC = () => {
     const [offers, setOffers] = useState<Offer[]>([]);
@@ -222,148 +222,193 @@ const Offers: React.FC = () => {
         return <PageLoader />;
     }
 
-    return (
-        <div className="min-h-screen bg-white">
-            <div className="p-8 max-w-7xl mx-auto">
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Job Offers</h1>
-                        <p className="text-gray-500 text-sm mt-1">Manage and track job offers for candidates</p>
-                    </div>
-                    <Button
-                        variant="black"
-                        icon={<Plus size={16} />}
-                        onClick={() => {
-                            setEditingOffer(null);
-                            setIsModalOpen(true);
-                        }}
-                    >
-                        Create Offer
-                    </Button>
-                </div>
+    const statusTabs: Array<{ value: Offer['status'] | 'all'; label: string }> = [
+        { value: 'all', label: 'All' },
+        { value: 'draft', label: 'Draft' },
+        { value: 'sent', label: 'Sent' },
+        { value: 'awaiting_signature', label: 'Awaiting Signature' },
+        { value: 'negotiating', label: 'Negotiating' },
+        { value: 'accepted', label: 'Accepted' },
+        { value: 'declined', label: 'Declined' },
+        { value: 'archived', label: 'Archived' },
+    ];
 
-                {/* Filters */}
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="flex-1 relative">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by reference, candidate, job, or position..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Filter size={18} className="text-gray-400" />
-                        <CustomSelect
-                            inputStyle
-                            value={statusFilter}
-                            onChange={(val) => setStatusFilter(val as Offer['status'] | 'all')}
-                            className="px-3 py-2 rounded-lg min-w-[160px]"
-                            options={statusOptions.map(o => ({ value: o.value, label: o.label }))}
-                        />
-                    </div>
+    const tabCounts: Record<string, number> = {
+        all: offers.length,
+        ...Object.fromEntries(
+            statusTabs.slice(1).map(t => [t.value, offers.filter(o => o.status === t.value || (t.value === 'archived' && o.archived)).length])
+        )
+    };
+
+    const totalPages = Math.ceil(filteredOffers.length / ITEMS_PER_PAGE);
+
+    return (
+        <div className="flex flex-col h-full bg-gray-50/40">
+            {/* Page Header */}
+            <div className="px-8 pt-8 pb-5 border-b border-gray-100 bg-white flex items-start justify-between gap-4 flex-shrink-0">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-none">Offers</h1>
+                    <p className="mt-1.5 text-sm text-gray-400 font-normal">
+                        Manage and track job offers sent to candidates.
+                    </p>
+                </div>
+                <Button
+                    size="sm"
+                    icon={<Plus size={15} />}
+                    onClick={() => { setEditingOffer(null); setIsModalOpen(true); }}
+                >
+                    Create Offer
+                </Button>
+            </div>
+
+            {/* Stats bar */}
+            <div className="px-8 py-3 border-b border-gray-100 bg-white flex items-center gap-5 flex-shrink-0">
+                {(['all', 'sent', 'accepted', 'negotiating', 'declined'] as const).map((key, i, arr) => (
+                    <React.Fragment key={key}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-gray-400 capitalize">{key === 'all' ? 'Total' : key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                            <span className="text-sm font-semibold text-gray-900">{tabCounts[key] ?? 0}</span>
+                        </div>
+                        {i < arr.length - 1 && <div className="w-px h-3.5 bg-gray-200" />}
+                    </React.Fragment>
+                ))}
+            </div>
+
+            {/* Filter tabs + search */}
+            <div className="px-8 border-b border-gray-100 bg-white flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-1 -mb-px">
+                    {statusTabs.map(tab => (
+                        <button
+                            key={tab.value}
+                            onClick={() => { setStatusFilter(tab.value as any); setCurrentPage(1); }}
+                            className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                                statusFilter === tab.value
+                                    ? 'border-gray-900 text-gray-900'
+                                    : 'border-transparent text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                            {tab.label}
+                            {tabCounts[tab.value] > 0 && (
+                                <span className={`ml-1.5 text-[11px] font-semibold tabular-nums ${statusFilter === tab.value ? 'text-gray-700' : 'text-gray-400'}`}>
+                                    {tabCounts[tab.value]}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+                <div className="relative py-2">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search offers..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8 pr-7 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-400 transition-colors w-52"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+                            <X size={13} />
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-6">
-                    {error}
-                </div>
-            )}
-
-            {filteredOffers.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
-                    <p className="text-sm text-gray-500 mb-4">
-                        {offers.length === 0 ? 'No offers yet' : 'No offers match your filters'}
-                    </p>
-                    <p className="text-xs text-gray-400 mb-4">
-                        {offers.length === 0 
-                            ? 'Create your first job offer to get started'
-                            : 'Try adjusting your search or filter criteria'}
-                    </p>
-                    {offers.length === 0 && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon={<Plus size={16} />}
-                            onClick={() => {
-                                setEditingOffer(null);
-                                setIsModalOpen(true);
-                            }}
-                        >
-                            Create Your First Offer
-                        </Button>
-                    )}
-                </div>
-            ) : (
-                <>
-                    {/* Paginated Offers Grid - Max 3 columns, 2 rows (6 items per page) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredOffers
-                            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                            .map((offer) => (
-                                <OfferCard
-                                    key={offer.id}
-                                    offer={offer}
-                                    candidateName={offer.candidateId ? candidateMap.get(offer.candidateId) : 'General Offer (Not Linked)'}
-                                    jobTitle={jobMap.get(offer.jobId)}
-                                    onEdit={handleEdit}
-                                    onSend={handleSend}
-                                    onAcceptCounterOffer={handleAcceptCounterOffer}
-                                    onDeclineCounterOffer={handleDeclineCounterOffer}
-                                    onNegotiateCounterOffer={handleNegotiateCounterOffer}
-                                    isSending={sendingOfferId === offer.id}
-                                    onArchive={handleArchive}
-                                    onUnarchive={handleUnarchive}
-                                    isArchiving={archivingOfferId === offer.id}
-                                    hideSalary={userRole === 'HiringManager'}
-                                    onDownloadSigned={handleDownloadSigned}
-                                />
-                            ))}
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-8 py-6">
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-5">
+                        {error}
                     </div>
+                )}
 
-                    {/* Pagination Controls */}
-                    {Math.ceil(filteredOffers.length / ITEMS_PER_PAGE) > 1 && (
-                        <div className="flex items-center justify-between border-t border-gray-200 pt-6 mt-6">
-                            <p className="text-sm text-gray-500">
-                                Showing <span className="font-bold text-gray-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-bold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, filteredOffers.length)}</span> of <span className="font-bold text-gray-900">{filteredOffers.length}</span> offers
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                    disabled={currentPage === 1}
-                                    className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <ChevronLeft size={18} />
-                                </button>
-                                {Array.from({ length: Math.ceil(filteredOffers.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
-                                    <button
-                                        key={page}
-                                        onClick={() => setCurrentPage(page)}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                            currentPage === page
-                                                ? 'bg-black text-white'
-                                                : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        {page}
-                                    </button>
-                                ))}
-                                <button 
-                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredOffers.length / ITEMS_PER_PAGE), prev + 1))}
-                                    disabled={currentPage === Math.ceil(filteredOffers.length / ITEMS_PER_PAGE)}
-                                    className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <ChevronRight size={18} />
-                                </button>
-                            </div>
+                {filteredOffers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
+                            <Plus size={22} className="text-gray-400" />
                         </div>
-                    )}
-                </>
-            )}
+                        <p className="text-sm font-semibold text-gray-700 mb-1">
+                            {offers.length === 0 ? 'No offers yet' : 'No offers match your filters'}
+                        </p>
+                        <p className="text-xs text-gray-400 mb-5 max-w-xs">
+                            {offers.length === 0
+                                ? 'Create your first job offer to get started'
+                                : 'Try adjusting your search or filter criteria'}
+                        </p>
+                        {offers.length === 0 && (
+                            <Button
+                                size="sm"
+                                icon={<Plus size={15} />}
+                                onClick={() => { setEditingOffer(null); setIsModalOpen(true); }}
+                            >
+                                Create Your First Offer
+                            </Button>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredOffers
+                                .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                                .map((offer) => (
+                                    <OfferCard
+                                        key={offer.id}
+                                        offer={offer}
+                                        candidateName={offer.candidateId ? candidateMap.get(offer.candidateId) : 'General Offer (Not Linked)'}
+                                        jobTitle={jobMap.get(offer.jobId)}
+                                        onEdit={handleEdit}
+                                        onSend={handleSend}
+                                        onAcceptCounterOffer={handleAcceptCounterOffer}
+                                        onDeclineCounterOffer={handleDeclineCounterOffer}
+                                        onNegotiateCounterOffer={handleNegotiateCounterOffer}
+                                        isSending={sendingOfferId === offer.id}
+                                        onArchive={handleArchive}
+                                        onUnarchive={handleUnarchive}
+                                        isArchiving={archivingOfferId === offer.id}
+                                        hideSalary={userRole === 'HiringManager'}
+                                        onDownloadSigned={handleDownloadSigned}
+                                    />
+                                ))}
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between border-t border-gray-100 pt-5 mt-5">
+                                <p className="text-xs text-gray-400">
+                                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredOffers.length)} of {filteredOffers.length} offers
+                                </p>
+                                <div className="flex items-center gap-1.5">
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <ChevronLeft size={15} />
+                                    </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
+                                                currentPage === page
+                                                    ? 'bg-gray-900 text-white'
+                                                    : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <ChevronRight size={15} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
 
             {/* Offer Modal */}
             {isModalOpen && (
@@ -371,10 +416,7 @@ const Offers: React.FC = () => {
                     offer={editingOffer}
                     candidate={null}
                     isOpen={isModalOpen}
-                    onClose={() => {
-                        setIsModalOpen(false);
-                        setEditingOffer(null);
-                    }}
+                    onClose={() => { setIsModalOpen(false); setEditingOffer(null); }}
                     onSave={loadOffers}
                 />
             )}
@@ -384,14 +426,10 @@ const Offers: React.FC = () => {
                 <NegotiateCounterOfferModal
                     offer={negotiatingOffer}
                     isOpen={isNegotiateModalOpen}
-                    onClose={() => {
-                        setIsNegotiateModalOpen(false);
-                        setNegotiatingOffer(null);
-                    }}
+                    onClose={() => { setIsNegotiateModalOpen(false); setNegotiatingOffer(null); }}
                     onSave={loadOffers}
                 />
             )}
-            </div>
         </div>
     );
 };
