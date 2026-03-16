@@ -143,7 +143,7 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100">
       <Sidebar />
-      <main className="overflow-x-hidden relative bg-white md:ml-[220px]" style={{ paddingBottom: '80px' }}>
+      <main className="overflow-x-hidden relative bg-white md:ml-[240px]" style={{ paddingBottom: '80px' }}>
         {navigating ? (
           <NavLoader onMount={hideNavLoader} />
         ) : (

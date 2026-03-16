@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Users, Calendar, Settings, LogOut, User as UserIcon, FileText, Building2 } from 'lucide-react';
+import {
+  LayoutDashboard, Briefcase, Users, Calendar,
+  Settings, LogOut, User as UserIcon, FileText, Building2,
+} from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -15,6 +18,7 @@ const Sidebar: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState<string>('');
 
   const roleLabel = userRole === 'HiringManager' ? 'Hiring Manager' : userRole;
   const isAuthenticated = user && session;
@@ -34,12 +38,16 @@ const Sidebar: React.FC = () => {
         setUserEmail(user?.email || '');
         setProfileLoaded(true);
       }
+      try {
+        const ws = await api.workspaces.getWorkspaceWithMembers();
+        setWorkspaceName(ws.name || '');
+      } catch { /* non-fatal */ }
     };
     loadProfile();
     const handleProfileUpdate = () => loadProfile();
     window.addEventListener('profileUpdated', handleProfileUpdate);
     return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
-  }, [user]); // only reload when user identity changes, not on every navigation
+  }, [user]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -50,11 +58,8 @@ const Sidebar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const navItems = userRole === 'Viewer'
-    ? [
-        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { name: 'Settings',  path: '/settings',  icon: Settings },
-      ]
+  const mainNav = userRole === 'Viewer'
+    ? [{ name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }]
     : [
         { name: 'Dashboard',  path: '/dashboard',  icon: LayoutDashboard },
         { name: 'Jobs',       path: '/jobs',        icon: Briefcase },
@@ -64,73 +69,94 @@ const Sidebar: React.FC = () => {
         ...(!profileLoaded || userRole !== 'HiringManager'
           ? [{ name: 'Offers', path: '/offers', icon: FileText }]
           : []),
-        { name: 'Settings',   path: '/settings',   icon: Settings },
       ];
 
   if (!isAuthenticated) return null;
 
+  const NavLink = ({ item }: { item: { name: string; path: string; icon: React.ElementType } }) => {
+    const isActive = location.pathname === item.path ||
+      (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+    return (
+      <Link
+        to={item.path}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-100 ${
+          isActive
+            ? 'bg-gray-100 text-gray-900'
+            : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+        }`}
+      >
+        <item.icon
+          size={16}
+          className={`flex-shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
+        />
+        {item.name}
+      </Link>
+    );
+  };
+
   return (
-    <div className="w-[220px] bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 bottom-0 z-20 hidden md:flex select-none">
+    <div className="w-[240px] bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 bottom-0 z-20 hidden md:flex select-none">
 
       {/* Logo */}
-      <div className="px-4 pt-5 pb-4 flex-shrink-0">
+      <div className="px-5 pt-6 pb-3 flex-shrink-0">
         <Link to="/dashboard">
           <img
             src="/assets/images/coreflow-logo.png"
             alt="CoreFlowHR"
-            style={{ height: '36px', width: 'auto', display: 'block', objectFit: 'contain' }}
+            style={{ height: '52px', width: 'auto', display: 'block', objectFit: 'contain' }}
           />
         </Link>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path ||
-            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100 ${
-                isActive
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <item.icon
-                size={14}
-                className={`flex-shrink-0 transition-colors ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
-              />
-              {item.name}
-            </Link>
-          );
-        })}
+      {/* Workspace */}
+      {workspaceName && (
+        <div className="px-3 pb-3 flex-shrink-0">
+          <div className="flex items-center gap-2.5 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg">
+            <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center flex-shrink-0">
+              <span className="text-[9px] font-bold text-white">{workspaceName.charAt(0).toUpperCase()}</span>
+            </div>
+            <span className="text-[12.5px] font-medium text-gray-700 truncate">{workspaceName}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Main Nav */}
+      <nav className="flex-1 px-3 overflow-y-auto overflow-x-hidden">
+        <p className="text-[10px] font-semibold text-gray-300 uppercase tracking-widest px-3 mb-1.5 mt-1">Menu</p>
+        <div className="space-y-0.5">
+          {mainNav.map(item => <NavLink key={item.path} item={item} />)}
+        </div>
       </nav>
 
+      {/* Settings — separated at bottom */}
+      <div className="px-3 pb-2 flex-shrink-0">
+        <div className="h-px bg-gray-100 mb-2" />
+        <NavLink item={{ name: 'Settings', path: '/settings', icon: Settings }} />
+      </div>
+
       {/* Profile */}
-      <div className="p-2 border-t border-gray-100 relative flex-shrink-0" ref={profileRef}>
+      <div className="px-3 pb-3 border-t border-gray-100 pt-2 relative flex-shrink-0" ref={profileRef}>
         <div
           onClick={() => setIsProfileOpen(!isProfileOpen)}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
             isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-50'
           }`}
         >
           <Avatar
             name={userName || user?.email?.split('@')[0] || '…'}
             src={userAvatar}
-            className="w-6 h-6 text-[9px] flex-shrink-0"
+            className="w-8 h-8 text-[11px] flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
             {!profileLoaded ? (
               <div className="h-2.5 w-20 bg-gray-100 rounded animate-pulse" />
             ) : (
               <>
-                <p className="text-[13px] font-medium text-gray-900 truncate leading-none">
+                <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
                   {userName || 'User'}
                 </p>
                 {userRole && (
-                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{roleLabel}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{roleLabel}</p>
                 )}
               </>
             )}
@@ -139,31 +165,30 @@ const Sidebar: React.FC = () => {
 
         {/* Dropdown */}
         {isProfileOpen && (
-          <div className="absolute bottom-full left-2 right-2 mb-1 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xl z-30">
+          <div className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xl z-30">
             <div className="py-1">
-              <div className="px-3 py-2 border-b border-gray-100">
-                <p className="text-xs font-medium text-gray-900 truncate">{userName || 'User'}</p>
+              <div className="px-3 py-2.5 border-b border-gray-100">
+                <p className="text-xs font-semibold text-gray-900 truncate">{userName || 'User'}</p>
                 <p className="text-[11px] text-gray-400 truncate mt-0.5">{userEmail || user?.email || ''}</p>
               </div>
               <Link
                 to="/settings"
                 onClick={() => setIsProfileOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 text-[13px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
               >
-                <UserIcon size={13} />
-                Profile & Settings
+                <UserIcon size={14} /> Profile & Settings
               </Link>
               <button
                 onClick={signOut}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-left"
               >
-                <LogOut size={13} />
-                Log out
+                <LogOut size={14} /> Log out
               </button>
             </div>
           </div>
         )}
       </div>
+
     </div>
   );
 };
