@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Candidate, CandidateStage } from '../types';
 import { Avatar } from './ui/Avatar';
-import { ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, XCircle, Trash2 } from 'lucide-react';
 
 /** One-line summary from AI analysis (first sentence or ~80 chars) */
 function oneLineSummary(aiAnalysis: string | undefined | null): string | null {
@@ -22,6 +22,8 @@ interface PipelineColumnProps {
     isValidDropTarget?: (sourceStage: CandidateStage, targetStage: CandidateStage) => boolean;
     jobRequiredSkills?: string[];
     readOnly?: boolean;
+    onRejectCandidate?: (candidateId: string) => void;
+    onDeleteCandidate?: (candidateId: string) => void;
 }
 
 const DraggableCandidateCard: React.FC<{
@@ -29,7 +31,9 @@ const DraggableCandidateCard: React.FC<{
     onSelect: (candidate: Candidate) => void;
     jobRequiredSkills?: string[];
     draggable?: boolean;
-}> = ({ candidate, onSelect, draggable = true }) => {
+    onReject?: (id: string) => void;
+    onDelete?: (id: string) => void;
+}> = ({ candidate, onSelect, draggable = true, onReject, onDelete }) => {
     const [isDragging, setIsDragging] = useState(false);
     const summaryLine = oneLineSummary(candidate.aiAnalysis);
 
@@ -127,13 +131,38 @@ const DraggableCandidateCard: React.FC<{
                     </a>
                 )}
             </div>
+
+            {/* Waitlist quick actions — visible on hover */}
+            {(onReject || onDelete) && (
+                <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1">
+                    {onReject && (
+                        <button
+                            title="Reject candidate"
+                            onClick={(e) => { e.stopPropagation(); onReject(candidate.id); }}
+                            className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-amber-500 hover:bg-amber-50 transition-colors"
+                        >
+                            <XCircle size={13} />
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            title="Delete candidate"
+                            onClick={(e) => { e.stopPropagation(); onDelete(candidate.id); }}
+                            className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
 
 export const PipelineColumn: React.FC<PipelineColumnProps> = ({
     title, stage, candidates, onSelectCandidate, onDropCandidate,
-    isValidDropTarget, jobRequiredSkills, readOnly = false
+    isValidDropTarget, jobRequiredSkills, readOnly = false,
+    onRejectCandidate, onDeleteCandidate,
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -214,6 +243,8 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
                         onSelect={onSelectCandidate}
                         jobRequiredSkills={jobRequiredSkills}
                         draggable={!readOnly && stage !== CandidateStage.NEW}
+                        onReject={!readOnly && stage === CandidateStage.NEW ? onRejectCandidate : undefined}
+                        onDelete={!readOnly && stage === CandidateStage.NEW ? onDeleteCandidate : undefined}
                     />
                 ))}
                 {candidates.length === 0 && (

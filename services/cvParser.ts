@@ -262,35 +262,38 @@ export function parseCVText(text: string, jobSkills?: string[]): ParsedCVData {
     };
 }
 
+// Lines that look like a name but are actually document headers
+const HEADER_WORDS = new Set([
+    'curriculum', 'vitae', 'resume', 'résumé', 'cv', 'profile',
+    'portfolio', 'bio', 'biography', 'application', 'cover', 'letter',
+]);
+
+function looksLikeDocHeader(line: string): boolean {
+    const words = line.toLowerCase().split(/\s+/);
+    // All words are header words, or it's a single generic word
+    return words.every(w => HEADER_WORDS.has(w));
+}
+
 /**
- * Extract candidate name from CV text
- * Usually the first line or first substantial line
+ * Extract candidate name from CV text.
+ * Scans the first 8 lines for a 2-5 word sequence of letters only,
+ * skipping known document-header phrases.
  */
 function extractName(lines: string[]): string | undefined {
     if (lines.length === 0) return undefined;
 
-    // Try first line if it looks like a name (2-4 words, no special chars at start)
-    const firstLine = lines[0].trim();
-    const wordCount = firstLine.split(/\s+/).length;
-    
-    // Check if first line looks like a name (2-4 words, mostly letters)
-    if (wordCount >= 2 && wordCount <= 4) {
-        const nameRegex = /^[A-Za-z\s'-]+$/;
-        if (nameRegex.test(firstLine) && !firstLine.toLowerCase().includes('email') && 
-            !firstLine.toLowerCase().includes('phone') && !firstLine.toLowerCase().includes('@')) {
-            return firstLine;
-        }
-    }
+    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ\s''\-]+$/;
+    const skipPatterns = /@|phone|email|mobile|tel:|fax|www\.|http|linkedin|address|\d{3}/i;
 
-    // Try second line if first line seems like header
-    if (lines.length > 1) {
-        const secondLine = lines[1].trim();
-        const wordCount2 = secondLine.split(/\s+/).length;
-        if (wordCount2 >= 2 && wordCount2 <= 4) {
-            const nameRegex = /^[A-Za-z\s'-]+$/;
-            if (nameRegex.test(secondLine)) {
-                return secondLine;
-            }
+    for (let i = 0; i < Math.min(8, lines.length); i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        if (looksLikeDocHeader(line)) continue;
+        if (skipPatterns.test(line)) continue;
+
+        const words = line.split(/\s+/);
+        if (words.length >= 2 && words.length <= 5 && nameRegex.test(line)) {
+            return line;
         }
     }
 

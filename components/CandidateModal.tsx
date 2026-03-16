@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
 import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply } from 'lucide-react';
 import { Button } from './ui/Button';
-import { generateCandidateAnalysis, draftEmail, draftOutreachMessage } from '../services/geminiService';
+import { draftEmail, draftOutreachMessage } from '../services/geminiService';
 import { api } from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList, Legend } from 'recharts';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
@@ -133,29 +133,37 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               return; // Skip AI analysis for candidates without CVs
           }
 
-          const hasIncompleteAnalysis = candidate.aiAnalysis && 
-              candidate.aiAnalysis.startsWith('Skills matched:') && 
-              !candidate.aiAnalysis.includes('Strengths:') && 
+          const hasIncompleteAnalysis = candidate.aiAnalysis &&
+              candidate.aiAnalysis.startsWith('Skills matched:') &&
+              !candidate.aiAnalysis.includes('Strengths:') &&
               !candidate.aiAnalysis.includes('Areas to Explore:') &&
               candidate.aiAnalysis.length < 200; // Basic format is short
-          
+
           if (!candidate.aiAnalysis || hasIncompleteAnalysis) {
               // Regenerate for candidates with CV (resumeSummary indicates CV was uploaded)
               if (candidate.resumeSummary && candidate.resumeSummary.length > 100) {
                   try {
-                      const analysis = await generateCandidateAnalysis(candidate, job);
-                      
-                      // Only update if we got valid analysis
-                      if (analysis && analysis.summary && analysis.summary !== "AI Analysis temporarily unavailable. Please try again.") {
-                          const strengthsText = analysis.strengths && analysis.strengths.length > 0 
+                      const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
+                          body: {
+                              resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
+                              skills: candidate.skills,
+                              experience: candidate.experience ?? null,
+                              role: candidate.role,
+                              jobTitle: job.title,
+                              jobDescription: job.description ?? '',
+                              jobSkills: job.skills ?? [],
+                          },
+                      });
+
+                      if (!analysisError && analysis?.summary) {
+                          const strengthsText = analysis.strengths?.length > 0
                               ? `\n\nStrengths:\n• ${analysis.strengths.join('\n• ')}`
                               : '';
-                          const weaknessesText = analysis.weaknesses && analysis.weaknesses.length > 0
+                          const weaknessesText = analysis.weaknesses?.length > 0
                               ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}`
                               : '';
                           const formattedAnalysis = `${analysis.summary}${strengthsText}${weaknessesText}`;
-                          
-                          // Update silently in background - this will trigger a re-render with the new analysis
+
                           onUpdate({
                               ...candidate,
                               aiMatchScore: analysis.score || candidate.aiMatchScore,
@@ -163,7 +171,6 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                           });
                       }
                   } catch (error) {
-                      // Silently fail - don't show errors to user
                       console.warn('Background analysis regeneration failed:', error);
                   }
               }
@@ -868,6 +875,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">
                              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Skills Assessment</h4>
                              <div className="flex-1 w-full min-h-0">
+                                {skillsData.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-full gap-1">
+                                        <p className="text-xs font-medium text-gray-400">No skills identified</p>
+                                        <p className="text-xs text-gray-300">Skills will appear after CV is analysed</p>
+                                    </div>
+                                ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -883,18 +896,19 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip 
-                                            contentStyle={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px' }} 
+                                        <Tooltip
+                                            contentStyle={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px' }}
                                         />
-                                        <Legend 
-                                            layout="horizontal" 
-                                            verticalAlign="bottom" 
+                                        <Legend
+                                            layout="horizontal"
+                                            verticalAlign="bottom"
                                             align="center"
                                             iconSize={8}
                                             wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
+                                )}
                              </div>
                         </div>
 

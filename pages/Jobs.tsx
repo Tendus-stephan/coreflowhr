@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2 } from 'lucide-react';
+import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2, Copy } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { PageLoader } from '../components/ui/PageLoader';
@@ -209,6 +209,8 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
     const [loadingAssignments, setLoadingAssignments] = useState(false);
     const [savingAssignments, setSavingAssignments] = useState(false);
     const canManageAssignments = currentUserRole === 'Admin' || currentUserRole === 'Recruiter';
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+    const [workspaceSlug, setWorkspaceSlug] = useState<string | null>(null);
 
     // Fetch candidates for this job when modal opens or job changes. Viewers: we still fetch to get counts for pipeline overview but never show individual names/list.
     const fetchCandidates = async () => {
@@ -303,8 +305,40 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
         };
     }, [isOpen]);
 
-    if (!isOpen || !job) return null; 
-    
+    // Fetch current workspace slug for building application URLs
+    useEffect(() => {
+        if (!job || !isOpen) return;
+        (async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+                const { data } = await supabase
+                    .from('workspace_members')
+                    .select('workspaces(slug)')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                const ws = (data?.workspaces) as any;
+                setWorkspaceSlug(ws?.slug || null);
+            } catch {
+                setWorkspaceSlug(null);
+            }
+        })();
+    }, [job?.id, isOpen]);
+
+    const getApplicationUrl = (j: typeof job) => {
+        const base = window.location.origin;
+        if (workspaceSlug && j.slug) return `${base}/jobs/apply/${workspaceSlug}/${j.slug}`;
+        return `${base}/jobs/apply/${j.id}`;
+    };
+
+    const copyText = (text: string, label: string) => {
+        navigator.clipboard.writeText(text).catch(() => {});
+        setCopyFeedback(label);
+        setTimeout(() => setCopyFeedback(null), 2000);
+    };
+
+    if (!isOpen || !job) return null;
+
     // Pagination logic
     const totalPages = Math.ceil(jobCandidates.length / ITEMS_PER_PAGE);
     const currentCandidates = jobCandidates.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -537,6 +571,53 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                         <Link to="/candidates" className="text-sm font-medium text-gray-900 hover:underline">View Kanban Board</Link>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Share this role */}
+                            <div className="bg-white border border-gray-100 rounded-xl p-8 mt-0">
+                                <h3 className="text-xl font-bold text-gray-900 mb-5">Share this role</h3>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => copyText(getApplicationUrl(job), 'link')}
+                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <span>Copy application link</span>
+                                        {copyFeedback === 'link' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                    </button>
+
+                                    <button
+                                        onClick={() => copyText(
+                                            `🚀 We're hiring a ${job.title}${job.location ? ` in ${job.location}` : ''}!\n\n${job.description ? job.description.slice(0, 200) + (job.description.length > 200 ? '...' : '') : ''}\n\n📩 Apply here: ${getApplicationUrl(job)}\n\n#hiring #jobs #${(job.title || '').replace(/\s+/g, '')}`,
+                                            'linkedin'
+                                        )}
+                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <span>Copy for LinkedIn</span>
+                                        {copyFeedback === 'linkedin' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                    </button>
+
+                                    <button
+                                        onClick={() => copyText(
+                                            `${job.title}${job.location ? ` — ${job.location}` : ''}\n${job.type || 'Full-time'}${job.salaryRange ? ` | ${job.salaryRange}` : ''}\n\n${job.description ? job.description.slice(0, 300) : ''}\n\nApply: ${getApplicationUrl(job)}`,
+                                            'indeed'
+                                        )}
+                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <span>Copy for Indeed</span>
+                                        {copyFeedback === 'indeed' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                    </button>
+
+                                    <button
+                                        onClick={() => copyText(
+                                            `Position: ${job.title}\nLocation: ${job.location || 'Remote'}\nType: ${job.type || 'Permanent'}\nSalary: ${job.salaryRange || 'Competitive'}\n\n${job.description ? job.description.slice(0, 400) : ''}\n\nTo apply visit: ${getApplicationUrl(job)}`,
+                                            'cvlibrary'
+                                        )}
+                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <span>Copy for CV-Library</span>
+                                        {copyFeedback === 'cvlibrary' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

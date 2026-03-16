@@ -87,13 +87,13 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         )}
                     </div>
                     {candidateName && (
-                        <p className="text-sm text-gray-600 mb-1">Candidate: {candidateName}</p>
+                        <p className="text-sm text-gray-600 mb-0.5 truncate">{candidateName}</p>
                     )}
                     {jobTitle && (
-                        <p className="text-sm text-gray-600">Job: {jobTitle}</p>
+                        <p className="text-xs text-gray-400 truncate">{jobTitle}</p>
                     )}
                     {offer.referenceNumber && (
-                        <p className="text-xs text-gray-500 mt-1">Ref: {offer.referenceNumber}</p>
+                        <p className="text-xs text-gray-400 mt-1">{offer.referenceNumber}</p>
                     )}
                 </div>
                 {offer.status === 'draft' && !readOnly && (
@@ -214,7 +214,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         onClick={() => onDownloadSigned?.(offer)}
                         icon={<Download size={14} />}
                     >
-                        Download signed document
+                        Download
                     </Button>
                 )}
                 {offer.status === 'draft' && !offer.archived && onSend && !readOnly && (

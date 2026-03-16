@@ -4,6 +4,15 @@ import { supabase } from "./supabase";
 import { getSourcingCap } from "./planLimits";
 import { userFacingEdgeError } from "../utils/edgeFunctionError";
 
+// Helper to convert text to URL slug
+function toSlug(text: string): string {
+  return text.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
+
 // Helper to get current user ID
 const getUserId = async (): Promise<string | null> => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -1573,6 +1582,7 @@ export const api = {
             if (filters?.excludeClosed === true) {
                 countQuery = countQuery.neq('status', 'Closed');
             }
+            countQuery = countQuery.neq('title', '__candidate_pool__');
             const { count, error: countError } = await countQuery;
             if (countError) throw countError;
 
@@ -1595,7 +1605,9 @@ export const api = {
             if (filters?.excludeClosed === true) {
                 query = query.neq('status', 'Closed');
             }
-            
+            // Always hide the internal candidate pool job
+            query = query.neq('title', '__candidate_pool__');
+
             query = query.order('created_at', { ascending: false }).range(from, to);
 
             const { data, error } = await query;
@@ -1630,6 +1642,7 @@ export const api = {
                 skills: job.skills || [],
                 isTest: job.is_test || false,
                 candidateCount: (job.candidates as any)?.[0]?.count ?? 0,
+                slug: job.slug || undefined,
                 sourcingStatus: job.sourcing_status || null,
                 sourcingCandidatesCount: job.sourcing_candidates_count ?? 0,
                 sourcingMaxedOut: job.sourcing_maxed_out ?? false,
@@ -1701,6 +1714,7 @@ export const api = {
                 remote: data.remote || false,
                 skills: data.skills || [],
                 isTest: data.is_test || false,
+                slug: data.slug || undefined,
                 sourcingStatus: data.sourcing_status || null,
                 sourcingCandidatesCount: data.sourcing_candidates_count ?? 0,
                 sourcingMaxedOut: data.sourcing_maxed_out ?? false,
@@ -1730,26 +1744,44 @@ export const api = {
             const postedDate = jobStatus === 'Active' ? new Date().toISOString() : null;
             const jobTitle = jobData.title || 'Untitled';
 
+            // Generate unique slug within workspace (defensive: skip if column not yet migrated)
+            let slug: string | undefined;
+            try {
+                slug = toSlug(jobTitle) || 'job';
+                const { count: slugCount, error: slugErr } = await supabase
+                    .from('jobs')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('workspace_id', workspaceId)
+                    .eq('slug', slug);
+                if (slugErr) { slug = undefined; }
+                else if ((slugCount ?? 0) > 0) {
+                    slug = `${slug}-${Date.now().toString(36)}`;
+                }
+            } catch { slug = undefined; }
+
+            const insertPayload: Record<string, any> = {
+                user_id: userId,
+                workspace_id: workspaceId,
+                title: jobTitle,
+                department: jobData.department || 'General',
+                location: jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? undefined : 'Remote'),
+                type: jobData.type || 'Full-time',
+                status: jobStatus,
+                description: jobData.description || '',
+                company: jobData.company,
+                client_id: jobData.clientId || null,
+                salary_range: jobData.salaryRange,
+                experience_level: jobData.experienceLevel && jobData.experienceLevel.trim() ? jobData.experienceLevel.trim() : null,
+                remote: jobData.remote || false,
+                skills: jobData.skills || [],
+                posted_date: postedDate,
+                is_test: false,
+            };
+            if (slug !== undefined) insertPayload.slug = slug;
+
             const { data: job, error: jobError } = await supabase
                 .from('jobs')
-                .insert({
-                    user_id: userId,
-                    workspace_id: workspaceId,
-                    title: jobTitle,
-                    department: jobData.department || 'General',
-                    location: jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? undefined : 'Remote'),
-                    type: jobData.type || 'Full-time',
-                    status: jobStatus,
-                    description: jobData.description || '',
-                    company: jobData.company,
-                    client_id: jobData.clientId || null,
-                    salary_range: jobData.salaryRange,
-                    experience_level: jobData.experienceLevel && jobData.experienceLevel.trim() ? jobData.experienceLevel.trim() : null,
-                    remote: jobData.remote || false,
-                    skills: jobData.skills || [],
-                    posted_date: postedDate,
-                    is_test: false
-                })
+                .insert(insertPayload)
                 .select()
                 .single();
 
@@ -1759,16 +1791,12 @@ export const api = {
             const { logJobCreated } = await import('./activityLogger');
             await logJobCreated(job.title);
 
-            // Fire-and-forget: trigger PDL candidate sourcing (do not await — never blocks job creation)
-            supabase.functions.invoke('trigger-sourcing', {
-                body: { job_id: job.id, workspace_id: workspaceId },
-            }).catch((err) => {
-                console.warn('[Jobs] trigger-sourcing fire-and-forget error (non-fatal):', err);
-            });
+            // Sourcing via PDL removed. CrustData integration is pending usage-based pricing.
 
             return {
                 id: job.id,
                 title: job.title,
+                slug: job.slug || undefined,
                 department: job.department || 'General',
                 location: job.location,
                 type: job.type,
@@ -2133,6 +2161,214 @@ export const api = {
         },
     },
     candidates: {
+        /**
+         * Import a single CV file as a new candidate (always creates, never deduplicates).
+         * Use this for bulk imports — does not conflict with apply()'s email-dedup logic.
+         */
+        bulkImport: async (jobId: string, cvFile: File): Promise<{ success: boolean; candidateId?: string }> => {
+            const userId = await getUserId();
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!userId || !workspaceId) throw new Error('Not authenticated');
+
+            const { data: job, error: jobError } = await supabase
+                .from('jobs')
+                .select('user_id, title, skills, location, workspace_id')
+                .eq('id', jobId)
+                .eq('status', 'Active')
+                .single();
+            if (jobError || !job) throw new Error('Job not found');
+
+            const fileExt = cvFile.name.split('.').pop() ?? 'pdf';
+            const tempPath = `${jobId}/temp/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('candidate-cvs')
+                .upload(tempPath, cvFile, { cacheControl: '3600', upsert: false });
+            if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+            const { data: { publicUrl: tempUrl } } = supabase.storage.from('candidate-cvs').getPublicUrl(tempPath);
+
+            const { extractTextFromCV } = await import('./cvParser');
+            let parsed: any = { fullText: '', name: '', skills: [], workExperience: [], projects: [], portfolioUrls: {} };
+            let aiParsed: any = null;
+
+            // Step 1: Extract raw text — throw if this fails (file is unreadable)
+            let cvText = '';
+            try {
+                cvText = await extractTextFromCV(cvFile);
+                parsed.fullText = cvText;
+            } catch (extractErr: any) {
+                await supabase.storage.from('candidate-cvs').remove([tempPath]);
+                throw new Error(`Could not read CV: ${extractErr?.message ?? 'unsupported or corrupted file'}`);
+            }
+
+            if (!cvText || cvText.trim().length < 20) {
+                await supabase.storage.from('candidate-cvs').remove([tempPath]);
+                throw new Error('CV appears to be empty or image-only — no text could be extracted');
+            }
+
+            // Step 2: AI parse — non-fatal but log failures
+            try {
+                const { data: fnData, error: fnError } = await supabase.functions.invoke('parse-cv', {
+                    body: { cvText, jobSkills: job.skills ?? [] },
+                });
+                if (fnError) {
+                    console.error('[bulkImport] parse-cv edge function error:', fnError);
+                } else if (fnData?.error) {
+                    console.error('[bulkImport] parse-cv returned error:', fnData.error);
+                } else if (fnData) {
+                    aiParsed = fnData;
+                    parsed = { ...fnData, fullText: cvText };
+                }
+            } catch (parseErr) {
+                console.error('[bulkImport] parse-cv invocation threw:', parseErr);
+            }
+
+            const linkedinUrl: string | null = aiParsed?.portfolioUrls?.linkedin || null;
+
+            // Only enforce the email/LinkedIn requirement when AI parsing actually succeeded.
+            // If the edge function failed or timed out, aiParsed is null — don't penalise the candidate.
+            if (aiParsed && !parsed.email && !linkedinUrl) {
+                await supabase.storage.from('candidate-cvs').remove([tempPath]);
+                throw new Error('No email or LinkedIn URL found — candidate skipped');
+            }
+
+            const rawFromFile = cvFile.name
+                .replace(/\.(pdf|docx?)$/i, '')
+                .replace(/[-_]+/g, ' ')
+                .replace(/^(cv|resume|résumé|curriculum\s*vitae)\s*\d*\s*/i, '')
+                .replace(/\s*(cv|resume|résumé)\s*\d*$/i, '')
+                .replace(/\d{4}[-–]\d{2}[-–]\d{2}/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            // Extract the first two name-like words to strip trailing job titles / seniority words.
+            // Single uppercase initials are skipped. Words must start uppercase with a lowercase
+            // second char — filters all-caps abbreviations like HR, VP, IT while keeping AlHassan etc.
+            const nameWords = rawFromFile.split(' ');
+            const nameOnlyWords: string[] = [];
+            for (const word of nameWords) {
+                if (nameOnlyWords.length >= 2) break;
+                if (/^[A-ZÀ-ÖØ-Ý]$/.test(word)) continue; // skip bare initials
+                if (/^[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ][a-zA-ZÀ-ÿ'\-]*$/.test(word)) nameOnlyWords.push(word);
+                else break;
+            }
+            const nameFromFile = nameOnlyWords.length >= 2 ? nameOnlyWords.join(' ') : rawFromFile;
+            const name = parsed.name?.trim() || nameFromFile;
+
+            // Step 3: AI scoring — non-fatal but log failures
+            let aiScore: number | null = null;
+            let aiAnalysis: string | null = null;
+            try {
+                const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
+                    body: {
+                        resumeSummary: cvText.substring(0, 800),
+                        skills: parsed.skills ?? [],
+                        experience: parsed.experienceYears ?? null,
+                        role: parsed.workExperience?.[0]?.role || job.title,
+                        jobTitle: job.title,
+                        jobDescription: '',
+                        jobSkills: job.skills ?? [],
+                    },
+                });
+                if (analysisError) {
+                    console.error('[bulkImport] analyze-candidate error:', analysisError);
+                } else if (analysis?.score) {
+                    aiScore = analysis.score;
+                    const s = analysis.strengths?.length ? `\n\nStrengths:\n• ${analysis.strengths.join('\n• ')}` : '';
+                    const w = analysis.weaknesses?.length ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}` : '';
+                    aiAnalysis = `${analysis.summary}${s}${w}`;
+                }
+            } catch (analysisErr) {
+                console.error('[bulkImport] analyze-candidate invocation threw:', analysisErr);
+            }
+
+            const { data: candidate, error: insertError } = await supabase
+                .from('candidates')
+                .insert({
+                    user_id: job.user_id,
+                    workspace_id: job.workspace_id ?? workspaceId,
+                    job_id: jobId,
+                    name,
+                    email: parsed.email || null,
+                    linkedin_url: linkedinUrl,
+                    role: parsed.workExperience?.[0]?.role || job.title || '',
+                    location: parsed.location || job.location || '',
+                    experience: parsed.experienceYears || null,
+                    skills: parsed.skills || [],
+                    resume_summary: (parsed.fullText || '').substring(0, 2000),
+                    ai_match_score: aiScore,
+                    ai_analysis: aiAnalysis,
+                    work_experience: parsed.workExperience || [],
+                    projects: parsed.projects || [],
+                    portfolio_urls: parsed.portfolioUrls || {},
+                    cv_file_url: tempUrl,
+                    cv_file_name: cvFile.name,
+                    stage: 'New',
+                    source: 'direct_application',
+                    is_test: false,
+                    applied_date: new Date().toISOString(),
+                })
+                .select('id')
+                .single();
+
+            if (insertError) {
+                await supabase.storage.from('candidate-cvs').remove([tempPath]);
+                throw new Error(insertError.message);
+            }
+
+            // Move CV to permanent path
+            try {
+                const finalPath = `${jobId}/${candidate.id}/${Date.now()}.${fileExt}`;
+                const { error: reUploadError } = await supabase.storage
+                    .from('candidate-cvs')
+                    .upload(finalPath, cvFile, { cacheControl: '3600', upsert: false });
+                if (!reUploadError) {
+                    const { data: { publicUrl: finalUrl } } = supabase.storage.from('candidate-cvs').getPublicUrl(finalPath);
+                    await supabase.from('candidates').update({ cv_file_url: finalUrl, cv_file_name: cvFile.name }).eq('id', candidate.id);
+                    await supabase.storage.from('candidate-cvs').remove([tempPath]);
+                }
+            } catch { /* keep temp URL on failure */ }
+
+            return { success: true, candidateId: candidate.id };
+        },
+        /** Returns the id of the workspace's "Candidate Pool" placeholder job, creating it if needed. */
+        getOrCreateCandidatePool: async (): Promise<string> => {
+            const workspaceId = await getCurrentWorkspaceId();
+            const userId = await getUserId();
+            if (!workspaceId || !userId) throw new Error('Not authenticated');
+
+            const { data: existing } = await supabase
+                .from('jobs')
+                .select('id, status')
+                .eq('workspace_id', workspaceId)
+                .eq('title', '__candidate_pool__')
+                .maybeSingle();
+            if (existing?.id) {
+                // Upgrade Draft pool jobs created before this fix
+                if (existing.status !== 'Active') {
+                    await supabase.from('jobs').update({ status: 'Active' }).eq('id', existing.id);
+                }
+                return existing.id as string;
+            }
+
+            const { data: created, error } = await supabase
+                .from('jobs')
+                .insert({
+                    workspace_id: workspaceId,
+                    user_id: userId,
+                    title: '__candidate_pool__',
+                    department: 'Pool',
+                    location: '',
+                    type: 'Full-time',
+                    status: 'Active',
+                    description: 'Internal candidate pool — managed by CoreflowHR',
+                    posted_date: new Date().toISOString(),
+                })
+                .select('id')
+                .single();
+            if (error || !created) throw new Error('Failed to create candidate pool');
+            return created.id as string;
+        },
         create: async (jobId: string, candidateData: {
             name: string;
             email: string;
@@ -2216,6 +2452,7 @@ export const api = {
             phone?: string;
             coverLetter?: string;
             cvFile: File;
+            linkedinProfileUrl?: string;
         }): Promise<{ success: boolean; message?: string; isUpdate?: boolean; candidateId?: string }> => {
             try {
                 // Normalize email
@@ -2224,7 +2461,7 @@ export const api = {
                 // First, get the job to find the user_id, title, location, description
                 const { data: job, error: jobError } = await supabase
                     .from('jobs')
-                    .select('user_id, title, skills, location, description')
+                    .select('user_id, title, skills, location, description, company')
                     .eq('id', jobId)
                     .eq('status', 'Active')
                     .single();
@@ -2461,6 +2698,7 @@ export const api = {
                             work_experience: parsedData.workExperience || [],
                             projects: parsedData.projects || [],
                             portfolio_urls: parsedData.portfolioUrls || {},
+                            linkedin_url: applicationData.linkedinProfileUrl || null,
                             source: 'direct_application',
                             is_test: false, // Production mode - always false
                             updated_at: new Date().toISOString()
@@ -2489,6 +2727,20 @@ export const api = {
                         await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
                     } catch (notifError) {
                         console.error('Error creating CV submitted notification:', notifError);
+                    }
+
+                    // Send confirmation email to candidate
+                    try {
+                        await supabase.functions.invoke('send-email', {
+                            body: {
+                                to: normalizedEmail,
+                                subject: `We've received your application — ${job.title}`,
+                                content: `<p>Hi ${applicationData.name},</p><p>Thank you for applying for <strong>${job.title}</strong>${job.company ? ` at ${job.company}` : ''}.</p><p>We've received your CV and will be in touch if you're shortlisted for the next stage.</p><p>Best of luck!</p>`,
+                                emailType: 'ApplicationConfirmation',
+                            }
+                        });
+                    } catch (emailErr) {
+                        console.error('Failed to send application confirmation email:', emailErr);
                     }
 
                     // If moved to Screening, execute workflows if configured (optional - won't fail if no workflow)
@@ -2537,6 +2789,7 @@ export const api = {
                             work_experience: parsedData.workExperience || [],
                             projects: parsedData.projects || [],
                             portfolio_urls: parsedData.portfolioUrls || {},
+                            linkedin_url: applicationData.linkedinProfileUrl || null,
                             stage: stage, // New CV submissions go to Screening
                             source: 'direct_application',
                             is_test: false, // Production mode - always false
@@ -2582,6 +2835,20 @@ export const api = {
                         await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
                     } catch (notifError) {
                         console.error('Error creating CV submitted notification:', notifError);
+                    }
+
+                    // Send confirmation email to candidate
+                    try {
+                        await supabase.functions.invoke('send-email', {
+                            body: {
+                                to: normalizedEmail,
+                                subject: `We've received your application — ${job.title}`,
+                                content: `<p>Hi ${applicationData.name},</p><p>Thank you for applying for <strong>${job.title}</strong>${job.company ? ` at ${job.company}` : ''}.</p><p>We've received your CV and will be in touch if you're shortlisted for the next stage.</p><p>Best of luck!</p>`,
+                                emailType: 'ApplicationConfirmation',
+                            }
+                        });
+                    } catch (emailErr) {
+                        console.error('Failed to send application confirmation email:', emailErr);
                     }
 
                     // Execute workflows for Screening stage if workflow is configured (optional)
@@ -2635,19 +2902,20 @@ export const api = {
 
             if (error) throw error;
 
-            // Get unique job IDs to fetch job skills and titles (exclude closed jobs)
-            const jobIds = [...new Set((data || []).map(c => c.job_id))];
-            const { data: jobs } = await supabase
-                .from('jobs')
-                .select('id, title, skills, status')
-                .in('id', jobIds)
-                .neq('status', 'Closed');
-            
-            // Filter out candidates from closed jobs
-            const activeJobIds = new Set((jobs || []).map(j => j.id));
-            const filteredCandidates = (data || []).filter(c => activeJobIds.has(c.job_id));
-            
+            // Fetch job metadata (title, skills) for all candidate jobs — no status filter
+            const jobIds = [...new Set((data || []).map((c: any) => c.job_id).filter(Boolean))];
+            const { data: jobs } = jobIds.length > 0
+                ? await supabase
+                    .from('jobs')
+                    .select('id, title, skills, status')
+                    .in('id', jobIds)
+                    .neq('title', '__candidate_pool__')   // hide pool job title from display
+                : { data: [] };
+
             const jobsMap = new Map((jobs || []).map(j => [j.id, j]));
+
+            // Show all candidates regardless of their job's status
+            const filteredCandidates = data || [];
 
             // Cross-job duplicate flagging: for candidates with linkedin_url, find other jobs (same user) with same profile
             const linkedinUrls = [...new Set((filteredCandidates as any[]).map(c => c.linkedin_url).filter(Boolean))] as string[];
@@ -2832,14 +3100,10 @@ export const api = {
                     candidateName = currentData.name;
                 }
                 
-                // Prevent manual movement from "New" to any stage - "New" stage candidates must upload CV first to move to Screening
-                if (oldStage === 'New') {
-                    throw new Error('Cannot manually move candidates from "New" stage. Candidates in "New" stage must upload their CV first, which will automatically move them to "Screening" stage.');
-                }
-                
                 // Check if a workflow is configured for the target stage before allowing movement
                 // Interview stage is exempt - interviews are manually scheduled, not automatic
-                if (updates.stage !== 'Interview') {
+                // New → Screening is exempt - the email draft is handled manually in the UI
+                if (updates.stage !== 'Interview' && !(oldStage === 'New' && updates.stage === 'Screening')) {
                 const { data: workflows, error: workflowCheckError } = await supabase
                     .from('email_workflows')
                     .select('id')
@@ -2996,6 +3260,27 @@ export const api = {
                 profileUrl: data.profile_url
             };
         },
+        /** Reject a waitlisted candidate — skips the email-workflow requirement. */
+        reject: async (candidateId: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { error } = await supabase
+                .from('candidates')
+                .update({ stage: 'Rejected' })
+                .eq('id', candidateId)
+                .eq('stage', 'New'); // safety: only reject waitlisted candidates
+            if (error) throw error;
+        },
+        /** Permanently delete a candidate record. */
+        deleteCandidate: async (candidateId: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const { error } = await supabase
+                .from('candidates')
+                .delete()
+                .eq('id', candidateId);
+            if (error) throw error;
+        },
         search: async (query: string, stageFilter?: CandidateStage): Promise<Candidate[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -3111,15 +3396,22 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Verify candidate belongs to user
+            // Verify candidate exists and get workspace
             const { data: candidate } = await supabase
                 .from('candidates')
-                .select('id')
+                .select('id, name, workspace_id')
                 .eq('id', candidateId)
-                .eq('user_id', userId)
                 .single();
 
-            if (!candidate) throw new Error('Candidate not found');
+            // Verify user is a workspace member
+            const { data: membership } = candidate ? await supabase
+                .from('workspace_members')
+                .select('role')
+                .eq('workspace_id', candidate.workspace_id)
+                .eq('user_id', userId)
+                .single() : { data: null };
+
+            if (!candidate || !membership) throw new Error('Candidate not found');
 
             // Get user name and avatar for response
             const { data: profile } = await supabase
@@ -3140,6 +3432,31 @@ export const api = {
                 .single();
 
             if (error) throw error;
+
+            // Notify other workspace members (non-blocking)
+            if (!isPrivate) {
+                try {
+                    const { data: members } = await supabase
+                        .from('workspace_members')
+                        .select('user_id')
+                        .eq('workspace_id', candidate.workspace_id)
+                        .neq('user_id', userId);
+
+                    if (members?.length) {
+                        const authorName = profile?.name || 'A team member';
+                        await supabase.from('notifications').insert(
+                            members.map((m: { user_id: string }) => ({
+                                user_id: m.user_id,
+                                title: 'New note on candidate',
+                                desc: `${authorName} added a note on ${candidate.name}. [candidateId:${candidateId}]`,
+                                type: 'note_added',
+                                category: 'candidate',
+                                unread: true,
+                            }))
+                        );
+                    }
+                } catch { /* non-fatal */ }
+            }
 
             return {
                 id: note.id,
@@ -3246,6 +3563,28 @@ export const api = {
 
             if (updateError) throw updateError;
 
+            return token;
+        },
+        generateCvUploadToken: async (candidateId: string): Promise<string> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            const token = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 30);
+
+            const { error } = await supabase
+                .from('candidates')
+                .update({
+                    cv_upload_token: token,
+                    cv_upload_token_expires_at: expiresAt.toISOString()
+                })
+                .eq('id', candidateId)
+                .eq('user_id', userId);
+
+            if (error) throw error;
             return token;
         },
         register: async (candidateId: string, token: string, email: string): Promise<void> => {

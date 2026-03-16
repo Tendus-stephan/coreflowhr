@@ -4,16 +4,16 @@ import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Candidate, CandidateStage, Job } from '../types';
 import { PipelineColumn } from '../components/PipelineColumn';
-import { SourcingStatusBar } from '../components/SourcingStatusBar';
-import { 
-    Users, CheckCircle, Clock, Sparkles, Search, ChevronDown, 
-    Filter, MoreHorizontal, TrendingUp, Download, Bell, Loader2, AlertTriangle, Info
+import {
+    Users, CheckCircle, Clock, Sparkles, Search, ChevronDown,
+    Filter, MoreHorizontal, TrendingUp, Download, Upload, Bell, Loader2, AlertTriangle, Info, Mail, X
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { CandidateModal } from '../components/CandidateModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { Toast } from '../components/ui/Toast';
+import { BulkCVUpload } from '../components/BulkCVUpload';
 import { api, Notification } from '../services/api';
 import { sendSlackNotification, buildCandidateStagedBlocks } from '../services/slack';
 
@@ -43,6 +43,14 @@ const CandidateBoard: React.FC = () => {
   const [initialTabFromUrl, setInitialTabFromUrl] = useState<string | undefined>();
   const [initialEmailSubTabFromUrl, setInitialEmailSubTabFromUrl] = useState<string | undefined>();
 
+  // Confirm dialog for reject / delete
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'reject' | 'delete';
+    candidateId: string;
+    candidateName: string;
+  } | null>(null);
+  const [pendingActionLoading, setPendingActionLoading] = useState(false);
+
   // Horizontal scroll container for pipeline columns
   const boardRef = useRef<HTMLDivElement | null>(null);
 
@@ -67,6 +75,19 @@ const CandidateBoard: React.FC = () => {
     }
   };
 
+  // Translate vertical mousewheel to horizontal scroll on the kanban board
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
   // Move confirmation (after drag)
   const [pendingMove, setPendingMove] = useState<{
     candidateId: string;
@@ -75,6 +96,48 @@ const CandidateBoard: React.FC = () => {
     toStage: CandidateStage;
   } | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+
+  // Screening email draft (Waitlist → Screening)
+  const [screeningDraft, setScreeningDraft] = useState<{
+    subject: string;
+    body: string;
+    loading: boolean;
+    token: string | null;
+    hasEmail: boolean;
+  } | null>(null);
+
+  // Load email draft when Waitlist → Screening move is pending
+  useEffect(() => {
+    if (pendingMove?.fromStage === CandidateStage.NEW && pendingMove.toStage === CandidateStage.SCREENING) {
+      const candidate = candidates.find(c => c.id === pendingMove.candidateId);
+      if (!candidate) return;
+      setScreeningDraft({ subject: '', body: '', loading: true, token: null, hasEmail: !!candidate.email });
+      Promise.all([
+        api.emailTemplates.getTemplates(),
+        candidate.email ? api.candidates.generateCvUploadToken(pendingMove.candidateId) : Promise.resolve(null),
+      ]).then(([templates, token]) => {
+        const tpl = templates.find((t: any) => t.type === 'Sourcing' || (t.type || '').toLowerCase().includes('screen')) ?? templates[0];
+        const baseUrl = window.location.origin;
+        const cvLink = token && candidate.jobId ? `${baseUrl}/jobs/apply/${candidate.jobId}?token=${token}` : null;
+        let subject = tpl?.subject ?? 'Next Steps: Your Application';
+        let body = (tpl?.content ?? `Hi ${candidate.name},\n\nThank you for your interest. Please upload your CV to continue.`)
+          .replace(/{candidate_name}/g, candidate.name ?? '')
+          .replace(/{job_title}/g, '');
+        if (cvLink) {
+          if (body.includes('{cv_upload_link}')) {
+            body = body.replace(/{cv_upload_link}/g, cvLink);
+          } else {
+            body += `\n\nPlease follow the link below to upload your CV:\n${cvLink}`;
+          }
+        }
+        setScreeningDraft({ subject, body, loading: false, token, hasEmail: !!candidate.email });
+      }).catch(() => {
+        setScreeningDraft(prev => prev ? { ...prev, loading: false } : null);
+      });
+    } else {
+      setScreeningDraft(null);
+    }
+  }, [pendingMove]);
 
   // Job dropdown open state (for scrollable list)
   const [jobDropdownOpen, setJobDropdownOpen] = useState(false);
@@ -90,6 +153,8 @@ const CandidateBoard: React.FC = () => {
   }, []);
 
   const isViewer = userRole === 'Viewer';
+
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Close job dropdown when clicking outside
   useEffect(() => {
@@ -391,6 +456,40 @@ const CandidateBoard: React.FC = () => {
       }
   };
 
+  const handleSendAndMove = async () => {
+      if (!pendingMove || !screeningDraft) return;
+      const candidate = candidates.find(c => c.id === pendingMove.candidateId);
+      setIsMoving(true);
+      try {
+          if (candidate?.email && screeningDraft.subject && screeningDraft.body) {
+              await (api as any).supabaseClient?.functions.invoke('send-email', {
+                  body: {
+                      to: candidate.email,
+                      subject: screeningDraft.subject,
+                      content: screeningDraft.body,
+                      fromName: 'Recruiter',
+                      candidateId: pendingMove.candidateId,
+                      emailType: 'Screening',
+                  }
+              }).catch(() => {});
+          }
+          const updatedCandidate = await api.candidates.update(pendingMove.candidateId, { stage: pendingMove.toStage });
+          await handleCandidateUpdate(updatedCandidate);
+          setPendingMove(null);
+          setToastMessage('Candidate moved to Screening and email sent.');
+          setToastType('success');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 4000);
+      } catch (error: any) {
+          setToastMessage(error?.message || 'Failed to move candidate.');
+          setToastType('error');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 5000);
+      } finally {
+          setIsMoving(false);
+      }
+  };
+
   // --- Filter Pill Counts ---
   const counts = useMemo(() => {
       const getCount = (filterType: string) => {
@@ -455,6 +554,16 @@ const CandidateBoard: React.FC = () => {
               />
             )}
           </div>
+          {!isViewer && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Upload size={14} />}
+              onClick={() => setShowBulkUpload(true)}
+            >
+              Import CVs
+            </Button>
+          )}
           <Button
             variant="black"
             size="sm"
@@ -498,11 +607,6 @@ const CandidateBoard: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-gray-400">Total</span>
           <span className="text-sm font-semibold text-gray-900">{metrics.total}</span>
-        </div>
-        <div className="w-px h-3.5 bg-gray-200" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-400">Qualified</span>
-          <span className="text-sm font-semibold text-gray-900">{metrics.qualified}</span>
         </div>
         <div className="w-px h-3.5 bg-gray-200" />
         <div className="flex items-center gap-1.5">
@@ -566,17 +670,6 @@ const CandidateBoard: React.FC = () => {
         </div>
       </div>
 
-      {/* Sourcing status bar */}
-      {selectedJob !== 'all' && (
-        <SourcingStatusBar
-          jobId={selectedJob}
-          isReadOnly={isViewer}
-          onCandidatesAdded={() => {
-            api.candidates.list({ page: 1, pageSize: 1000 }).then((r) => setCandidates(r.data || [])).catch(() => {});
-          }}
-        />
-      )}
-
       {/* Board */}
       <div
         ref={boardRef}
@@ -585,7 +678,16 @@ const CandidateBoard: React.FC = () => {
         style={{ overflowX: 'auto', overflowY: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}
       >
         <div className="flex gap-3 w-max snap-x snap-mandatory pb-4" style={{ height: '100%' }}>
-          <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+          <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer}
+            onRejectCandidate={isViewer ? undefined : (id) => {
+              const c = candidates.find(x => x.id === id);
+              if (c) setPendingAction({ type: 'reject', candidateId: id, candidateName: c.name });
+            }}
+            onDeleteCandidate={isViewer ? undefined : (id) => {
+              const c = candidates.find(x => x.id === id);
+              if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name });
+            }}
+          />
           <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
           <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
           <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
@@ -641,6 +743,74 @@ const CandidateBoard: React.FC = () => {
       )}
 
       <Toast message={toastMessage} type={toastType} isVisible={showToast} onClose={() => setShowToast(false)} />
+
+      {/* Reject / Delete confirmation dialog */}
+      {pendingAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+              {pendingAction.type === 'reject' ? 'Reject candidate?' : 'Delete candidate?'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-5">
+              {pendingAction.type === 'reject'
+                ? <>Are you sure you want to reject <span className="font-medium text-gray-700">{pendingAction.candidateName}</span>? They will be moved to the Rejected column.</>
+                : <>Are you sure you want to permanently delete <span className="font-medium text-gray-700">{pendingAction.candidateName}</span>? This cannot be undone.</>}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setPendingAction(null)}
+                disabled={pendingActionLoading}
+                className="px-4 h-8 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={pendingActionLoading}
+                onClick={async () => {
+                  setPendingActionLoading(true);
+                  try {
+                    if (pendingAction.type === 'reject') {
+                      await api.candidates.reject(pendingAction.candidateId);
+                      setCandidates(prev => prev.map(c => c.id === pendingAction.candidateId ? { ...c, stage: CandidateStage.REJECTED } : c));
+                    } else {
+                      await api.candidates.deleteCandidate(pendingAction.candidateId);
+                      setCandidates(prev => prev.filter(c => c.id !== pendingAction.candidateId));
+                    }
+                    setPendingAction(null);
+                  } catch (err: any) {
+                    setToastMessage(err?.message ?? `Failed to ${pendingAction.type} candidate`);
+                    setToastType('error');
+                    setShowToast(true);
+                    setPendingAction(null);
+                  } finally {
+                    setPendingActionLoading(false);
+                  }
+                }}
+                className={`px-4 h-8 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50 ${
+                  pendingAction.type === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+              >
+                {pendingActionLoading ? 'Please wait…' : pendingAction.type === 'reject' ? 'Yes, reject' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkUpload && (
+        <BulkCVUpload
+          jobs={jobs}
+          defaultJobId={selectedJob !== 'all' ? selectedJob : jobs.find(j => j.status === 'Active')?.id}
+          onClose={() => setShowBulkUpload(false)}
+          onImported={async (count: number) => {
+            const result = await api.candidates.list({ page: 1, pageSize: 1000 });
+            setCandidates(result.data || []);
+            setToastMessage(`${count} CV${count !== 1 ? 's' : ''} imported successfully`);
+            setToastType('success');
+            setShowToast(true);
+          }}
+        />
+      )}
     </div>
   );
 };

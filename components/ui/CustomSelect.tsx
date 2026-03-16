@@ -29,14 +29,14 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const portalRef  = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
 
   const updatePosition = () => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    // Flip up if not enough space below
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const estimatedHeight = Math.min(options.length * 36 + 8, 240);
     const top = spaceBelow < estimatedHeight && rect.top > estimatedHeight
@@ -46,7 +46,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       position: 'fixed',
       top,
       left: rect.left,
-      minWidth: rect.width,
+      // inputStyle: lock to trigger width; pill style: grow freely
+      ...(inputStyle ? { width: rect.width } : { minWidth: rect.width }),
       zIndex: 9999,
     });
   };
@@ -57,9 +58,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const inTrigger = triggerRef.current?.contains(e.target as Node);
+      const inPortal  = portalRef.current?.contains(e.target as Node);
+      if (!inTrigger && !inPortal) setOpen(false);
     };
     const handleScroll = () => { if (open) updatePosition(); };
     document.addEventListener('mousedown', handleClickOutside);
@@ -77,7 +78,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   const emptyLabel = !selected ? (inputStyle ? 'text-gray-400' : 'text-gray-500') : '';
 
   return (
-    <div ref={ref} className={`relative ${inputStyle ? 'block' : 'inline-block'}`}>
+    <div ref={triggerRef} className={`relative ${inputStyle ? 'block' : 'inline-block'}`}>
       <button
         type="button"
         disabled={disabled}
@@ -93,13 +94,15 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
       {open && createPortal(
         <div
+          ref={portalRef}
           style={dropdownStyle}
           className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto"
         >
           {options.map((opt) => (
             <button
-              key={opt.value}
+              key={opt.value || '__empty__'}
               type="button"
+              onMouseDown={e => e.preventDefault()}   // keep focus on trigger; don't close via outside-click
               onClick={() => {
                 onChange(opt.value);
                 setOpen(false);
@@ -112,7 +115,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                   : 'text-gray-700'
               }`}
             >
-              {opt.label}
+              <span className="block truncate">{opt.label}</span>
             </button>
           ))}
         </div>,

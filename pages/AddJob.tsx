@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, X, MapPin, Briefcase, DollarSign, Globe, Check, Building2, Save } from 'lucide-react';
+import { X, MapPin, Briefcase, DollarSign, Check, Save } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
@@ -13,129 +13,66 @@ const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string
   { name: 'Sales Representative', title: 'Sales Representative', department: 'Sales', location: '', type: 'Full-time', skills: 'Communication, CRM, Negotiation', description: 'Generate leads and close deals with new and existing clients.', remote: false },
 ];
 
-// --- Preview Modal Component ---
+// --- Preview Modal ---
 const PreviewModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose: () => void; data: any }) => {
-    React.useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, [isOpen]);
-
-    if (!isOpen) return null;
-
-    return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
-            <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900">Job Preview</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
-                        <X size={20} />
-                    </button>
-                </div>
-                
-                <div className="p-8 overflow-y-auto space-y-8">
-                    {/* Header */}
-                    <div className="border-b border-gray-100 pb-6">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900 mb-2">{data.title || 'Untitled Job Title'}</h1>
-                                <div className="flex items-center gap-2 text-lg text-gray-600 font-medium">
-                                    {data.company || 'Company Name'} 
-                                    {data.remote && <span className="text-gray-400">•</span>}
-                                    {data.remote && <span className="text-gray-600 bg-gray-50 px-2 py-0.5 rounded text-sm border border-gray-200">Remote</span>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Key Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-6 rounded-xl border border-gray-100">
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Location</span>
-                            <div className="flex items-center gap-2 text-gray-900 font-medium">
-                                <MapPin size={16} className="text-gray-400" />
-                                {data.location || 'Not specified'}
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Type</span>
-                            <div className="flex items-center gap-2 text-gray-900 font-medium">
-                                <Briefcase size={16} className="text-gray-400" />
-                                {data.type}
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Salary</span>
-                            <div className="flex items-center gap-2 text-gray-900 font-medium">
-                                <DollarSign size={16} className="text-gray-400" />
-                                {data.salary || 'Not specified'}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Skills */}
-                    <div className="space-y-3">
-                        <h3 className="text-lg font-bold text-gray-900">Required Skills</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {data.skills ? data.skills.split(',').map((skill: string, i: number) => (
-                                <span key={i} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
-                                    {skill.trim()}
-                                </span>
-                            )) : <span className="text-gray-400 italic">No specific skills listed.</span>}
-                        </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-3">
-                        <h3 className="text-lg font-bold text-gray-900">About the Role</h3>
-                        <div className="prose prose-gray max-w-none text-gray-600 whitespace-pre-wrap leading-relaxed">
-                            {data.description || 'No description provided.'}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
-                    <Button variant="outline" onClick={onClose}>Close Preview</Button>
-                </div>
-            </div>
-        </div>,
-        document.body
-    );
-};
-
-// Animated Counter Component
-const AnimatedCounter: React.FC<{ target: number; duration?: number }> = ({ target, duration = 2000 }) => {
-  const [count, setCount] = useState(0);
-
   useEffect(() => {
-    setCount(0); // Reset when target changes
-    const startTime = Date.now();
-    const frames = (duration / 16); // ~60fps
-    const increment = target / frames;
-    
-    const timer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      if (elapsed >= duration) {
-        setCount(target);
-        clearInterval(timer);
-        return;
-      }
-      
-      setCount(prev => {
-        const next = Math.min(prev + increment, target);
-        return next;
-      });
-    }, 16);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
-    return () => clearInterval(timer);
-  }, [target, duration]);
+  if (!isOpen) return null;
 
-  return <span className="font-bold text-2xl text-gray-900">{Math.round(count)}</span>;
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Job Preview</h2>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-8 overflow-y-auto space-y-8">
+          <div className="border-b border-gray-100 pb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{data.title || 'Untitled Job Title'}</h1>
+            <div className="flex items-center gap-2 text-lg text-gray-600 font-medium">
+              {data.company || 'Company Name'}
+              {data.remote && <><span className="text-gray-400">•</span><span className="text-gray-600 bg-gray-50 px-2 py-0.5 rounded text-sm border border-gray-200">Remote</span></>}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-6 rounded-xl border border-gray-100">
+            <div className="space-y-1">
+              <span className="text-xs text-gray-400 uppercase font-semibold tracking-widest">Location</span>
+              <div className="flex items-center gap-2 text-gray-900 font-medium"><MapPin size={14} className="text-gray-400" />{data.location || 'Not specified'}</div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-gray-400 uppercase font-semibold tracking-widest">Type</span>
+              <div className="flex items-center gap-2 text-gray-900 font-medium"><Briefcase size={14} className="text-gray-400" />{data.type}</div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-gray-400 uppercase font-semibold tracking-widest">Salary</span>
+              <div className="flex items-center gap-2 text-gray-900 font-medium"><DollarSign size={14} className="text-gray-400" />{data.salary || 'Not specified'}</div>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Required Skills</p>
+            <div className="flex flex-wrap gap-2">
+              {data.skills ? data.skills.split(',').map((s: string, i: number) => (
+                <span key={i} className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm text-gray-700">{s.trim()}</span>
+              )) : <span className="text-gray-400 text-sm italic">No skills listed</span>}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">About the Role</p>
+            <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{data.description || 'No description provided.'}</p>
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 };
 
 const AddJob: React.FC = () => {
@@ -146,30 +83,13 @@ const AddJob: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Form State
+
   const [formData, setFormData] = useState<{
-      title: string;
-      company: string;
-      location: string;
-      type: 'Full-time' | 'Contract' | 'Part-time';
-      salary: string;
-      remote: boolean;
-      skills: string;
-      description: string;
-      clientId?: string;
-  }>({
-      title: '',
-      company: '',
-      location: '',
-      type: 'Full-time',
-      salary: '',
-      remote: false,
-      skills: '',
-      description: '',
-      clientId: undefined
-  });
-  
+    title: string; company: string; location: string;
+    type: 'Full-time' | 'Contract' | 'Part-time';
+    salary: string; remote: boolean; skills: string; description: string; clientId?: string;
+  }>({ title: '', company: '', location: '', type: 'Full-time', salary: '', remote: false, skills: '', description: '', clientId: undefined });
+
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [templates, setTemplates] = useState<JobTemplate[]>([]);
@@ -178,7 +98,6 @@ const AddJob: React.FC = () => {
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const [canCreateJobs, setCanCreateJobs] = useState<boolean | null>(null);
 
-  /** Apply a built-in or user template to the form (title, location, type, skills, description, remote). */
   const applyTemplate = (t: JobTemplate | typeof BUILTIN_TEMPLATES[number]) => {
     setFormData(prev => ({
       ...prev,
@@ -191,470 +110,295 @@ const AddJob: React.FC = () => {
     }));
   };
 
-  // Load user plan, clients, and job data
   useEffect(() => {
-      const loadData = async () => {
-          // Load clients
-          setLoadingClients(true);
-          try {
-              const clientsList = await api.clients.list();
-              setClients(clientsList.map(c => ({ id: c.id, name: c.name })));
-          } catch (error) {
-              console.error('Failed to load clients:', error);
-          } finally {
-              setLoadingClients(false);
-          }
+    const loadData = async () => {
+      setLoadingClients(true);
+      try {
+        const clientsList = await api.clients.list();
+        setClients(clientsList.map(c => ({ id: c.id, name: c.name })));
+      } catch { /* ignore */ } finally { setLoadingClients(false); }
 
-          // Load job data if editing; if creating, check role
-          if (!id) {
-              try {
-                  const [list, me] = await Promise.all([
-                      api.jobTemplates.list(),
-                      api.auth.me()
-                  ]);
-                  setTemplates(list);
-                  setCanCreateJobs(me?.role !== 'HiringManager' && me?.role !== 'Viewer');
-              } catch (_) {
-                  setCanCreateJobs(true);
-              }
-              return;
-          }
-          setCanCreateJobs(true);
-          
-          setLoading(true);
-          try {
-              const job = await api.jobs.get(id);
-              if (job) {
-                  setFormData({
-                      title: job.title || '',
-                      company: job.company || '',
-                      location: job.location || '',
-                      type: job.type || 'Full-time',
-                      salary: job.salaryRange || '',
-                      remote: job.remote || false,
-                      skills: Array.isArray(job.skills) ? job.skills.join(', ') : (job.skills || ''),
-                      description: job.description || '',
-                      clientId: job.clientId || undefined
-                  });
-              }
-          } catch (error) {
-              console.error('Failed to load job:', error);
-              alert('Failed to load job. Redirecting...');
-              navigate('/jobs');
-          } finally {
-              setLoading(false);
-          }
-      };
-
-      loadData();
+      if (!id) {
+        try {
+          const [list, me] = await Promise.all([api.jobTemplates.list(), api.auth.me()]);
+          setTemplates(list);
+          setCanCreateJobs(me?.role !== 'HiringManager' && me?.role !== 'Viewer');
+        } catch { setCanCreateJobs(true); }
+        return;
+      }
+      setCanCreateJobs(true);
+      setLoading(true);
+      try {
+        const job = await api.jobs.get(id);
+        if (job) {
+          setFormData({
+            title: job.title || '', company: job.company || '', location: job.location || '',
+            type: job.type || 'Full-time', salary: job.salaryRange || '', remote: job.remote || false,
+            skills: Array.isArray(job.skills) ? job.skills.join(', ') : (job.skills || ''),
+            description: job.description || '', clientId: job.clientId || undefined,
+          });
+        }
+      } catch {
+        alert('Failed to load job. Redirecting...');
+        navigate('/jobs');
+      } finally { setLoading(false); }
+    };
+    loadData();
   }, [id, navigate]);
 
-  // Redirect Viewers and HiringManagers away from create-job page
   useEffect(() => {
     if (id) return;
-    if (canCreateJobs === false) {
-      navigate('/jobs', { replace: true });
-    }
+    if (canCreateJobs === false) navigate('/jobs', { replace: true });
   }, [id, canCreateJobs, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      setFormData(prev => ({
-          ...prev,
-          [name]: value
-      }));
-  };
-
-  const toggleRemote = () => {
-      setFormData(prev => ({ ...prev, remote: !prev.remote }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSaveDraft = async () => {
-      // For drafts, only title is required
-      if (!formData.title || !formData.title.trim()) {
-          alert('Please enter a job title');
-          return;
+    if (!formData.title?.trim()) { alert('Please enter a job title'); return; }
+    setIsSubmitting(true);
+    try {
+      const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
+      if (isEditing && id) {
+        await api.jobs.update(id, { ...formData, skills: skillsArray, status: 'Draft', clientId: formData.clientId || undefined });
+      } else {
+        await api.jobs.create({ ...formData, skills: skillsArray, status: 'Draft', clientId: formData.clientId || undefined });
       }
-      setIsSubmitting(true);
-      try {
-          // Convert comma separated skills to array
-          const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(s => s);
-          
-          if (isEditing && id) {
-              // Update existing job as draft
-              await api.jobs.update(id, {
-                  ...formData,
-                  skills: skillsArray,
-                  status: 'Draft' as const,
-                  clientId: formData.clientId || undefined
-              });
-          } else {
-          // Create the job as draft (no candidates generated)
-          await api.jobs.create({
-              ...formData,
-              skills: skillsArray,
-              status: 'Draft' as const,
-              clientId: formData.clientId || undefined
-          });
-          }
-          
-          navigate('/jobs');
-      } catch (e) {
-          console.error("Failed to save draft", e);
-          alert('Failed to save draft. Please try again.');
-      } finally {
-          setIsSubmitting(false);
-      }
+      navigate('/jobs');
+    } catch { alert('Failed to save draft. Please try again.'); }
+    finally { setIsSubmitting(false); }
   };
 
   const handlePost = async () => {
-      // Validate all required fields
-      if (!formData.title || !formData.title.trim()) {
-          alert('Please enter a job title');
-          return;
+    if (!formData.title?.trim()) { alert('Please enter a job title'); return; }
+    if (!formData.clientId) { alert('Please select a client'); return; }
+    if (!formData.company?.trim()) { alert('Please enter a company name'); return; }
+    if (!formData.location?.trim()) { alert('Please enter a location'); return; }
+    if (!formData.salary?.trim()) { alert('Please enter a salary range'); return; }
+    if (!formData.skills?.trim()) { alert('Please enter required skills'); return; }
+    if (!formData.description?.trim()) { alert('Please enter a job description'); return; }
+    setIsSubmitting(true);
+    try {
+      const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
+      let createdJob;
+      if (isEditing && id) {
+        await api.jobs.update(id, { ...formData, skills: skillsArray, status: 'Active' });
+        const updatedJob = await api.jobs.get(id);
+        if (!updatedJob) throw new Error('Failed to retrieve updated job');
+        createdJob = updatedJob;
+      } else {
+        createdJob = await api.jobs.create({ ...formData, skills: skillsArray, status: 'Active' });
       }
-      if (!formData.clientId) {
-          alert('Please select a client');
-          return;
-      }
-      if (!formData.company || !formData.company.trim()) {
-          alert('Please enter a company name');
-          return;
-      }
-      if (!formData.location || !formData.location.trim()) {
-          alert('Please enter a location');
-          return;
-      }
-      if (!formData.salary || !formData.salary.trim()) {
-          alert('Please enter a salary range');
-          return;
-      }
-      if (!formData.skills || !formData.skills.trim()) {
-          alert('Please enter required skills');
-          return;
-      }
-      if (!formData.description || !formData.description.trim()) {
-          alert('Please enter a job description');
-          return;
-      }
-      setIsSubmitting(true);
-      try {
-          // Convert comma separated skills to array
-          const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(s => s);
-          
-          // Note: "New" stage workflow requirement removed - emails are no longer sent automatically after sourcing
-          let createdJob;
-          
-          if (isEditing && id) {
-              // Update existing job to Active
-              await api.jobs.update(id, {
-                  ...formData,
-                  skills: skillsArray,
-                  status: 'Active' as const
-              });
-              // Fetch the updated job to get its ID
-              const updatedJob = await api.jobs.get(id);
-              if (!updatedJob) {
-                  throw new Error('Failed to retrieve updated job');
-              }
-              createdJob = updatedJob;
-          } else {
-              // Create the job with explicit Active status
-              createdJob = await api.jobs.create({
-                  ...formData,
-                  skills: skillsArray,
-                  status: 'Active' as const
-              });
-          }
-
-          // Navigate to pipeline — sourcing starts automatically in the background
-          navigate(`/candidates?job=${createdJob.id}&sourcing=started`);
-      } catch (e) {
-          console.error("Failed to post job", e);
-          alert('Failed to save job. Please try again.');
-      } finally {
-          setIsSubmitting(false);
-      }
+      navigate('/jobs');
+    } catch { alert('Failed to save job. Please try again.'); }
+    finally { setIsSubmitting(false); }
   };
 
   if (!id && canCreateJobs === false) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[200px] text-gray-500">
-        You don&apos;t have permission to post jobs. Redirecting...
+      <div className="p-8 flex items-center justify-center min-h-[200px] text-gray-500 text-sm">
+        You don't have permission to post jobs. Redirecting...
       </div>
     );
   }
 
+  const templateOptions = [
+    { value: '', label: 'Blank job' },
+    ...BUILTIN_TEMPLATES.map((b, i) => ({ value: `builtin-${i}`, label: b.name })),
+    ...templates.map(t => ({ value: t.id, label: t.name })),
+  ];
+
   return (
-    <div className="p-8 max-w-4xl mx-auto relative">
-      {/* Modal Injection */}
+    <div className="max-w-3xl mx-auto px-8 py-10">
       <PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} data={formData} />
-      
 
       {loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-              <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-          </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+        </div>
       ) : (
-          <>
-      <div className="mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Job' : 'Post a New Job'}</h1>
-          <p className="text-sm text-gray-500">{isEditing ? 'Update your job listing details.' : 'Create a job listing to start finding candidates.'}</p>
-        </div>
-      </div>
-
-      {!isEditing && (templates.length > 0 || BUILTIN_TEMPLATES.length > 0) && (
-        <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-          <label className="block text-sm font-bold text-gray-900 mb-2">Start from a template</label>
-          <CustomSelect
-            value=""
-            onChange={(v) => {
-              if (!v) return;
-              if (v.startsWith('builtin-')) {
-                const i = parseInt(v.replace('builtin-', ''), 10);
-                if (!isNaN(i) && BUILTIN_TEMPLATES[i]) applyTemplate(BUILTIN_TEMPLATES[i]);
-              } else {
-                const t = templates.find(tpl => tpl.id === v);
-                if (t) applyTemplate(t);
-              }
-            }}
-            className="px-4 py-2.5 rounded-lg min-w-[260px]"
-            options={[
-              { value: '', label: 'Blank job' },
-              ...BUILTIN_TEMPLATES.map((b, i) => ({ value: `builtin-${i}`, label: `${b.name} (built-in)` })),
-              ...templates.map(t => ({ value: t.id, label: t.name })),
-            ]}
-          />
-        </div>
-      )}
-
-      <div className="bg-white border border-gray-100 rounded-xl p-8 ">
-          {/* Save as template (when editing) */}
-          {isEditing && id && (
-            <div className="mb-6 flex flex-wrap items-center gap-3">
-              {!showSaveAsTemplate ? (
-                <Button variant="outline" size="sm" type="button" onClick={() => setShowSaveAsTemplate(true)}>
-                  <Save size={14} className="mr-1.5" /> Save as template
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input
-                    type="text"
-                    placeholder="Template name"
-                    value={saveAsTemplateName}
-                    onChange={e => setSaveAsTemplateName(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-48"
+        <>
+          {/* Page header */}
+          <div className="flex items-start justify-between mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Job' : 'Post a New Job'}</h1>
+              <p className="text-sm text-gray-400 mt-1">{isEditing ? 'Update your job listing.' : 'Create a job listing to start finding candidates.'}</p>
+            </div>
+            {!isEditing && templateOptions.length > 1 && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs text-gray-400 whitespace-nowrap">Start from a template</span>
+                <div className="w-44">
+                  <CustomSelect
+                    inputStyle
+                    value=""
+                    onChange={(v) => {
+                      if (!v) return;
+                      if (v.startsWith('builtin-')) {
+                        const i = parseInt(v.replace('builtin-', ''), 10);
+                        if (!isNaN(i) && BUILTIN_TEMPLATES[i]) applyTemplate(BUILTIN_TEMPLATES[i]);
+                      } else {
+                        const t = templates.find(tpl => tpl.id === v);
+                        if (t) applyTemplate(t);
+                      }
+                    }}
+                    className="px-3 py-2 rounded-lg text-sm"
+                    options={templateOptions}
                   />
-                  <Button variant="black" size="sm" disabled={savingAsTemplate || !saveAsTemplateName.trim()} onClick={async () => {
-                    if (!saveAsTemplateName.trim()) return;
-                    setSavingAsTemplate(true);
-                    try {
-                      await api.jobTemplates.createFromJob(id, saveAsTemplateName.trim());
-                      setShowSaveAsTemplate(false);
-                      setSaveAsTemplateName('');
-                    } catch (e: any) {
-                      alert(e.message || 'Failed to save template');
-                    } finally {
-                      setSavingAsTemplate(false);
-                    }
-                  }}>
-                    {savingAsTemplate ? 'Saving...' : 'Save'}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => { setShowSaveAsTemplate(false); setSaveAsTemplateName(''); }}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-8">
+
+            {/* Save as template (editing) */}
+            {isEditing && id && (
+              <div className="mb-8 pb-6 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                {!showSaveAsTemplate ? (
+                  <button type="button" onClick={() => setShowSaveAsTemplate(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
+                    <Save size={13} /> Save as template
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="text" placeholder="Template name" value={saveAsTemplateName}
+                      onChange={e => setSaveAsTemplateName(e.target.value)}
+                      className="h-8 px-3 border border-gray-200 rounded-lg text-sm w-44 focus:outline-none focus:border-gray-400"
+                    />
+                    <Button variant="black" size="sm" disabled={savingAsTemplate || !saveAsTemplateName.trim()} onClick={async () => {
+                      if (!saveAsTemplateName.trim()) return;
+                      setSavingAsTemplate(true);
+                      try {
+                        await api.jobTemplates.createFromJob(id, saveAsTemplateName.trim());
+                        setShowSaveAsTemplate(false); setSaveAsTemplateName('');
+                      } catch (e: any) { alert(e.message || 'Failed to save template'); }
+                      finally { setSavingAsTemplate(false); }
+                    }}>{savingAsTemplate ? 'Saving…' : 'Save'}</Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setShowSaveAsTemplate(false); setSaveAsTemplateName(''); }}>Cancel</Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <form className="space-y-6" onSubmit={e => e.preventDefault()}>
+
+              {/* Section: Role */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Role</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Job Title <span className="text-red-400">*</span></label>
+                    <input type="text" name="title" value={formData.title} onChange={handleChange}
+                      placeholder="e.g. Senior Product Designer"
+                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Company Name <span className="text-red-400">*</span></label>
+                    <input type="text" name="company" value={formData.company} onChange={handleChange}
+                      placeholder="e.g. Acme Corp"
+                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Client <span className="text-red-400">*</span></label>
+                    <CustomSelect inputStyle value={formData.clientId || ''} onChange={val => setFormData(prev => ({ ...prev, clientId: val || undefined }))}
+                      className="px-4 py-2 rounded-xl text-sm" disabled={loadingClients}
+                      options={[
+                        { value: '', label: loadingClients ? 'Loading…' : 'Select a client' },
+                        ...clients.map(c => ({ value: c.id, label: c.name }))
+                      ]} />
+                    {clients.length === 0 && !loadingClients && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        <Link to="/clients" className="text-gray-900 underline">Create a client</Link> first
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Job Type <span className="text-red-400">*</span></label>
+                    <CustomSelect inputStyle value={formData.type} onChange={val => setFormData(prev => ({ ...prev, type: val }))}
+                      className="px-4 py-2 rounded-xl text-sm"
+                      options={[
+                        { value: 'Full-time', label: 'Full-time' },
+                        { value: 'Part-time', label: 'Part-time' },
+                        { value: 'Contract', label: 'Contract' },
+                      ]} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Location & Comp */}
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Location & Compensation</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Location <span className="text-red-400">*</span></label>
+                    <input type="text" name="location" value={formData.location} onChange={handleChange}
+                      placeholder="e.g. London, UK"
+                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Salary Range <span className="text-red-400">*</span></label>
+                    <input type="text" name="salary" value={formData.salary} onChange={handleChange}
+                      placeholder="e.g. £60k – £80k"
+                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                  </div>
+                  <div
+                    onClick={() => setFormData(prev => ({ ...prev, remote: !prev.remote }))}
+                    className={`h-10 flex items-center gap-2.5 px-4 rounded-xl border cursor-pointer select-none transition-colors ${formData.remote ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${formData.remote ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
+                      {formData.remote && <Check size={11} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <span className="text-sm text-gray-700">Remote</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Details */}
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Job Details</p>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Required Skills <span className="text-red-400">*</span></label>
+                    <input type="text" name="skills" value={formData.skills} onChange={handleChange}
+                      placeholder="e.g. React, TypeScript, Node.js (comma separated)"
+                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                    <p className="text-xs text-gray-400">Used to AI-score inbound applicants when they apply.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Job Description <span className="text-red-400">*</span></label>
+                    <textarea name="description" value={formData.description} onChange={handleChange}
+                      rows={8} placeholder="Describe the role, responsibilities, and requirements…"
+                      className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors resize-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-600">
+                  {error}
+                  {error.includes('plan limit') && (
+                    <a href="/settings?tab=billing" className="text-red-700 underline ml-2">Upgrade →</a>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Candidate Count Display */}
-          <div className="mb-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between">
-                  <div>
-                      <p className="text-sm text-gray-600 font-medium mb-1">Candidates Available</p>
-                      <p className="text-xs text-gray-500">Maximum candidates you can source for this job</p>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                      <AnimatedCounter target={50} />
-                      <span className="text-sm text-gray-500 font-medium">candidates</span>
-                  </div>
-              </div>
-          </div>
-
-          <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-              {/* Basic Info */}
-              <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">Basic Information</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Job Title *</label>
-                          <input 
-                            type="text" 
-                            name="title"
-                            value={formData.title}
-                            onChange={handleChange}
-                            placeholder="e.g. Senior Product Designer" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
-                            required
-                          />
-                      </div>
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Client (Agency) *</label>
-                          <CustomSelect
-                            inputStyle
-                            value={formData.clientId || ''}
-                            onChange={(val) => setFormData(prev => ({ ...prev, clientId: val || undefined }))}
-                            className="px-4 py-2.5 rounded-lg"
-                            disabled={loadingClients}
-                            options={[
-                              { value: '', label: loadingClients ? 'Loading clients…' : 'Select a client' },
-                              ...clients.map(c => ({ value: c.id, label: c.name }))
-                            ]}
-                          />
-                          {clients.length === 0 && !loadingClients && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              <Link to="/clients" className="text-gray-900 underline">Create a client</Link> to organize jobs by company
-                            </p>
-                          )}
-                      </div>
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Company Name *</label>
-                          <input 
-                            type="text"
-                            name="company"
-                            value={formData.company}
-                            onChange={handleChange}
-                            placeholder="e.g. CoreFlow Inc." 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
-                            required
-                          />
-                      </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Location</label>
-                          <input 
-                            type="text" 
-                            name="location"
-                            value={formData.location}
-                            onChange={handleChange}
-                            placeholder="e.g. New York, NY" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
-                          />
-                      </div>
-                      
-                      {/* Job Type */}
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Job Type *</label>
-                          <CustomSelect
-                            inputStyle
-                            value={formData.type}
-                            onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
-                            className="px-4 py-2.5 rounded-xl"
-                            options={[
-                              { value: 'Full-time', label: 'Full-time' },
-                              { value: 'Part-time', label: 'Part-time' },
-                              { value: 'Contract', label: 'Contract' },
-                            ]}
-                          />
-                      </div>
-
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                      <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900">Salary Range *</label>
-                          <input 
-                            type="text" 
-                            name="salary"
-                            value={formData.salary}
-                            onChange={handleChange}
-                            placeholder="e.g. $120k - $150k" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all" 
-                            required
-                          />
-                      </div>
-                      
-                      {/* Remote Checkbox - Simplified Logic */}
-                      <div 
-                        className="flex items-center gap-3 h-[42px] bg-gray-50 border border-gray-200 rounded-xl px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none" 
-                        onClick={toggleRemote}
-                      >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${formData.remote ? 'bg-black border-black' : 'bg-white border-gray-300'}`}>
-                              {formData.remote && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                          <span className="text-sm font-medium text-gray-700">Remote Position</span>
-                      </div>
-                  </div>
-              </div>
-
-              {/* Details */}
-              <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">Job Details</h3>
-                  
-                  <div className="space-y-2">
-                      <label className="text-sm font-bold text-gray-900">Required Skills *</label>
-                      <input
-                        type="text"
-                        name="skills"
-                        value={formData.skills}
-                        onChange={handleChange}
-                        placeholder="e.g. React, TypeScript, Node.js (comma separated)"
-                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                        required
-                      />
-                      <p className="text-xs text-gray-500">Skills are used to automatically source and AI-score matching candidates from PeopleDataLabs after job creation.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                      <label className="text-sm font-bold text-gray-900">Job Description *</label>
-                      <textarea 
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        placeholder="Describe the role, responsibilities, and requirements..." 
-                        className="w-full h-64 px-4 py-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
-                        required
-                      ></textarea>
-                  </div>
-              </div>
-
-              {/* Error Message Display */}
-              {error && (
-                  <div className="bg-gray-100 border border-gray-200 rounded-xl p-4 mb-4">
-                      <p className="text-sm text-gray-800 font-medium">{error}</p>
-                      {error.includes('plan limit') && (
-                          <a 
-                              href="/settings?tab=billing" 
-                              className="text-sm text-gray-600 underline mt-2 inline-block"
-                          >
-                              Upgrade your plan →
-                          </a>
-                      )}
-                  </div>
-              )}
-
 
               {/* Actions */}
-              <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
-                  <Button 
-                      variant="outline" 
-                      type="button" 
-                      onClick={handleSaveDraft}
-                      disabled={isSubmitting}
-                  >
-                      {isSubmitting ? 'Saving...' : 'Save as Draft'}
-                  </Button>
-                  <Button variant="outline" type="button" onClick={() => setIsPreviewOpen(true)}>Preview</Button>
-                  <Button variant="black" type="button" onClick={handlePost} disabled={isSubmitting}>
-                      {isSubmitting ? (isEditing ? 'Updating...' : 'Posting...') : (isEditing ? 'Update Job' : 'Post Job')}
-                  </Button>
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                <Button variant="outline" type="button" onClick={handleSaveDraft} disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving…' : 'Save as Draft'}
+                </Button>
+                <Button variant="outline" type="button" onClick={() => setIsPreviewOpen(true)}>Preview</Button>
+                <Button variant="black" type="button" onClick={handlePost} disabled={isSubmitting}>
+                  {isSubmitting ? (isEditing ? 'Updating…' : 'Posting…') : (isEditing ? 'Update Job' : 'Post Job')}
+                </Button>
               </div>
-          </form>
-      </div>
-          </>
+
+            </form>
+          </div>
+        </>
       )}
     </div>
   );

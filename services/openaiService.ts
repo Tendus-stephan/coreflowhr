@@ -37,7 +37,7 @@ export const parseCVWithOpenAI = async (
     
   } catch (error: any) {
     console.error("❌ CV Parsing Failed:", error);
-    throw new Error(`CV parsing failed: ${error.message || 'Unknown error'}. Please ensure the parse-cv Edge Function is deployed and OpenAI API key is configured.`);
+    throw new Error(`CV parsing failed: ${error.message || 'Unknown error'}. Please ensure the parse-cv Edge Function is deployed and the Anthropic API key is configured.`);
   }
 };
 

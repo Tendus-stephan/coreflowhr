@@ -10,7 +10,6 @@ import {
 import { Button } from '../components/ui/Button';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 
-type GCalView = 'WEEK' | 'MONTH' | 'DAY' | 'AGENDA';
 type TabMode = 'google' | 'coreflow';
 
 // ── Upcoming interview list ─────────────────────────────────────────────────
@@ -91,7 +90,6 @@ const Calendar: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [calView, setCalView] = useState<GCalView>('WEEK');
   const [iframeKey, setIframeKey] = useState(0);
   const [tab, setTab] = useState<TabMode>('google');
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -137,9 +135,7 @@ const Calendar: React.FC = () => {
   }, []);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  // No src= param — lets Google show the currently signed-in user's own calendar.
-  // Using src=EMAIL embeds a specific public calendar which fails for private accounts.
-  const embedSrc = `https://calendar.google.com/calendar/embed?ctz=${encodeURIComponent(tz)}&mode=${calView}&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=1&showTz=0&wkst=2&hl=en`;
+  const embedSrc = `https://calendar.google.com/calendar/embed?ctz=${encodeURIComponent(tz)}&mode=WEEK&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=1&showCalendars=1&showTz=0&wkst=2&hl=en`;
 
   const afterSchedule = () => {
     setShowScheduleModal(false);
@@ -169,19 +165,6 @@ const Calendar: React.FC = () => {
           <div className="flex items-center gap-2">
             {tab === 'google' && (
               <>
-                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                  {(['DAY', 'WEEK', 'MONTH', 'AGENDA'] as GCalView[]).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => { setCalView(v); setIframeKey(k => k + 1); }}
-                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                        calView === v ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      {v.charAt(0) + v.slice(1).toLowerCase()}
-                    </button>
-                  ))}
-                </div>
                 <button
                   onClick={() => setIframeKey(k => k + 1)}
                   className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"

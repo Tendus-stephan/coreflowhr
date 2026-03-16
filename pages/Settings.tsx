@@ -835,6 +835,7 @@ const Settings: React.FC = () => {
     const [isSavingSlack, setIsSavingSlack] = useState(false);
     const [slackError, setSlackError] = useState<string | null>(null);
 
+
     // Sourcing usage state (billing tab)
     const [sourcingUsage, setSourcingUsage] = useState<{
       is_free_access: boolean;
@@ -1002,6 +1003,7 @@ const Settings: React.FC = () => {
                 const webhookUrl = await api.settings.getSlackWebhook();
                 setSlackWebhookUrl(webhookUrl);
             } catch { /* non-critical */ }
+
 
             // Load sourcing usage for billing tab
             try {

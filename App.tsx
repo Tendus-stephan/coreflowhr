@@ -411,8 +411,12 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/jobs/apply/:jobId" 
+        <Route
+          path="/jobs/apply/:jobId"
+          element={<JobApplication />}
+        />
+        <Route
+          path="/jobs/apply/:workspaceSlug/:jobSlug"
           element={<JobApplication />}
         />
         <Route 

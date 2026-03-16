@@ -14,6 +14,7 @@ const Clients: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const menuRef = useRef<HTMLDivElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     contactEmail: '',
@@ -88,6 +89,8 @@ const Clients: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { alert('Client name is required'); return; }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       if (editingClient) {
         await api.clients.update(editingClient.id, formData);
@@ -98,6 +101,8 @@ const Clients: React.FC = () => {
       await loadClients();
     } catch (error: any) {
       console.error('Failed to save client:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -355,8 +360,8 @@ const Clients: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" size="sm">
-                  {editingClient ? 'Update' : 'Create'} Client
+                <Button type="submit" className="flex-1" size="sm" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving…' : (editingClient ? 'Update' : 'Create') + ' Client'}
                 </Button>
               </div>
             </form>

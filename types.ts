@@ -53,6 +53,7 @@ export interface Job {
   clientId?: string;
   client?: Client;
   isTest?: boolean;
+  slug?: string;
   candidateCount?: number;  // actual count from candidates table
   // Sourcing fields (PDL)
   sourcingStatus?: 'pending' | 'running' | 'completed' | 'failed' | null;
@@ -124,7 +125,7 @@ export interface Candidate {
   updatedAt?: string;
   cvFileUrl?: string;
   cvFileName?: string;
-  source?: 'manual' | 'Sourced' | 'direct_application' | 'email_application' | 'referral';
+  source?: 'manual' | 'Sourced' | 'direct_application' | 'email_application' | 'referral' | 'linkedin_extension';
   isTest?: boolean;
   workExperience?: WorkExperience[];
   projects?: Project[];
