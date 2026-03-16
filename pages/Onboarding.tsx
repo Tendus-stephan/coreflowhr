@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
-import { 
-    ChevronRight, ChevronLeft, X,
+import {
+    ChevronRight, ChevronLeft,
     Info, HelpCircle, Sparkles, Lightbulb, Rocket,
-    Users, Briefcase, Mail, Calendar, FileText, BarChart3
+    Users, Briefcase, Mail, Calendar, FileText, Building2
 } from 'lucide-react';
 import VisualPreview from '../components/onboarding/VisualPreview';
 import { supabase } from '../services/supabase';
@@ -34,149 +34,138 @@ const slides: Slide[] = [
         subtitle: "The Future of Recruitment",
         accentColor: "indigo",
         visualLabel: "DASHBOARD",
-        content: "Your all-in-one recruitment management platform. Streamline your hiring process with AI-powered candidate matching, automated workflows, and comprehensive analytics.",
+        content: "Your all-in-one recruitment platform. Post jobs, attract inbound applicants, manage your hiring pipeline, and close offers — all in one place.",
         detailedSteps: [
-            "Navigate through the platform using the sidebar menu on the left",
-            "Access your Dashboard to see an overview of all activities",
-            "Use the Candidates page to manage your recruitment pipeline",
-            "Create and manage Jobs from the Jobs page",
-            "Configure Settings to customize your experience"
+            "Navigate using the sidebar: Dashboard, Jobs, Candidates, Clients, Calendar, Offers",
+            "Start by creating a job in the Jobs page",
+            "Share your job link on LinkedIn, Indeed, or CV-Library to attract applicants",
+            "Manage inbound applicants on the Candidates page (Kanban pipeline)",
+            "Configure your workspace in Settings: email workflows, team members, integrations"
         ],
         commonIssues: [
             {
                 issue: "Can't see the sidebar menu",
-                solution: "Check if you're on a public page. The sidebar only appears on authenticated pages. Make sure you're logged in."
+                solution: "The sidebar only appears when you're logged in. Make sure you're authenticated and not on a public page."
             },
             {
                 issue: "Page is blank or not loading",
-                solution: "Refresh the page (Ctrl+R). If the issue persists, check your connection and clear browser cache."
+                solution: "Refresh the page (Ctrl+R). If the issue persists, check your connection and clear your browser cache."
             }
         ],
         tips: [
-            "Bookmark the Dashboard page for quick access",
-            "Use keyboard shortcuts: Ctrl+K (or Cmd+K) to search",
-            "Check the notification bell icon for important updates"
+            "Bookmark the Dashboard for quick access to your hiring overview",
+            "Invite team members from Settings → Team to collaborate on hiring",
+            "Use the CoreflowHR AI assistant (floating button) for quick help"
         ],
         icon: <Rocket className="w-10 h-10" />
     },
     {
         id: 2,
-        title: "Manage Your Candidate Pipeline",
-        subtitle: "Visual Workflow",
-        accentColor: "blue",
-        visualLabel: "KANBAN",
-        content: "Visualize your recruitment process with our Kanban board. Move candidates through stages: New → Screening → Interview → Offer → Hired. New candidates start without emails - contact them via LinkedIn outreach first.",
-        detailedSteps: [
-            "Go to the Candidates page from the sidebar",
-            "View candidates organized in columns by stage",
-            "⚠️ 'New' stage: Sourced candidates without emails - use LinkedIn outreach to contact them",
-            "Click on a candidate card to open their profile and generate LinkedIn outreach message",
-            "After candidate registers email, they automatically move to 'Screening' stage",
-            "Click and drag candidate cards to move them between stages (after they have emails)",
-            "Filter candidates by job, stage, or AI match score"
-        ],
-        commonIssues: [
-            {
-                issue: "Candidate in 'New' stage has no email",
-                solution: "This is normal! Sourced candidates don't have emails by default. Open their profile → Email tab → Generate LinkedIn outreach message to contact them."
-            },
-            {
-                issue: "Can't move candidate to a stage",
-                solution: "For stages after 'Screening', ensure the candidate has an email (they should after registration). Also check that email workflows are enabled in Settings > Email Workflows."
-            },
-            {
-                issue: "AI match score not showing",
-                solution: "The candidate needs a CV uploaded and the job needs skills defined. Upload the CV and ensure job skills are listed."
-            }
-        ],
-        tips: [
-            "'New' stage candidates: Generate LinkedIn outreach message to collect their email",
-            "After registration, candidates automatically move to 'Screening' and receive CV upload email",
-            "Use bulk actions to move multiple candidates at once (after they have emails)",
-            "Right-click on a card for a quick actions menu",
-            "Export candidate data using the download button"
-        ],
-        icon: <Users className="w-10 h-10" />
-    },
-    {
-        id: 3,
-        title: "Create and Manage Job Postings",
-        subtitle: "Hiring at Scale",
+        title: "Post Jobs & Share Externally",
+        subtitle: "Attract Inbound Talent",
         accentColor: "emerald",
         visualLabel: "JOBS",
-        content: "Post jobs and manage job statuses. It's crucial to carefully cross-check all job details and input core skills required for the position. Once a job is created and set to Active, candidates will be automatically sourced from LinkedIn based on these skills.",
+        content: "Create a job, set it to Active, then share the application link on job boards. Candidates apply directly — no manual sourcing needed.",
         detailedSteps: [
-            "Click 'New Job' or go to Jobs page and click 'Create Job'",
-            "Fill in details: Title, Department, Location, Type",
-            "⚠️ IMPORTANT: Carefully cross-check all job information for accuracy",
-            "⚠️ CRITICAL: Input all core skills required for the job - this directly impacts candidate matching accuracy",
-            "Review and verify all details before proceeding",
-            "Set status: Draft, Active, or Closed",
-            "Once Active, candidates will be automatically sourced from LinkedIn",
-            "⚠️ NOTE: Sourced candidates don't have emails by default - you'll contact them via LinkedIn"
+            "Go to Jobs → click 'New Job'",
+            "Fill in Title, Department, Location, Type, and a clear Description",
+            "Add required Skills — these are used to AI-score inbound applicants",
+            "Set status to 'Active' to open the role for applications",
+            "Click the job in the table → use 'Share this role' to copy pre-formatted posts",
+            "Paste your copied post on LinkedIn, Indeed, or CV-Library",
+            "Applicants who submit the form appear instantly in your Candidates pipeline"
         ],
         commonIssues: [
             {
-                issue: "Candidates not being sourced",
-                solution: "Make sure the job is set to 'Active' status. Only active jobs trigger candidate sourcing. Also verify that core skills have been properly inputted."
-            },
-            {
-                issue: "Poor candidate matches",
-                solution: "Ensure you've inputted all core/required skills for the job. The sourcing system relies heavily on these skills to find suitable candidates."
+                issue: "No candidates appearing after sharing",
+                solution: "Confirm the job is set to 'Active'. Only active jobs accept applications. Check that your shared link points to the correct job."
             },
             {
                 issue: "Job disappeared from the list",
-                solution: "Check your filters - you might be viewing only 'Active' jobs. Switch to 'All'."
+                solution: "Check your filters — you may be viewing only 'Active' jobs. Switch to 'All' to see Draft and Closed jobs."
             }
         ],
         tips: [
-            "⚠️ Always cross-check job details before setting to Active - accuracy is crucial",
-            "⚠️ Input all core skills comprehensively - missing skills lead to poor candidate matches",
-            "Use Draft status to prepare and review jobs before publishing",
-            "The more specific and detailed your skills list, the better the candidate matches will be",
-            "Close jobs when filled to keep your dashboard clean",
-            "Remember: Sourced candidates start in 'New' stage without emails - use LinkedIn outreach to contact them"
+            "Use Draft status to draft and review a job before making it live",
+            "The more complete your job description and skills list, the higher-quality your applicants",
+            "Close jobs once filled to keep your pipeline clean and metrics accurate",
+            "Each job has a unique shareable link — you can use it across multiple platforms"
         ],
         icon: <Briefcase className="w-10 h-10" />
     },
     {
-        id: 4,
-        title: "Contacting Candidates & Email Workflows",
-        subtitle: "Seamless Communication",
-        accentColor: "amber",
-        visualLabel: "EMAILS",
-        content: "Contact new candidates via LinkedIn outreach first. Once they register their email, automated workflows handle all future communications. Customize templates, use AI for content, and track everything.",
+        id: 3,
+        title: "Manage Your Candidate Pipeline",
+        subtitle: "Visual Workflow",
+        accentColor: "blue",
+        visualLabel: "KANBAN",
+        content: "Every inbound applicant lands in your Waitlist. Move them through stages — Screening → Interview → Offer → Hired — as they progress through your process.",
         detailedSteps: [
-            "📋 For NEW candidates (no email): Open candidate modal → Email tab → 'Outreach' section",
-            "Generate LinkedIn message: Click 'Generate Outreach Message' → AI creates message with registration link",
-            "Copy the message and paste it to the candidate on LinkedIn manually",
-            "Candidate clicks link → Registers email → Automatically moved to 'Screening' → Receives CV upload email",
-            "📧 For Email Workflows: Go to Settings > Email Workflows",
-            "⚠️ IMPORTANT: Create a 'Screening' workflow before generating outreach (required for CV upload emails)",
-            "Select trigger stage (Screening, Offer, Hired, Rejected) - 'New' stage workflows are disabled",
-            "Choose or create an email template for that stage",
-            "Enable the workflow - emails will send automatically when candidates move to that stage"
+            "Go to Candidates in the sidebar",
+            "Select a job from the dropdown to filter your pipeline",
+            "Waitlist: newly submitted applications — review CVs and move promising ones to Screening",
+            "Drag and drop cards between stages to progress candidates",
+            "Click any card to open the full candidate profile (CV, notes, emails, score)",
+            "You can also add candidates manually or bulk-import CVs using the import button",
+            "Use filters to view by stage, job, or AI match score"
         ],
         commonIssues: [
             {
-                issue: "Can't generate outreach message",
-                solution: "You must create and enable a 'Screening' workflow first in Settings > Email Workflows. This ensures candidates receive CV upload emails after registering."
+                issue: "Can't drag a candidate to a stage",
+                solution: "Some stage transitions are locked (e.g. you can't move directly to Offer without going through Interview). Follow the correct stage order."
             },
             {
-                issue: "Emails not being sent after registration",
-                solution: "Check that a 'Screening' workflow is enabled in Settings > Email Workflows. Candidates must have an enabled workflow to receive emails when moved to that stage."
+                issue: "AI match score is missing",
+                solution: "The candidate needs a CV uploaded and the job needs skills defined. Once both are present, the score calculates automatically."
             },
             {
-                issue: "Placeholders showing (e.g. {name})",
-                solution: "Ensure candidate profile has the required data. Verify placeholder names match your template variables."
+                issue: "Candidate doesn't appear in pipeline",
+                solution: "Check the job filter at the top — make sure you're viewing 'All Jobs' or the specific job the candidate applied to."
             }
         ],
         tips: [
-            "⚠️ Always create a 'Screening' workflow before generating outreach messages - this is required",
-            "New candidates don't have emails - use LinkedIn outreach first, then workflows take over",
-            "Use AI-generated content for outreach messages and email templates to save time",
-            "Test workflows by moving a candidate to different stages to ensure emails send correctly",
-            "'New' stage workflows are disabled - candidates without emails can't receive emails automatically"
+            "Waitlist is your inbox — review it daily and clear out applicants who aren't a fit early",
+            "Use bulk actions (select multiple cards) to reject or move many candidates at once",
+            "Leave notes on candidate profiles so your whole team stays aligned",
+            "Import CVs in bulk to manually add candidates who didn't apply through the link"
+        ],
+        icon: <Users className="w-10 h-10" />
+    },
+    {
+        id: 4,
+        title: "Automated Email Workflows",
+        subtitle: "Seamless Communication",
+        accentColor: "amber",
+        visualLabel: "EMAILS",
+        content: "Set up email workflows once, and CoreflowHR automatically sends the right message every time a candidate moves to a new stage.",
+        detailedSteps: [
+            "Go to Settings → Email Workflows",
+            "Create a workflow for each stage: Screening, Interview, Offer, Hired, Rejected",
+            "Choose an email template (or create one) for each workflow",
+            "Enable the workflow — it fires automatically on stage transitions",
+            "Candidates also receive a confirmation email when they submit an application",
+            "Customize templates with placeholders like {{candidate_name}}, {{job_title}}",
+            "View sent email history in the candidate's profile → Emails tab"
+        ],
+        commonIssues: [
+            {
+                issue: "Email not sent when I move a candidate",
+                solution: "Check that a workflow for that stage exists and is enabled in Settings → Email Workflows."
+            },
+            {
+                issue: "Placeholders like {{name}} showing literally in emails",
+                solution: "Ensure the candidate profile has the required fields filled in. Check your template uses the correct placeholder syntax."
+            },
+            {
+                issue: "Candidate didn't receive application confirmation",
+                solution: "The confirmation email is sent automatically on submission. Ask the candidate to check their spam folder."
+            }
+        ],
+        tips: [
+            "Set up your Screening workflow first — it's triggered most often",
+            "Use the Rejected workflow with a kind, professional template to maintain your employer brand",
+            "Test a workflow by moving a test candidate through stages before going live",
+            "Email templates support HTML for rich formatting"
         ],
         icon: <Mail className="w-10 h-10" />
     },
@@ -186,28 +175,30 @@ const slides: Slide[] = [
         subtitle: "Sync Your Team",
         accentColor: "rose",
         visualLabel: "CALENDAR",
-        content: "Use the calendar view to schedule interviews. Reschedule by dragging and dropping. Integrate with Google Meet for video calls.",
+        content: "Schedule interviews directly from CoreflowHR and see them in your Google Calendar. Use the CoreFlow Interviews tab to track all scheduled interviews in one list.",
         detailedSteps: [
-            "Go to the Calendar page from the sidebar",
-            "Switch between Monthly, Weekly, or Daily views",
-            "Click on a slot to schedule (only Interview-stage candidates appear)",
-            "Video interviews auto-generate Google Meet links",
-            "Drag and drop interviews on the calendar to reschedule"
+            "Go to Calendar in the sidebar",
+            "Click 'Schedule Interview' to create a new interview",
+            "Select the candidate, date, time, and interview type (Video, Phone, In-person)",
+            "Video interviews generate a Google Meet link automatically (if Google Calendar is connected)",
+            "The Google Calendar tab shows your full calendar synced in real-time",
+            "The CoreFlow Interviews tab shows a list of all interviews you've scheduled",
+            "Connect Google Calendar in Settings → Integrations for two-way sync"
         ],
         commonIssues: [
             {
                 issue: "Google Meet link not generating",
-                solution: "Check that Google Calendar integration is connected in Settings > Integrations."
+                solution: "Connect your Google Calendar account in Settings → Integrations. The integration must be active for Meet links to generate."
             },
             {
-                issue: "Can't see candidate in dropdown",
-                solution: "Only candidates in the 'Interview' stage appear. Move them there first."
+                issue: "Interview not appearing in Google Calendar",
+                solution: "Check that your Google Calendar integration is connected and active in Settings → Integrations."
             }
         ],
         tips: [
-            "Use the weekly view for detailed scheduling",
-            "Add interview feedback immediately while it's fresh",
-            "Export your calendar to sync with external apps"
+            "Connect Google Calendar in Settings to keep everything in sync automatically",
+            "Add interview feedback immediately after the call while details are fresh",
+            "Use the CoreFlow Interviews tab to quickly see upcoming interviews without switching to Google"
         ],
         icon: <Calendar className="w-10 h-10" />
     },
@@ -217,90 +208,96 @@ const slides: Slide[] = [
         subtitle: "Close the Deal",
         accentColor: "violet",
         visualLabel: "OFFERS",
-        content: "Create professional offer letters, send them via email, and track candidate responses. Support counter-offers and automatic updates.",
+        content: "Create professional offer letters, send them directly to candidates via email, and track responses including counter-offers and e-signatures.",
         detailedSteps: [
-            "Create an offer from a candidate's profile",
-            "Fill in Position, Salary, Start Date, and Benefits",
-            "Review placeholders like {salary_amount} before sending",
-            "Track status: Sent, Viewed, Accepted, Declined",
-            "Accepted offers automatically move candidates to 'Hired'"
+            "Move a candidate to the 'Offer' stage in the pipeline",
+            "Go to Offers in the sidebar → click 'New Offer'",
+            "Fill in Position, Salary, Start Date, Benefits, and any Notes",
+            "Click 'Send Offer' — the candidate receives a link to review and respond",
+            "Track status: Draft → Sent → Awaiting Sign. → Signed (or Declined / Negotiating)",
+            "If the candidate submits a counter-offer, you'll see it in the offer card to Accept, Negotiate, or Decline",
+            "Once signed, download the signed PDF directly from the offer card"
         ],
         commonIssues: [
             {
-                issue: "Can't move to Offer stage",
-                solution: "You must create an offer first. The system requires an active offer for this stage."
+                issue: "Can't send an offer",
+                solution: "The candidate must have an email address on file. Check their profile and ensure their email is saved."
             },
             {
-                issue: "Offer link expired",
-                solution: "Links expire based on the date set. Extend the date in the offer details."
+                issue: "Offer link says expired",
+                solution: "Offers have an expiry date. Edit the offer and extend the expiry date, then resend."
             }
         ],
         tips: [
-            "Always review details before sending",
-            "Set an expiration date to create a sense of urgency",
-            "Track all communications in the negotiation history"
+            "Set a short expiry date (5–7 days) to encourage prompt responses",
+            "Review all salary details carefully before hitting Send — offers can't be edited once sent",
+            "Use the Archive button to hide closed/rejected offers and keep your list clean",
+            "Counter-offer history is tracked in full so you have a clear negotiation record"
         ],
         icon: <FileText className="w-10 h-10" />
     },
     {
         id: 7,
-        title: "AI-Powered Candidate Matching",
-        subtitle: "Intelligence Built-in",
+        title: "Manage Clients",
+        subtitle: "Your Client Book",
         accentColor: "cyan",
-        visualLabel: "AI SCORES",
-        content: "Our AI analyzes candidate CVs and calculates match scores based on job requirements. Get instant insights into fit and experience.",
+        visualLabel: "CLIENTS",
+        content: "If you're a recruitment agency, track your client companies in the Clients page. Link jobs to clients and keep all contact information in one place.",
         detailedSteps: [
-            "Upload CVs (PDF, DOC, DOCX)",
-            "Ensure job has skills defined for comparison",
-            "AI parses skills, education, and work history",
-            "View scores (0-100) color-coded on candidate cards",
-            "Filter by score range to prioritize top talent"
+            "Go to Clients in the sidebar",
+            "Click 'New Client' to add a company",
+            "Fill in Company Name, Industry, Contact Person, Email, and Phone",
+            "Save the client — they appear in your client list",
+            "When creating a job, associate it with a client for clear ownership",
+            "Click a client to view their details and any linked roles"
         ],
         commonIssues: [
             {
-                issue: "Score is 0 or null",
-                solution: "Check if the job has skills defined and if the CV was parsed correctly."
+                issue: "Duplicate client was created",
+                solution: "This can happen if the Create button is clicked multiple times. Check your client list and delete the duplicate — the system now prevents this with a loading guard."
             },
             {
-                issue: "CV not being parsed",
-                solution: "Ensure the file is not corrupted or password-protected. Max size is 10MB."
+                issue: "Can't find a client in the list",
+                solution: "Use the search bar at the top of the Clients page to filter by company name or contact."
             }
         ],
         tips: [
-            "Define detailed job skills for better accuracy",
-            "Use scores as a guide, not the only deciding factor",
-            "Scores update in real-time as you modify job requirements"
+            "Keep client contact details up to date so your team always has the right person to call",
+            "Linking jobs to clients makes it easy to report on how many roles you're filling per client",
+            "Agency recruiters: use Notes to track relationship history and preferences per client"
         ],
-        icon: <Sparkles className="w-10 h-10" />
+        icon: <Building2 className="w-10 h-10" />
     },
     {
         id: 8,
-        title: "Track Your Recruitment Metrics",
-        subtitle: "Data-Driven Growth",
+        title: "AI-Powered CV Scoring",
+        subtitle: "Intelligence Built-in",
         accentColor: "slate",
-        visualLabel: "METRICS",
-        content: "Monitor key metrics on your dashboard: active jobs, total candidates, average time to fill, and more.",
+        visualLabel: "AI SCORES",
+        content: "CoreflowHR automatically parses inbound CVs and scores each candidate against your job's required skills. Prioritise your best-fit applicants instantly.",
         detailedSteps: [
-            "Access Dashboard from the top of the sidebar",
-            "View metrics: Active Jobs, Avg Time to Fill, Qualified Count",
-            "Check Activity Feed for real-time system changes",
-            "View upcoming interviews in the calendar widget",
-            "Filter activity feed by date range or action type"
+            "Candidates who apply via the job link can attach their CV — it's parsed automatically",
+            "You can also upload CVs manually from the candidate's profile → CV tab",
+            "AI extracts skills, education, and work history from the CV",
+            "A match score (0–100) is calculated based on overlap with the job's required skills",
+            "Scores appear as colour-coded badges on candidate cards in the pipeline",
+            "Filter candidates by score range to quickly surface top applicants",
+            "Define comprehensive skills on your job posting for the most accurate scoring"
         ],
         commonIssues: [
             {
-                issue: "Metrics showing zero",
-                solution: "Metrics only count Active jobs. Closed jobs are excluded by default."
+                issue: "Score is 0 or not showing",
+                solution: "The job must have skills defined and the candidate must have a parsed CV. Check both and the score will calculate automatically."
             },
             {
-                issue: "Activity feed seems empty",
-                solution: "The feed shows actions from the current user. Refresh to load the latest events."
+                issue: "CV failed to parse",
+                solution: "Ensure the CV is a PDF, DOC, or DOCX file, not corrupted, and under 10MB. Password-protected files cannot be parsed."
             }
         ],
         tips: [
-            "Check the dashboard daily for pipeline health",
-            "Monitor Time to Fill to improve operational efficiency",
-            "Use bulk actions to manage multiple candidates efficiently"
+            "Always add skills to your job postings — without them, scoring won't work",
+            "Use scores as a starting filter, not the final decision — context matters",
+            "Bulk-import CVs for candidates you've already been in contact with to get them scored too"
         ],
         icon: <Sparkles className="w-10 h-10" />
     }

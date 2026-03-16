@@ -352,12 +352,12 @@ const LandingPage: React.FC = () => {
           
           {/* High Contrast Typography */}
           <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-6 md:mb-8 leading-[1.1] max-w-5xl mx-auto px-4">
-            <span className="text-gray-900">Source, screen, and hire</span> <br />
-            <span className="text-gray-400">faster with AI automation</span>
+            <span className="text-gray-900">Post jobs, attract applicants,</span> <br />
+            <span className="text-gray-400">and close hires faster.</span>
           </h1>
 
           <p className="text-base sm:text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-light px-4">
-            CoreflowHR automatically sources matched candidates from PeopleDataLabs, AI-scores them, and manages your entire hiring pipeline — one tool, $149/month.
+            CoreflowHR gives your team one place to post jobs, manage your hiring pipeline, AI-score inbound applicants, and send offers — one tool, $149/month.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 md:mb-24 px-4">
@@ -648,29 +648,29 @@ const LandingPage: React.FC = () => {
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                  {[
-                    { 
-                        title: "Self-Service Registration", 
-                        desc: "Candidates register themselves. Zero manual data entry.",
+                    {
+                        title: "Inbound Applications",
+                        desc: "Candidates apply via your job link. They fill in their own details and attach a CV — zero data entry for your team.",
                         improvement: "10x",
-                        points: ["10 minutes → 10 seconds", "Zero manual data entry", "Structured profiles automatically"]
+                        points: ["Shareable job link", "Candidates self-submit", "Instant pipeline entry"]
                     },
-                    { 
-                        title: "AI Email Generation", 
-                        desc: "One-click personalized emails. No more typing the same message 50 times.",
+                    {
+                        title: "AI Email Workflows",
+                        desc: "Set up email triggers once. Stage changes send the right message automatically — confirmation, screening, offer, hired.",
                         improvement: "50x",
-                        points: ["One-click generation", "Personalized content", "Saves hours per day"]
+                        points: ["Stage-triggered emails", "Custom templates", "Confirmation on apply"]
                     },
-                    { 
-                        title: "Multi-Client Management", 
-                        desc: "Organize jobs by client. Filter, group, and report per client.",
+                    {
+                        title: "Multi-Client Management",
+                        desc: "Organize jobs by client. Filter, group, and track placements per client company.",
                         improvement: "100%",
                         points: ["Organize by client", "Client-specific views", "Professional reporting"]
                     },
-                    { 
-                        title: "Automated Workflows", 
-                        desc: "Set once, works forever. Stage changes trigger emails automatically.",
+                    {
+                        title: "Job Board Sharing",
+                        desc: "Copy pre-formatted posts for LinkedIn, Indeed, and CV-Library in one click. Paste and go.",
                         improvement: "5x",
-                        points: ["Automated follow-ups", "Consistent communication", "Handle 5x more placements"]
+                        points: ["LinkedIn-ready copy", "Indeed & CV-Library", "One click per platform"]
                     }
                  ].map((item, i) => (
                      <FadeIn key={i} delay={i * 100}>
@@ -722,9 +722,9 @@ const LandingPage: React.FC = () => {
                   <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                       <BrainCircuit size={24} />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">AI-Powered Candidate Matching</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">AI-Powered CV Scoring</h3>
                   <p className="text-gray-500 text-lg max-w-lg leading-relaxed">
-                    Our LLM engine analyzes resumes against job descriptions to generate a match score from 0-100. Spot the best talent instantly without manual screening.
+                    Every inbound CV is automatically parsed and scored against your job's required skills — 0 to 100. Surface your best-fit applicants instantly without manual screening.
                   </p>
                   {/* Decorative UI */}
                   <div className="absolute right-8 bottom-8 flex flex-col gap-3 opacity-50 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500">
@@ -776,7 +776,7 @@ const LandingPage: React.FC = () => {
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900 mb-3">Visual Pipeline Management</h3>
                       <p className="text-gray-500 text-lg leading-relaxed">
-                        Drag-and-drop Kanban boards to track candidates from "Applied" to "Hired". Automate email triggers as candidates move stages.
+                        Drag-and-drop Kanban board from Waitlist to Hired. Move candidates through stages and email workflows fire automatically at every step.
                       </p>
                   </div>
                   {/* Mock Pipeline UI */}
@@ -805,9 +805,9 @@ const LandingPage: React.FC = () => {
                        <div className="w-12 h-12 bg-white/10 rounded-xl border border-white/10 flex items-center justify-center mb-6 text-white">
                           <BarChart3 size={24} />
                       </div>
-                      <h3 className="text-2xl font-bold text-white mb-3">Deep Analytics & Insights</h3>
+                      <h3 className="text-2xl font-bold text-white mb-3">Dashboard Analytics</h3>
                       <p className="text-gray-400 text-lg leading-relaxed max-w-xl">
-                        Understand your hiring funnel. Measure time-to-hire, source effectiveness, and diversity metrics.
+                        Track active jobs, pipeline health, time-to-hire, and offer acceptance rate — all from a single dashboard designed to keep your team moving.
                       </p>
                       <div className="flex gap-8 mt-8">
                           <div>
@@ -860,10 +860,12 @@ const LandingPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { icon: Calendar, name: "Google Calendar & Meet", desc: "Sync interviews and auto-generate meeting links for candidates.", color: "text-blue-600", comingSoon: false },
-                { icon: Video, name: "Microsoft Teams", desc: "Generate Teams meeting links for video interviews.", color: "text-indigo-600", comingSoon: true },
-                { icon: FileText, name: "E-Signatures", desc: "Send offer letters for candidates to sign electronically.", color: "text-emerald-600", comingSoon: false },
-                { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications and updates in your channels.", color: "text-gray-900", comingSoon: false },
+                { icon: Calendar, name: "Google Calendar & Meet", desc: "Sync interviews and auto-generate Meet links automatically when you schedule a candidate.", color: "text-blue-600", comingSoon: false },
+                { icon: FileText, name: "E-Signatures", desc: "Send offer letters for candidates to review, sign, and return — fully digital, no printing.", color: "text-emerald-600", comingSoon: false },
+                { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications in your Slack channels when candidates apply or move stages.", color: "text-gray-900", comingSoon: false },
+                { icon: Video, name: "Microsoft Teams", desc: "Generate Teams meeting links for video interviews directly from CoreflowHR.", color: "text-indigo-600", comingSoon: true },
+                { icon: Briefcase, name: "LinkedIn & Indeed Direct Posting", desc: "Post jobs directly to LinkedIn and Indeed without leaving CoreflowHR — coming soon.", color: "text-blue-700", comingSoon: true },
+                { icon: Users, name: "LinkedIn Chrome Extension", desc: "Import candidate profiles from LinkedIn into your pipeline in one click — coming soon.", color: "text-sky-600", comingSoon: true },
               ].map((tool, i) => (
                   <FadeIn key={i} delay={i * 100}>
                     <div className={`flex flex-col p-8 rounded-3xl border transition-all duration-300 group h-full ${tool.comingSoon ? 'bg-gray-50/80 border-gray-200 border-dashed' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}>
@@ -913,7 +915,7 @@ const LandingPage: React.FC = () => {
                   <span className="text-sm sm:text-base text-gray-500 font-medium">/ month</span>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  One ATS, sourcing, outreach, and offer management tool — replacing five separate subscriptions.
+                  One tool for your entire hiring workflow — job postings, inbound applicants, pipeline, emails, and offers.
                 </p>
               </div>
 
@@ -939,15 +941,15 @@ const LandingPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     "Unlimited active jobs",
-                    "Up to 100 PDL-sourced candidates per job",
-                    "AI match scoring (Claude) on every candidate",
-                    "Automated email workflows",
-                    "AI email generation",
-                    "Advanced analytics & reports",
+                    "Public job application pages with shareable links",
+                    "Job board sharing — LinkedIn, Indeed, CV-Library",
+                    "AI CV scoring on every inbound applicant",
+                    "Automated email workflows per pipeline stage",
                     "eSignature for offer letters",
-                    "CV / resume parsing",
+                    "CV / resume parsing (PDF, DOC, DOCX)",
                     "Google Calendar & Meet integration",
-                    "Microsoft Teams integration",
+                    "Client management",
+                    "Dashboard analytics",
                     "Team collaboration — unlimited members",
                     "Priority support",
                   ].map((feat, i) => (
@@ -978,8 +980,9 @@ const LandingPage: React.FC = () => {
             {/* Right Accordion */}
             <div className="lg:col-span-2 space-y-0">
                 {[
-                    { q: "What is CoreFlow and how does it work?", a: "CoreFlow is a recruitment platform built for agencies. It centralizes job postings, candidates, and interviews in one place—with self-service registration, multi-client management, and AI-powered sourcing. Create an account, add clients, post jobs, and track candidates through the pipeline." },
-                    { q: "How does CoreFlow use my data to build custom AI insights?", a: "We use your job descriptions and candidate resumes to generate match scores. Data is processed securely using enterprise-grade LLMs and is never shared with third parties or used to train public models." },
+                    { q: "What is CoreflowHR and how does it work?", a: "CoreflowHR is a recruitment platform for agencies and in-house teams. You post jobs, share a unique application link on LinkedIn, Indeed, or CV-Library, and inbound applicants land straight in your pipeline. From there you screen, interview, and close offers — all in one place." },
+                    { q: "How do candidates apply for my jobs?", a: "Each job gets a public application page with a unique link. You copy-paste a pre-formatted post to LinkedIn, Indeed, or CV-Library. Candidates click the link, fill in their details, attach their CV, and they appear in your Waitlist instantly — no manual entry needed." },
+                    { q: "How does the AI CV scoring work?", a: "When a candidate submits their CV, CoreflowHR parses it and calculates a match score (0–100) based on overlap with your job's required skills. The more skills you define on a job, the more accurate the scoring. Scores appear as colour-coded badges on candidate cards." },
                     { q: "Is there a free trial?", a: "No free trial — but we offer a 14-day money-back guarantee. If CoreflowHR doesn't work for your hiring process within 14 days, we'll refund you in full. No questions asked." },
                     { q: "What payment methods do you accept?", a: "We accept all major credit cards, PayPal, and bank transfers for enterprise customers." }
                 ].map((item, i) => (
@@ -1007,7 +1010,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8 sm:mb-12 md:mb-16">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6 md:gap-8">
                  <div className="text-gray-400 text-xs sm:text-sm">
-                     © 2025 CoreFlow HR. All rights reserved.
+                     © 2026 CoreFlow HR. All rights reserved.
                  </div>
                  <div className="flex flex-wrap gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-500">
                      <Link to="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link>

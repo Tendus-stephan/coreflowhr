@@ -182,12 +182,11 @@ Workflow Logic:
 === PLAN ===
 
 COREFLOWHR PROFESSIONAL ($149/month, or $119/month founding customer rate):
-- Sourcing: Up to 100 AI-matched candidates per job (automatic on job creation)
-- All jobs, team members, candidates: Unlimited
+- Jobs: Unlimited active jobs with public application pages and shareable links
+- All team members, candidates: Unlimited
 - eSignature: Unlimited
 - CV parsing: Unlimited
-- Features: Full pipeline, AI sourcing via PeopleDataLabs, AI scoring, eSignature, two-way email, Google Calendar, analytics, workflows, multi-client
-- Design partners (free access): 30 sourced candidates per job, 5 eSignatures, 30 CV parses
+- Features: Full pipeline, inbound applications via job link, AI CV scoring, eSignature, automated email workflows, Google Calendar, dashboard analytics, client management, job board sharing (LinkedIn/Indeed/CV-Library)
 
 === EXPERIENCE LEVELS ===
 
@@ -248,29 +247,29 @@ RESEND (Email Delivery):
 - Edge Function: send-email (handles all email sending)
 - Template rendering: Replaces placeholders, adds CV/offer links
 
-=== CANDIDATE SOURCING ===
+=== HOW CANDIDATES ENTER THE PIPELINE ===
 
-SOURCING PROVIDER: PeopleDataLabs (PDL) Person Search API
-- Triggered automatically when a job is posted with Active status
-- Also triggered manually via "Source More" button in the pipeline view
-- Searches by job_title, location, and required_skills
-- Returns up to 20 candidates per batch, up to 100 total per job (30 for design partners)
-- Each candidate scored 0-100 by Claude AI for job fit
+INBOUND APPLICATIONS (primary method):
+- Each job has a unique public application page URL
+- Recruiter copies a pre-formatted post for LinkedIn, Indeed, or CV-Library from "Share this role" in the Jobs page
+- Candidate fills in the form (name, email, phone, cover letter, LinkedIn URL) and attaches CV
+- Candidate appears immediately in the Waitlist stage of the pipeline
+- Application confirmation email sent to candidate automatically
 
-SOURCING PROCESS:
-1. Job posted with "Active" status → sourcing triggers automatically
-2. PDL Person Search API called with job criteria
-3. Results cached in sourcing_cache table
-4. Duplicates filtered (no same linkedin_url for same job)
-5. Candidates mapped and AI-scored in parallel
-6. Candidates inserted into pipeline at "New" stage
-7. Status tracked via sourcing_status column on jobs table
+MANUAL METHODS:
+- Recruiter can manually add a candidate from the Candidates page
+- Recruiter can bulk-import CVs using the bulk upload tool
 
-MATCH SCORING (0-100):
-- 85-100: Excellent match (80%+ skills overlap)
-- 70-84: Good match (60-79% skills overlap)
-- 50-69: Acceptable (40-59% skills overlap)
-- 0-49: Below minimum (<40% skills overlap)
+AI CV SCORING (0-100):
+- Applied to every candidate with a CV when the job has required skills defined
+- 85-100: Excellent match (strong skills overlap)
+- 70-84: Good match
+- 50-69: Acceptable
+- 0-49: Below minimum
+
+COMING SOON:
+- Direct LinkedIn & Indeed job posting (without copy-paste)
+- LinkedIn Chrome Extension to import candidate profiles directly
 
 === DATABASE SCHEMA ===
 
@@ -456,12 +455,12 @@ Validation: Form prevents submission if any required field is empty. Browser sho
 
 === RECENT UPDATES ===
 
-1. Multi-Client Management: Complete implementation for agencies
-2. Marketing Update: Landing page focused on agencies
-3. Job Form: All fields now required
-4. Clients Page: Modern design matching other pages
-5. Sourcing: Switched to PeopleDataLabs for automatic candidate sourcing
-6. Job Expiration: Fixed duplicate variable declaration bug
+1. Inbound Applications: Candidates apply via public job link — no manual sourcing needed
+2. Job Board Sharing: "Share this role" copies pre-formatted posts for LinkedIn, Indeed, CV-Library
+3. Pipeline renamed: "New" stage is now "Waitlist" (inbound applicants)
+4. Clients Page: Track client companies and link jobs to clients
+5. Onboarding updated to reflect inbound-first recruitment flow
+6. Dashboard analytics: key hiring metrics on the main dashboard
 
 Keep responses clear, actionable, and focused on helping recruiters succeed with CoreFlowHR.`;
 
