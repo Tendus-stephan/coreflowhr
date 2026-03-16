@@ -269,7 +269,7 @@ AI CV SCORING (0-100):
 
 COMING SOON:
 - Direct LinkedIn & Indeed job posting (without copy-paste)
-- LinkedIn Chrome Extension to import candidate profiles directly
+- LinkedIn Auto Sourcer: real-time job change alerts, bulk import from search results, promotion detection
 
 === DATABASE SCHEMA ===
 
