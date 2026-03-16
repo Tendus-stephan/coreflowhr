@@ -1,49 +1,25 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Candidate, Job } from "../types";
 import { ParsedCVData } from "./cvParser";
 import { COMPREHENSIVE_SYSTEM_PROMPT } from "./geminiSystemPrompt";
+import { supabase } from './supabase';
 
-// Initialize Gemini Client
-// IMPORTANT: The API key is injected by the environment.
-// We support both process.env (Node/Playground) and import.meta.env (Vite/Local)
-const getApiKey = () => {
-    // Check VITE_API_KEY first (most common for Vite projects)
-    // @ts-ignore - Vite specific
-    if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_KEY) {
-        // @ts-ignore
-        const key = import.meta.env.VITE_API_KEY;
-        if (key && key.trim() !== '') {
-            return key.trim();
-        }
-    }
-    // Fallback to process.env.API_KEY (for Node.js environments)
-    if (typeof process !== "undefined" && process.env && process.env.API_KEY) {
-        const key = process.env.API_KEY;
-        if (key && key.trim() !== '') {
-            return key.trim();
-        }
-    }
-    return "";
-};
-
-// Lazy initialization - create client on demand with fresh API key check
-let aiInstance: GoogleGenAI | null = null;
-let lastApiKey: string | null = null;
-
-const getAiClient = (): GoogleGenAI => {
-    const apiKey = getApiKey();
-    
-    if (!apiKey || apiKey.trim() === '' || apiKey === 'dummy-key') {
-        throw new Error('Gemini API key not configured. Please set VITE_API_KEY in your .env file. See GEMINI_SETUP.md for setup instructions.');
-    }
-    
-    // Re-initialize if API key changed or client doesn't exist
-    if (!aiInstance || lastApiKey !== apiKey) {
-        aiInstance = new GoogleGenAI({ apiKey });
-        lastApiKey = apiKey;
-    }
-    
-    return aiInstance;
+// Call AI via secure server-side edge function — API key never exposed to browser
+const callAI = async (
+  prompt: string,
+  opts: {
+    systemInstruction?: string;
+    history?: Array<{ role: 'user' | 'model'; text: string }>;
+    temperature?: number;
+    topP?: number;
+    jsonMode?: boolean;
+  } = {}
+): Promise<string> => {
+  const { data, error } = await supabase.functions.invoke('ai-assistant', {
+    body: { prompt, ...opts },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data?.text ?? '';
 };
 
 /**
@@ -51,8 +27,6 @@ const getAiClient = (): GoogleGenAI => {
  * This provides more accurate parsing than regex-based extraction
  */
 export const parseCVWithAI = async (cvText: string, jobSkills?: string[]): Promise<Partial<ParsedCVData>> => {
-  const modelId = "gemini-2.0-flash";
-  
   // Validate input text
   if (!cvText || cvText.trim().length === 0) {
     throw new Error("CV text is empty or invalid");
@@ -97,65 +71,7 @@ Extract:
 - portfolioUrls (object with: github, linkedin, portfolio, website - all strings or null)`;
 
   try {
-    const ai = getAiClient();
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING, nullable: true },
-            email: { type: Type.STRING, nullable: true },
-            phone: { type: Type.STRING, nullable: true },
-            location: { type: Type.STRING, nullable: true },
-            skills: { type: Type.ARRAY, items: { type: Type.STRING } },
-            experienceYears: { type: Type.INTEGER, nullable: true },
-            workExperience: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  role: { type: Type.STRING },
-                  company: { type: Type.STRING },
-                  startDate: { type: Type.STRING, nullable: true },
-                  endDate: { type: Type.STRING, nullable: true },
-                  period: { type: Type.STRING, nullable: true },
-                  description: { type: Type.STRING, nullable: true }
-                },
-                required: ["role", "company"]
-              }
-            },
-            projects: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  description: { type: Type.STRING, nullable: true },
-                  technologies: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["name"]
-              }
-            },
-            portfolioUrls: {
-              type: Type.OBJECT,
-              properties: {
-                github: { type: Type.STRING, nullable: true },
-                linkedin: { type: Type.STRING, nullable: true },
-                portfolio: { type: Type.STRING, nullable: true },
-                website: { type: Type.STRING, nullable: true }
-              }
-            }
-          }
-        },
-        temperature: 0.1, // Low temperature for accurate extraction
-        maxOutputTokens: 8192, // Limit output to prevent huge/corrupted responses
-      }
-    });
-
-    const resultText = response.text;
+    const resultText = await callAI(prompt, { jsonMode: true, temperature: 0.1 });
     if (!resultText) throw new Error("No response from AI");
     
     // FIRST: Aggressively clean control characters from the entire response
@@ -349,8 +265,6 @@ Extract:
 
 export const generateCandidateAnalysis = async (candidate: Candidate, job: Job): Promise<{ score: number; summary: string; strengths: string[]; weaknesses: string[] }> => {
   
-  const modelId = "gemini-2.0-flash";
-  
   // Build prompt with CV content if available (for direct applications)
   const cvContext = candidate.resumeSummary && candidate.source === 'direct_application'
     ? `\n\nCV/Resume Summary:\n${candidate.resumeSummary.substring(0, 800)}`
@@ -396,25 +310,7 @@ export const generateCandidateAnalysis = async (candidate: Candidate, job: Job):
   `;
 
   try {
-    const ai = getAiClient();
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                score: { type: Type.INTEGER },
-                summary: { type: Type.STRING },
-                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } }
-            }
-        }
-      },
-    });
-
-    const resultText = response.text;
+    const resultText = await callAI(prompt, { jsonMode: true });
     if (!resultText) throw new Error("No response from AI");
     
     return JSON.parse(resultText);
@@ -477,26 +373,9 @@ Return a JSON object with:
 ${contextText}`;
     
     try {
-        const ai = getAiClient();
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: modelId,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        subject: { type: Type.STRING },
-                        content: { type: Type.STRING }
-                    },
-                    required: ["subject", "content"]
-                }
-            }
-        });
-        
-        const resultText = response.text;
+        const resultText = await callAI(prompt, { jsonMode: true });
         if (!resultText) throw new Error("No response from AI");
-        
+
         const parsed = JSON.parse(resultText);
         return {
             subject: parsed.subject || `${type} - ${candidate.role}`,
@@ -567,26 +446,9 @@ Return a JSON object with:
 ${contextText}`;
     
     try {
-        const ai = getAiClient();
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: modelId,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        subject: { type: Type.STRING },
-                        content: { type: Type.STRING }
-                    },
-                    required: ["subject", "content"]
-                }
-            }
-        });
-        
-        const resultText = response.text;
+        const resultText = await callAI(prompt, { jsonMode: true });
         if (!resultText) throw new Error("No response from AI");
-        
+
         const parsed = JSON.parse(resultText);
         return {
             subject: parsed.subject || `Opportunity: ${job.title}`,
@@ -881,73 +743,35 @@ IMPORTANT: Your template must be UNIQUE. Do not copy the example structure or wo
 Format your response as JSON with "subject" and "content" fields. The content should use \\n for line breaks.`;
 
     try {
-        // Get API key for logging (getAiClient will validate it)
-        const apiKey = getApiKey();
-        
         // Log the unique ID to verify different prompts are being generated
         const shortId = uniqueId.split('-')[1];
-        console.log(`[Gemini] Generating template for ${templateType} (ID: ${shortId})`);
-        console.log(`[Gemini] Style: ${selectedStyle.style} | Structure: ${selectedStructure.approach} | Closing: ${selectedClosing.style}`);
-        console.log(`[Gemini] Random word: ${randomWord} | Context: ${randomContext} | Number: ${randomNumber}`);
-        console.log(`[Gemini] Variation technique: ${selectedVariation}`);
-        console.log(`[Gemini] Full prompt length: ${prompt.length} chars`);
-        // Log API key status (NOT the key itself or its length to prevent leaks)
-        console.log(`[Gemini] API key configured: ${apiKey ? 'Yes' : 'No'}`);
-        
+        console.log(`[AI] Generating template for ${templateType} (ID: ${shortId})`);
+        console.log(`[AI] Style: ${selectedStyle.style} | Structure: ${selectedStructure.approach} | Closing: ${selectedClosing.style}`);
+
         // Add a small delay to ensure different timestamps
         await new Promise(resolve => setTimeout(resolve, Math.random() * 200));
-        
-        // Try generating without strict JSON schema first to allow more variation
-        // If that fails, fall back to structured generation
+
+        // Try generating with JSON mode first; fall back to plain text + manual extract
         let result;
         try {
-            const ai = getAiClient();
-            const response: GenerateContentResponse = await ai.models.generateContent({
-                model: modelId,
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            subject: { type: Type.STRING },
-                            content: { type: Type.STRING }
-                        },
-                        required: ["subject", "content"]
-                    },
-                    // Maximum creativity settings for variation - ensures different content each time
-                    temperature: 1.0, // Maximum temperature for maximum variation (0-1 scale, 1.0 = most creative)
-                    topP: 0.95, // Nucleus sampling for diversity (0-1, higher = more diverse)
-                    topK: 50 // Consider top K tokens for variety (higher = more diverse word choices)
-                },
-            });
-
-            const resultText = response.text;
+            const resultText = await callAI(prompt, { jsonMode: true, temperature: 1.0, topP: 0.95 });
             if (!resultText) throw new Error("No response from AI");
-            
+
             const parsed = JSON.parse(resultText);
             result = {
                 subject: parsed.subject || `Template for ${templateInfo.name}`,
                 content: parsed.content || "Could not generate template content."
             };
-            
-            console.log(`[Gemini] Generated subject: "${result.subject.substring(0, 50)}..."`);
-            console.log(`[Gemini] Content preview: "${result.content.substring(0, 100)}..."`);
+
+            console.log(`[AI] Generated subject: "${result.subject.substring(0, 50)}..."`);
+            console.log(`[AI] Content preview: "${result.content.substring(0, 100)}..."`);
         } catch (parseError) {
-            console.error("[Gemini] JSON parsing error, trying alternative approach:", parseError);
-            // Fallback: try without JSON schema
-            const ai = getAiClient();
-            const fallbackResponse: GenerateContentResponse = await ai.models.generateContent({
-                model: modelId,
-                contents: prompt + "\n\nIMPORTANT: Respond ONLY with valid JSON in this exact format: {\"subject\": \"...\", \"content\": \"...\"}",
-                config: {
-                    temperature: 1.0,
-                    topP: 0.95,
-                    topK: 50
-                },
-            });
-            
-            const fallbackText = fallbackResponse.text || "";
+            console.error("[AI] JSON parsing error, trying alternative approach:", parseError);
+            // Fallback: plain text request + manual JSON extraction
+            const fallbackText = await callAI(
+                prompt + "\n\nIMPORTANT: Respond ONLY with valid JSON in this exact format: {\"subject\": \"...\", \"content\": \"...\"}",
+                { temperature: 1.0, topP: 0.95 }
+            ) || "";
             // Try to extract JSON from response
             const jsonMatch = fallbackText.match(/\{[\s\S]*"subject"[\s\S]*"content"[\s\S]*\}/);
             if (jsonMatch) {
@@ -997,20 +821,8 @@ Format your response as JSON with "subject" and "content" fields. The content sh
             content: cleanedContent,
         };
     } catch (error: any) {
-        console.error("Gemini Template Generation Failed:", error);
-        
-        // Provide helpful error message for API key issues
-        if (error?.message?.includes('API key') || error?.error?.message?.includes('API key')) {
-            const errorMsg = 'Gemini API key is missing or invalid. Please:\n' +
-                '1. Get your API key from https://aistudio.google.com/app/apikey\n' +
-                '2. Add it to your .env file as: VITE_API_KEY=your_key_here\n' +
-                '3. Restart your development server\n' +
-                'See GEMINI_SETUP.md for detailed instructions.';
-            console.error('[Gemini]', errorMsg);
-            throw new Error(errorMsg);
-        }
-        
-        // Return a fallback template for other errors
+        console.error("AI Template Generation Failed:", error);
+        // Return a fallback template on any error
         return getFallbackTemplate(templateType);
     }
 };
@@ -1063,117 +875,27 @@ RESPONSE FORMAT (always follow when answering):
  * Get AI chat response for general conversation
  */
 export const getAIChatResponse = async (userPrompt: string, history: ChatMessage[] = []): Promise<string> => {
-  const modelId = "gemini-2.0-flash";
-  
   // Use the comprehensive system prompt + structured response format for chat
   const SYSTEM_PROMPT = COMPREHENSIVE_SYSTEM_PROMPT + CHAT_RESPONSE_FORMAT;
 
   try {
-    const ai = getAiClient();
-    
-    // Build message history
-    const contents = [
-      ...history.map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.text }]
-      })),
-      { role: 'user' as const, parts: [{ text: userPrompt }] }
-    ];
-
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelId,
-      contents: contents,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.7,
-        topP: 0.8,
-      }
+    const resultText = await callAI(userPrompt, {
+      systemInstruction: SYSTEM_PROMPT,
+      history,
+      temperature: 0.7,
+      topP: 0.8,
     });
-
-    const resultText = response.text;
     if (!resultText) throw new Error("No response from AI");
-    
     return resultText;
   } catch (error: any) {
-    // SDK may put payload in error.error or in error.message as JSON string
-    let errPayload = error?.error;
-    if (!errPayload && typeof error?.message === 'string' && (error.message.includes('"error"') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED'))) {
-      try {
-        const match = error.message.match(/\{[\s\S]*"error"[\s\S]*\}/);
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          errPayload = parsed?.error || parsed;
-        }
-      } catch (_) {}
-    }
-    const code = errPayload?.code ?? error?.error?.code ?? error?.status ?? error?.statusCode;
-    const status = String(errPayload?.status ?? error?.error?.status ?? error?.status ?? '').toUpperCase();
+    console.error("AI Chat Error:", error?.message, error);
     const msg = (error?.message || '').toLowerCase();
-    const is429 = code === 429 || status === 'RESOURCE_EXHAUSTED';
-    const is503 = code === 503 || code === 502 || code === 504 || status === 'UNAVAILABLE' || status === 'DEADLINE_EXCEEDED';
-    const is500 = code === 500 || status === 'INTERNAL';
-    const isNetwork = msg.includes('network') || msg.includes('fetch') || msg.includes('econnreset') || msg.includes('failed to fetch');
-    console.error("AI Chat Error:", { code, status, is429, is503, is500, isNetwork, message: error?.message }, error);
-    
-    // Check for quota/rate limit error (429 RESOURCE_EXHAUSTED) — from error.error or parsed message
-    if (is429) {
-      const errorMessage = (errPayload?.message || error?.error?.message || error?.message || '').toLowerCase();
-      const isDailyQuota = errorMessage.includes('perday') || errorMessage.includes('limit: 0') || errorMessage.includes('quota');
-      if (isDailyQuota) return "You've hit the daily request limit for the free tier. Try again tomorrow, or use a paid API key for higher limits.";
-      return "Rate limit reached (free tier allows about 15 messages per minute). Wait about 60 seconds and try again. For more messages, switch to a paid API key in your project settings.";
+    if (msg.includes('rate') || msg.includes('429') || msg.includes('quota')) {
+      return "Rate limit reached. Please wait a moment and try again.";
     }
-    
-    // Check for leaked API key error (403 PERMISSION_DENIED)
-    if (error?.error?.code === 403 || error?.error?.status === 'PERMISSION_DENIED') {
-      const errorMessage = error?.error?.message || '';
-      const errorDetails = error?.error?.details || [];
-      
-      // Check for HTTP referrer blocking (common in localhost development)
-      const isReferrerBlocked = errorMessage.includes('referer') || 
-                                errorMessage.includes('referrer') ||
-                                errorDetails.some((detail: any) => 
-                                  detail.reason === 'API_KEY_HTTP_REFERRER_BLOCKED'
-                                );
-      
-      if (isReferrerBlocked) {
-        const referrer = errorDetails.find((detail: any) => detail.metadata?.httpReferrer);
-        const referrerUrl = referrer?.metadata?.httpReferrer || 'localhost';
-        
-        return `🔒 API Key Referrer Restriction: Your Gemini API key is blocking requests from ${referrerUrl}.\n\n` +
-               `If you don't have a Gemini API key yet:\n` +
-               `1. Go to https://aistudio.google.com/app/apikey\n` +
-               `2. Click "Create API Key"\n` +
-               `3. Copy your API key\n` +
-               `4. Add it to your .env file as: VITE_API_KEY=your_key_here\n` +
-               `5. Restart your development server\n\n` +
-               `If you already have an API key, to fix the referrer restriction:\n` +
-               `1. Go to https://console.cloud.google.com/apis/credentials\n` +
-               `2. Click on your Gemini API key\n` +
-               `3. Under "Application restrictions" → "HTTP referrers (websites)"\n` +
-               `4. Click "Add an item" and add: ${referrerUrl}/*\n` +
-               `5. Also add: http://localhost:3002/* and http://localhost:5173/*\n` +
-               `6. Click "Save"\n\n` +
-               `Or remove the referrer restriction entirely for development.\n\n` +
-               `See GEMINI_API_KEY_REFERRER_FIX.md for detailed instructions.`;
-      }
-      
-      if (errorMessage.includes('leaked') || errorMessage.includes('reported')) {
-        return "Your API key has been reported as leaked and needs to be replaced. Please generate a new API key and update your VITE_API_KEY environment variable.";
-      }
-      
-      return "API access denied. Please check your API key permissions and ensure it's valid.";
+    if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch')) {
+      return "Could not reach the service. Check your connection and try again.";
     }
-    
-    // Check if it's an API key configuration error
-    if (error?.message?.includes('API key') || error?.message?.includes('apiKey') || error?.message?.includes('not configured')) {
-      return "I'm having trouble connecting. Please ensure your API key is configured correctly in your environment (VITE_API_KEY).";
-    }
-    
-    // Service unavailable / server error / network — reason logged above for debugging
-    if (is503) return "Service temporarily unavailable. Please try again in a few minutes.";
-    if (is500) return "Something went wrong on our side. Please try again in a moment.";
-    if (isNetwork) return "Could not reach the service. Check your connection and try again.";
-    
     return "I'm having trouble processing your request right now. Please try again in a moment.";
   }
 };

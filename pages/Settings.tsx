@@ -191,9 +191,9 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
             console.error('Error generating template:', error);
             let errorMessage = error.message || 'Failed to generate template. Please try again.';
             
-            // Provide more helpful error message for API key issues
-            if (errorMessage.includes('API key') || errorMessage.includes('VITE_API_KEY')) {
-                errorMessage = 'Gemini API key not configured. Please set VITE_API_KEY in your .env file and restart the server. See GEMINI_SETUP.md for instructions.';
+            // Provide more helpful error message for AI service issues
+            if (errorMessage.includes('AI provider') || errorMessage.includes('No AI')) {
+                errorMessage = 'AI service not configured. Please ensure ANTHROPIC_API_KEY or GEMINI_API_KEY is set in Supabase secrets.';
             }
             
             setGenerateError(errorMessage);

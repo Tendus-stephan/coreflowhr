@@ -426,32 +426,53 @@ const LandingPage: React.FC = () => {
             <div className="flex h-[360px] sm:h-[460px] md:h-[520px] overflow-hidden bg-white text-left font-sans">
 
               {/* Sidebar */}
-              <div className="w-[176px] bg-white border-r border-gray-200 hidden lg:flex flex-col flex-shrink-0">
-                <div className="px-4 py-2 flex items-center">
-                  <img src="/assets/images/coreflow-logo.png" alt="CoreFlow" className="object-contain" style={{ height: '90px', width: 'auto', maxWidth: '160px' }} />
+              <div className="w-[180px] bg-white border-r border-gray-100 hidden lg:flex flex-col flex-shrink-0">
+                {/* Logo */}
+                <div className="px-4 pt-5 pb-2 flex items-center gap-2.5 flex-shrink-0">
+                  <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreFlowHR" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                  <span className="text-[13px] font-bold text-gray-900 tracking-tight">CoreflowHR</span>
                 </div>
-                <nav className="px-3 space-y-0.5 flex-1 overflow-hidden">
-                  {[
-                    { icon: LayoutDashboard, label: 'Dashboard', active: true },
-                    { icon: Briefcase,       label: 'Jobs' },
-                    { icon: Users,           label: 'Candidates' },
-                    { icon: Calendar,        label: 'Calendar' },
-                    { icon: FileText,        label: 'Offers' },
-                    { icon: Building2,       label: 'Clients' },
-                    { icon: BarChart2,       label: 'Reports' },
-                    { icon: Settings,        label: 'Settings' },
-                  ].map(({ icon: Icon, label, active }) => (
-                    <div key={label} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-500'}`}>
-                      <Icon size={13} />{label}
+                {/* Workspace badge */}
+                <div className="px-3 pb-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 border border-gray-100 rounded-lg">
+                    <div className="w-4 h-4 rounded bg-gray-900 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[8px] font-bold text-white">T</span>
                     </div>
-                  ))}
+                    <span className="text-[11px] font-medium text-gray-700 truncate">Talent Agency</span>
+                  </div>
+                </div>
+                {/* Main nav */}
+                <nav className="flex-1 px-3 overflow-hidden">
+                  <p className="text-[9px] font-semibold text-gray-300 uppercase tracking-widest px-2.5 mb-1 mt-0.5">Menu</p>
+                  <div className="space-y-0.5">
+                    {[
+                      { icon: LayoutDashboard, label: 'Dashboard', active: true },
+                      { icon: Briefcase,       label: 'Jobs' },
+                      { icon: Users,           label: 'Candidates' },
+                      { icon: Building2,       label: 'Clients' },
+                      { icon: Calendar,        label: 'Calendar' },
+                      { icon: FileText,        label: 'Offers' },
+                    ].map(({ icon: Icon, label, active }) => (
+                      <div key={label} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[11px] font-medium ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-500'}`}>
+                        <Icon size={13} className={active ? 'text-gray-900' : 'text-gray-400'} />{label}
+                      </div>
+                    ))}
+                  </div>
                 </nav>
-                <div className="p-3 border-t border-gray-100">
-                  <div className="flex items-center gap-2 p-1.5">
-                    <Avatar name="Alex Johnson" className="w-6 h-6 text-[8px]" />
-                    <div>
-                      <span className="text-[11px] font-bold text-gray-900 block leading-tight">Alex Johnson</span>
-                      <span className="text-[9px] text-gray-500">Admin</span>
+                {/* Settings */}
+                <div className="px-3 pb-1.5 flex-shrink-0">
+                  <div className="h-px bg-gray-100 mb-1.5" />
+                  <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[11px] font-medium text-gray-500">
+                    <Settings size={13} className="text-gray-400" />Settings
+                  </div>
+                </div>
+                {/* Profile */}
+                <div className="px-3 pb-3 border-t border-gray-100 pt-2 flex-shrink-0">
+                  <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg">
+                    <Avatar name="Alex Johnson" className="w-7 h-7 text-[9px] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-gray-900 truncate leading-none">Alex Johnson</p>
+                      <p className="text-[9px] text-gray-400 mt-0.5 truncate">Admin</p>
                     </div>
                   </div>
                 </div>
@@ -480,22 +501,24 @@ const LandingPage: React.FC = () => {
                   {/* Stats Row */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                     {[
-                      { label: 'Active Jobs',       val: '12',  trend: '+2',   icon: Briefcase   },
-                      { label: 'Total Candidates',  val: '842', trend: '+15%', icon: Users       },
-                      { label: 'Qualified',         val: '24',  trend: '+4%',  icon: CheckCircle },
-                      { label: 'Avg Time to Fill',  val: '18d', trend: '-2d',  icon: Clock       },
+                      { label: 'Active Jobs',       val: '12',  trend: '+2',   pos: true,  icon: Briefcase   },
+                      { label: 'Total Candidates',  val: '842', trend: '+15%', pos: true,  icon: Users       },
+                      { label: 'Qualified',         val: '24',  trend: '+4%',  pos: true,  icon: CheckCircle },
+                      { label: 'Avg Time to Fill',  val: '18d', trend: '-2d',  pos: false, icon: Clock       },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-white p-2.5 sm:p-3 rounded-xl border border-gray-200 shadow-sm flex items-start justify-between">
+                      <div key={i} className="bg-white p-2.5 sm:p-3 rounded-xl border border-gray-100 flex items-start justify-between hover:border-gray-200 transition-colors">
                         <div className="min-w-0 flex-1">
                           <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider block truncate">{stat.label}</span>
                           <span className="text-sm sm:text-base md:text-lg font-bold text-gray-900 block tracking-tight">{stat.val}</span>
-                          <div className="flex items-center gap-0.5 mt-0.5">
-                            <TrendingUp size={9} className="text-gray-700" />
-                            <span className="text-[8px] font-medium text-gray-700">{stat.trend}</span>
+                          <div className="flex items-center gap-0.5 mt-1">
+                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[7px] font-semibold ${stat.pos ? 'bg-cyan-100 text-cyan-700' : 'bg-red-100 text-red-600'}`}>
+                              {stat.pos ? <TrendingUp size={7} /> : <TrendingUp size={7} className="rotate-180" />}
+                              {stat.trend}
+                            </span>
                           </div>
                         </div>
                         <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100 flex-shrink-0">
-                          <stat.icon size={12} className="text-gray-900" />
+                          <stat.icon size={14} className="text-gray-900" />
                         </div>
                       </div>
                     ))}

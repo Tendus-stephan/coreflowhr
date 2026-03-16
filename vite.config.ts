@@ -33,11 +33,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       plugins: [react()],
-      define: {
-        // Support both GEMINI_API_KEY and VITE_API_KEY for backward compatibility
-        'process.env.API_KEY': JSON.stringify(env.VITE_API_KEY || env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_API_KEY)
-      },
+      // No AI API keys injected — all AI calls go through the server-side ai-assistant edge function
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
