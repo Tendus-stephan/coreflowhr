@@ -888,7 +888,7 @@ const LandingPage: React.FC = () => {
                 { icon: MessageSquare, name: "Slack", desc: "Get real-time notifications in your Slack channels when candidates apply or move stages.", color: "text-gray-900", comingSoon: false },
                 { icon: Video, name: "Microsoft Teams", desc: "Generate Teams meeting links for video interviews directly from CoreflowHR.", color: "text-indigo-600", comingSoon: true },
                 { icon: Briefcase, name: "LinkedIn & Indeed Direct Posting", desc: "Post jobs directly to LinkedIn and Indeed without leaving CoreflowHR — coming soon.", color: "text-blue-700", comingSoon: true },
-                { icon: Users, name: "LinkedIn Auto Sourcer", desc: "Automatically surface top candidates from LinkedIn — detect real-time job changes, bulk import from search results, and push straight to your pipeline.", color: "text-sky-600", comingSoon: false },
+                { icon: Users, name: "LinkedIn Auto Sourcer", desc: "Automatically surface top candidates from LinkedIn — detect real-time job changes, bulk import from search results, and push straight to your pipeline.", color: "text-sky-600", comingSoon: true },
               ].map((tool, i) => (
                   <FadeIn key={i} delay={i * 100}>
                     <div className={`flex flex-col p-8 rounded-3xl border transition-all duration-300 group h-full ${tool.comingSoon ? 'bg-gray-50/80 border-gray-200 border-dashed' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg'}`}>
