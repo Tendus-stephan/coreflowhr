@@ -30,7 +30,6 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
 import Invite from './pages/Invite';
-import Reports from './pages/Reports';
 
 // Shows the PageLoader for one paint frame then hands off to the real page.
 // This ensures every route change shows the spinner before the page data loads.
@@ -403,15 +402,7 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/reports" 
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          } 
-        />
-        <Route
+<Route
           path="/jobs/apply/:jobId"
           element={<JobApplication />}
         />

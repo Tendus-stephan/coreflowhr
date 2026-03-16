@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Users, Calendar, Settings, LogOut, User as UserIcon, FileText, Building2, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Users, Calendar, Settings, LogOut, User as UserIcon, FileText, Building2 } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -61,7 +61,6 @@ const Sidebar: React.FC = () => {
         { name: 'Candidates', path: '/candidates',  icon: Users },
         { name: 'Clients',    path: '/clients',     icon: Building2 },
         { name: 'Calendar',   path: '/calendar',    icon: Calendar },
-        { name: 'Reports',    path: '/reports',     icon: BarChart3 },
         ...(!profileLoaded || userRole !== 'HiringManager'
           ? [{ name: 'Offers', path: '/offers', icon: FileText }]
           : []),
@@ -75,13 +74,13 @@ const Sidebar: React.FC = () => {
 
       {/* Logo */}
       <div className="px-4 pt-5 pb-4 flex-shrink-0">
-        <Link to="/dashboard" className="flex flex-col items-center gap-1">
+        <Link to="/dashboard" className="flex items-center gap-2.5">
           <img
             src="/assets/images/coreflow-favicon-logo.png"
             alt="CoreFlowHR"
-            className="w-12 h-12 object-contain"
+            className="w-8 h-8 object-contain flex-shrink-0"
           />
-          <span className="text-[13px] font-semibold text-gray-900 tracking-tight">CoreFlowHR</span>
+          <span className="text-[14px] font-semibold text-gray-900 tracking-tight">CoreFlowHR</span>
         </Link>
       </div>
 
