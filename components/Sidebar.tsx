@@ -74,13 +74,12 @@ const Sidebar: React.FC = () => {
 
       {/* Logo */}
       <div className="px-4 pt-5 pb-4 flex-shrink-0">
-        <Link to="/dashboard" className="flex items-center gap-2.5">
+        <Link to="/dashboard">
           <img
-            src="/assets/images/coreflow-favicon-logo.png"
+            src="/assets/images/coreflow-logo.png"
             alt="CoreFlowHR"
-            className="w-8 h-8 object-contain flex-shrink-0"
+            style={{ height: '36px', width: 'auto', display: 'block', objectFit: 'contain' }}
           />
-          <span className="text-[14px] font-semibold text-gray-900 tracking-tight">CoreFlowHR</span>
         </Link>
       </div>
 
