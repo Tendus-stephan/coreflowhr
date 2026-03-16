@@ -103,7 +103,7 @@ const Sidebar: React.FC = () => {
           <img
             src="/assets/images/coreflow-favicon-logo.png"
             alt="CoreFlowHR"
-            style={{ width: '28px', height: '28px', display: 'block', objectFit: 'contain', flexShrink: 0 }}
+            style={{ width: '36px', height: '36px', display: 'block', objectFit: 'contain', flexShrink: 0 }}
           />
           <span className="text-[15px] font-bold text-gray-900 tracking-tight">CoreflowHR</span>
         </Link>
