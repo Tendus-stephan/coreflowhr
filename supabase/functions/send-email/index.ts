@@ -311,32 +311,42 @@ serve(async (req) => {
     htmlContent = sanitizeHtml(htmlContent);
 
     // Wrap content in branded email template
-    // LOGO URL: Upload your logo to Supabase Storage bucket "email-assets" → Copy Public URL
-    // IMPORTANT: Image must be:
-    // 1. In a PUBLIC bucket (bucket must have public: true)
-    // 2. Accessible via HTTPS (email clients block HTTP images)
-    // 3. Publicly accessible (no authentication required)
-    // 
-    // To set up:
-    // 1. Run CREATE_EMAIL_ASSETS_BUCKET.sql in Supabase SQL Editor
-    // 2. Go to Storage → email-assets → Upload your logo (e.g., logo.png)
-    // 3. Click the file → Copy the "Public URL"
-    // 4. Set LOGO_URL environment variable in Supabase Edge Functions secrets
-    // 
-    // URL format: https://[project-id].supabase.co/storage/v1/object/public/email-assets/logo.png
-    // Default to full logo (coreflow-logo.png) for better branding in emails
+    // Use workspace company logo if available, otherwise fall back to LOGO_URL env var
     let logoUrl = Deno.env.get('LOGO_URL') || 'https://coreflowhr.com/assets/images/coreflow-logo.png';
-    
-    // Ensure logo URL uses HTTPS (email clients may block HTTP images)
-    if (logoUrl && logoUrl.startsWith('http://')) {
+
+    try {
+      const authHeader = req.headers.get('authorization');
+      if (authHeader) {
+        const token = authHeader.replace('Bearer ', '');
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+        if (supabaseServiceKey) {
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          const { data: { user } } = await supabase.auth.getUser(token);
+          if (user?.id) {
+            const { data: membership } = await supabase
+              .from('workspace_members')
+              .select('workspaces(company_logo_url)')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            const wsLogoUrl = (membership as any)?.workspaces?.company_logo_url;
+            if (wsLogoUrl) logoUrl = wsLogoUrl;
+          }
+        }
+      }
+    } catch (_) {
+      // Non-critical — keep default logo on any error
+    }
+
+    // Ensure logo URL uses HTTPS (email clients block HTTP images)
+    if (logoUrl.startsWith('http://')) {
       logoUrl = logoUrl.replace('http://', 'https://');
     }
-    
-    // Log logo URL being used (for debugging)
+
     console.log('[Email Send] Logo URL configured', {
       logoUrl,
       isSupabaseStorage: logoUrl.includes('supabase.co/storage'),
-      isHttps: logoUrl.startsWith('https://'),
       timestamp: new Date().toISOString()
     });
     const companyName = Deno.env.get('FROM_NAME') || 'CoreFlow';
