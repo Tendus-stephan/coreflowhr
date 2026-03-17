@@ -5,7 +5,7 @@ import {
   User as UserIcon, CreditCard, Mail, AlertCircle, Monitor, Smartphone, X, Sparkles,
   Save, MessageSquare, FileText, Layers, Plus, Shield, CheckCircle, Lock, Key, LogOut, Upload,
   Download, ExternalLink, Loader2, Calendar, DollarSign, Image as ImageIcon, Copy, Eye, EyeOff, Zap,
-  Users as UsersIcon, Search, ChevronLeft, ChevronRight
+  Users as UsersIcon, Search, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { PageLoader } from '../components/ui/PageLoader';
@@ -2242,8 +2242,26 @@ const Settings: React.FC = () => {
                                                                 ]}
                                                             />
                                                         </td>
-                                                        <td className="px-4 py-3 text-right text-xs text-gray-400">
-                                                            {!canChangeRole && 'Role managed automatically'}
+                                                        <td className="px-4 py-3 text-right">
+                                                            {canChangeRole ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Remove ${member.name} from the workspace?`)) return;
+                                                                        try {
+                                                                            await api.workspaces.removeMember(member.userId);
+                                                                            setTeamMembers(prev => prev.filter(m => m.userId !== member.userId));
+                                                                        } catch (error: any) {
+                                                                            setTeamError(error.message || 'Failed to remove member.');
+                                                                        }
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                                                >
+                                                                    <Trash2 size={12} /> Remove
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-xs text-gray-400">—</span>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 );

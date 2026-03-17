@@ -5363,6 +5363,36 @@ export const api = {
         },
 
         /**
+         * Remove a member from the current admin's workspace.
+         * Cannot remove yourself or the last admin.
+         */
+        removeMember: async (memberUserId: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            if (memberUserId === userId) throw new Error('You cannot remove yourself from the workspace.');
+
+            const { data: currentMembership, error: currentMembershipError } = await supabase
+                .from('workspace_members')
+                .select('workspace_id, role')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (currentMembershipError) throw currentMembershipError;
+            if (!currentMembership) throw new Error('Workspace not found for current user.');
+            if (currentMembership.role !== 'Admin') throw new Error('Only admins can remove members.');
+
+            const workspaceId = currentMembership.workspace_id as string;
+
+            const { error: deleteError } = await supabase
+                .from('workspace_members')
+                .delete()
+                .eq('workspace_id', workspaceId)
+                .eq('user_id', memberUserId);
+
+            if (deleteError) throw deleteError;
+        },
+
+        /**
          * Create an invite for a new member with a given role.
          * Returns a token that can be used to build an invite link and sends an email via Edge Function.
          */
