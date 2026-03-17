@@ -110,13 +110,12 @@ serve(async (req) => {
     const subject = 'Confirm your email change';
     const content = `
       <p>You requested to change your CoreflowHR sign-in email to <strong>${newEmail}</strong>.</p>
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:16px auto 20px auto;">
-        <tr>
-          <td align="center" bgcolor="#111827" style="border-radius:8px;padding:14px 32px;">
-            <a href="${confirmUrl}" target="_blank" style="font-family:Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;white-space:nowrap;display:inline;">Confirm Email Change</a>
-          </td>
-        </tr>
-      </table>
+      <div style="text-align:center;margin:16px 0 20px 0;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${confirmUrl}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="17%" strokecolor="#111827" fill="t"><v:fill type="tile" color="#111827"/><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:700;">Confirm Email Change</center></v:roundrect><![endif]-->
+        <!--[if !mso]><!-->
+        <a href="${confirmUrl}" target="_blank" style="display:inline-block;background-color:#111827;color:#ffffff;padding:13px 28px;border-radius:8px;font-family:Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;-webkit-text-size-adjust:none;">Confirm Email Change</a>
+        <!--<![endif]-->
+      </div>
       <p>If you didn't request this, you can ignore this email.</p>
       <p>This link expires in 24 hours.</p>
     `;
