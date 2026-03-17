@@ -5110,7 +5110,7 @@ export const api = {
 
             // Merge: show all catalog items, using DB data for active state
             const dbById = new Map(rows.map(r => [r.id, r]));
-            return DEFAULTS.map(d => {
+            const googleIntegrations = DEFAULTS.map(d => {
                 const row = dbById.get(d.id);
                 return {
                     id: d.id,
@@ -5122,6 +5122,39 @@ export const api = {
                     connectedEmail: row?.config?.google_email || undefined,
                 };
             });
+
+            // Add Slack — active state comes from the workspace's OAuth token
+            const { data: membership } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            let slackActive = false;
+            let slackChannelName: string | undefined;
+            let slackTeamName: string | undefined;
+            if (membership?.workspace_id) {
+                const { data: ws } = await supabase
+                    .from('workspaces')
+                    .select('slack_bot_token, slack_channel_name, slack_team_name')
+                    .eq('id', membership.workspace_id)
+                    .maybeSingle();
+                slackActive = !!(ws as any)?.slack_bot_token;
+                slackChannelName = (ws as any)?.slack_channel_name || undefined;
+                slackTeamName = (ws as any)?.slack_team_name || undefined;
+            }
+
+            const slackIntegration: Integration = {
+                id: `${userId}_slack`,
+                name: 'Slack',
+                desc: 'Get real-time hiring notifications in your Slack channels.',
+                logo: 'slack',
+                active: slackActive,
+                connectedEmail: slackActive && slackChannelName
+                    ? `#${slackChannelName}${slackTeamName ? ` · ${slackTeamName}` : ''}`
+                    : undefined,
+            };
+
+            return [...googleIntegrations, slackIntegration];
         },
         connectIntegration: async (integrationId: string): Promise<{ url: string; error?: string }> => {
             const userId = await getUserId();
@@ -5130,6 +5163,20 @@ export const api = {
             // Teams integration is disabled
             if (integrationId === 'teams') {
                 throw new Error('Microsoft Teams integration is currently unavailable.');
+            }
+
+            // Route Slack to its own edge function
+            const isSlack = integrationId.endsWith('_slack') || integrationId === 'slack';
+            if (isSlack) {
+                try {
+                    const { data, error } = await supabase.functions.invoke('slack-connect', { body: {} });
+                    if (error) return { url: '', error: userFacingEdgeError(error.message, 'Failed to initiate Slack connection.') };
+                    let responseData = data;
+                    if (typeof data === 'string') { try { responseData = JSON.parse(data); } catch (_) {} }
+                    return { url: responseData?.url || '', error: responseData?.error };
+                } catch (err: any) {
+                    return { url: '', error: userFacingEdgeError(err?.message, 'Failed to connect Slack.') };
+                }
             }
 
             try {
@@ -5167,6 +5214,26 @@ export const api = {
         disconnectIntegration: async (integrationId: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+
+            // Slack disconnect: clear workspace's Slack OAuth columns
+            const isSlack = integrationId.endsWith('_slack') || integrationId === 'slack';
+            if (isSlack) {
+                const { data: membership } = await supabase
+                    .from('workspace_members')
+                    .select('workspace_id')
+                    .eq('user_id', userId)
+                    .maybeSingle();
+                if (membership?.workspace_id) {
+                    await supabase.from('workspaces').update({
+                        slack_bot_token: null,
+                        slack_channel_id: null,
+                        slack_channel_name: null,
+                        slack_team_name: null,
+                        slack_team_id: null,
+                    }).eq('id', membership.workspace_id);
+                }
+                return;
+            }
 
             const { data, error } = await supabase.functions.invoke('disconnect-integration', {
                 body: { integrationId },
@@ -5220,6 +5287,29 @@ export const api = {
                 .update({ slack_webhook_url: webhookUrl || null })
                 .eq('id', membership.workspace_id);
             if (error) throw error;
+        },
+        /** Returns the workspace's Slack OAuth connection (bot token + channel). */
+        getSlackConnection: async (): Promise<{ botToken: string; channelId: string; channelName: string } | null> => {
+            const userId = await getUserId();
+            if (!userId) return null;
+            const { data: membership } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            if (!membership?.workspace_id) return null;
+            const { data: ws } = await supabase
+                .from('workspaces')
+                .select('slack_bot_token, slack_channel_id, slack_channel_name')
+                .eq('id', membership.workspace_id)
+                .maybeSingle();
+            const w = ws as any;
+            if (!w?.slack_bot_token) return null;
+            return {
+                botToken: w.slack_bot_token,
+                channelId: w.slack_channel_id || '',
+                channelName: w.slack_channel_name || '',
+            };
         },
     },
     workspaces: {

@@ -829,11 +829,6 @@ const Settings: React.FC = () => {
     const [stripeSubscription, setStripeSubscription] = useState<any>(null);
     const [stripePaymentMethod, setStripePaymentMethod] = useState<any>(null);
     const [isConnectingIntegration, setIsConnectingIntegration] = useState<string | null>(null);
-    const [slackWebhookUrl, setSlackWebhookUrl] = useState<string | null>(null);
-    const [isSlackModalOpen, setIsSlackModalOpen] = useState(false);
-    const [slackWebhookInput, setSlackWebhookInput] = useState('');
-    const [isSavingSlack, setIsSavingSlack] = useState(false);
-    const [slackError, setSlackError] = useState<string | null>(null);
 
 
     // Team / workspace state
@@ -988,11 +983,6 @@ const Settings: React.FC = () => {
             const i = await api.settings.getIntegrations();
             setIntegrations(i);
 
-            // Load Slack webhook
-            try {
-                const webhookUrl = await api.settings.getSlackWebhook();
-                setSlackWebhookUrl(webhookUrl);
-            } catch { /* non-critical */ }
 
 
             // Load notification preferences
@@ -1194,7 +1184,7 @@ const Settings: React.FC = () => {
                     await new Promise(r => setTimeout(r, 600));
                     let updatedIntegrations = await api.settings.getIntegrations();
                     // If the new integration isn't in the list yet (replication lag), retry once
-                    const expectedName = integrationSuccess === 'meet' ? 'Google Meet' : integrationSuccess === 'gcal' ? 'Google Calendar' : null;
+                    const expectedName = integrationSuccess === 'meet' ? 'Google Meet' : integrationSuccess === 'gcal' ? 'Google Calendar' : integrationSuccess === 'slack' ? 'Slack' : null;
                     const hasNew = expectedName && updatedIntegrations.some(i => i.name === expectedName && i.active);
                     if (expectedName && !hasNew) {
                         await new Promise(r => setTimeout(r, 400));
@@ -1441,41 +1431,6 @@ const Settings: React.FC = () => {
                 setTimeout(() => setSaveMessage(null), 3000);
                 setIsConnectingIntegration(null);
             }
-        }
-    };
-
-    // Slack webhook handlers
-    const handleSaveSlack = async () => {
-        const url = slackWebhookInput.trim();
-        if (!url.startsWith('https://hooks.slack.com/')) {
-            setSlackError('Please enter a valid Slack Incoming Webhook URL (starts with https://hooks.slack.com/)');
-            return;
-        }
-        setIsSavingSlack(true);
-        setSlackError(null);
-        try {
-            await api.settings.saveSlackWebhook(url);
-            setSlackWebhookUrl(url);
-            setIsSlackModalOpen(false);
-            setSlackWebhookInput('');
-            setSaveMessage({ type: 'success', text: 'Slack connected successfully!' });
-            setTimeout(() => setSaveMessage(null), 3000);
-        } catch (err: any) {
-            setSlackError(err.message || 'Failed to save webhook URL');
-        } finally {
-            setIsSavingSlack(false);
-        }
-    };
-
-    const handleDisconnectSlack = async () => {
-        try {
-            await api.settings.saveSlackWebhook('');
-            setSlackWebhookUrl(null);
-            setSaveMessage({ type: 'success', text: 'Slack disconnected.' });
-            setTimeout(() => setSaveMessage(null), 3000);
-        } catch (err: any) {
-            setSaveMessage({ type: 'error', text: err.message || 'Failed to disconnect Slack' });
-            setTimeout(() => setSaveMessage(null), 3000);
         }
     };
 
@@ -2700,78 +2655,42 @@ const Settings: React.FC = () => {
                                 </div>
                             )}
                             <div className="grid grid-cols-1 gap-4">
-                                    {integrations.filter(integration => integration.id !== 'teams' && integration.name !== 'Google Integration').map((integration) => (
+                                    {integrations.filter(i => i.id !== 'teams' && i.name !== 'Google Integration').map((integration) => (
                                         <div key={integration.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl transition-all">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
-                                                    <img src={integration.logo} alt={integration.name} className="w-full h-full object-contain" />
+                                                    {integration.logo === 'slack' ? (
+                                                        <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#E01E5A"/>
+                                                        </svg>
+                                                    ) : (
+                                                        <img src={integration.logo} alt={integration.name} className="w-full h-full object-contain" />
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <h3 className="font-bold text-gray-900">{integration.name}</h3>
                                                     <p className="text-sm text-gray-500">{integration.desc}</p>
                                                     {integration.active && integration.connectedEmail && (
-                                                        <p className="text-xs text-gray-500 mt-1">Connected as {integration.connectedEmail}</p>
+                                                        <p className="text-xs text-gray-500 mt-1">Connected: {integration.connectedEmail}</p>
                                                     )}
                                                 </div>
                                             </div>
-                                            <button 
+                                            <button
                                                 type="button"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    handleIntegrationConnect(integration);
-                                                }}
+                                                onClick={(e) => { e.preventDefault(); handleIntegrationConnect(integration); }}
                                                 disabled={isConnectingIntegration === integration.id}
                                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                    integration.active 
-                                                    ? 'bg-black text-white hover:bg-gray-800' 
-                                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                                    integration.active
+                                                        ? 'bg-black text-white hover:bg-gray-800'
+                                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                                 }`}
                                             >
-                                                {isConnectingIntegration === integration.id 
-                                                    ? 'Connecting...' 
-                                                    : integration.active 
-                                                        ? 'Disconnect' 
-                                                        : 'Connect'}
+                                                {isConnectingIntegration === integration.id
+                                                    ? 'Connecting...'
+                                                    : integration.active ? 'Disconnect' : 'Connect'}
                                             </button>
                                         </div>
                                     ))}
-
-                                    {/* Slack Integration Card */}
-                                    <div className="flex items-center justify-between p-6 border border-gray-200 rounded-xl transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center p-2">
-                                                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#E01E5A"/>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-gray-900">Slack</h3>
-                                                <p className="text-sm text-gray-500">Get real-time notifications in your Slack channels.</p>
-                                                {slackWebhookUrl && (
-                                                    <p className="text-xs text-gray-500 mt-1">Connected via Incoming Webhook</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (slackWebhookUrl) {
-                                                    handleDisconnectSlack();
-                                                } else {
-                                                    setSlackWebhookInput('');
-                                                    setSlackError(null);
-                                                    setIsSlackModalOpen(true);
-                                                }
-                                            }}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                                slackWebhookUrl
-                                                    ? 'bg-black text-white hover:bg-gray-800'
-                                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            {slackWebhookUrl ? 'Disconnect' : 'Connect'}
-                                        </button>
-                                    </div>
                                 </div>
                         </div>
                     )}
@@ -2990,48 +2909,6 @@ const Settings: React.FC = () => {
             />
             </div>
 
-            {/* Slack Webhook Modal */}
-            {isSlackModalOpen && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                            <h2 className="text-lg font-bold text-gray-900">Connect Slack</h2>
-                            <button onClick={() => setIsSlackModalOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 rounded-full hover:bg-gray-100">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-5">
-                            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-sm text-gray-600 space-y-2">
-                                <p className="font-semibold text-gray-900">How to get your Slack Webhook URL:</p>
-                                <ol className="list-decimal list-inside space-y-1">
-                                    <li>Go to <span className="font-medium">api.slack.com/apps</span> and create or open an app</li>
-                                    <li>Enable <span className="font-medium">Incoming Webhooks</span> in the app settings</li>
-                                    <li>Click <span className="font-medium">Add New Webhook to Workspace</span></li>
-                                    <li>Select the channel and copy the webhook URL below</li>
-                                </ol>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Slack Webhook URL</label>
-                                <input
-                                    type="url"
-                                    value={slackWebhookInput}
-                                    onChange={(e) => { setSlackWebhookInput(e.target.value); setSlackError(null); }}
-                                    placeholder="https://hooks.slack.com/services/..."
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                />
-                                {slackError && <p className="text-xs text-red-600 mt-1">{slackError}</p>}
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
-                            <button onClick={() => setIsSlackModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50">Cancel</button>
-                            <button onClick={handleSaveSlack} disabled={isSavingSlack || !slackWebhookInput.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-black text-white hover:bg-gray-800 disabled:opacity-50">
-                                {isSavingSlack ? 'Connecting...' : 'Connect Slack'}
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
         </div>
     );
 };

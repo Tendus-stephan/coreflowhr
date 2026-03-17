@@ -342,11 +342,12 @@ const CandidateBoard: React.FC = () => {
           setTimeout(() => setShowToast(false), 3000);
 
           // Fire Slack notification (non-blocking)
-          api.settings.getSlackWebhook().then((webhookUrl) => {
-              if (webhookUrl) {
+          api.settings.getSlackConnection().then((conn) => {
+              if (conn?.botToken && conn?.channelId) {
                   const jobTitle = jobs.find(j => j.id === updatedCandidate.jobId)?.title;
                   sendSlackNotification(
-                      webhookUrl,
+                      conn.botToken,
+                      conn.channelId,
                       `${updatedCandidate.name} moved to ${updatedCandidate.stage}`,
                       buildCandidateStagedBlocks(updatedCandidate.name, updatedCandidate.stage, jobTitle)
                   );

@@ -1,6 +1,6 @@
 /**
- * Slack Incoming Webhook notifications.
- * Webhook URLs are stored per-workspace in workspaces.slack_webhook_url.
+ * Slack notifications via the Bot API (chat.postMessage).
+ * Bot tokens are stored per-workspace via OAuth — no manual webhook URLs needed.
  */
 
 export interface SlackBlock {
@@ -9,16 +9,23 @@ export interface SlackBlock {
 }
 
 export async function sendSlackNotification(
-  webhookUrl: string,
+  botToken: string,
+  channelId: string,
   text: string,
   blocks?: SlackBlock[]
 ): Promise<void> {
   try {
-    const payload: { text: string; blocks?: SlackBlock[] } = { text };
+    const payload: { channel: string; text: string; blocks?: SlackBlock[] } = {
+      channel: channelId,
+      text,
+    };
     if (blocks) payload.blocks = blocks;
-    await fetch(webhookUrl, {
+    await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${botToken}`,
+      },
       body: JSON.stringify(payload),
     });
   } catch {
