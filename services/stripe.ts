@@ -30,26 +30,36 @@ if (typeof window !== 'undefined') {
   });
 }
 
+const SHARED_FEATURES = [
+  'Unlimited active jobs',
+  'Public job application pages with shareable links',
+  'Job board sharing — LinkedIn, Indeed, CV-Library',
+  'AI CV scoring on every inbound applicant',
+  'Automated email workflows per pipeline stage',
+  'eSignature for offer letters',
+  'CV / resume parsing',
+  'Google Calendar & Meet integration',
+  'Client management',
+  'Team collaboration — unlimited members',
+  'Priority support',
+];
+
 export const PLANS = {
   professional: {
     name: 'CoreflowHR Professional',
     priceIdMonthly: import.meta.env.VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY || '',
-    priceIdYearly: '', // No yearly plan — monthly only
+    priceIdYearly: '',
     priceMonthly: 149,
     priceYearly: 149,
-    features: [
-      'Unlimited active jobs',
-      'Public job application pages with shareable links',
-      'Job board sharing — LinkedIn, Indeed, CV-Library',
-      'AI CV scoring on every inbound applicant',
-      'Automated email workflows per pipeline stage',
-      'eSignature for offer letters',
-      'CV / resume parsing',
-      'Google Calendar & Meet integration',
-      'Client management',
-      'Team collaboration — unlimited members',
-      'Priority support',
-    ],
+    features: SHARED_FEATURES,
+  },
+  founding: {
+    name: 'CoreflowHR Professional — Founding Rate',
+    priceIdMonthly: import.meta.env.VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY || '',
+    priceIdYearly: '',
+    priceMonthly: 119,
+    priceYearly: 119,
+    features: SHARED_FEATURES,
   },
 } as const;
 

@@ -133,6 +133,9 @@ const LandingPage: React.FC = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [founding, setFounding] = useState<{ spotsLeft: number; available: boolean; loaded: boolean }>({
+    spotsLeft: 20, available: true, loaded: false,
+  });
   const { user, session, signOut, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -207,8 +210,22 @@ const LandingPage: React.FC = () => {
     }
   }, []);
 
+  // Fetch founding spots on mount
+  useEffect(() => {
+    supabase.functions.invoke('get-subscriber-count')
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setFounding({ spotsLeft: data.foundingSpotsLeft, available: data.foundingAvailable, loaded: true });
+        } else {
+          // On error, default to showing founding rate (safe — Stripe will enforce the price)
+          setFounding({ spotsLeft: 20, available: true, loaded: true });
+        }
+      })
+      .catch(() => setFounding({ spotsLeft: 20, available: true, loaded: true }));
+  }, []);
+
   // Handle subscription
-  const handleSubscribe = async (plan: 'professional') => {
+  const handleSubscribe = async (plan: 'professional' | 'founding') => {
     if (!user || !session) {
       // Not logged in - redirect to signup with plan info
       navigate(`/signup?plan=${plan}&billing=${billingCycle}&returnTo=pricing`);
@@ -927,16 +944,37 @@ const LandingPage: React.FC = () => {
           <FadeIn delay={100}>
             <div className="bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
               {/* Founding rate badge */}
-              <div className="absolute top-5 right-5 sm:top-7 sm:right-7 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">
-                First 20 customers: $119/mo locked forever
-              </div>
+              {founding.available ? (
+                <div className="absolute top-5 right-5 sm:top-7 sm:right-7 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">
+                  {founding.loaded
+                    ? `${founding.spotsLeft} of 20 founding spots left`
+                    : 'First 20 customers: $119/mo'}
+                </div>
+              ) : (
+                <div className="absolute top-5 right-5 sm:top-7 sm:right-7 bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full">
+                  Founding rate closed
+                </div>
+              )}
 
               <div className="mb-6 sm:mb-8 pt-6 sm:pt-0">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">CoreflowHR Professional</h3>
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-5xl sm:text-6xl font-bold tracking-tighter text-gray-900">$149</span>
-                  <span className="text-sm sm:text-base text-gray-500 font-medium">/ month</span>
+                  {founding.available ? (
+                    <>
+                      <span className="text-5xl sm:text-6xl font-bold tracking-tighter text-gray-900">$119</span>
+                      <span className="text-sm sm:text-base text-gray-500 font-medium line-through mr-1">$149</span>
+                      <span className="text-sm sm:text-base text-gray-500 font-medium">/ month</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-5xl sm:text-6xl font-bold tracking-tighter text-gray-900">$149</span>
+                      <span className="text-sm sm:text-base text-gray-500 font-medium">/ month</span>
+                    </>
+                  )}
                 </div>
+                {founding.available && (
+                  <p className="text-xs text-amber-700 font-medium mt-1">Locked in forever — price never increases for founding customers.</p>
+                )}
                 <p className="text-sm text-gray-500 mt-2">
                   One tool for your entire hiring workflow — job postings, inbound applicants, pipeline, emails, and offers.
                 </p>
@@ -947,14 +985,14 @@ const LandingPage: React.FC = () => {
                   variant="black"
                   size="lg"
                   className="w-full mb-8 text-sm sm:text-base"
-                  onClick={() => handleSubscribe('professional')}
+                  onClick={() => handleSubscribe(founding.available ? 'founding' : 'professional')}
                 >
-                  Subscribe Now — $149/month
+                  {founding.available ? 'Subscribe Now — $119/month' : 'Subscribe Now — $149/month'}
                 </Button>
               ) : (
-                <Link to="/signup">
+                <Link to={`/signup?plan=${founding.available ? 'founding' : 'professional'}&billing=monthly&returnTo=pricing`}>
                   <Button variant="black" size="lg" className="w-full mb-8 text-sm sm:text-base">
-                    Get Started — $149/month
+                    {founding.available ? 'Get Started — $119/month' : 'Get Started — $149/month'}
                   </Button>
                 </Link>
               )}
