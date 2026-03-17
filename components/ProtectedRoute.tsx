@@ -115,12 +115,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAdmin(isAdminRole);
 
         if (belongsToWorkspace) {
-          // User is in a workspace — check if any workspace is active (paid or valid design partner).
+          // Non-admin members (Recruiter, HiringManager, Viewer) inherit access from the workspace
+          // admin — they should never be asked to subscribe themselves.
+          const isNonAdminMember = (memberships || []).some((m: any) => nonAdminRoles.includes(m.role));
+          if (isNonAdminMember) {
+            setCanEnter(true);
+            setAccessChecked(true);
+            setAccessLoading(false);
+            return;
+          }
+
+          // Workspace admin — check if any workspace has free access (design partners / testers).
           const workspaceIds = (memberships || []).map((m: any) => m.workspace_id).filter(Boolean);
 
           if (workspaceIds.length > 0) {
-            // Check is_free_access (design partners / testers) — subscription_status lives in
-            // user_settings, not workspaces, so we don't query it here.
             const { data: workspaces } = await supabase
               .from('workspaces')
               .select('id, is_free_access, free_access_expires_at')
@@ -140,7 +148,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             }
           }
 
-          // No free-access workspace — fall through to own subscription check.
+          // Admin with no free-access workspace — fall through to own subscription check.
         }
 
         // Check own subscription (covers workspace owners who paid via Stripe,
