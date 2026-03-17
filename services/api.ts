@@ -5064,6 +5064,22 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
+            // Default catalog — every user should have these
+            const DEFAULTS = [
+                {
+                    id: `${userId}_gcal`,
+                    name: 'Google Calendar',
+                    desc: 'Sync interviews bi-directionally.',
+                    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg',
+                },
+                {
+                    id: `${userId}_meet`,
+                    name: 'Google Meet',
+                    desc: 'Auto-generate video links.',
+                    logo: 'https://upload.wikimedia.org/wikipedia/commons/9/9b/Google_Meet_icon_%282020%29.svg',
+                },
+            ];
+
             const { data, error } = await supabase
                 .from('integrations')
                 .select('*')
@@ -5072,15 +5088,40 @@ export const api = {
 
             if (error) throw error;
 
-            return (data || []).map((integration: any) => ({
-                id: integration.id,
-                name: integration.name,
-                desc: integration.desc || '',
-                active: integration.active || false,
-                logo: integration.logo || '',
-                connectedDate: integration.connected_date,
-                connectedEmail: integration.config?.google_email || undefined,
-            }));
+            const rows: any[] = data || [];
+
+            // If rows are missing (invited users, users who signed up before seeding), upsert defaults
+            if (rows.length === 0) {
+                const inserts = DEFAULTS.map(d => ({
+                    id: d.id,
+                    user_id: userId,
+                    name: d.name,
+                    desc: d.desc,
+                    active: false,
+                    logo: d.logo,
+                }));
+                const { data: inserted } = await supabase
+                    .from('integrations')
+                    .upsert(inserts, { onConflict: 'id' })
+                    .select();
+                if (inserted) rows.push(...inserted);
+                else rows.push(...inserts.map(i => ({ ...i, config: null, connected_date: null })));
+            }
+
+            // Merge: show all catalog items, using DB data for active state
+            const dbById = new Map(rows.map(r => [r.id, r]));
+            return DEFAULTS.map(d => {
+                const row = dbById.get(d.id);
+                return {
+                    id: d.id,
+                    name: d.name,
+                    desc: d.desc,
+                    logo: d.logo,
+                    active: row?.active || false,
+                    connectedDate: row?.connected_date,
+                    connectedEmail: row?.config?.google_email || undefined,
+                };
+            });
         },
         connectIntegration: async (integrationId: string): Promise<{ url: string; error?: string }> => {
             const userId = await getUserId();
