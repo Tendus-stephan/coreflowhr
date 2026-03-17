@@ -112,8 +112,8 @@ serve(async (req) => {
       <p>You requested to change your CoreflowHR sign-in email to <strong>${newEmail}</strong>.</p>
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:16px auto 20px auto;">
         <tr>
-          <td align="center" bgcolor="#111827" style="border-radius:8px;">
-            <a href="${confirmUrl}" target="_blank" style="display:inline-block;padding:14px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;border:1px solid #111827;-webkit-text-size-adjust:none;">Confirm Email Change</a>
+          <td align="center" bgcolor="#111827" style="border-radius:8px;padding:14px 32px;">
+            <a href="${confirmUrl}" target="_blank" style="font-family:Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;white-space:nowrap;display:inline;">Confirm Email Change</a>
           </td>
         </tr>
       </table>

@@ -73,6 +73,13 @@ function sanitizeHtml(html: string): string {
 
 // Professional email template: compact layout, no excess whitespace, table-based for client compatibility
 function createEmailTemplate(content: string, logoUrl: string, companyName: string, companyWebsite: string, recipientEmail?: string): string {
+  // Use image logo only when a real URL is explicitly configured via LOGO_URL secret.
+  // Otherwise render a text wordmark — always works, no broken image risk.
+  const isRealLogoUrl = logoUrl && !logoUrl.includes('coreflowhr.com/assets/images/coreflow-logo.png');
+  const logoHtml = isRealLogoUrl
+    ? `<img src="${logoUrl}" alt="${companyName}" width="160" style="display:block;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />`
+    : `<a href="${companyWebsite}" style="text-decoration:none;"><span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.5px;">CoreflowHR</span></a>`;
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -97,8 +104,8 @@ function createEmailTemplate(content: string, logoUrl: string, companyName: stri
       <td align="center" style="padding: 24px 16px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
           <tr>
-            <td align="center" style="padding: 20px 24px 14px 24px;">
-              <img src="${logoUrl}" alt="${companyName}" width="160" style="display: block; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic;" />
+            <td align="center" style="padding: 24px 24px 16px 24px;">
+              ${logoHtml}
             </td>
           </tr>
           <tr>
