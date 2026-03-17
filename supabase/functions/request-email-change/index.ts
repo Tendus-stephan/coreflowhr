@@ -110,12 +110,17 @@ serve(async (req) => {
     const subject = 'Confirm your email change';
     const content = `
       <p>You requested to change your CoreflowHR sign-in email to <strong>${newEmail}</strong>.</p>
-      <div style="text-align:center;margin:16px 0 20px 0;">
-        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${confirmUrl}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="17%" strokecolor="#111827" fill="t"><v:fill type="tile" color="#111827"/><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:700;">Confirm Email Change</center></v:roundrect><![endif]-->
-        <!--[if !mso]><!-->
-        <a href="${confirmUrl}" target="_blank" style="display:inline-block;background-color:#111827;color:#ffffff;padding:13px 28px;border-radius:8px;font-family:Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;-webkit-text-size-adjust:none;">Confirm Email Change</a>
-        <!--<![endif]-->
-      </div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0 20px 0;">
+        <tr><td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td bgcolor="#111827" style="border-radius:8px;padding:13px 28px;white-space:nowrap;">
+                <a href="${confirmUrl}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;font-family:Arial,sans-serif;white-space:nowrap;">Confirm Email Change</a>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
       <p>If you didn't request this, you can ignore this email.</p>
       <p>This link expires in 24 hours.</p>
     `;
