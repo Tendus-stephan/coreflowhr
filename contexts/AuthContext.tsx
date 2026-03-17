@@ -74,9 +74,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }).catch((error) => {
       // Handle any errors in getSession itself
-      console.error('Error getting session:', error);
-      setSession(null);
-      setUser(null);
+      const isOffline = !navigator.onLine || error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.message?.includes('timeout');
+      if (isOffline) {
+        // Network is down — don't wipe auth state, just stop loading
+        console.warn('Network unavailable during session init. Retaining cached auth state.');
+      } else {
+        console.error('Error getting session:', error);
+        setSession(null);
+        setUser(null);
+      }
       setLoading(false);
     });
 

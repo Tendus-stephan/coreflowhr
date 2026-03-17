@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { PageLoader } from '../components/ui/PageLoader';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
@@ -897,10 +897,7 @@ const Dashboard: React.FC = () => {
       );
   }, [recentSearch, candidates]);
 
-  // Show regular loader during data loading (loader is handled at Layout level for login)
-  if (loading) {
-      return <PageLoader />;
-  }
+  if (loading) return <DashboardSkeleton />;
 
   const unreadCount = notifications.filter(n => n.unread).length;
 

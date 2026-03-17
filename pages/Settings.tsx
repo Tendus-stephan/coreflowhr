@@ -836,16 +836,6 @@ const Settings: React.FC = () => {
     const [slackError, setSlackError] = useState<string | null>(null);
 
 
-    // Sourcing usage state (billing tab)
-    const [sourcingUsage, setSourcingUsage] = useState<{
-      is_free_access: boolean;
-      sourcing_provider: string;
-      sourcing_credits_monthly: number;
-      sourcing_credits_used_this_month: number;
-      sourcing_credits_reset_at: string | null;
-      jobBreakdown: { id: string; title: string; sourcing_candidates_count: number }[];
-    } | null>(null);
-
     // Team / workspace state
     const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; role: User['role']; isCurrentUser: boolean }[]>([]);
     const [workspaceInfo, setWorkspaceInfo] = useState<{ workspaceId: string; name: string; companyLogoUrl?: string } | null>(null);
@@ -1004,46 +994,6 @@ const Settings: React.FC = () => {
                 setSlackWebhookUrl(webhookUrl);
             } catch { /* non-critical */ }
 
-
-            // Load sourcing usage for billing tab
-            try {
-                const { data: { user: authUser } } = await supabase.auth.getUser();
-                if (authUser?.id) {
-                    const { data: membership } = await supabase
-                        .from('workspace_members')
-                        .select('workspace_id')
-                        .eq('user_id', authUser.id)
-                        .maybeSingle();
-                    if (membership?.workspace_id) {
-                        const wsId = membership.workspace_id as string;
-                        const [{ data: wsData }, { data: jobsData }] = await Promise.all([
-                            supabase
-                                .from('workspaces')
-                                .select('is_free_access, sourcing_provider, sourcing_credits_monthly, sourcing_credits_used_this_month, sourcing_credits_reset_at')
-                                .eq('id', wsId)
-                                .maybeSingle(),
-                            supabase
-                                .from('jobs')
-                                .select('id, title, sourcing_candidates_count')
-                                .eq('workspace_id', wsId)
-                                .gt('sourcing_candidates_count', 0)
-                                .order('sourcing_candidates_count', { ascending: false }),
-                        ]);
-                        if (wsData) {
-                            setSourcingUsage({
-                                is_free_access: (wsData as any).is_free_access,
-                                sourcing_provider: (wsData as any).sourcing_provider || 'pdl',
-                                sourcing_credits_monthly: (wsData as any).sourcing_credits_monthly ?? 200,
-                                sourcing_credits_used_this_month: (wsData as any).sourcing_credits_used_this_month ?? 0,
-                                sourcing_credits_reset_at: (wsData as any).sourcing_credits_reset_at,
-                                jobBreakdown: (jobsData || []) as { id: string; title: string; sourcing_candidates_count: number }[],
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error('[Settings] Error loading sourcing usage:', err);
-            }
 
             // Load notification preferences
             try {
@@ -2494,60 +2444,6 @@ const Settings: React.FC = () => {
                                 </div>
                             </div>
                             
-                            {/* Sourcing Usage */}
-                            {sourcingUsage && (
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-900 mb-4">Candidate Sourcing Usage</h3>
-                                    {sourcingUsage.is_free_access ? (
-                                        <div className="p-4 border border-gray-200 rounded-xl bg-gray-50">
-                                            <p className="text-sm text-gray-700 font-medium">Design Partner access</p>
-                                            <p className="text-xs text-gray-500 mt-1">Up to 20 candidates per job · No monthly cap</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="p-4 border border-gray-200 rounded-xl space-y-3">
-                                                <div className="flex items-center justify-between text-xs text-gray-500">
-                                                    <span>Provider: <span className="font-medium text-gray-700">{sourcingUsage.sourcing_provider === 'reachstream' ? 'ReachStream' : 'PeopleDataLabs'}</span></span>
-                                                    <span>{sourcingUsage.sourcing_credits_used_this_month} / {sourcingUsage.sourcing_credits_monthly} credits used</span>
-                                                </div>
-                                                {(() => {
-                                                    const pct = Math.min(100, Math.round(sourcingUsage.sourcing_credits_used_this_month / Math.max(1, sourcingUsage.sourcing_credits_monthly) * 100));
-                                                    const barColor = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-orange-400' : pct >= 50 ? 'bg-yellow-400' : 'bg-green-400';
-                                                    return (
-                                                        <div className="w-full bg-gray-100 rounded-full h-2">
-                                                            <div className={`${barColor} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                                                        </div>
-                                                    );
-                                                })()}
-                                                {sourcingUsage.sourcing_credits_reset_at && (
-                                                    <p className="text-xs text-gray-400">
-                                                        Resets on {(() => {
-                                                            const d = new Date(sourcingUsage.sourcing_credits_reset_at!);
-                                                            d.setMonth(d.getMonth() + 1);
-                                                            d.setDate(1);
-                                                            return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-                                                        })()}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            {sourcingUsage.jobBreakdown.length > 0 && (
-                                                <div>
-                                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Per-job breakdown</p>
-                                                    <div className="space-y-1.5">
-                                                        {sourcingUsage.jobBreakdown.map((job) => (
-                                                            <div key={job.id} className="flex items-center justify-between px-3 py-2 border border-gray-100 rounded-lg text-sm">
-                                                                <span className="text-gray-700 truncate">{job.title}</span>
-                                                                <span className="ml-4 text-gray-500 flex-shrink-0">{job.sourcing_candidates_count} / 50</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
                             {/* Payment Method */}
                             <div>
                                 <h3 className="text-sm font-bold text-gray-900 mb-4">Payment Method</h3>

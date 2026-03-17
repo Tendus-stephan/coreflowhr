@@ -123,7 +123,7 @@ DECLARE
     trigger_stage TEXT;
 BEGIN
     -- Map template types/ids to workflows
-    IF NEW.type = 'Sourcing' OR NEW.id = 'screening' THEN
+    IF NEW.type = 'Screening' OR NEW.id = 'screening' THEN
         workflow_name := 'Send Screening Email';
         trigger_stage := 'Screening';
     ELSIF NEW.type = 'Interview' OR NEW.id = 'interview' THEN

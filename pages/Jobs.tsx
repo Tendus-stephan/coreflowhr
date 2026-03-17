@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2, Copy } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { PageLoader } from '../components/ui/PageLoader';
+import { JobsSkeleton } from '../components/ui/Skeleton';
 import { Link, useNavigate } from 'react-router-dom';
 import { Job, Candidate, CandidateStage, UserRole } from '../types';
 import { Avatar } from '../components/ui/Avatar';
@@ -818,7 +818,7 @@ const Jobs: React.FC = () => {
       }
   };
 
-  if (loading) return <PageLoader />;
+  if (loading) return <JobsSkeleton />;
 
   const unreadCount = notifications.filter(n => n.unread).length;
 

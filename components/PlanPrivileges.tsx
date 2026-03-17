@@ -8,8 +8,7 @@ interface PlanPrivilegesProps {
 
 const PROFESSIONAL_FEATURES = [
   'Unlimited active jobs',
-  'Up to 100 sourced candidates per job (PDL)',
-  'AI match scoring for all sourced candidates',
+  'AI match scoring for all inbound applicants',
   'Email workflows — automated follow-ups',
   'CSV export — all candidates',
   'Advanced analytics & reports',

@@ -127,7 +127,7 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="text-sm text-gray-500">Loading workflows...</div>
+                <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }

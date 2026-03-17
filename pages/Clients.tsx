@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Building2, Mail, Phone, MapPin, Search, X, MoreVertical } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { PageLoader } from '../components/ui/PageLoader';
+import { ClientsSkeleton } from '../components/ui/Skeleton';
 import { api, Client } from '../services/api';
 import { createPortal } from 'react-dom';
 
@@ -123,7 +123,7 @@ const Clients: React.FC = () => {
     (c.contactEmail?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
-  if (loading) return <PageLoader />;
+  if (loading) return <ClientsSkeleton />;
 
   return (
     <div className="flex flex-col h-full bg-gray-50/40">

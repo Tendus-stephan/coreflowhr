@@ -21,7 +21,7 @@ BEGIN
   -- Create default email templates (handle duplicates - use user-specific IDs)
   INSERT INTO public.email_templates (id, user_id, title, "desc", type, subject, content)
   VALUES
-    (NEW.id::text || '_screening', NEW.id, 'Screening Outreach', 'Sent when candidate is sourced', 'Sourcing',
+    (NEW.id::text || '_screening', NEW.id, 'Screening Outreach', 'Sent when candidate moves to Screening', 'Screening',
      'Application Invitation – {job_title} Position at {company_name}',
      'Dear {candidate_name},\n\nWe are writing to express our interest in your professional profile...'),
     (NEW.id::text || '_interview', NEW.id, 'Interview Invitation', 'Sent to schedule interviews', 'Interview',

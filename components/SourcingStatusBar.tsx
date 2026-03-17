@@ -113,7 +113,7 @@ export const SourcingStatusBar: React.FC<Props> = ({ jobId, workspaceId: workspa
         <>
           <Loader2 size={16} className="text-blue-500 animate-spin flex-shrink-0" />
           <span className="text-gray-600">
-            Sourcing candidates from PeopleDataLabs
+            Sourcing candidates
             {sourcing_candidates_count > 0 && (
               <span className="ml-1 text-blue-600 font-medium">— {sourcing_candidates_count} found so far</span>
             )}

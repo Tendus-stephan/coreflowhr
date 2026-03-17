@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Offer } from '../types';
 import { api } from '../services/api';
-import { PageLoader } from '../components/ui/PageLoader';
+import { OffersSkeleton } from '../components/ui/Skeleton';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { OfferCard } from '../components/OfferCard';
 import { OfferModal } from '../components/OfferModal';
@@ -218,9 +218,7 @@ const Offers: React.FC = () => {
         { value: 'archived', label: 'Archived' }
     ];
 
-    if (loading) {
-        return <PageLoader />;
-    }
+    if (loading) return <OffersSkeleton />;
 
     const statusTabs: Array<{ value: Offer['status'] | 'all'; label: string }> = [
         { value: 'all', label: 'All' },
