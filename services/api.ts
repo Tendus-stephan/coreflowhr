@@ -5937,6 +5937,7 @@ export const api = {
         list: async (filters?: { status?: Offer['status'] | 'archived'; candidateId?: string; jobId?: string; generalOnly?: boolean }): Promise<Offer[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const isHiringManager = (await getCurrentUserRole()) === 'HiringManager';
 
             let query = supabase
                 .from('offers')
@@ -5970,7 +5971,7 @@ export const api = {
                 userId: offer.user_id,
                 positionTitle: offer.position_title,
                 startDate: offer.start_date || undefined,
-                salaryAmount: offer.salary_amount ? parseFloat(offer.salary_amount) : undefined,
+                salaryAmount: isHiringManager ? undefined : (offer.salary_amount ? parseFloat(offer.salary_amount) : undefined),
                 salaryCurrency: offer.salary_currency || 'USD',
                 salaryPeriod: offer.salary_period || 'yearly',
                 benefits: offer.benefits || undefined,
@@ -5993,6 +5994,7 @@ export const api = {
         get: async (offerId: string): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const isHiringManager = (await getCurrentUserRole()) === 'HiringManager';
 
             const { data, error } = await supabase
                 .from('offers')
@@ -6010,7 +6012,7 @@ export const api = {
                 userId: data.user_id,
                 positionTitle: data.position_title,
                 startDate: data.start_date || undefined,
-                salaryAmount: data.salary_amount ? parseFloat(data.salary_amount) : undefined,
+                salaryAmount: isHiringManager ? undefined : (data.salary_amount ? parseFloat(data.salary_amount) : undefined),
                 salaryCurrency: data.salary_currency || 'USD',
                 salaryPeriod: data.salary_period || 'yearly',
                 benefits: data.benefits || undefined,

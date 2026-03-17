@@ -8,7 +8,7 @@ import {
   Users as UsersIcon, Search, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { PageLoader } from '../components/ui/PageLoader';
+import { SettingsSkeleton } from '../components/ui/Skeleton';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Session } from '../services/api';
@@ -1786,7 +1786,7 @@ const Settings: React.FC = () => {
             .catch(() => setProfileWorkspaceName('Your company'));
     }, [activeTab, user?.id]);
 
-    if (!user) return <PageLoader />;
+    if (!user) return <SettingsSkeleton />;
 
     return (
         <div className="flex flex-col h-full bg-gray-50/40">

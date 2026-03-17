@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { Interview } from '../types';
-import { PageLoader } from '../components/ui/PageLoader';
+import { CalendarSkeleton } from '../components/ui/Skeleton';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import {
   Plus, ExternalLink, Calendar as CalendarIcon, RefreshCw,
@@ -147,7 +147,7 @@ const Calendar: React.FC = () => {
     }
   };
 
-  if (loading) return <PageLoader />;
+  if (loading) return <CalendarSkeleton />;
 
   return (
     <div className="flex flex-col bg-white" style={{ height: '100%', minHeight: 0 }}>

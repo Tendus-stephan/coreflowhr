@@ -259,19 +259,6 @@ const Offers: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Stats bar */}
-            <div className="px-8 py-3 border-b border-gray-100 bg-white flex items-center gap-5 flex-shrink-0">
-                {(['all', 'sent', 'accepted', 'negotiating', 'declined'] as const).map((key, i, arr) => (
-                    <React.Fragment key={key}>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-gray-400 capitalize">{key === 'all' ? 'Total' : key.charAt(0).toUpperCase() + key.slice(1)}</span>
-                            <span className="text-sm font-semibold text-gray-900">{tabCounts[key] ?? 0}</span>
-                        </div>
-                        {i < arr.length - 1 && <div className="w-px h-3.5 bg-gray-200" />}
-                    </React.Fragment>
-                ))}
-            </div>
-
             {/* Filter tabs + search */}
             <div className="px-8 border-b border-gray-100 bg-white flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-1 -mb-px">

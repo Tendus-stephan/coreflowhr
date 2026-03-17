@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { PageLoader } from '../components/ui/PageLoader';
+import { ReportsSkeleton } from '../components/ui/Skeleton';
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
   type ChartConfig,
@@ -283,10 +283,8 @@ const Reports: React.FC = () => {
 
       {/* ── Loading / Empty ── */}
       {loading ? (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <PageLoader fullScreen={false} />
-        </div>
-      ) : !hasAnyData ? (
+        <ReportsSkeleton />
+      ) :!hasAnyData ? (
         <div className="bg-white border border-gray-100 rounded-xl p-12 text-center">
           {(jobId || useCustom) ? (
             <>

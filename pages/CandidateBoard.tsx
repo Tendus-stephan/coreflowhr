@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { PageLoader } from '../components/ui/PageLoader';
+import { CandidateBoardSkeleton } from '../components/ui/Skeleton';
 import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Candidate, CandidateStage, Job } from '../types';
@@ -516,7 +516,7 @@ const CandidateBoard: React.FC = () => {
   }, [candidates]);
 
   if (loading) {
-      return <PageLoader />;
+      return <CandidateBoardSkeleton />;
   }
 
   const unreadCount = notifications.filter(n => n.unread).length;
