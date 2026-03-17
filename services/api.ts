@@ -5454,23 +5454,8 @@ export const api = {
                 const inviteLink = `${frontendUrl}/invite?token=${encodeURIComponent(token)}`;
                 const friendlyRole = role === 'HiringManager' ? 'Hiring Manager' : role;
                 const subject = 'You’ve been invited to join CoreFlowHR';
-                const content = [
-                    `<p style="margin:0 0 16px 0;font-size:15px;color:#1f2937;">Hi,</p>`,
-                    `<p style="margin:0 0 16px 0;font-size:15px;color:#1f2937;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p>`,
-                    `<p style="margin:0 0 28px 0;font-size:15px;color:#1f2937;">Click the button below to accept the invitation and create your account:</p>`,
-                    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 28px 0;">`,
-                    `  <tr><td align="center">`,
-                    `    <table role="presentation" cellpadding="0" cellspacing="0" border="0">`,
-                    `      <tr>`,
-                    `        <td bgcolor="#111827" style="border-radius:8px;padding:13px 28px;white-space:nowrap;">`,
-                    `          <a href="${inviteLink}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;font-family:Arial,sans-serif;white-space:nowrap;">Accept Invitation</a>`,
-                    `        </td>`,
-                    `      </tr>`,
-                    `    </table>`,
-                    `  </td></tr>`,
-                    `</table>`,
-                    `<p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">If you weren’t expecting this, you can safely ignore this email.</p>`,
-                ].join(‘\n’);
+                const btn = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#111827" style="border-radius:8px;padding:13px 28px;"><a href="${inviteLink}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;font-family:Arial,sans-serif;white-space:nowrap;">Accept Invitation</a></td></tr></table></td></tr></table>`;
+                const content = `<p style="margin:0 0 16px 0;">Hi,</p><p style="margin:0 0 16px 0;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p><p style="margin:0 0 24px 0;">Click the button below to accept the invitation and create your account:</p>${btn}<p style="margin:16px 0 0 0;font-size:12px;color:#9ca3af;text-align:center;">If you weren’t expecting this, you can safely ignore this email.</p>`;
 
                 const { error } = await supabase.functions.invoke('send-email', {
                     body: {
