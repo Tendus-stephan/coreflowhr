@@ -110,10 +110,12 @@ serve(async (req) => {
     const subject = 'Confirm your email change';
     const content = `
       <p>You requested to change your CoreflowHR sign-in email to <strong>${newEmail}</strong>.</p>
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:8px 0 16px;">
-        <tr><td align="center">
-          <a href="${confirmUrl}" target="_blank" style="display:inline-block;padding:13px 32px;border-radius:8px;background-color:#111827;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;line-height:1.4;text-align:center;">Confirm and send link to new email</a>
-        </td></tr>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:16px auto 20px auto;">
+        <tr>
+          <td align="center" bgcolor="#111827" style="border-radius:8px;">
+            <a href="${confirmUrl}" target="_blank" style="display:inline-block;padding:14px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;border:1px solid #111827;-webkit-text-size-adjust:none;">Confirm Email Change</a>
+          </td>
+        </tr>
       </table>
       <p>If you didn't request this, you can ignore this email.</p>
       <p>This link expires in 24 hours.</p>

@@ -311,32 +311,38 @@ serve(async (req) => {
     htmlContent = sanitizeHtml(htmlContent);
 
     // Wrap content in branded email template
-    // Use workspace company logo if available, otherwise fall back to LOGO_URL env var
+    // System emails (invites, email-change) always use the CoreflowHR platform logo.
+    // Candidate-facing emails use the workspace company logo if one is set.
+    const systemEmailTypes = ['WorkspaceInvite', 'EmailChange', 'PasswordReset', 'WeeklyDigest'];
+    const isSystemEmail = systemEmailTypes.includes(emailType || '');
+
     let logoUrl = Deno.env.get('LOGO_URL') || 'https://coreflowhr.com/assets/images/coreflow-logo.png';
 
-    try {
-      const authHeader = req.headers.get('authorization');
-      if (authHeader) {
-        const token = authHeader.replace('Bearer ', '');
-        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-        if (supabaseServiceKey) {
-          const supabase = createClient(supabaseUrl, supabaseServiceKey);
-          const { data: { user } } = await supabase.auth.getUser(token);
-          if (user?.id) {
-            const { data: membership } = await supabase
-              .from('workspace_members')
-              .select('workspaces(company_logo_url)')
-              .eq('user_id', user.id)
-              .maybeSingle();
-            const wsLogoUrl = (membership as any)?.workspaces?.company_logo_url;
-            if (wsLogoUrl) logoUrl = wsLogoUrl;
+    if (!isSystemEmail) {
+      try {
+        const authHeader = req.headers.get('authorization');
+        if (authHeader) {
+          const token = authHeader.replace('Bearer ', '');
+          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+          if (supabaseServiceKey) {
+            const supabase = createClient(supabaseUrl, supabaseServiceKey);
+            const { data: { user } } = await supabase.auth.getUser(token);
+            if (user?.id) {
+              const { data: membership } = await supabase
+                .from('workspace_members')
+                .select('workspaces(company_logo_url)')
+                .eq('user_id', user.id)
+                .maybeSingle();
+              const wsLogoUrl = (membership as any)?.workspaces?.company_logo_url;
+              if (wsLogoUrl) logoUrl = wsLogoUrl;
+            }
           }
         }
+      } catch (_) {
+        // Non-critical — keep default logo on any error
       }
-    } catch (_) {
-      // Non-critical — keep default logo on any error
     }
 
     // Ensure logo URL uses HTTPS (email clients block HTTP images)

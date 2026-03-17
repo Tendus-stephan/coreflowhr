@@ -5455,20 +5455,20 @@ export const api = {
                 const friendlyRole = role === 'HiringManager' ? 'Hiring Manager' : role;
                 const subject = 'You’ve been invited to join CoreFlowHR';
                 const content = [
-                    `<p style="margin:0 0 12px;">Hi,</p>`,
-                    `<p style="margin:0 0 16px;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p>`,
-                    `<p style="margin:0 0 24px;">Click the button below to accept the invitation and create your account:</p>`,
-                    `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 24px;">`,
-                    `  <tr><td align="center">`,
-                    `    <a href="${inviteLink}" target="_blank"`,
-                    `       style="display:inline-block;padding:13px 32px;border-radius:8px;background-color:#111827;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;line-height:1.4;mso-padding-alt:0;text-align:center;">`,
-                    `      <!--[if mso]><i style="letter-spacing:28px;mso-font-width:-100%;mso-text-raise:30pt">&nbsp;</i><![endif]-->`,
-                    `      Accept Invitation`,
-                    `      <!--[if mso]><i style="letter-spacing:28px;mso-font-width:-100%">&nbsp;</i><![endif]-->`,
-                    `    </a>`,
-                    `  </td></tr>`,
+                    `<p style="margin:0 0 16px 0;font-size:15px;color:#1f2937;">Hi,</p>`,
+                    `<p style="margin:0 0 16px 0;font-size:15px;color:#1f2937;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p>`,
+                    `<p style="margin:0 0 28px 0;font-size:15px;color:#1f2937;">Click the button below to accept the invitation and create your account:</p>`,
+                    `<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 28px auto;">`,
+                    `  <tr>`,
+                    `    <td align="center" bgcolor="#111827" style="border-radius:8px;">`,
+                    `      <a href="${inviteLink}" target="_blank"`,
+                    `         style="display:inline-block;padding:14px 32px;font-family:-apple-system,BlinkMacSystemFont,’Segoe UI’,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;border:1px solid #111827;-webkit-text-size-adjust:none;">`,
+                    `        Accept Invitation`,
+                    `      </a>`,
+                    `    </td>`,
+                    `  </tr>`,
                     `</table>`,
-                    `<p style="margin:0;font-size:12px;color:#6b7280;text-align:center;">If you weren’t expecting this, you can safely ignore this email.</p>`,
+                    `<p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">If you weren’t expecting this, you can safely ignore this email.</p>`,
                 ].join(‘\n’);
 
                 const { error } = await supabase.functions.invoke('send-email', {
