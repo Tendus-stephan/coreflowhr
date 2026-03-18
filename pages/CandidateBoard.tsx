@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Candidate, CandidateStage, Job } from '../types';
 import { PipelineColumn } from '../components/PipelineColumn';
 import {
-    Users, Clock, Sparkles, Search, ChevronDown, ChevronUp,
+    Users, Clock, Sparkles, Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
     Download, Upload, Bell, Loader2, Mail, LayoutGrid, List,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -30,6 +30,8 @@ const STAGE_META: Record<CandidateStage, { label: string; dot: string; badge: st
 
 // ─── List View ───────────────────────────────────────────────────────────────
 
+const LIST_PAGE_SIZE = 20;
+
 const CandidateListView: React.FC<{
     candidates: Candidate[];
     onSelectCandidate: (c: Candidate) => void;
@@ -37,6 +39,16 @@ const CandidateListView: React.FC<{
     sortDir: 'asc' | 'desc';
     onSort: (field: 'name' | 'score' | 'date') => void;
 }> = ({ candidates, onSelectCandidate, sortField, sortDir, onSort }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Reset to page 1 whenever the candidate list changes (filter/sort)
+    useEffect(() => { setCurrentPage(1); }, [candidates]);
+
+    const totalPages = Math.max(1, Math.ceil(candidates.length / LIST_PAGE_SIZE));
+    const paginated = candidates.slice((currentPage - 1) * LIST_PAGE_SIZE, currentPage * LIST_PAGE_SIZE);
+    const start = candidates.length === 0 ? 0 : (currentPage - 1) * LIST_PAGE_SIZE + 1;
+    const end = Math.min(currentPage * LIST_PAGE_SIZE, candidates.length);
+
     const SortIcon = ({ field }: { field: 'name' | 'score' | 'date' }) => {
         if (sortField !== field) return null;
         return sortDir === 'asc'
@@ -45,9 +57,9 @@ const CandidateListView: React.FC<{
     };
 
     return (
-        <div className="flex-1 overflow-y-auto bg-white rounded-xl border border-gray-100 mx-6 my-4" style={{ minHeight: 0 }}>
-            {/* Header */}
-            <div className="flex items-center gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 border-b border-gray-100 bg-white sticky top-0 z-10">
+        <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-100 mx-6 my-4 overflow-hidden" style={{ minHeight: 0 }}>
+            {/* Column header */}
+            <div className="flex items-center gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 border-b border-gray-100 flex-shrink-0">
                 <button
                     className="flex-1 flex items-center gap-1 hover:text-gray-600 text-left"
                     onClick={() => onSort('name')}
@@ -72,65 +84,93 @@ const CandidateListView: React.FC<{
             </div>
 
             {/* Rows */}
-            {candidates.length === 0 ? (
-                <div className="flex items-center justify-center py-16 text-sm text-gray-400">
-                    No candidates match your filters
-                </div>
-            ) : (
-                candidates.map(c => {
-                    const score = c.aiMatchScore as number | undefined;
-                    const scoreColor = score != null
-                        ? score >= 70 ? 'text-green-700 bg-green-50'
-                        : score >= 50 ? 'text-amber-700 bg-amber-50'
-                        : 'text-red-600 bg-red-50'
-                        : '';
-                    const stageMeta = STAGE_META[c.stage];
-                    return (
-                        <div
-                            key={c.id}
-                            onClick={() => onSelectCandidate(c)}
-                            className="flex items-center gap-4 px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+            <div className="flex-1 overflow-y-auto">
+                {candidates.length === 0 ? (
+                    <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+                        No candidates match your filters
+                    </div>
+                ) : (
+                    paginated.map(c => {
+                        const score = c.aiMatchScore as number | undefined;
+                        const scoreColor = score != null
+                            ? score >= 70 ? 'text-green-700 bg-green-50'
+                            : score >= 50 ? 'text-amber-700 bg-amber-50'
+                            : 'text-red-600 bg-red-50'
+                            : '';
+                        const stageMeta = STAGE_META[c.stage];
+                        return (
+                            <div
+                                key={c.id}
+                                onClick={() => onSelectCandidate(c)}
+                                className="flex items-center gap-4 px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                            >
+                                <div className="flex-1 flex items-center gap-2 min-w-0">
+                                    <Avatar name={c.name} className="w-7 h-7 text-[9px] flex-shrink-0 border border-gray-100" />
+                                    <span className="text-[13px] font-medium text-gray-900 truncate">{c.name}</span>
+                                </div>
+                                <div className="w-40 hidden sm:block">
+                                    <p className="text-[12px] text-gray-500 truncate">
+                                        {c.currentCompany && c.role
+                                            ? `${c.currentCompany} · ${c.role}`
+                                            : c.currentCompany || c.role || '—'}
+                                    </p>
+                                </div>
+                                <div className="w-24">
+                                    <span className="flex items-center gap-1.5 text-[12px] text-gray-600">
+                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stageMeta.dot}`} />
+                                        {stageMeta.label}
+                                    </span>
+                                </div>
+                                <div className="w-14">
+                                    {score != null ? (
+                                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${scoreColor}`}>{score}%</span>
+                                    ) : (
+                                        <span className="text-[11px] text-gray-300">—</span>
+                                    )}
+                                </div>
+                                <div className="w-36 hidden md:flex items-center gap-1 flex-wrap">
+                                    {c.skills.slice(0, 2).map(s => (
+                                        <span key={s} className="text-[10px] px-1.5 py-0.5 bg-gray-50 border border-gray-100 rounded text-gray-500">{s}</span>
+                                    ))}
+                                    {c.skills.length > 2 && (
+                                        <span className="text-[10px] text-gray-400">+{c.skills.length - 2}</span>
+                                    )}
+                                </div>
+                                <div className="w-16">
+                                    <span className="text-[11px] text-gray-400">
+                                        {new Date(c.appliedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Pagination footer */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 flex-shrink-0">
+                    <span className="text-[11px] text-gray-400">
+                        {start}–{end} of {candidates.length}
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(p => p - 1)}
+                            disabled={currentPage === 1}
+                            className="p-1 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
                         >
-                            <div className="flex-1 flex items-center gap-2 min-w-0">
-                                <Avatar name={c.name} className="w-7 h-7 text-[9px] flex-shrink-0 border border-gray-100" />
-                                <span className="text-[13px] font-medium text-gray-900 truncate">{c.name}</span>
-                            </div>
-                            <div className="w-40 hidden sm:block">
-                                <p className="text-[12px] text-gray-500 truncate">
-                                    {c.currentCompany && c.role
-                                        ? `${c.currentCompany} · ${c.role}`
-                                        : c.currentCompany || c.role || '—'}
-                                </p>
-                            </div>
-                            <div className="w-24">
-                                <span className="flex items-center gap-1.5 text-[12px] text-gray-600">
-                                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stageMeta.dot}`} />
-                                    {stageMeta.label}
-                                </span>
-                            </div>
-                            <div className="w-14">
-                                {score != null ? (
-                                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${scoreColor}`}>{score}%</span>
-                                ) : (
-                                    <span className="text-[11px] text-gray-300">—</span>
-                                )}
-                            </div>
-                            <div className="w-36 hidden md:flex items-center gap-1 flex-wrap">
-                                {c.skills.slice(0, 2).map(s => (
-                                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-gray-50 border border-gray-100 rounded text-gray-500">{s}</span>
-                                ))}
-                                {c.skills.length > 2 && (
-                                    <span className="text-[10px] text-gray-400">+{c.skills.length - 2}</span>
-                                )}
-                            </div>
-                            <div className="w-16">
-                                <span className="text-[11px] text-gray-400">
-                                    {new Date(c.appliedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })
+                            <ChevronLeft size={14} />
+                        </button>
+                        <span className="text-[11px] text-gray-500 tabular-nums px-1">{currentPage}/{totalPages}</span>
+                        <button
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            disabled={currentPage === totalPages}
+                            className="p-1 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
+                        >
+                            <ChevronRight size={14} />
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
