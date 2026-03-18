@@ -167,7 +167,7 @@ const AddJob: React.FC = () => {
         await api.jobs.create({ ...formData, skills: skillsArray, status: 'Draft', clientId: formData.clientId || undefined });
       }
       navigate('/jobs');
-    } catch { alert('Failed to save draft. Please try again.'); }
+    } catch (e: any) { console.error('Save draft error:', e); alert(e?.message || 'Failed to save draft. Please try again.'); }
     finally { setIsSubmitting(false); }
   };
 

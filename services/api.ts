@@ -1764,7 +1764,7 @@ export const api = {
                 workspace_id: workspaceId,
                 title: jobTitle,
                 department: jobData.department || 'General',
-                location: jobData.location && jobData.location.trim() ? jobData.location.trim() : (jobData.remote ? undefined : 'Remote'),
+                location: (jobData.location && jobData.location.trim()) ? jobData.location.trim() : 'Remote',
                 type: jobData.type || 'Full-time',
                 status: jobStatus,
                 description: jobData.description || '',
