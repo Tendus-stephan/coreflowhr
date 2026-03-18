@@ -105,7 +105,7 @@ const CandidateListView: React.FC<{
                                 className="flex items-center gap-4 px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
                             >
                                 <div className="flex-1 flex items-center gap-2 min-w-0">
-                                    <Avatar name={c.name} className="w-7 h-7 text-[9px] flex-shrink-0 border border-gray-100" />
+                                    <Avatar name={c.name} className="w-9 h-9 text-[11px] flex-shrink-0 border border-gray-100" />
                                     <span className="text-[13px] font-medium text-gray-900 truncate">{c.name}</span>
                                 </div>
                                 <div className="w-40 hidden sm:block">
