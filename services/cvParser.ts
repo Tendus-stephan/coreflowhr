@@ -158,7 +158,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
         return cleanedText;
     } catch (error: any) {
         console.error('Error extracting text from PDF:', error);
-        throw new Error(`Failed to extract text from PDF: ${error.message || 'The file may be corrupted or password-protected.'}`);
+        throw new Error('Could not read this PDF. The file may be corrupted or password-protected.');
     }
 }
 

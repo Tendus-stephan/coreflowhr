@@ -1,14 +1,15 @@
 /**
  * Sanitize error messages before showing them to users.
- * Never leak internal URLs, database errors, Supabase internals, or stack traces.
+ * Never leak internal URLs, database errors, Supabase internals, stack traces,
+ * API keys, edge function names, or environment variable details.
  */
 
 const TECHNICAL_PATTERNS: RegExp[] = [
-  // URLs (supabase, any https endpoint, etc.)
+  // URLs
   /https?:\/\//i,
   /supabase\.co/i,
   /supabase\.in/i,
-  // Fetch / network level
+  // Fetch / network
   /Failed to fetch/i,
   /NetworkError/i,
   /Network request failed/i,
@@ -19,15 +20,32 @@ const TECHNICAL_PATTERNS: RegExp[] = [
   /net::/i,
   /ECONNREFUSED/i,
   /ENOTFOUND/i,
-  // Edge Function wrappers
+  // Edge functions
   /Edge Function/i,
   /non-2xx/i,
   /status code \d+/i,
   /FunctionsHttpError/i,
   /FunctionsRelayError/i,
-  // PostgREST / PostgreSQL internals
+  /edge function/i,
+  /deployed/i,
+  // API keys & environment variables
+  /API key/i,
+  /api_key/i,
+  /VITE_/i,
+  /\.env/i,
+  /environment variable/i,
+  /configured correctly/i,
+  /Please ensure/i,
+  /Please set/i,
+  // AI provider names (technical context)
+  /Anthropic/i,
+  /Gemini/i,
+  /OpenAI/i,
+  /parse-cv/i,
+  /analyze-candidate/i,
+  // PostgREST / PostgreSQL
   /PGRST\d+/,
-  /\b(42|23|08|0A|22|25|40|53|54|55|58|F0|HV|P0|XX)\w{3}\b/, // SQL state codes
+  /\b(42|23|08|0A|22|25|40|53|54|55|58|F0|HV|P0|XX)\w{3}\b/,
   /permission denied/i,
   /schema cache/i,
   /does not exist/i,
@@ -62,8 +80,10 @@ export function sanitizeError(
 
 /**
  * Extract and sanitize an error from a caught value (Error object, string, or unknown).
+ * Always logs the full technical error to the console for developers.
  */
 export function toUserError(err: unknown, fallback: string): string {
+  if (err) console.error('[error]', err);
   const msg =
     err instanceof Error
       ? err.message
@@ -75,7 +95,6 @@ export function toUserError(err: unknown, fallback: string): string {
 
 /**
  * @deprecated Use sanitizeError() instead.
- * Kept for backward compatibility with existing callers in api.ts.
  */
 export function userFacingEdgeError(
   message: string | undefined | null,

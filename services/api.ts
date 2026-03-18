@@ -2199,7 +2199,7 @@ export const api = {
                 parsed.fullText = cvText;
             } catch (extractErr: any) {
                 await supabase.storage.from('candidate-cvs').remove([tempPath]);
-                throw new Error(`Could not read CV: ${extractErr?.message ?? 'unsupported or corrupted file'}`);
+                throw new Error('Could not read this file. Please ensure it is a valid PDF or DOCX and try again.');
             }
 
             if (!cvText || cvText.trim().length < 20) {
@@ -2589,7 +2589,7 @@ export const api = {
                 } catch (parseError: any) {
                     console.error('Error parsing CV with AI:', parseError);
                     // Re-throw error - AI parsing is required
-                    throw new Error(`CV parsing failed: ${parseError.message || 'AI parsing unavailable'}. Please ensure your Gemini API key is configured correctly.`);;
+                    throw new Error('CV parsing temporarily unavailable. Please try again.');
                 }
 
                 const extractedSkills = parsedData.skills;

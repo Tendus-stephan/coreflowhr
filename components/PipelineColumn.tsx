@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Candidate, CandidateStage } from '../types';
 import { Avatar } from './ui/Avatar';
-import { ExternalLink, ChevronLeft, ChevronRight, XCircle, Trash2 } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, XCircle, Trash2, Users } from 'lucide-react';
 
-/** One-line summary from AI analysis (first sentence or ~80 chars) */
-function oneLineSummary(aiAnalysis: string | undefined | null): string | null {
-  if (!aiAnalysis || !aiAnalysis.trim()) return null;
-  const trimmed = aiAnalysis.trim();
-  const firstSentence = trimmed.split(/[.!?]\s+/)[0];
-  const line = (firstSentence || trimmed).trim();
-  if (line.length <= 85) return line;
-  return line.slice(0, 82) + '...';
-}
+export const STAGE_META: Record<CandidateStage, { label: string; dot: string; badge: string; bg: string }> = {
+    [CandidateStage.NEW]:       { label: 'Waitlist',  dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-600',    bg: '#f9fafb' },
+    [CandidateStage.SCREENING]: { label: 'Screening', dot: 'bg-blue-400',   badge: 'bg-blue-50 text-blue-700',    bg: '#eff6ff' },
+    [CandidateStage.INTERVIEW]: { label: 'Interview', dot: 'bg-violet-400', badge: 'bg-violet-50 text-violet-700', bg: '#f5f3ff' },
+    [CandidateStage.OFFER]:     { label: 'Offer',     dot: 'bg-amber-400',  badge: 'bg-amber-50 text-amber-700',  bg: '#fffbeb' },
+    [CandidateStage.HIRED]:     { label: 'Hired',     dot: 'bg-green-400',  badge: 'bg-green-50 text-green-700',  bg: '#f0fdf4' },
+    [CandidateStage.REJECTED]:  { label: 'Rejected',  dot: 'bg-red-400',    badge: 'bg-red-50 text-red-600',      bg: '#fef2f2' },
+};
 
 interface PipelineColumnProps {
     title: string;
@@ -35,7 +34,6 @@ const DraggableCandidateCard: React.FC<{
     onDelete?: (id: string) => void;
 }> = ({ candidate, onSelect, draggable = true, onReject, onDelete }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const summaryLine = oneLineSummary(candidate.aiAnalysis);
 
     const handleDragStart = (e: React.DragEvent) => {
         if (!draggable) return;
@@ -47,10 +45,6 @@ const DraggableCandidateCard: React.FC<{
 
     const handleDragEnd = () => setIsDragging(false);
 
-    const handleClick = (e: React.MouseEvent) => {
-        if (!isDragging) onSelect(candidate);
-    };
-
     const score = candidate.aiMatchScore as number | undefined;
     const scoreColor = score != null
         ? score >= 70 ? 'text-green-700 bg-green-50'
@@ -58,26 +52,26 @@ const DraggableCandidateCard: React.FC<{
         : 'text-red-600 bg-red-50'
         : '';
 
+    const linkedInUrl = candidate.linkedInUrl || candidate.profileUrl || candidate.portfolioUrls?.linkedin;
+
     return (
         <div
             draggable={draggable}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
-            onClick={handleClick}
-            className={`bg-white p-3 rounded-xl border transition-colors group relative ${
+            onClick={() => { if (!isDragging) onSelect(candidate); }}
+            className={`bg-white p-2.5 rounded-xl border transition-all group relative ${
                 draggable ? 'cursor-move' : 'cursor-pointer'
-            } ${isDragging ? 'opacity-40 border-dashed border-gray-300' : 'border-gray-100 hover:border-gray-200'}`}
+            } ${isDragging
+                ? 'opacity-40 border-dashed border-gray-300'
+                : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_1px_4px_rgba(0,0,0,0.05)]'
+            }`}
         >
-            {/* Top row: avatar + name + score */}
-            <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                    <Avatar name={candidate.name} className="w-7 h-7 text-[9px] flex-shrink-0 border border-gray-100" />
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate leading-none">{candidate.name}</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                            {candidate.currentCompany || candidate.role || '—'}
-                        </p>
-                    </div>
+            {/* Row 1: avatar + name + score */}
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <Avatar name={candidate.name} className="w-6 h-6 text-[9px] flex-shrink-0 border border-gray-100" />
+                    <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{candidate.name}</p>
                 </div>
                 {score != null && (
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${scoreColor}`}>
@@ -86,51 +80,41 @@ const DraggableCandidateCard: React.FC<{
                 )}
             </div>
 
-            {/* Duplicate flag */}
-            {candidate.alsoInJobTitles && candidate.alsoInJobTitles.length > 0 && (
-                <p className="text-[10px] text-gray-400 mb-1.5 truncate">
-                    Also in: {candidate.alsoInJobTitles.map(a => a.jobTitle).join(', ')}
+            {/* Row 2: company · role */}
+            {(candidate.currentCompany || candidate.role) && (
+                <p className="text-[11px] text-gray-400 mt-1 truncate pl-[30px]">
+                    {candidate.currentCompany && candidate.role
+                        ? `${candidate.currentCompany} · ${candidate.role}`
+                        : candidate.currentCompany || candidate.role}
                 </p>
             )}
 
-            {/* Skills */}
+            {/* Divider + Skills row */}
             {candidate.skills.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                    {candidate.skills.slice(0, 3).map(skill => (
-                        <span key={skill} className="text-[10px] px-1.5 py-0.5 bg-gray-50 rounded text-gray-500 border border-gray-100 font-medium">
+                <div className="mt-2 pt-2 border-t border-gray-50 flex items-center gap-1 flex-wrap">
+                    {candidate.skills.slice(0, 2).map(skill => (
+                        <span key={skill} className="text-[10px] px-1.5 py-0.5 bg-white border border-gray-100 rounded text-gray-500">
                             {skill}
                         </span>
                     ))}
-                    {candidate.skills.length > 3 && (
-                        <span className="text-[10px] text-gray-400 self-center">+{candidate.skills.length - 3}</span>
+                    {candidate.skills.length > 2 && (
+                        <span className="text-[10px] text-gray-400">+{candidate.skills.length - 2}</span>
                     )}
                 </div>
             )}
 
-            {/* AI summary */}
-            {(candidate.aiMatchReason || summaryLine) && (
-                <p className="text-[10px] text-gray-400 line-clamp-2 mb-2 leading-relaxed">
-                    {candidate.aiMatchReason || summaryLine}
-                </p>
+            {/* Hover: LinkedIn link */}
+            {linkedInUrl && (
+                <a
+                    href={linkedInUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute bottom-2.5 right-2.5 hidden group-hover:flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-gray-700 transition-colors"
+                >
+                    LinkedIn <ExternalLink size={9} />
+                </a>
             )}
-
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50">
-                <span className="text-[10px] text-gray-400">
-                    {candidate.source === 'Sourced' ? 'Sourced' : 'Applied'} {new Date(candidate.appliedDate).toLocaleDateString()}
-                </span>
-                {(candidate.linkedInUrl || candidate.profileUrl || candidate.portfolioUrls?.linkedin) && (
-                    <a
-                        href={candidate.linkedInUrl || candidate.profileUrl || candidate.portfolioUrls?.linkedin || ''}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] text-gray-400 hover:text-gray-700 inline-flex items-center gap-0.5 transition-colors"
-                    >
-                        LinkedIn <ExternalLink size={9} />
-                    </a>
-                )}
-            </div>
 
             {/* Waitlist quick actions — visible on hover */}
             {(onReject || onDelete) && (
@@ -171,6 +155,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
 
     const totalPages = Math.ceil(candidates.length / ITEMS_PER_PAGE);
     const paginatedCandidates = candidates.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const meta = STAGE_META[stage];
 
     useEffect(() => {
         setCurrentPage(1);
@@ -214,24 +199,25 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
         <div
             className={`flex-shrink-0 w-[272px] snap-center flex flex-col rounded-xl border transition-colors ${
                 isDragOver
-                    ? 'bg-blue-50/60 border-blue-200'
+                    ? 'border-blue-200'
                     : isInvalidDropTarget
                     ? 'bg-gray-50 border-gray-100 opacity-50'
-                    : 'bg-gray-50/40 border-gray-100'
+                    : 'border-gray-200/70'
             }`}
-            style={{ height: '100%' }}
+            style={{ height: '100%', backgroundColor: (isDragOver || isInvalidDropTarget) ? undefined : meta.bg }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
             {/* Column header */}
-            <div className="px-3.5 py-3 flex items-center justify-between border-b border-gray-100 bg-white rounded-t-xl">
+            <div className="px-3.5 py-3 flex items-center justify-between border-b border-gray-100 bg-white/80 rounded-t-xl">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</h3>
-                    <span className="text-xs font-medium tabular-nums bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded text-gray-500">
-                        {candidates.length}
-                    </span>
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${meta.dot}`} />
+                    <h3 className="text-[13px] font-semibold text-gray-700">{meta.label}</h3>
                 </div>
+                <span className="text-[11px] font-medium tabular-nums bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded-md text-gray-500">
+                    {candidates.length}
+                </span>
             </div>
 
             {/* Cards */}
@@ -248,27 +234,30 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
                     />
                 ))}
                 {candidates.length === 0 && (
-                    <div className="h-20 flex items-center justify-center text-gray-300 text-xs italic border border-dashed border-gray-200 rounded-lg mx-0.5">
-                        No candidates
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                            <Users size={14} className="text-gray-300" />
+                        </div>
+                        <p className="text-xs text-gray-300">No candidates</p>
                     </div>
                 )}
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="px-3 py-2 border-t border-gray-100 bg-white rounded-b-xl flex items-center justify-between">
+                <div className="px-3 py-2 flex items-center justify-between">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="p-1 rounded hover:bg-gray-100 text-gray-400 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                        className="p-1 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
                     >
                         <ChevronLeft size={14} />
                     </button>
-                    <span className="text-[11px] text-gray-400 font-medium">{currentPage} / {totalPages}</span>
+                    <span className="text-[11px] text-gray-400">{currentPage}/{totalPages}</span>
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="p-1 rounded hover:bg-gray-100 text-gray-400 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                        className="p-1 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30 transition-colors"
                     >
                         <ChevronRight size={14} />
                     </button>

@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { api } from '../services/api';
 import type { JobTemplate } from '../types';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string; location: string; type: 'Full-time' | 'Contract' | 'Part-time'; skills: string; description: string; remote: boolean }> = [
   { name: 'Software Engineer', title: 'Software Engineer', department: 'Engineering', location: '', type: 'Full-time', skills: 'JavaScript, TypeScript, React, Node.js', description: 'We are looking for a software engineer to build and maintain our products.', remote: false },
@@ -167,7 +168,7 @@ const AddJob: React.FC = () => {
         await api.jobs.create({ ...formData, skills: skillsArray, status: 'Draft', clientId: formData.clientId || undefined });
       }
       navigate('/jobs');
-    } catch (e: any) { console.error('Save draft error:', e); alert(e?.message || 'Failed to save draft. Please try again.'); }
+    } catch (e: any) { console.error('Save draft error:', e); alert(toUserError(e, 'Failed to save draft. Please try again.')); }
     finally { setIsSubmitting(false); }
   };
 

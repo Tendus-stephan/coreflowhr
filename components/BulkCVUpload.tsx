@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { calculateBasicMatchScore } from '../services/cvParser';
 import { CustomSelect } from './ui/CustomSelect';
+import { toUserError } from '../utils/edgeFunctionError';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
       } catch (err: any) {
         setFiles(prev => prev.map(f =>
           f.id === entry.id
-            ? { ...f, status: 'error', error: err?.message ?? 'Import failed' }
+            ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
             : f
         ));
       }

@@ -194,13 +194,13 @@ Extract:
           }
           
           if (!parsed) {
-            throw new Error(`Invalid JSON response from AI. The CV content may be too complex. Error: ${retryError.message}. Please try uploading the CV again.`);
+            throw new Error('CV parsing temporarily unavailable. Please try again.');
           }
         }
       } else {
         console.error("No JSON object found in response");
         console.error("Response text (first 500 chars):", resultText.substring(0, 500));
-        throw new Error(`No valid JSON found in AI response: ${parseError.message}. Please try again.`);
+        throw new Error('CV parsing temporarily unavailable. Please try again.');
       }
     }
     
@@ -259,7 +259,7 @@ Extract:
   } catch (error: any) {
     console.error("AI CV Parsing Failed:", error);
     // Throw error - no fallback, AI parsing is required
-    throw new Error(`AI CV parsing failed: ${error.message || 'Unknown error'}. Please ensure your Gemini API key is configured correctly.`);
+    throw new Error('CV parsing temporarily unavailable. Please try again.');
   }
 };
 
