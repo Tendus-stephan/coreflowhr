@@ -56,6 +56,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
   // Post-import match state
   const [matchPhase, setMatchPhase] = useState<'idle' | 'running' | 'done'>('idle');
   const [matchResults, setMatchResults] = useState<JobMatch[]>([]);
+  const [matchDiag, setMatchDiag] = useState<{ jobsWithSkills: number; candidatesWithSkills: number } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -149,6 +150,11 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
     const candidates = (candidateRows ?? []) as { id: string; name: string; skills: string[] }[];
 
+    setMatchDiag({
+      jobsWithSkills: activeJobs.filter(j => j.skills && j.skills.length > 0).length,
+      candidatesWithSkills: candidates.filter(c => c.skills && c.skills.length > 0).length,
+    });
+
     // Score each candidate against each active job
     const results: JobMatch[] = activeJobs
       .filter(j => j.skills && j.skills.length > 0)
@@ -209,9 +215,23 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
           {/* ── Match results view ── */}
           {matchPhase === 'done' && (
             matchResults.length === 0 ? (
-              <div className="text-center py-10 text-sm text-gray-400">
-                No skill overlaps found between imported CVs and open jobs.<br/>
-                <span className="text-xs">Make sure your jobs have skills listed.</span>
+              <div className="text-center py-10 text-sm text-gray-400 leading-relaxed">
+                {matchDiag?.jobsWithSkills === 0 ? (
+                  <>
+                    No active jobs have skills listed.<br/>
+                    <span className="text-xs">Add skills to your job listings to enable candidate matching.</span>
+                  </>
+                ) : matchDiag?.candidatesWithSkills === 0 ? (
+                  <>
+                    Skills could not be extracted from the imported CVs.<br/>
+                    <span className="text-xs">Candidates were imported successfully, but AI parsing may not be configured yet — so no skills were detected to match against.</span>
+                  </>
+                ) : (
+                  <>
+                    No skill overlaps found between the imported CVs and your open jobs.<br/>
+                    <span className="text-xs">Try adding more relevant skills to your job listings.</span>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
