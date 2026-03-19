@@ -4,6 +4,8 @@ import { Button } from '../components/ui/Button';
 import { ClientsSkeleton } from '../components/ui/Skeleton';
 import { api, Client } from '../services/api';
 import { createPortal } from 'react-dom';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const Clients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -15,6 +17,8 @@ const Clients: React.FC = () => {
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const menuRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
   const [formData, setFormData] = useState({
     name: '',
     contactEmail: '',
@@ -77,18 +81,26 @@ const Clients: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     setOpenMenuId(null);
-    if (!confirm('Delete this client? Jobs linked to this client will be unlinked.')) return;
+    const ok = await confirm({
+      title: 'Delete this client?',
+      description: 'Jobs linked to this client will be unlinked.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await api.clients.delete(id);
       await loadClients();
+      toast.success('Client deleted.');
     } catch (error: any) {
       console.error('Failed to delete client:', error);
+      toast.error(error.message || 'Failed to delete client.');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) { alert('Client name is required'); return; }
+    if (!formData.name.trim()) { toast.error('Client name is required'); return; }
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
@@ -194,7 +206,7 @@ const Clients: React.FC = () => {
             {filteredClients.map((client, idx) => (
               <div
                 key={client.id}
-                className={`grid grid-cols-[2fr_2fr_1.5fr_1.5fr_44px] gap-0 items-center hover:bg-gray-50/60 transition-colors ${idx !== filteredClients.length - 1 ? 'border-b border-gray-100' : ''}`}
+                className={`grid grid-cols-[2fr_2fr_1.5fr_1.5fr_44px] gap-0 items-center hover:bg-gray-50 hover:shadow-[inset_3px_0_0_theme(colors.gray.900)] transition-all duration-150 ${idx !== filteredClients.length - 1 ? 'border-b border-gray-100' : ''}`}
               >
                 {/* Name */}
                 <div className="px-4 py-3 flex items-center gap-3 min-w-0">

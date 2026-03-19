@@ -60,11 +60,11 @@ const DraggableCandidateCard: React.FC<{
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onClick={() => { if (!isDragging) onSelect(candidate); }}
-            className={`bg-white p-2.5 rounded-xl border transition-all group relative ${
+            className={`bg-white p-2.5 rounded-xl border transition-all duration-150 group relative ${
                 draggable ? 'cursor-move' : 'cursor-pointer'
             } ${isDragging
-                ? 'opacity-40 border-dashed border-gray-300'
-                : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_1px_4px_rgba(0,0,0,0.05)]'
+                ? 'opacity-40 scale-95 border-dashed border-gray-300 shadow-none'
+                : 'border-gray-150 shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5'
             }`}
         >
             {/* Row 1: avatar + name + score */}

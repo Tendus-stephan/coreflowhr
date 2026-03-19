@@ -8,6 +8,8 @@ import { OfferModal } from '../components/OfferModal';
 import { NegotiateCounterOfferModal } from '../components/NegotiateCounterOfferModal';
 import { Button } from '../components/ui/Button';
 import { Plus, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const Offers: React.FC = () => {
     const [offers, setOffers] = useState<Offer[]>([]);
@@ -23,6 +25,8 @@ const Offers: React.FC = () => {
     const [candidateMap, setCandidateMap] = useState<Map<string, string>>(new Map());
     const [jobMap, setJobMap] = useState<Map<string, string>>(new Map());
     const [userRole, setUserRole] = useState<string>('');
+    const toast = useToast();
+    const confirm = useConfirm();
 
     // Pagination: 3 columns × 2 rows = 6 items per page
     const ITEMS_PER_PAGE = 6;
@@ -119,7 +123,7 @@ const Offers: React.FC = () => {
     const handleSend = async (offer: Offer) => {
         if (sendingOfferId) return;
         if (!offer.candidateId) {
-            alert('Cannot send a general offer. Please link it to a candidate first from the candidate profile.');
+            toast.error('Cannot send a general offer. Please link it to a candidate first from the candidate profile.');
             return;
         }
         try {
@@ -130,7 +134,7 @@ const Offers: React.FC = () => {
             playNotificationSound();
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to send offer');
+            toast.error(err.message || 'Failed to send offer');
         } finally {
             setSendingOfferId(null);
         }
@@ -138,13 +142,18 @@ const Offers: React.FC = () => {
 
     const handleArchive = async (offer: Offer) => {
         if (archivingOfferId) return;
-        if (!confirm('Archive this offer? It will be hidden from the main list but kept for history.')) return;
+        const ok = await confirm({
+            title: 'Archive this offer?',
+            description: 'It will be hidden from the main list but kept for history.',
+            confirmLabel: 'Archive',
+        });
+        if (!ok) return;
         try {
             setArchivingOfferId(offer.id);
             await api.offers.update(offer.id, { archived: true });
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to archive offer');
+            toast.error(err.message || 'Failed to archive offer');
         } finally {
             setArchivingOfferId(null);
         }
@@ -157,35 +166,42 @@ const Offers: React.FC = () => {
             await api.offers.update(offer.id, { archived: false });
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to restore offer');
+            toast.error(err.message || 'Failed to restore offer');
         } finally {
             setArchivingOfferId(null);
         }
     };
 
     const handleAcceptCounterOffer = async (offer: Offer) => {
-        if (!confirm('Are you sure you want to accept the counter offer terms? This will update the offer and notify the candidate.')) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Accept counter offer terms?',
+            description: 'This will update the offer and notify the candidate.',
+            confirmLabel: 'Accept',
+        });
+        if (!ok) return;
         try {
             await api.offers.acceptCounterOffer(offer.id);
-            alert('Counter offer accepted! Candidate has been notified.');
+            toast.success('Counter offer accepted! Candidate has been notified.');
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to accept counter offer');
+            toast.error(err.message || 'Failed to accept counter offer');
         }
     };
 
     const handleDeclineCounterOffer = async (offer: Offer) => {
-        if (!confirm('Are you sure you want to decline the counter offer? The original offer terms will remain, and the candidate will be notified.')) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Decline counter offer?',
+            description: 'The original offer terms will remain, and the candidate will be notified.',
+            confirmLabel: 'Decline',
+            variant: 'destructive',
+        });
+        if (!ok) return;
         try {
             await api.offers.declineCounterOffer(offer.id);
-            alert('Counter offer declined. Candidate has been notified.');
+            toast.info('Counter offer declined. Candidate has been notified.');
             await loadOffers();
         } catch (err: any) {
-            alert(err.message || 'Failed to decline counter offer');
+            toast.error(err.message || 'Failed to decline counter offer');
         }
     };
 
@@ -198,9 +214,9 @@ const Offers: React.FC = () => {
         try {
             const url = await api.offers.getSignedPdfUrl(offer.id);
             if (url) window.open(url, '_blank');
-            else alert('Signed document is not available.');
+            else toast.error('Signed document is not available.');
         } catch (err: any) {
-            alert(err.message || 'Failed to load signed document');
+            toast.error(err.message || 'Failed to load signed document');
         }
     };
 

@@ -5,6 +5,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SourcingProvider } from './contexts/SourcingContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
 import { ModalProvider, useModal } from './contexts/ModalContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
+import { DevToastTester } from './components/DevToastTester';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AIAssistantMenu } from './components/AIAssistantMenu';
@@ -440,7 +443,12 @@ const App: React.FC = () => {
         <SourcingProvider>
           <SidebarProvider>
             <ModalProvider>
-              <AppRoutes />
+              <ToastProvider>
+                <ConfirmProvider>
+                  <AppRoutes />
+                  <DevToastTester />
+                </ConfirmProvider>
+              </ToastProvider>
             </ModalProvider>
           </SidebarProvider>
         </SourcingProvider>

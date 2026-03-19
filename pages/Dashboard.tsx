@@ -59,7 +59,7 @@ const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string })
 // --- Helper Components ---
 
 const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month" }: any) => (
-    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between hover:border-gray-200 transition-colors">
+    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between shadow-sm hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-150">
         <div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
@@ -1089,7 +1089,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Upcoming Interviews</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
                 <div className="space-y-3">
                     {interviews.slice(0, 3).map((interview) => (
-                        <div key={interview.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:border-gray-300 transition-colors cursor-pointer group">
+                        <div key={interview.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:border-gray-300 hover:shadow-sm hover:bg-white transition-all duration-150 cursor-pointer group">
                             <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex flex-col items-center justify-center transition-colors"><span className="text-lg font-bold text-gray-900 leading-none">{new Date(interview.date).getDate()}</span><span className="text-[9px] text-gray-400 uppercase font-bold">{new Date(interview.date).toLocaleString('default', { month: 'short' })}</span></div>
                             <div className="flex-1 min-w-0"><p className="text-sm font-bold text-gray-900 truncate">{interview.candidateName}</p><div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5"><Clock size={12} /><span>{interview.time}</span><span className="w-1 h-1 rounded-full bg-gray-300"></span><span className="truncate">{interview.type}</span></div></div>
                         </div>
@@ -1102,7 +1102,7 @@ const Dashboard: React.FC = () => {
              <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><Plus size={16}/></Button></div>
              <div className="space-y-3">
                 {jobs.slice(0, 3).map((job) => (
-                    <div key={job.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 transition-all group bg-gray-50/30">
+                    <div key={job.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 hover:shadow-sm hover:bg-white transition-all duration-150 group bg-gray-50/30">
                         <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-sm">{job.title.charAt(0)}</div><div><p className="text-sm font-bold text-gray-900 truncate w-32">{job.title}</p><p className="text-xs text-gray-500">{job.department}</p></div></div>
                         <div className="text-right"><p className="text-sm font-bold text-gray-900">{job.applicantsCount}</p><p className="text-[9px] text-gray-500 uppercase tracking-wide">Applied</p></div>
                     </div>

@@ -3,6 +3,8 @@ import { EmailWorkflow } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
 import { Plus, Edit2, Trash2, Play, History, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 interface WorkflowListProps {
     onEdit: (workflow: EmailWorkflow) => void;
@@ -24,6 +26,8 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [canCreate, setCanCreate] = useState(true);
     const [workflowLimitInfo, setWorkflowLimitInfo] = useState<{ current: number; max: number; message?: string } | null>(null);
+    const toast = useToast();
+    const confirm = useConfirm();
 
     useEffect(() => {
         loadWorkflows();
@@ -84,7 +88,7 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
     
     const handleCreateClick = () => {
         if (!canCreate && workflowLimitInfo) {
-            alert(workflowLimitInfo.message || `You've reached your workflow limit (${workflowLimitInfo.max} workflows). Upgrade to Professional for more workflows.`);
+            toast.error(workflowLimitInfo.message || `You've reached your workflow limit (${workflowLimitInfo.max} workflows). Upgrade to Professional for more workflows.`);
             return;
         }
         onCreate();
@@ -97,24 +101,29 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             setWorkflows(workflows.map(w => w.id === workflow.id ? updated : w));
         } catch (err: any) {
             console.error('Error toggling workflow:', err);
-            alert(err.message || 'Failed to toggle workflow');
+            toast.error(err.message || 'Failed to toggle workflow');
         } finally {
             setTogglingId(null);
         }
     };
 
     const handleDelete = async (workflow: EmailWorkflow) => {
-        if (!confirm(`Are you sure you want to delete workflow "${workflow.name}"?`)) {
-            return;
-        }
+        const ok = await confirm({
+            title: `Delete "${workflow.name}"?`,
+            description: 'This workflow will be permanently removed.',
+            confirmLabel: 'Delete',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         try {
             setDeletingId(workflow.id);
             await api.workflows.delete(workflow.id);
             setWorkflows(workflows.filter(w => w.id !== workflow.id));
+            toast.success(`Workflow "${workflow.name}" deleted.`);
         } catch (err: any) {
             console.error('Error deleting workflow:', err);
-            alert(err.message || 'Failed to delete workflow');
+            toast.error(err.message || 'Failed to delete workflow');
         } finally {
             setDeletingId(null);
         }

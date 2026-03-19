@@ -8,6 +8,7 @@ import { Avatar } from './ui/Avatar';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { sanitizeError } from '../utils/edgeFunctionError';
+import { useToast } from '../contexts/ToastContext';
 
 /** Never show raw Edge Function / non-2xx errors to users. */
 function userFacingError(message: string, fallback: string): string {
@@ -31,6 +32,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     initialTime,
     editingInterviewId
 }) => {
+    const toast = useToast();
     const [search, setSearch] = useState('');
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const [meetingLink, setMeetingLink] = useState('');
@@ -183,7 +185,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 } else if (/Edge Function|non-2xx/i.test(rawMessage)) {
                     friendly = data?.error || 'We could not generate a Google Meet link. Check Settings → Integrations and connect or reconnect Google Meet, then try again.';
                 }
-                alert(userFacingError(friendly, 'We could not generate a Google Meet link. Check Settings → Integrations and try again.'));
+                toast.error(userFacingError(friendly, 'We could not generate a Google Meet link. Check Settings → Integrations and try again.'));
             } else if (data?.meetingUrl) {
                 setMeetingLink(data.meetingUrl);
             } else if (data?.error) {
@@ -192,14 +194,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 if (data.error.includes('Integration not connected')) {
                     friendly = 'Google Meet is not connected. Go to Settings → Integrations and connect Google Meet, then try again.';
                 }
-                alert(userFacingError(friendly, 'We could not generate a Google Meet link. Check Settings → Integrations and try again.'));
+                toast.error(userFacingError(friendly, 'We could not generate a Google Meet link. Check Settings → Integrations and try again.'));
             } else {
                 console.warn('No meetingUrl returned from create-meeting function:', data);
-                alert('Meeting was created but no join link was returned.');
+                toast.error('Meeting was created but no join link was returned.');
             }
         } catch (err) {
             console.error('Unexpected error generating meeting link:', err);
-            alert('Unexpected error generating meeting link. Please try again or check your integration settings.');
+            toast.error('Unexpected error generating meeting link. Please try again or check your integration settings.');
         } finally {
             setIsGenerating(false);
         }
@@ -476,7 +478,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         } catch (error: any) {
             console.error('Error scheduling interview:', error);
             const msg = userFacingError(error?.message || '', 'Something went wrong. Please try again.');
-            alert(`Failed to schedule interview: ${msg}`);
+            toast.error(`Failed to schedule interview: ${msg}`);
         } finally {
             setIsScheduling(false);
             actionInFlightRef.current = false;

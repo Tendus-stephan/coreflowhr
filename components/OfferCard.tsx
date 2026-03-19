@@ -71,7 +71,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all duration-150">
             <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">

@@ -19,6 +19,8 @@ import { createCheckoutSession, createPortalSession, PLANS } from '../services/s
 import { WorkflowList } from '../components/WorkflowList';
 import { EmailWorkflowBuilder } from '../components/EmailWorkflowBuilder';
 import { WorkflowExecutionHistory } from '../components/WorkflowExecutionHistory';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 // --- Card Brand Logo Component ---
 const CardBrandLogo = ({ brand, className = "w-14 h-9" }: { brand: string; className?: string }) => {
@@ -814,6 +816,8 @@ const Settings: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { signOut } = useAuth();
+    const toast = useToast();
+    const confirm = useConfirm();
     const [user, setUser] = useState<User | null>(null);
     const [activeTab, setActiveTab] = useState('profile');
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -1505,9 +1509,13 @@ const Settings: React.FC = () => {
     };
 
     const handleDisable2FA = async () => {
-        if (!confirm('Are you sure you want to disable two-factor authentication? This will reduce your account security.')) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Disable two-factor authentication?',
+            description: 'This will reduce your account security.',
+            confirmLabel: 'Disable 2FA',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         setIsEnabling2FA(true);
 
@@ -1529,9 +1537,13 @@ const Settings: React.FC = () => {
         const session = sessions.find(s => s.id === sessionId);
         const deviceName = session?.device || 'this device';
         
-        if (!confirm(`Are you sure you want to revoke access from ${deviceName}? The user will need to sign in again on that device.`)) {
-            return;
-        }
+        const ok = await confirm({
+            title: `Revoke access from ${deviceName}?`,
+            description: 'The user will need to sign in again on that device.',
+            confirmLabel: 'Revoke',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         setIsRevokingSession(sessionId);
 
@@ -1578,9 +1590,13 @@ const Settings: React.FC = () => {
     };
 
     const handleRevokeAllSessions = async () => {
-        if (!confirm('Are you sure you want to revoke all sessions? You will need to sign in again on all devices.')) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Revoke all sessions?',
+            description: 'You will need to sign in again on all devices.',
+            confirmLabel: 'Revoke All',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         try {
             await api.auth.revokeAllSessions();
@@ -2218,10 +2234,17 @@ const Settings: React.FC = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={async () => {
-                                                                        if (!confirm(`Remove ${member.name} from the workspace?`)) return;
+                                                                        const ok = await confirm({
+                                                                            title: `Remove ${member.name}?`,
+                                                                            description: 'They will lose access to this workspace.',
+                                                                            confirmLabel: 'Remove',
+                                                                            variant: 'destructive',
+                                                                        });
+                                                                        if (!ok) return;
                                                                         try {
                                                                             await api.workspaces.removeMember(member.userId);
                                                                             setTeamMembers(prev => prev.filter(m => m.userId !== member.userId));
+                                                                            toast.success(`${member.name} removed from workspace.`);
                                                                         } catch (error: any) {
                                                                             setTeamError(error.message || 'Failed to remove member.');
                                                                         }
@@ -2911,12 +2934,12 @@ const Settings: React.FC = () => {
                         const candidatesResult = await api.candidates.list({ page: 1, pageSize: 1 });
                         const testCandidateId = candidatesResult.data?.[0]?.id || 'test';
                         await api.workflows.test(workflowId, testCandidateId, placeholders);
-                        alert('Test email sent successfully! Check your email inbox.');
+                        toast.success('Test email sent! Check your inbox.');
                         setIsTestWorkflowModalOpen(false);
                         setTestingWorkflow(null);
                         setTestPlaceholders({});
                     } catch (err: any) {
-                        alert(err.message || 'Failed to send test email');
+                        toast.error(err.message || 'Failed to send test email');
                     } finally {
                         setIsTestingWorkflow(false);
                     }

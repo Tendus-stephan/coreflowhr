@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { FileText, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 interface CandidateNotesProps {
     candidateId: string;
@@ -18,6 +19,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const confirm = useConfirm();
 
     // Load notes
     useEffect(() => {
@@ -79,7 +81,8 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     };
 
     const handleDeleteNote = async (noteId: string) => {
-        if (!confirm('Are you sure you want to delete this note?')) return;
+        const ok = await confirm({ title: 'Delete this note?', confirmLabel: 'Delete', variant: 'destructive' });
+        if (!ok) return;
 
         try {
             setDeletingId(noteId);

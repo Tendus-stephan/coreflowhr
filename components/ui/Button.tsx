@@ -14,16 +14,16 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props 
 }) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-full font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
-  
+  const baseStyles = "inline-flex items-center justify-center rounded-full font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
+
   const variants = {
     // Primary is now Black to match branding
-    primary: "bg-gray-900 hover:bg-gray-800 text-white focus:ring-gray-900 border border-transparent",
-    black: "bg-gray-900 hover:bg-gray-800 text-white border border-gray-800 focus:ring-gray-900",
-    white: "bg-white hover:bg-gray-100 text-black border border-gray-200 focus:ring-white",
-    secondary: "bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200 focus:ring-gray-200",
-    outline: "bg-transparent border border-gray-300 text-gray-700 hover:border-gray-900 hover:text-gray-900 hover:bg-white focus:ring-gray-200",
-    ghost: "bg-transparent hover:bg-white text-gray-600 hover:text-gray-900 focus:ring-gray-200"
+    primary: "bg-gray-900 hover:bg-gray-800 active:bg-gray-950 text-white shadow-sm hover:shadow-md focus:ring-gray-500 border border-transparent",
+    black: "bg-gray-900 hover:bg-gray-800 active:bg-gray-950 text-white shadow-sm hover:shadow-md border border-gray-800 focus:ring-gray-500",
+    white: "bg-white hover:bg-gray-50 active:bg-gray-100 text-black border border-gray-200 shadow-sm hover:shadow focus:ring-gray-300",
+    secondary: "bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-900 border border-gray-200 hover:border-gray-300 focus:ring-gray-300",
+    outline: "bg-transparent border border-gray-300 text-gray-700 hover:border-gray-900 hover:text-gray-900 hover:bg-gray-50 focus:ring-gray-300",
+    ghost: "bg-transparent hover:bg-gray-100 active:bg-gray-200 text-gray-600 hover:text-gray-900 focus:ring-gray-300"
   };
 
   const sizes = {

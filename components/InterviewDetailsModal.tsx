@@ -5,6 +5,8 @@ import { X, Calendar as CalendarIcon, Clock, Video, Phone, MapPin, User, Briefca
 import { Button } from './ui/Button';
 import { api } from '../services/api';
 import { toUserError } from '../utils/edgeFunctionError';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 interface InterviewDetailsModalProps {
   interview: Interview | null;
@@ -25,6 +27,8 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
   onEdit,
   readOnly = false
 }) => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -42,9 +46,13 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
   if (!isOpen || !interview) return null;
 
   const handleCancel = async () => {
-    if (!window.confirm('Are you sure you want to cancel this interview?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Cancel this interview?',
+      description: 'This action cannot be undone.',
+      confirmLabel: 'Cancel Interview',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
     setLoading(true);
     try {
@@ -54,7 +62,7 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Error cancelling interview:', error);
-      alert(toUserError(error, 'Failed to cancel the interview. Please try again.'));
+      toast.error(toUserError(error, 'Failed to cancel the interview. Please try again.'));
     } finally {
       setLoading(false);
     }

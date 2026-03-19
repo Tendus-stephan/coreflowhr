@@ -12,7 +12,7 @@ import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { CandidateModal } from '../components/CandidateModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
-import { Toast } from '../components/ui/Toast';
+import { useToast } from '../contexts/ToastContext';
 import { BulkCVUpload } from '../components/BulkCVUpload';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Notification } from '../services/api';
@@ -179,14 +179,12 @@ const CandidateListView: React.FC<{
 // ─── Board ────────────────────────────────────────────────────────────────────
 
 const CandidateBoard: React.FC = () => {
+    const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [jobs, setJobs] = useState<Job[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showToast, setShowToast] = useState(false);
-    const [toastMessage, setToastMessage] = useState('');
-    const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('success');
 
     const [selectedJob, setSelectedJob] = useState<string>('all');
     const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All');
@@ -372,9 +370,7 @@ const CandidateBoard: React.FC = () => {
             setSelectedJob(jobId);
         }
         if (sourcing === 'started') {
-            setToastMessage('Job created! Candidate sourcing has started in the background — check back shortly.');
-            setToastType('info');
-            setShowToast(true);
+            toast.info('Job created! Candidate sourcing has started in the background — check back shortly.');
             const next = new URLSearchParams(searchParams);
             next.delete('sourcing');
             setSearchParams(next, { replace: true });
@@ -476,10 +472,7 @@ const CandidateBoard: React.FC = () => {
             const { playNotificationSound } = await import('../utils/soundUtils');
             playNotificationSound();
 
-            setToastMessage(`${updatedCandidate.name} moved to ${updatedCandidate.stage}`);
-            setToastType('success');
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
+            toast.success(`${updatedCandidate.name} moved to ${updatedCandidate.stage}`);
 
             api.settings.getSlackConnection().then((conn) => {
                 if (conn?.botToken && conn?.channelId) {
@@ -542,10 +535,7 @@ const CandidateBoard: React.FC = () => {
             } else {
                 errorMessage = `Cannot move candidate from ${candidate.stage} to ${newStage}. Invalid stage transition.`;
             }
-            setToastMessage(errorMessage);
-            setToastType('error');
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 5000);
+            toast.error(errorMessage);
             return;
         }
 
@@ -567,10 +557,7 @@ const CandidateBoard: React.FC = () => {
             await handleCandidateUpdate(updatedCandidate);
             setPendingMove(null);
         } catch (error: any) {
-            setToastMessage(toUserError(error, 'Failed to move candidate. Please try again.'));
-            setToastType('error');
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 5000);
+            toast.error(toUserError(error, 'Failed to move candidate. Please try again.'));
         } finally {
             setIsMoving(false);
         }
@@ -596,15 +583,9 @@ const CandidateBoard: React.FC = () => {
             const updatedCandidate = await api.candidates.update(pendingMove.candidateId, { stage: pendingMove.toStage });
             await handleCandidateUpdate(updatedCandidate);
             setPendingMove(null);
-            setToastMessage('Candidate moved to Screening and email sent.');
-            setToastType('success');
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 4000);
+            toast.success('Candidate moved to Screening and email sent.');
         } catch (error: any) {
-            setToastMessage(toUserError(error, 'Failed to move candidate. Please try again.'));
-            setToastType('error');
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 5000);
+            toast.error(toUserError(error, 'Failed to move candidate. Please try again.'));
         } finally {
             setIsMoving(false);
         }
@@ -713,7 +694,7 @@ const CandidateBoard: React.FC = () => {
                             try {
                                 const exportCheck = await api.plan.canExportCandidates(filteredCandidates.length);
                                 if (!exportCheck.allowed) {
-                                    alert(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export.`);
+                                    toast.error(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export.`);
                                     return;
                                 }
                                 const csvContent = [
@@ -734,7 +715,7 @@ const CandidateBoard: React.FC = () => {
                                 document.body.removeChild(link);
                                 URL.revokeObjectURL(url);
                             } catch {
-                                alert('Failed to export candidates. Please try again.');
+                                toast.error('Failed to export candidates. Please try again.');
                             }
                         }}
                     >
@@ -952,8 +933,6 @@ const CandidateBoard: React.FC = () => {
                 document.body
             )}
 
-            <Toast message={toastMessage} type={toastType} isVisible={showToast} onClose={() => setShowToast(false)} />
-
             {/* Reject / Delete confirmation dialog */}
             {pendingAction && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
@@ -988,9 +967,7 @@ const CandidateBoard: React.FC = () => {
                                         }
                                         setPendingAction(null);
                                     } catch (err: any) {
-                                        setToastMessage(toUserError(err, `Failed to ${pendingAction.type} candidate`));
-                                        setToastType('error');
-                                        setShowToast(true);
+                                        toast.error(toUserError(err, `Failed to ${pendingAction.type} candidate`));
                                         setPendingAction(null);
                                     } finally {
                                         setPendingActionLoading(false);
@@ -1015,9 +992,7 @@ const CandidateBoard: React.FC = () => {
                     onImported={async (count: number) => {
                         const result = await api.candidates.list({ page: 1, pageSize: 1000 });
                         setCandidates(result.data || []);
-                        setToastMessage(`${count} CV${count !== 1 ? 's' : ''} imported successfully`);
-                        setToastType('success');
-                        setShowToast(true);
+                        toast.success(`${count} CV${count !== 1 ? 's' : ''} imported successfully`);
                     }}
                 />
             )}

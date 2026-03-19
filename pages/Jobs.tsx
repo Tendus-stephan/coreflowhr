@@ -11,6 +11,8 @@ import { NotificationDropdown } from '../components/NotificationDropdown';
 import { CandidateModal } from '../components/CandidateModal';
 import { api, Notification } from '../services/api';
 import { supabase } from '../services/supabase';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 // --- Job Settings Modal ---
 const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: boolean, onClose: () => void }) => {
@@ -632,6 +634,8 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
 
 const Jobs: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -770,19 +774,24 @@ const Jobs: React.FC = () => {
               setJobToClose(job);
               break;
           case 'delete':
-              // Show confirmation before deleting
-              if (window.confirm(`Are you sure you want to delete "${job.title}"? This action cannot be undone and will also remove all associated candidates.`)) {
-                  api.jobs.delete(job.id)
-                      .then(async () => {
-                          setJobs(prev => prev.filter(j => j.id !== job.id));
-                          const { playNotificationSound } = await import('../utils/soundUtils');
-                          playNotificationSound();
-                      })
-                      .catch((error: any) => {
-                          console.error('Error deleting job:', error);
-                          alert(error.message || 'Failed to delete job. Please try again.');
-                      });
-              }
+              confirm({
+                  title: `Delete "${job.title}"?`,
+                  description: 'This action cannot be undone and will also remove all associated candidates.',
+                  confirmLabel: 'Delete Job',
+                  variant: 'destructive',
+              }).then(async (confirmed) => {
+                  if (!confirmed) return;
+                  try {
+                      await api.jobs.delete(job.id);
+                      setJobs(prev => prev.filter(j => j.id !== job.id));
+                      const { playNotificationSound } = await import('../utils/soundUtils');
+                      playNotificationSound();
+                      toast.success(`"${job.title}" deleted.`);
+                  } catch (error: any) {
+                      console.error('Error deleting job:', error);
+                      toast.error(error.message || 'Failed to delete job. Please try again.');
+                  }
+              });
               break;
       }
   };
@@ -805,7 +814,7 @@ const Jobs: React.FC = () => {
           setJobToClose(null);
       } catch (error: any) {
           console.error('Error closing job:', error);
-          alert(error.message || 'Failed to close job. Please try again.');
+          toast.error(error.message || 'Failed to close job. Please try again.');
       } finally {
           setClosingJob(false);
       }
@@ -976,7 +985,7 @@ const Jobs: React.FC = () => {
           currentJobs.map((job) => (
             <div
               key={job.id}
-              className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] px-5 py-3.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer group items-center"
+              className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] px-5 py-3.5 border-b border-gray-100 last:border-0 hover:bg-gray-50 hover:shadow-[inset_3px_0_0_theme(colors.gray.900)] transition-all duration-150 cursor-pointer group items-center"
               onClick={() => setSelectedJob(job)}
             >
               {/* Role */}

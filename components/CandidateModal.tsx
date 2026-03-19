@@ -17,6 +17,8 @@ import { OfferCard } from './OfferCard';
 import { supabase } from '../services/supabase';
 import { Plus } from 'lucide-react';
 import { useModal } from '../contexts/ModalContext';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -29,6 +31,8 @@ interface CandidateModalProps {
 
 export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpen, onClose, onUpdate, initialActiveTab, initialEmailSubTab }) => {
   const { setCandidateModalOpen } = useModal();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   // Update modal context when modal opens/closes (and reset when unmounting so AI button shows on other pages)
   useEffect(() => {
@@ -271,9 +275,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       try {
           const usage = await api.plan.getAiAnalysisUsage();
           if (!usage.remaining || usage.remaining <= 0) {
-              alert(
-                `You've reached your monthly AI analysis limit (${usage.max} analyses). ` +
-                `Your quota will reset next month.`
+              toast.error(
+                `You've reached your monthly AI analysis limit (${usage.max} analyses). Your quota will reset next month.`
               );
               return;
           }
@@ -461,7 +464,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           
           if (!screeningWorkflow) {
               const errorMessage = 'Please create and enable a Screening workflow in Settings > Email Workflows before generating outreach messages. Candidates who register their email need to receive a CV upload email automatically.';
-              alert(errorMessage);
+              toast.error(errorMessage);
               throw new Error(errorMessage);
           }
           
@@ -737,7 +740,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                          document.body.removeChild(a);
                                      } catch (error: any) {
                                          console.error('Error downloading CV:', error);
-                                         alert(`Failed to download CV: ${error.message || 'Please try again.'}`);
+                                         toast.error(`Failed to download CV: ${error.message || 'Please try again.'}`);
                                      }
                                  }}
                                  className="flex items-center gap-1.5 text-xs font-medium bg-gray-100 px-3 py-1 rounded-md text-gray-700 hover:bg-gray-200 transition-colors"
@@ -1585,13 +1588,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                         const offers = await api.offers.list({ generalOnly: true });
                                         
                                         if (offers.length === 0) {
-                                            alert('No general offers available. Create a general offer from the Offers tab first.');
+                                            toast.error('No general offers available. Create a general offer from the Offers tab first.');
                                             setLoadingGeneralOffers(false);
                                             return;
                                         }
-                                        
+
                                         setGeneralOffers(offers);
-                                        
+
                                         // Load jobs for all offers
                                         const jobs: Record<string, Job> = {};
                                         for (const offer of offers) {
@@ -1603,10 +1606,11 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             }
                                         }
                                         setJobsMap(jobs);
-                                        
+
                                         // Auto-link if only one, otherwise show modal
                                         if (offers.length === 1) {
-                                            if (confirm(`Link "${offers[0].positionTitle}" offer to ${candidate.name}?`)) {
+                                            const ok = await confirm({ title: `Link "${offers[0].positionTitle}" offer to ${candidate.name}?`, confirmLabel: 'Link' });
+                                            if (ok) {
                                                 await api.offers.linkToCandidate(offers[0].id, candidate.id);
                                                 const data = await api.offers.list({ candidateId: candidate.id });
                                                 setOffers(data);
@@ -1620,7 +1624,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             setLoadingGeneralOffers(false);
                                         }
                                     } catch (err: any) {
-                                        alert(err.message || 'Failed to load general offers');
+                                        toast.error(err.message || 'Failed to load general offers');
                                         setLoadingGeneralOffers(false);
                                     }
                                 }}
@@ -1664,13 +1668,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             const offers = await api.offers.list({ generalOnly: true });
                                             
                                             if (offers.length === 0) {
-                                                alert('No general offers available. Create a general offer from the Offers tab first.');
+                                                toast.error('No general offers available. Create a general offer from the Offers tab first.');
                                                 setLoadingGeneralOffers(false);
                                                 return;
                                             }
-                                            
+
                                             setGeneralOffers(offers);
-                                            
+
                                             // Load jobs for all offers
                                             const jobs: Record<string, Job> = {};
                                             for (const offer of offers) {
@@ -1682,10 +1686,11 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 }
                                             }
                                             setJobsMap(jobs);
-                                            
+
                                             // Auto-link if only one, otherwise show modal
                                             if (offers.length === 1) {
-                                                if (confirm(`Link "${offers[0].positionTitle}" offer to ${candidate.name}?`)) {
+                                                const ok = await confirm({ title: `Link "${offers[0].positionTitle}" offer to ${candidate.name}?`, confirmLabel: 'Link' });
+                                                if (ok) {
                                                     await api.offers.linkToCandidate(offers[0].id, candidate.id);
                                                     const data = await api.offers.list({ candidateId: candidate.id });
                                                     setOffers(data);
@@ -1699,7 +1704,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 setLoadingGeneralOffers(false);
                                             }
                                         } catch (err: any) {
-                                            alert(err.message || 'Failed to load general offers');
+                                            toast.error(err.message || 'Failed to load general offers');
                                             setLoadingGeneralOffers(false);
                                         }
                                     }}
@@ -1733,7 +1738,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             const data = await api.offers.list({ candidateId: candidate.id });
                                             setOffers(data);
                                         } catch (err: any) {
-                                            alert(err.message || 'Failed to send offer');
+                                            toast.error(err.message || 'Failed to send offer');
                                         } finally {
                                             setSendingOfferId(null);
                                         }
@@ -1743,9 +1748,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                         try {
                                             const url = await api.offers.getSignedPdfUrl(o.id);
                                             if (url) window.open(url, '_blank');
-                                            else alert('Signed document is not available.');
+                                            else toast.error('Signed document is not available.');
                                         } catch (err: any) {
-                                            alert(err.message || 'Failed to load signed document');
+                                            toast.error(err.message || 'Failed to load signed document');
                                         }
                                     }}
                                 />
@@ -1765,7 +1770,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 icon={<Calendar size={16} />}
                                 onClick={() => {
                                   if (candidate.stage !== CandidateStage.INTERVIEW) {
-                                    window.alert('Only candidates in the Interview stage can have interviews scheduled. Move this candidate to the Interview stage first.');
+                                    toast.info('Only candidates in the Interview stage can have interviews scheduled. Move this candidate to the Interview stage first.');
                                     return;
                                   }
                                   setIsScheduleOpen(true);
@@ -1874,7 +1879,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                           const { playNotificationSound } = await import('../utils/soundUtils');
                           playNotificationSound();
                         } catch (err: any) {
-                          alert(err.message || 'Failed to link offer');
+                          toast.error(err.message || 'Failed to link offer');
                         }
                       }}
                       className="w-full text-left p-4 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-all"
