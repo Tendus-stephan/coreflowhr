@@ -2053,6 +2053,22 @@ const Settings: React.FC = () => {
                                             )}
                                         </label>
                                         {logoUploadError && <p className="text-xs text-red-600">{logoUploadError}</p>}
+                                        {workspaceInfo?.companyLogoUrl && !isUploadingLogo && (
+                                            <button
+                                                onClick={async () => {
+                                                    if (!workspaceInfo) return;
+                                                    try {
+                                                        await api.workspaces.updateWorkspace({ companyLogoUrl: null });
+                                                        setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: undefined } : null);
+                                                    } catch (err: any) {
+                                                        setLogoUploadError(err?.message || 'Failed to remove logo');
+                                                    }
+                                                }}
+                                                className="text-xs text-red-500 hover:text-red-700 transition-colors mt-1"
+                                            >
+                                                Remove logo
+                                            </button>
+                                        )}
                                     </div>
                                     {/* Preview as in offer header */}
                                     <div className="rounded-lg bg-[#1e3a5f] px-4 py-3 flex items-center min-h-[50px] max-w-[220px]">

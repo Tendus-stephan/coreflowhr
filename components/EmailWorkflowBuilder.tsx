@@ -21,10 +21,8 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
     const [name, setName] = useState('');
     const [triggerStage, setTriggerStage] = useState<CandidateStage>(CandidateStage.SCREENING);
     const [emailTemplateId, setEmailTemplateId] = useState('');
-    const [minMatchScore, setMinMatchScore] = useState<number | undefined>(undefined);
     const [sourceFilter, setSourceFilter] = useState<string[]>([]);
     const [enabled, setEnabled] = useState(true);
-    const [delayMinutes, setDelayMinutes] = useState(0);
     
     const [templates, setTemplates] = useState<EmailTemplate[]>([]);
     const [loading, setLoading] = useState(false);
@@ -50,19 +48,15 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                 setName(workflow.name);
                 setTriggerStage(workflow.triggerStage);
                 setEmailTemplateId(workflow.emailTemplateId);
-                setMinMatchScore(workflow.minMatchScore);
                 setSourceFilter(workflow.sourceFilter || []);
                 setEnabled(workflow.enabled);
-                setDelayMinutes(workflow.delayMinutes);
             } else {
                 // Creating new workflow
                 setName('');
                 setTriggerStage(CandidateStage.SCREENING); // Default to Screening (New stage workflows are disabled)
                 setEmailTemplateId('');
-                setMinMatchScore(undefined);
                 setSourceFilter([]);
                 setEnabled(true);
-                setDelayMinutes(0);
             }
             setError(null);
         }
@@ -190,10 +184,9 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                     name: name.trim(),
                     triggerStage,
                     emailTemplateId,
-                    minMatchScore: minMatchScore || undefined,
                     sourceFilter: sourceFilter.length > 0 ? sourceFilter : undefined,
                     enabled,
-                    delayMinutes
+                    delayMinutes: 0,
                 });
             } else {
                 // Create new workflow
@@ -201,10 +194,9 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                     name: name.trim(),
                     triggerStage,
                     emailTemplateId,
-                    minMatchScore: minMatchScore || undefined,
                     sourceFilter: sourceFilter.length > 0 ? sourceFilter : undefined,
                     enabled,
-                    delayMinutes
+                    delayMinutes: 0,
                 });
             }
 
@@ -311,22 +303,9 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                         )}
                     </div>
 
-                    {/* Conditions */}
+                    {/* Filters */}
                     <div className="space-y-4 pt-3 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Conditions (Optional)</p>
-
-                        <div>
-                            {fieldLabel('Min AI Match Score')}
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={minMatchScore || ''}
-                                onChange={(e) => setMinMatchScore(e.target.value ? parseInt(e.target.value) : undefined)}
-                                placeholder="e.g., 70 — leave empty for no minimum"
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-gray-400 transition-colors"
-                            />
-                        </div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filters (Optional)</p>
 
                         <div>
                             {fieldLabel('Source Filter')}
@@ -358,18 +337,6 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                     {/* Settings */}
                     <div className="space-y-4 pt-3 border-t border-gray-100">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</p>
-
-                        <div>
-                            {fieldLabel('Delay Before Sending (minutes)')}
-                            <input
-                                type="number"
-                                min="0"
-                                value={delayMinutes}
-                                onChange={(e) => setDelayMinutes(Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-gray-400 transition-colors"
-                            />
-                            <p className="text-xs text-gray-400 mt-1">0 = send immediately</p>
-                        </div>
 
                         <label className="flex items-center gap-2.5 cursor-pointer">
                             <input
