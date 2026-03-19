@@ -18,3 +18,9 @@ verify_jwt = false
 [functions.receive-candidate-email]
 verify_jwt = false
 
+# send-email is called server-to-server from other edge functions (service role JWT
+# fails Supabase's function gateway verification). The function validates its own
+# inputs (requires to/subject/content) and uses its own Resend API key internally.
+[functions.send-email]
+verify_jwt = false
+

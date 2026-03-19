@@ -40,6 +40,7 @@ export type NotificationType =
     | 'integration_connected'
     | 'integration_disconnected'
     | 'interview_scheduled'
+    | 'interview_cancelled'
     | 'interview_feedback_reminder'
     | 'interview_reminder'
     | 'job_expired'
@@ -101,6 +102,12 @@ export const notificationTypes: Record<NotificationType, NotificationTypeConfig>
         icon: Calendar,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50',
+        category: 'job'
+    },
+    interview_cancelled: {
+        icon: CalendarX,
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
         category: 'job'
     },
     interview_feedback_reminder: {

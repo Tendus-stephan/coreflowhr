@@ -7,6 +7,29 @@ import {
 import { Avatar } from './ui/Avatar';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
+import { supabase } from '../services/supabase';
+
+// Map notification types to nav paths
+const NAV_TYPE_MAP: Record<string, string> = {
+  candidate_added: '/candidates',
+  cv_parsed: '/candidates',
+  candidate_graded: '/candidates',
+  candidate_moved: '/candidates',
+  new_application: '/jobs',
+  job_status_update: '/jobs',
+  assessment_completed: '/jobs',
+  recruitment_reminder: '/jobs',
+  job_expired: '/jobs',
+  sourcing_complete: '/jobs',
+  sourcing_failed: '/jobs',
+  interview_scheduled: '/calendar',
+  interview_cancelled: '/calendar',
+  interview_reminder: '/calendar',
+  interview_feedback_reminder: '/calendar',
+  offer_accepted: '/offers',
+  offer_declined: '/offers',
+  counter_offer_received: '/offers',
+};
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -19,6 +42,7 @@ const Sidebar: React.FC = () => {
   const [userRole, setUserRole] = useState<string>('');
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [workspaceName, setWorkspaceName] = useState<string>('');
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   const roleLabel = userRole === 'HiringManager' ? 'Hiring Manager' : userRole;
   const isAuthenticated = user && session;
@@ -49,6 +73,35 @@ const Sidebar: React.FC = () => {
     return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
   }, [user]);
 
+  // Notification badges: subscribe to unread counts per nav section
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchBadges = async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('type')
+        .eq('user_id', user.id)
+        .eq('unread', true);
+
+      const counts: Record<string, number> = {};
+      for (const n of data || []) {
+        const path = NAV_TYPE_MAP[n.type as string];
+        if (path) counts[path] = (counts[path] || 0) + 1;
+      }
+      setBadgeCounts(counts);
+    };
+
+    fetchBadges();
+
+    const channel = supabase
+      .channel(`sidebar-notifs-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, fetchBadges)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node))
@@ -76,26 +129,32 @@ const Sidebar: React.FC = () => {
   const NavLink = ({ item }: { item: { name: string; path: string; icon: React.ElementType } }) => {
     const isActive = location.pathname === item.path ||
       (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+    const count = badgeCounts[item.path] || 0;
     return (
       <Link
         to={item.path}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-100 ${
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100 ${
           isActive
-            ? 'bg-gray-100 text-gray-900'
-            : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+            ? 'bg-gray-100/80 text-gray-900'
+            : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100/50'
         }`}
       >
         <item.icon
-          size={16}
+          size={14}
           className={`flex-shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
         />
-        {item.name}
+        <span className="flex-1">{item.name}</span>
+        {count > 0 && (
+          <span className="flex-shrink-0 min-w-[18px] h-[18px] flex items-center justify-center bg-blue-500 text-white text-[10px] font-bold rounded-full px-1 leading-none">
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
       </Link>
     );
   };
 
   return (
-    <div className="w-[240px] bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 bottom-0 z-20 hidden md:flex select-none">
+    <div className="w-[240px] bg-gray-50 border-r border-gray-200 flex flex-col fixed top-0 left-0 bottom-0 z-20 hidden md:flex select-none">
 
       {/* Logo */}
       <div className="px-5 pt-6 pb-3 flex-shrink-0">
@@ -112,7 +171,7 @@ const Sidebar: React.FC = () => {
       {/* Workspace */}
       {workspaceName && (
         <div className="px-3 pb-3 flex-shrink-0">
-          <div className="flex items-center gap-2.5 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg">
+          <div className="flex items-center gap-2.5 px-3 py-2 bg-white border border-gray-200 rounded-lg">
             <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center flex-shrink-0">
               <span className="text-[9px] font-bold text-white">{workspaceName.charAt(0).toUpperCase()}</span>
             </div>
@@ -131,16 +190,16 @@ const Sidebar: React.FC = () => {
 
       {/* Settings — separated at bottom */}
       <div className="px-3 pb-2 flex-shrink-0">
-        <div className="h-px bg-gray-100 mb-2" />
+        <div className="h-px bg-gray-200 mb-2" />
         <NavLink item={{ name: 'Settings', path: '/settings', icon: Settings }} />
       </div>
 
       {/* Profile */}
-      <div className="px-3 pb-3 border-t border-gray-100 pt-2 relative flex-shrink-0" ref={profileRef}>
+      <div className="px-3 pb-3 border-t border-gray-200 pt-2 relative flex-shrink-0" ref={profileRef}>
         <div
           onClick={() => setIsProfileOpen(!isProfileOpen)}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-            isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-50'
+            isProfileOpen ? 'bg-gray-100' : 'hover:bg-gray-100/60'
           }`}
         >
           <Avatar
@@ -150,7 +209,7 @@ const Sidebar: React.FC = () => {
           />
           <div className="flex-1 min-w-0">
             {!profileLoaded ? (
-              <div className="h-2.5 w-20 bg-gray-100 rounded animate-pulse" />
+              <div className="h-2.5 w-20 bg-gray-200 rounded animate-pulse" />
             ) : (
               <>
                 <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">

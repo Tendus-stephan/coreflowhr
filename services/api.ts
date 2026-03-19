@@ -1294,8 +1294,8 @@ export const api = {
             let allCandidates = candidatesResult.data || [];
             const hiredActivityLog = activityResult.data || [];
             
-            // Filter out test data: exclude jobs with is_test = true or [TEST] prefix, and candidates with is_test = true
-            allJobs = allJobs.filter(j => !j.is_test && !j.title?.startsWith('[TEST]'));
+            // Filter out test data and internal sentinel jobs
+            allJobs = allJobs.filter(j => !j.is_test && !j.title?.startsWith('[TEST]') && j.title !== '__candidate_pool__');
             allCandidates = allCandidates.filter(c => !c.is_test);
             
             // Get IDs of closed jobs
@@ -1519,6 +1519,7 @@ export const api = {
                 .from('notifications')
                 .select('*')
                 .eq('user_id', userId)
+                .neq('type', 'weekly_digest')
                 .order('created_at', { ascending: false })
                 .limit(50);
 
@@ -2729,6 +2730,21 @@ export const api = {
                         console.error('Error creating CV submitted notification:', notifError);
                     }
 
+                    // Best-effort: notify recruiter of updated application via email
+                    try {
+                        await supabase.functions.invoke('send-new-application-email', {
+                            body: {
+                                recruiterId: job.user_id,
+                                candidateName: applicationData.name,
+                                jobTitle: job.title,
+                                aiScore: matchScore ?? null,
+                                skills: extractedSkills.slice(0, 5),
+                                source: 'direct_application',
+                                candidateId: existingCandidate.id,
+                            },
+                        });
+                    } catch (_) { /* non-critical */ }
+
                     // Send confirmation email to candidate
                     try {
                         await supabase.functions.invoke('send-email', {
@@ -2836,6 +2852,21 @@ export const api = {
                     } catch (notifError) {
                         console.error('Error creating CV submitted notification:', notifError);
                     }
+
+                    // Best-effort: notify recruiter of new application via email
+                    try {
+                        await supabase.functions.invoke('send-new-application-email', {
+                            body: {
+                                recruiterId: job.user_id,
+                                candidateName: applicationData.name,
+                                jobTitle: job.title,
+                                aiScore: matchScore ?? null,
+                                skills: extractedSkills.slice(0, 5),
+                                source: 'direct_application',
+                                candidateId: newCandidate.id,
+                            },
+                        });
+                    } catch (_) { /* non-critical */ }
 
                     // Send confirmation email to candidate
                     try {
@@ -3806,6 +3837,30 @@ export const api = {
             const { data: afterSync } = await supabase.from('interviews').select('meeting_link, calendar_sync_status, google_event_id').eq('id', interview.id).single();
             const updatedMeetingLink = afterSync?.meeting_link ?? interview.meeting_link;
 
+            // In-app notification: interview scheduled
+            try {
+                const candidateName = (interview as any).candidates?.name || 'Unknown';
+                const { createNotification } = await import('./notificationHelpers');
+                await createNotification(userId, 'interview_scheduled', 'Interview Scheduled', `${candidateName} – ${interviewData.jobTitle} on ${interviewData.date} at ${interviewData.time}`);
+            } catch (_) { /* non-critical */ }
+
+            // Best-effort: notify recruiter of scheduled interview via email
+            try {
+                await supabase.functions.invoke('send-interview-notification-email', {
+                    body: {
+                        recruiterId: userId,
+                        action: 'scheduled',
+                        candidateName: (interview as any).candidates?.name || 'Unknown',
+                        jobTitle: interviewData.jobTitle,
+                        date: interviewData.date,
+                        time: interviewData.time,
+                        type: interviewData.type,
+                        durationMinutes: interviewData.durationMinutes || 60,
+                        meetingLink: updatedMeetingLink || interviewData.meetingLink || null,
+                    },
+                });
+            } catch (_) { /* non-critical */ }
+
             return {
                 id: interview.id,
                 candidateId: interview.candidate_id,
@@ -4278,7 +4333,7 @@ export const api = {
             // Get current interview data first
             const { data: interview } = await supabase
                 .from('interviews')
-                .select('notes')
+                .select('notes, job_title, date, time, type, candidates!inner(name)')
                 .eq('id', interviewId)
                 .eq('user_id', userId)
                 .single();
@@ -4302,6 +4357,30 @@ export const api = {
             } catch (_) {
                 // Calendar sync is best-effort
             }
+
+            // In-app notification: interview cancelled
+            try {
+                const cancelledCandidateName = (interview as any)?.candidates?.name || 'Unknown';
+                const { createNotification } = await import('./notificationHelpers');
+                await createNotification(userId, 'interview_cancelled', 'Interview Cancelled', `${cancelledCandidateName} – ${interview?.job_title || 'Unknown'} (was ${interview?.date || ''})`);
+            } catch (_) { /* non-critical */ }
+
+            // Best-effort: notify recruiter of cancellation via email
+            try {
+                await supabase.functions.invoke('send-interview-notification-email', {
+                    body: {
+                        recruiterId: userId,
+                        action: 'cancelled',
+                        candidateName: (interview as any)?.candidates?.name || 'Unknown',
+                        jobTitle: interview?.job_title || 'Unknown',
+                        date: interview?.date || '',
+                        time: interview?.time || '',
+                        type: interview?.type || 'Interview',
+                        durationMinutes: 60,
+                        meetingLink: null,
+                    },
+                });
+            } catch (_) { /* non-critical */ }
         },
         getUpcoming: async (days: number = 7): Promise<Interview[]> => {
             const userId = await getUserId();
