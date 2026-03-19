@@ -112,7 +112,7 @@ const Calendar: React.FC = () => {
     const numWeeks = gridDays.length / 7;
 
     return (
-        <div className="flex flex-col bg-white" style={{ height: '100%', minHeight: 0 }}>
+        <div className="flex flex-col bg-white" style={{ height: '100vh', minHeight: 0, overflow: 'hidden' }}>
 
             {/* ── Header ── */}
             <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-100 flex items-center justify-between gap-4">
@@ -175,7 +175,7 @@ const Calendar: React.FC = () => {
                     {/* Grid cells */}
                     <div
                         className="flex-1 grid grid-cols-7 overflow-hidden"
-                        style={{ gridTemplateRows: `repeat(${numWeeks}, 1fr)` }}
+                        style={{ gridTemplateRows: `repeat(${numWeeks}, minmax(100px, 1fr))` }}
                     >
                         {gridDays.map(day => {
                             const key = format(day, 'yyyy-MM-dd');
