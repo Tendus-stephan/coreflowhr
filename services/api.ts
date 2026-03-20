@@ -3373,14 +3373,13 @@ export const api = {
         getNotes: async (candidateId: string): Promise<Note[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            // Verify candidate belongs to user
-            const { data: candidate } = await supabase
-                .from('candidates')
-                .select('id')
-                .eq('id', candidateId)
-                .eq('user_id', userId)
-                .single();
+            // Verify candidate is accessible to this user (workspace-scoped)
+            const candidateQuery = workspaceId
+                ? supabase.from('candidates').select('id').eq('id', candidateId).eq('workspace_id', workspaceId)
+                : supabase.from('candidates').select('id').eq('id', candidateId).eq('user_id', userId);
+            const { data: candidate } = await candidateQuery.single();
 
             if (!candidate) throw new Error('Candidate not found');
 
@@ -3560,13 +3559,12 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Verify candidate belongs to user
-            const { data: candidate, error: candidateError } = await supabase
-                .from('candidates')
-                .select('id, user_id')
-                .eq('id', candidateId)
-                .eq('user_id', userId)
-                .single();
+            // Verify candidate is accessible to this user (workspace-scoped)
+            const wsId = await getCurrentWorkspaceId();
+            const tokenCandidateQuery = wsId
+                ? supabase.from('candidates').select('id, user_id').eq('id', candidateId).eq('workspace_id', wsId)
+                : supabase.from('candidates').select('id, user_id').eq('id', candidateId).eq('user_id', userId);
+            const { data: candidate, error: candidateError } = await tokenCandidateQuery.single();
 
             if (candidateError || !candidate) {
                 throw new Error('Candidate not found or access denied');
