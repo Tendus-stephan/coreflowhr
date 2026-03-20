@@ -73,10 +73,8 @@ function sanitizeHtml(html: string): string {
 
 // Professional email template: compact layout, no excess whitespace, table-based for client compatibility
 function createEmailTemplate(content: string, logoUrl: string, companyName: string, companyWebsite: string, recipientEmail?: string): string {
-  // Use image logo only when a real URL is explicitly configured via LOGO_URL secret.
-  // Otherwise render a text wordmark — always works, no broken image risk.
-  const isRealLogoUrl = logoUrl && !logoUrl.includes('coreflowhr.com/assets/images/coreflow-logo.png');
-  const logoHtml = isRealLogoUrl
+  // Always render the CoreflowHR logo image. Text fallback only if no URL provided.
+  const logoHtml = logoUrl
     ? `<img src="${logoUrl}" alt="${companyName}" width="160" style="display:block;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />`
     : `<a href="${companyWebsite}" style="text-decoration:none;"><span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.5px;">CoreflowHR</span></a>`;
 
@@ -317,52 +315,11 @@ serve(async (req) => {
     // It does NOT escape HTML - it preserves valid HTML like <a>, <p>, style attributes, etc.
     htmlContent = sanitizeHtml(htmlContent);
 
-    // Wrap content in branded email template
-    // System emails (invites, email-change) always use the CoreflowHR platform logo.
-    // Candidate-facing emails use the workspace company logo if one is set.
-    const systemEmailTypes = ['WorkspaceInvite', 'EmailChange', 'PasswordReset', 'WeeklyDigest'];
-    const isSystemEmail = systemEmailTypes.includes(emailType || '');
-
-    let logoUrl = Deno.env.get('LOGO_URL') || 'https://coreflowhr.com/assets/images/coreflow-logo.png';
-
-    if (!isSystemEmail) {
-      try {
-        const authHeader = req.headers.get('authorization');
-        if (authHeader) {
-          const token = authHeader.replace('Bearer ', '');
-          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-          const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-          if (supabaseServiceKey) {
-            const supabase = createClient(supabaseUrl, supabaseServiceKey);
-            const { data: { user } } = await supabase.auth.getUser(token);
-            if (user?.id) {
-              const { data: membership } = await supabase
-                .from('workspace_members')
-                .select('workspaces(company_logo_url)')
-                .eq('user_id', user.id)
-                .maybeSingle();
-              const wsLogoUrl = (membership as any)?.workspaces?.company_logo_url;
-              if (wsLogoUrl) logoUrl = wsLogoUrl;
-            }
-          }
-        }
-      } catch (_) {
-        // Non-critical — keep default logo on any error
-      }
-    }
-
-    // Ensure logo URL uses HTTPS (email clients block HTTP images)
-    if (logoUrl.startsWith('http://')) {
-      logoUrl = logoUrl.replace('http://', 'https://');
-    }
-
-    console.log('[Email Send] Logo URL configured', {
-      logoUrl,
-      isSupabaseStorage: logoUrl.includes('supabase.co/storage'),
-      timestamp: new Date().toISOString()
-    });
-    const companyName = Deno.env.get('FROM_NAME') || 'CoreFlow';
+    // All emails sent through this function (candidate comms, system emails) always use
+    // the CoreflowHR platform logo. The workspace company logo is reserved exclusively
+    // for signed offer letter PDFs (send-offer-with-esignature / generate-offer-pdf).
+    const logoUrl = 'https://coreflowhr.com/assets/images/coreflow-logo.png';
+    const companyName = 'CoreflowHR';
     const companyWebsite = Deno.env.get('COMPANY_WEBSITE') || 'https://coreflowhr.com';
     
     htmlContent = createEmailTemplate(htmlContent, logoUrl, companyName, companyWebsite, to);
