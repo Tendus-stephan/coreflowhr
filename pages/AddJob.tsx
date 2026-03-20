@@ -7,6 +7,7 @@ import { CustomSelect } from '../components/ui/CustomSelect';
 import { api } from '../services/api';
 import type { JobTemplate } from '../types';
 import { toUserError } from '../utils/edgeFunctionError';
+import { useToast } from '../contexts/ToastContext';
 
 const BUILTIN_TEMPLATES: Array<{ name: string; title: string; department: string; location: string; type: 'Full-time' | 'Contract' | 'Part-time'; skills: string; description: string; remote: boolean }> = [
   { name: 'Software Engineer', title: 'Software Engineer', department: 'Engineering', location: '', type: 'Full-time', skills: 'JavaScript, TypeScript, React, Node.js', description: 'We are looking for a software engineer to build and maintain our products.', remote: false },
@@ -80,10 +81,12 @@ const AddJob: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const isEditing = !!id;
+  const toast = useToast();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<{
     title: string; company: string; location: string;
@@ -140,7 +143,7 @@ const AddJob: React.FC = () => {
           });
         }
       } catch {
-        alert('Failed to load job. Redirecting...');
+        toast.error('Failed to load job. Redirecting...');
         navigate('/jobs');
       } finally { setLoading(false); }
     };
@@ -155,10 +158,14 @@ const AddJob: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) setFieldErrors(prev => { const next = { ...prev }; delete next[name]; return next; });
   };
 
   const handleSaveDraft = async () => {
-    if (!formData.title?.trim()) { alert('Please enter a job title'); return; }
+    if (!formData.title?.trim()) {
+      setFieldErrors({ title: 'Title is required' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
@@ -168,32 +175,32 @@ const AddJob: React.FC = () => {
         await api.jobs.create({ ...formData, skills: skillsArray, status: 'Draft', clientId: formData.clientId || undefined });
       }
       navigate('/jobs');
-    } catch (e: any) { console.error('Save draft error:', e); alert(toUserError(e, 'Failed to save draft. Please try again.')); }
+    } catch (e: any) { console.error('Save draft error:', e); toast.error(toUserError(e, 'Failed to save draft. Please try again.')); }
     finally { setIsSubmitting(false); }
   };
 
   const handlePost = async () => {
-    if (!formData.title?.trim()) { alert('Please enter a job title'); return; }
-    if (!formData.clientId) { alert('Please select a client'); return; }
-    if (!formData.company?.trim()) { alert('Please enter a company name'); return; }
-    if (!formData.location?.trim()) { alert('Please enter a location'); return; }
-    if (!formData.salary?.trim()) { alert('Please enter a salary range'); return; }
-    if (!formData.skills?.trim()) { alert('Please enter required skills'); return; }
-    if (!formData.description?.trim()) { alert('Please enter a job description'); return; }
+    const errors: Record<string, string> = {};
+    if (!formData.title?.trim()) errors.title = 'Title is required';
+    if (!formData.clientId) errors.clientId = 'Please select a client';
+    if (!formData.company?.trim()) errors.company = 'Company name is required';
+    if (!formData.location?.trim()) errors.location = 'Location is required';
+    if (!formData.salary?.trim()) errors.salary = 'Salary range is required';
+    if (!formData.skills?.trim()) errors.skills = 'Required skills are required';
+    if (!formData.description?.trim()) errors.description = 'Job description is required';
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
     setIsSubmitting(true);
     try {
       const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
-      let createdJob;
       if (isEditing && id) {
         await api.jobs.update(id, { ...formData, skills: skillsArray, status: 'Active' });
         const updatedJob = await api.jobs.get(id);
         if (!updatedJob) throw new Error('Failed to retrieve updated job');
-        createdJob = updatedJob;
       } else {
-        createdJob = await api.jobs.create({ ...formData, skills: skillsArray, status: 'Active' });
+        await api.jobs.create({ ...formData, skills: skillsArray, status: 'Active' });
       }
       navigate('/jobs');
-    } catch { alert('Failed to save job. Please try again.'); }
+    } catch (e: any) { toast.error(toUserError(e, 'Failed to save job. Please try again.')); }
     finally { setIsSubmitting(false); }
   };
 
@@ -275,7 +282,7 @@ const AddJob: React.FC = () => {
                       try {
                         await api.jobTemplates.createFromJob(id, saveAsTemplateName.trim());
                         setShowSaveAsTemplate(false); setSaveAsTemplateName('');
-                      } catch (e: any) { alert(e.message || 'Failed to save template'); }
+                      } catch (e: any) { toast.error(toUserError(e, 'Failed to save template')); }
                       finally { setSavingAsTemplate(false); }
                     }}>{savingAsTemplate ? 'Saving…' : 'Save'}</Button>
                     <Button variant="ghost" size="sm" onClick={() => { setShowSaveAsTemplate(false); setSaveAsTemplateName(''); }}>Cancel</Button>
@@ -294,22 +301,25 @@ const AddJob: React.FC = () => {
                     <label className="text-xs font-medium text-gray-500">Job Title <span className="text-red-400">*</span></label>
                     <input type="text" name="title" value={formData.title} onChange={handleChange}
                       placeholder="e.g. Senior Product Designer"
-                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                      className={`w-full h-10 px-4 text-sm bg-white border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors ${fieldErrors.title ? 'border-red-300' : 'border-gray-200'}`} />
+                    {fieldErrors.title && <p className="text-xs text-red-500 mt-1">{fieldErrors.title}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-500">Company Name <span className="text-red-400">*</span></label>
                     <input type="text" name="company" value={formData.company} onChange={handleChange}
                       placeholder="e.g. Acme Corp"
-                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                      className={`w-full h-10 px-4 text-sm bg-white border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors ${fieldErrors.company ? 'border-red-300' : 'border-gray-200'}`} />
+                    {fieldErrors.company && <p className="text-xs text-red-500 mt-1">{fieldErrors.company}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-500">Client <span className="text-red-400">*</span></label>
-                    <CustomSelect inputStyle value={formData.clientId || ''} onChange={val => setFormData(prev => ({ ...prev, clientId: val || undefined }))}
+                    <CustomSelect inputStyle value={formData.clientId || ''} onChange={val => { setFormData(prev => ({ ...prev, clientId: val || undefined })); if (fieldErrors.clientId) setFieldErrors(prev => { const next = { ...prev }; delete next.clientId; return next; }); }}
                       className="px-4 py-2 rounded-xl text-sm" disabled={loadingClients}
                       options={[
                         { value: '', label: loadingClients ? 'Loading…' : 'Select a client' },
                         ...clients.map(c => ({ value: c.id, label: c.name }))
                       ]} />
+                    {fieldErrors.clientId && <p className="text-xs text-red-500 mt-1">{fieldErrors.clientId}</p>}
                     {clients.length === 0 && !loadingClients && (
                       <p className="text-xs text-gray-400 mt-1">
                         <Link to="/clients" className="text-gray-900 underline">Create a client</Link> first
@@ -337,13 +347,15 @@ const AddJob: React.FC = () => {
                     <label className="text-xs font-medium text-gray-500">Location <span className="text-red-400">*</span></label>
                     <input type="text" name="location" value={formData.location} onChange={handleChange}
                       placeholder="e.g. London, UK"
-                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                      className={`w-full h-10 px-4 text-sm bg-white border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors ${fieldErrors.location ? 'border-red-300' : 'border-gray-200'}`} />
+                    {fieldErrors.location && <p className="text-xs text-red-500 mt-1">{fieldErrors.location}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-500">Salary Range <span className="text-red-400">*</span></label>
                     <input type="text" name="salary" value={formData.salary} onChange={handleChange}
                       placeholder="e.g. £60k – £80k"
-                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
+                      className={`w-full h-10 px-4 text-sm bg-white border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors ${fieldErrors.salary ? 'border-red-300' : 'border-gray-200'}`} />
+                    {fieldErrors.salary && <p className="text-xs text-red-500 mt-1">{fieldErrors.salary}</p>}
                   </div>
                   <div
                     onClick={() => setFormData(prev => ({ ...prev, remote: !prev.remote }))}
@@ -364,14 +376,17 @@ const AddJob: React.FC = () => {
                     <label className="text-xs font-medium text-gray-500">Required Skills <span className="text-red-400">*</span></label>
                     <input type="text" name="skills" value={formData.skills} onChange={handleChange}
                       placeholder="e.g. React, TypeScript, Node.js (comma separated)"
-                      className="w-full h-10 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors" />
-                    <p className="text-xs text-gray-400">Used to AI-score inbound applicants when they apply.</p>
+                      className={`w-full h-10 px-4 text-sm bg-white border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors ${fieldErrors.skills ? 'border-red-300' : 'border-gray-200'}`} />
+                    {fieldErrors.skills
+                      ? <p className="text-xs text-red-500 mt-1">{fieldErrors.skills}</p>
+                      : <p className="text-xs text-gray-400">Used to AI-score inbound applicants when they apply.</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-500">Job Description <span className="text-red-400">*</span></label>
                     <textarea name="description" value={formData.description} onChange={handleChange}
                       rows={8} placeholder="Describe the role, responsibilities, and requirements…"
-                      className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors resize-none" />
+                      className={`w-full px-4 py-3 text-sm bg-white border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 transition-colors resize-none ${fieldErrors.description ? 'border-red-300' : 'border-gray-200'}`} />
+                    {fieldErrors.description && <p className="text-xs text-red-500 mt-1">{fieldErrors.description}</p>}
                   </div>
                 </div>
               </div>

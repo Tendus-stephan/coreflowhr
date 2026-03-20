@@ -44,8 +44,12 @@ const Offers: React.FC = () => {
         // Filter offers
         let filtered = offers;
 
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter(offer => offer.status === statusFilter);
+        if (statusFilter === 'archived') {
+            filtered = filtered.filter(offer => offer.archived);
+        } else if (statusFilter === 'all') {
+            filtered = filtered.filter(offer => !offer.archived);
+        } else {
+            filtered = filtered.filter(offer => offer.status === statusFilter && !offer.archived);
         }
 
             if (searchQuery.trim()) {
@@ -72,7 +76,8 @@ const Offers: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            const data = await api.offers.list(statusFilter === 'all' ? {} : { status: statusFilter });
+            // Load all offers (archived + active) and filter client-side
+            const data = await api.offers.list({});
             setOffers(data);
 
             // Load candidate and job names

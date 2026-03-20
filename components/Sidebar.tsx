@@ -102,6 +102,28 @@ const Sidebar: React.FC = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  // Auto-clear badges when navigating to a page
+  useEffect(() => {
+    if (!user?.id) return;
+    const typesForPath = Object.entries(NAV_TYPE_MAP)
+      .filter(([, path]) => path === location.pathname)
+      .map(([type]) => type);
+    if (typesForPath.length === 0) return;
+
+    supabase.from('notifications')
+      .update({ unread: false })
+      .eq('user_id', user.id)
+      .in('type', typesForPath)
+      .eq('unread', true)
+      .then(() => {
+        setBadgeCounts(prev => {
+          const next = { ...prev };
+          delete next[location.pathname];
+          return next;
+        });
+      });
+  }, [location.pathname, user?.id]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node))

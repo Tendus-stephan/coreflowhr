@@ -66,9 +66,9 @@ const borderColor: Record<ToastType, string> = {
 };
 
 const iconColor: Record<ToastType, string> = {
-  success: 'text-green-400',
-  error: 'text-red-400',
-  info: 'text-blue-400',
+  success: 'text-green-600',
+  error: 'text-red-600',
+  info: 'text-blue-600',
 };
 
 const Icon: Record<ToastType, React.ElementType> = {
@@ -81,13 +81,13 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
   const IconComp = Icon[toast.type];
   return (
     <div
-      className={`pointer-events-auto bg-gray-900 text-white rounded-xl shadow-2xl min-w-[300px] max-w-[400px] px-4 py-3 flex items-start gap-3 border-l-[3px] ${borderColor[toast.type]} animate-in slide-in-from-right-4 fade-in duration-200`}
+      className={`pointer-events-auto bg-white text-gray-900 rounded-xl shadow-lg border border-gray-100 border-l-[3px] ${borderColor[toast.type]} min-w-[300px] max-w-[400px] px-4 py-3 flex items-start gap-3 animate-in slide-in-from-right-4 fade-in duration-200`}
     >
       <IconComp className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColor[toast.type]}`} />
-      <p className="text-sm flex-1 leading-snug">{toast.message}</p>
+      <p className="text-sm flex-1 leading-snug text-gray-800">{toast.message}</p>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="text-gray-400 hover:text-white transition-colors flex-shrink-0 mt-0.5"
+        className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 mt-0.5"
         aria-label="Dismiss"
       >
         <X className="w-4 h-4" />

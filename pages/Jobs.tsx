@@ -13,6 +13,7 @@ import { api, Notification } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { toUserError } from '../utils/edgeFunctionError';
 
 // --- Job Settings Modal ---
 const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: boolean, onClose: () => void }) => {
@@ -366,20 +367,20 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
             )}
             {createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-6 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
-            <div className="bg-white rounded-2xl w-full max-w-6xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
-                
+            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+
                 {/* Modal Header / Top Bar */}
-                <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <h3 className="text-xl font-bold text-gray-900">Manage Job</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-10 overflow-y-auto bg-gray-50/50 space-y-10">
-                    
+                <div className="p-6 overflow-y-auto bg-gray-50/50 space-y-6">
+
                     {/* Job Header Card & Assigned Members */}
-                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-8 flex flex-col md:flex-row justify-between items-start gap-8">
+                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start gap-6">
                         <div className="flex gap-6 flex-1">
                             <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
                                 <Briefcase size={28} />
@@ -451,9 +452,9 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     </div>
 
                     {/* Pipeline Overview */}
-                    <div className="bg-white border border-gray-100 rounded-xl p-10 ">
-                        <h3 className="text-xl font-bold text-gray-900 mb-10">Pipeline Overview</h3>
-                        <div className="flex items-center justify-between relative px-6">
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                        <h3 className="text-base font-bold text-gray-900 mb-5">Pipeline Overview</h3>
+                        <div className="flex items-center justify-between relative px-3">
                             {stages.map((stage, index) => (
                                 <React.Fragment key={stage.name}>
                                     {/* Step */}
@@ -474,19 +475,19 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     </div>
 
                     {/* Description & Candidates Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Left Col: Description & Skills */}
-                        <div className="lg:col-span-2 space-y-8">
-                            <div className="bg-white border border-gray-100 rounded-xl p-8 ">
-                                <h3 className="text-xl font-bold text-gray-900 mb-5">Job Description</h3>
+                        <div className="lg:col-span-2 space-y-5">
+                            <div className="bg-white border border-gray-100 rounded-xl p-5">
+                                <h3 className="text-base font-bold text-gray-900 mb-4">Job Description</h3>
                                 <div className="prose prose-base max-w-none text-gray-600 leading-relaxed">
                                     {job.description}
                                 </div>
                             </div>
                             
                             {job.skills && job.skills.length > 0 && (
-                                <div className="bg-white border border-gray-100 rounded-xl p-8 ">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-5">Required Skills</h3>
+                                <div className="bg-white border border-gray-100 rounded-xl p-5">
+                                    <h3 className="text-base font-bold text-gray-900 mb-4">Required Skills</h3>
                                     <div className="flex flex-wrap gap-2">
                                         {job.skills.map(skill => (
                                             <span key={skill} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
@@ -500,14 +501,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
 
                         {/* Right Col: Candidates — list only for non-Viewer; Viewer sees aggregate count only */}
                         <div className="lg:col-span-1 min-h-0 flex flex-col">
-                            <div className="bg-white border border-gray-100 rounded-xl p-8  h-full flex flex-col min-h-[320px]">
-                                <div className="flex items-center justify-between mb-5">
-                                    <h3 className="text-xl font-bold text-gray-900">Candidates</h3>
+                            <div className="bg-white border border-gray-100 rounded-xl p-5 h-full flex flex-col min-h-[280px]">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-base font-bold text-gray-900">Candidates</h3>
                                     <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold">{jobCandidates.length}</span>
                                 </div>
                                 
                                 {currentUserRole === 'Viewer' ? (
-                                    <div className="py-12 text-center flex-1">
+                                    <div className="py-6 text-center flex-1">
                                         <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <Users size={20} className="text-gray-400"/>
                                         </div>
@@ -814,7 +815,7 @@ const Jobs: React.FC = () => {
           setJobToClose(null);
       } catch (error: any) {
           console.error('Error closing job:', error);
-          toast.error(error.message || 'Failed to close job. Please try again.');
+          toast.error(toUserError(error, 'Failed to close job. Please try again.'));
       } finally {
           setClosingJob(false);
       }

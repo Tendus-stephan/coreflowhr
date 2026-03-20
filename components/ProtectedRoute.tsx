@@ -8,6 +8,13 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
+  Viewer: ['/dashboard', '/candidates', '/settings'],
+  HiringManager: ['/dashboard', '/candidates', '/jobs', '/calendar', '/clients', '/settings'],
+  Recruiter: ['/dashboard', '/candidates', '/jobs', '/calendar', '/clients', '/offers', '/settings'],
+  Admin: ['*'],
+};
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, session, loading } = useAuth();
   const location = useLocation();
@@ -15,6 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [canEnter, setCanEnter] = useState(true); // Default allow during check
   const [accessChecked, setAccessChecked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(true); // Only admins see pricing gate
+  const [userRole, setUserRole] = useState<string>('');
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true); // Default to true to allow access during check
   // Function to check if session was revoked (optimized, non-blocking)
@@ -113,6 +121,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           ? !(memberships || []).some((m: any) => nonAdminRoles.includes(m.role))
           : true; // No workspace yet → treat as potential plan buyer (admin)
         setIsAdmin(isAdminRole);
+
+        // Track user role for route guards
+        if (belongsToWorkspace && memberships && memberships.length > 0) {
+          const memberRole = (memberships[0] as any).role || '';
+          setUserRole(memberRole);
+        } else {
+          setUserRole('Admin');
+        }
 
         if (belongsToWorkspace) {
           // Non-admin members (Recruiter, HiringManager, Viewer) inherit access from the workspace
@@ -364,6 +380,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Don't redirect from onboarding page - let the Onboarding component handle redirects
   // This prevents redirect loops between ProtectedRoute and Onboarding component
+
+  // RBAC route guard — only apply when role is resolved
+  if (userRole && userRole !== 'Admin') {
+    const allowed = ROLE_ALLOWED_ROUTES[userRole];
+    if (allowed && allowed[0] !== '*') {
+      const path = location.pathname;
+      if (!allowed.some(r => path === r || path.startsWith(r + '/'))) {
+        return <Navigate to="/dashboard" replace />;
+      }
+    }
+  }
 
   // User is authenticated (and subscribed or subscription check pending/errored), render children
   return <>{children}</>;

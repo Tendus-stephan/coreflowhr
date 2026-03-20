@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Notification } from '../services/api';
 import { getNotificationConfig, getCategoryLabel, NotificationCategory } from './NotificationTypes';
 import { getNotificationLink } from '../utils/notificationLinks';
+import { supabase } from '../services/supabase';
 
 interface NotificationDropdownProps {
     notifications: Notification[];
@@ -20,7 +21,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     const navigate = useNavigate();
     const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all');
 
-    const handleNotificationClick = (note: Notification) => {
+    const handleNotificationClick = async (note: Notification) => {
+        // Mark this notification as read
+        if (note.unread) {
+            await supabase.from('notifications').update({ unread: false }).eq('id', note.id);
+        }
         const path = getNotificationLink(note.type, note.desc);
         if (path) {
             if (onNotificationClick) {

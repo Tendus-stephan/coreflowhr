@@ -49,7 +49,7 @@ const offerChartConfig = {
 
 const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string }) => (
   <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-    value >= 0 ? 'bg-cyan-100 text-cyan-700' : 'bg-red-100 text-red-600'
+    value >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-100 text-red-600'
   }`}>
     {value >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
     {value >= 0 ? '+' : ''}{value}{suffix}
@@ -64,8 +64,10 @@ const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
             <div className="flex items-center gap-1 mt-1">
-                <TrendingUp size={12} className={trend.startsWith('+') ? 'text-gray-700' : 'text-gray-400'} />
-                <span className={`text-[10px] font-medium ${trend.startsWith('+') ? 'text-gray-700' : 'text-gray-500'}`}>
+                {trend.startsWith('-')
+                  ? <TrendingDown size={12} className="text-red-500" />
+                  : <TrendingUp size={12} className="text-green-600" />}
+                <span className={`text-[10px] font-medium ${trend.startsWith('-') ? 'text-red-500' : 'text-green-600'}`}>
                     {trend} <span className="text-gray-400">{trendLabel}</span>
                 </span>
             </div>

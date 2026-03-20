@@ -1772,20 +1772,38 @@ const Settings: React.FC = () => {
                 <Button variant="outline" size="sm" onClick={() => setIsHelpOpen(true)}>Help & Support</Button>
             </div>
 
-            <div className="flex flex-1 min-h-0 overflow-hidden">
-                {/* Sidebar */}
-                <div className="w-56 flex-shrink-0 border-r border-gray-100 bg-white py-4 px-3 space-y-0.5 overflow-y-auto">
+            <div className="flex flex-1 min-h-0 overflow-hidden flex-col md:flex-row">
+                {/* Mobile: horizontal scrolling tab bar */}
+                <div className="md:hidden flex overflow-x-auto border-b border-gray-100 bg-white px-4 gap-1 py-2 flex-shrink-0">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                                 activeTab === tab.id
                                     ? 'bg-gray-100 text-gray-900'
                                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
                             }`}
                         >
-                            <tab.icon size={16} className={activeTab === tab.id ? 'text-gray-900' : 'text-gray-400'} />
+                            <tab.icon size={13} className={activeTab === tab.id ? 'text-gray-900' : 'text-gray-400'} />
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Desktop: sidebar */}
+                <div className="hidden md:block w-48 flex-shrink-0 border-r border-gray-100 bg-white py-3 px-2 space-y-0.5 overflow-y-auto">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                activeTab === tab.id
+                                    ? 'bg-gray-100 text-gray-900'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                            }`}
+                        >
+                            <tab.icon size={14} className={activeTab === tab.id ? 'text-gray-900' : 'text-gray-400'} />
                             {tab.label}
                         </button>
                     ))}
