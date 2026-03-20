@@ -156,7 +156,8 @@ const Offers: React.FC = () => {
         try {
             setArchivingOfferId(offer.id);
             await api.offers.update(offer.id, { archived: true });
-            await loadOffers();
+            // Update local state directly — avoids reload dependency on workspace_id scope
+            setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, archived: true } : o));
         } catch (err: any) {
             toast.error(err.message || 'Failed to archive offer');
         } finally {
@@ -169,7 +170,8 @@ const Offers: React.FC = () => {
         try {
             setArchivingOfferId(offer.id);
             await api.offers.update(offer.id, { archived: false });
-            await loadOffers();
+            // Update local state directly
+            setOffers(prev => prev.map(o => o.id === offer.id ? { ...o, archived: false } : o));
         } catch (err: any) {
             toast.error(err.message || 'Failed to restore offer');
         } finally {

@@ -6412,14 +6412,14 @@ export const api = {
             if (updates.archived !== undefined) updateData.archived = updates.archived;
             if (updates.requireEsignature !== undefined) updateData.require_esignature = updates.requireEsignature;
 
-            const workspaceId = await getCurrentWorkspaceId();
-            let updateQuery = supabase.from('offers').update(updateData).eq('id', offerId);
-            if (workspaceId) {
-                updateQuery = updateQuery.eq('workspace_id', workspaceId);
-            } else {
-                updateQuery = updateQuery.eq('user_id', userId);
-            }
-            const { data, error } = await updateQuery.select().single();
+            // RLS UPDATE policy already enforces access (user_id = auth.uid() or workspace admin/recruiter).
+            // No extra app-level filter needed — avoids null workspace_id mismatches on older offers.
+            const { data, error } = await supabase
+                .from('offers')
+                .update(updateData)
+                .eq('id', offerId)
+                .select()
+                .single();
 
             if (error) throw error;
 
