@@ -19,6 +19,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
     const confirm = useConfirm();
 
     // Load notes
@@ -43,9 +44,10 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     }, [candidateId]);
 
     const handleAddNote = async () => {
-        if (!newNoteContent.trim()) return;
+        if (!newNoteContent.trim() || isSaving) return;
 
         try {
+            setIsSaving(true);
             const note = await api.candidates.addNote(candidateId, newNoteContent.trim());
             setNotes([note, ...notes]);
             setNewNoteContent('');
@@ -53,6 +55,8 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
         } catch (err: any) {
             console.error('Error adding note:', err);
             setError(err.message || 'Failed to add note');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -67,9 +71,10 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     };
 
     const handleUpdateNote = async (noteId: string) => {
-        if (!editContent.trim()) return;
+        if (!editContent.trim() || isSaving) return;
 
         try {
+            setIsSaving(true);
             const updatedNote = await api.candidates.updateNote(noteId, editContent.trim());
             setNotes(notes.map(n => n.id === noteId ? updatedNote : n));
             setEditingId(null);
@@ -77,6 +82,8 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
         } catch (err: any) {
             console.error('Error updating note:', err);
             setError(err.message || 'Failed to update note');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -168,9 +175,9 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                         <Button
                             variant="black"
                             onClick={handleAddNote}
-                            disabled={!newNoteContent.trim()}
+                            disabled={!newNoteContent.trim() || isSaving}
                         >
-                            Save Note
+                            {isSaving ? 'Saving…' : 'Save Note'}
                         </Button>
                     </div>
                 </div>
@@ -211,11 +218,11 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                     </button>
                                     <button
                                         onClick={() => handleUpdateNote(note.id)}
-                                        disabled={!editContent.trim()}
+                                        disabled={!editContent.trim() || isSaving}
                                         className="px-3 py-1.5 text-sm bg-black text-white rounded-lg hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Check size={16} className="inline mr-1" />
-                                        Save
+                                        {isSaving ? 'Saving…' : 'Save'}
                                     </button>
                                 </div>
                             </div>
