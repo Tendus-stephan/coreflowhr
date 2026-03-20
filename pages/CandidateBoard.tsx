@@ -75,6 +75,7 @@ const CandidateListView: React.FC<{
                     Score <SortIcon field="score" />
                 </button>
                 <div className="w-36 hidden md:block">Skills</div>
+                <div className="w-24 hidden lg:block">Source</div>
                 <button
                     className="w-16 flex items-center gap-1 hover:text-gray-600"
                     onClick={() => onSort('date')}
@@ -135,6 +136,21 @@ const CandidateListView: React.FC<{
                                     {c.skills.length > 2 && (
                                         <span className="text-[10px] text-gray-400">+{c.skills.length - 2}</span>
                                     )}
+                                </div>
+                                <div className="w-24 hidden lg:block">
+                                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                                        c.source === 'cv_import'
+                                            ? 'bg-blue-50 text-blue-600'
+                                            : c.source === 'ai_sourced'
+                                            ? 'bg-purple-50 text-purple-600'
+                                            : 'bg-gray-50 text-gray-500'
+                                    }`}>
+                                        {c.source === 'cv_import'
+                                            ? 'CV Import'
+                                            : c.source === 'ai_sourced'
+                                            ? 'AI Sourced'
+                                            : 'Applied'}
+                                    </span>
                                 </div>
                                 <div className="w-16">
                                     <span className="text-[11px] text-gray-400">

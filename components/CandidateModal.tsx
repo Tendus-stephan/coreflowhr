@@ -417,22 +417,23 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               const { playNotificationSound } = await import('../utils/soundUtils');
               playNotificationSound();
 
-              // Automatically update candidate stage for Rejection and Hired emails
-              if (currentEmailType === 'Rejection' || currentEmailType === 'Hired') {
+              // Automatically advance candidate stage when an email implies a transition
+              const stageMap: Partial<Record<string, { target: CandidateStage; fromStages: CandidateStage[] }>> = {
+                  Screening: { target: CandidateStage.SCREENING, fromStages: [CandidateStage.NEW] },
+                  Offer:     { target: CandidateStage.OFFER,     fromStages: [CandidateStage.SCREENING, CandidateStage.INTERVIEW] },
+                  Hired:     { target: CandidateStage.HIRED,     fromStages: [CandidateStage.OFFER] },
+                  Rejection: { target: CandidateStage.REJECTED,  fromStages: [CandidateStage.NEW, CandidateStage.SCREENING, CandidateStage.INTERVIEW, CandidateStage.OFFER] },
+              };
+              const stageTransition = currentEmailType ? stageMap[currentEmailType] : undefined;
+              if (stageTransition && stageTransition.fromStages.includes(candidate.stage)) {
                   try {
-                      const newStage = currentEmailType === 'Rejection' ? CandidateStage.REJECTED : CandidateStage.HIRED;
-                      const updatedCandidate = await api.candidates.update(candidate.id, {
-                          stage: newStage
-                      });
-                      
-                      // Play notification sound
+                      const updatedCandidate = await api.candidates.update(candidate.id, { stage: stageTransition.target });
                       const { playNotificationSound } = await import('../utils/soundUtils');
                       playNotificationSound();
-                      
                       onUpdate(updatedCandidate);
                   } catch (stageError) {
                       console.error('Error updating candidate stage:', stageError);
-                      // Don't show error to user - email was sent successfully
+                      // Don't show error to user — email was sent successfully
                   }
               }
           }
@@ -748,8 +749,14 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                  <FileText size={12} /> Download CV
                          </button>
                          )}
-                         <span className="text-xs bg-white border border-border px-2 py-1 rounded text-gray-500 flex items-center">
-                            {(candidate.source === 'Sourced' || candidate.isTest) ? 'Sourced' : 'Applied'}: {new Date(candidate.appliedDate).toLocaleDateString()}
+                         <span className="text-xs bg-white border border-border px-2 py-1 rounded text-gray-500 flex items-center gap-1">
+                            {candidate.source === 'cv_import'
+                              ? 'CV Import'
+                              : candidate.source === 'ai_sourced' || candidate.isTest
+                              ? 'AI Sourced'
+                              : 'Applied via Link'}
+                            <span className="text-gray-300">·</span>
+                            {new Date(candidate.appliedDate).toLocaleDateString()}
                          </span>
                     </div>
                 </div>

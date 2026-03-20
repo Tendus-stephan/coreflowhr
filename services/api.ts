@@ -2305,7 +2305,7 @@ export const api = {
                     cv_file_url: tempUrl,
                     cv_file_name: cvFile.name,
                     stage: 'New',
-                    source: 'direct_application',
+                    source: 'cv_import',
                     is_test: false,
                     applied_date: new Date().toISOString(),
                 })
