@@ -77,7 +77,7 @@ const Offers: React.FC = () => {
             setLoading(true);
             setError(null);
             // Load all offers (archived + active) and filter client-side
-            const data = await api.offers.list({});
+            const data = await api.offers.list({ includeArchived: true });
             setOffers(data);
 
             // Load candidate and job names

@@ -6145,18 +6145,26 @@ export const api = {
         }
     },
     offers: {
-        list: async (filters?: { status?: Offer['status'] | 'archived'; candidateId?: string; jobId?: string; generalOnly?: boolean }): Promise<Offer[]> => {
+        list: async (filters?: { status?: Offer['status'] | 'archived'; candidateId?: string; jobId?: string; generalOnly?: boolean; includeArchived?: boolean }): Promise<Offer[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
             const isHiringManager = (await getCurrentUserRole()) === 'HiringManager';
+            const workspaceId = await getCurrentWorkspaceId();
 
             let query = supabase
                 .from('offers')
-                .select('*')
-                .eq('user_id', userId)
-                // By default, hide archived offers unless status === 'archived'
-                .eq('archived', filters?.status === 'archived')
-                .order('created_at', { ascending: false });
+                .select('*');
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            // When includeArchived is set, return everything (caller filters client-side)
+            // Otherwise hide archived unless explicitly requesting the archived view
+            if (!filters?.includeArchived) {
+                query = query.eq('archived', filters?.status === 'archived');
+            }
+            query = query.order('created_at', { ascending: false });
 
             if (filters?.status && filters.status !== 'archived') {
                 query = query.eq('status', filters.status as Offer['status']);
@@ -7725,12 +7733,15 @@ export const api = {
         list: async (): Promise<Client[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { data, error } = await supabase
-                .from('clients')
-                .select('*')
-                .eq('user_id', userId)
-                .order('name', { ascending: true });
+            let query = supabase.from('clients').select('*');
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            const { data, error } = await query.order('name', { ascending: true });
 
             if (error) throw error;
 
@@ -7748,13 +7759,15 @@ export const api = {
         get: async (id: string): Promise<Client | undefined> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { data, error } = await supabase
-                .from('clients')
-                .select('*')
-                .eq('id', id)
-                .eq('user_id', userId)
-                .single();
+            let query = supabase.from('clients').select('*').eq('id', id);
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            const { data, error } = await query.single();
 
             if (error || !data) return undefined;
 
@@ -7772,6 +7785,7 @@ export const api = {
         create: async (clientData: Partial<Client>): Promise<Client> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             if (!clientData.name) {
                 throw new Error('Client name is required');
@@ -7781,6 +7795,7 @@ export const api = {
                 .from('clients')
                 .insert({
                     user_id: userId,
+                    ...(workspaceId ? { workspace_id: workspaceId } : {}),
                     name: clientData.name,
                     contact_email: clientData.contactEmail || null,
                     contact_phone: clientData.contactPhone || null,
@@ -7806,6 +7821,7 @@ export const api = {
         update: async (id: string, clientData: Partial<Client>): Promise<Client> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             const updateData: any = {};
             if (clientData.name !== undefined) updateData.name = clientData.name;
@@ -7814,13 +7830,13 @@ export const api = {
             if (clientData.address !== undefined) updateData.address = clientData.address || null;
             if (clientData.notes !== undefined) updateData.notes = clientData.notes || null;
 
-            const { data, error } = await supabase
-                .from('clients')
-                .update(updateData)
-                .eq('id', id)
-                .eq('user_id', userId)
-                .select()
-                .single();
+            let query = supabase.from('clients').update(updateData).eq('id', id);
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            const { data, error } = await query.select().single();
 
             if (error) throw error;
             if (!data) throw new Error('Client not found');
@@ -7839,12 +7855,15 @@ export const api = {
         delete: async (id: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { error } = await supabase
-                .from('clients')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', userId);
+            let query = supabase.from('clients').delete().eq('id', id);
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            const { error } = await query;
 
             if (error) throw error;
         }
