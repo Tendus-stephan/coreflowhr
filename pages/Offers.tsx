@@ -255,9 +255,14 @@ const Offers: React.FC = () => {
     ];
 
     const tabCounts: Record<string, number> = {
-        all: offers.length,
+        all: offers.filter(o => !o.archived).length,
         ...Object.fromEntries(
-            statusTabs.slice(1).map(t => [t.value, offers.filter(o => o.status === t.value || (t.value === 'archived' && o.archived)).length])
+            statusTabs.slice(1).map(t => [
+                t.value,
+                t.value === 'archived'
+                    ? offers.filter(o => o.archived).length
+                    : offers.filter(o => o.status === t.value && !o.archived).length
+            ])
         )
     };
 
