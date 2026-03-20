@@ -3118,31 +3118,34 @@ export const api = {
         update: async (candidateId: string, updates: Partial<Candidate>): Promise<Candidate> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+
+            // Scope helper: use workspace_id when available so any workspace member can update
+            const scopeCandidate = (q: any) =>
+                workspaceId ? q.eq('workspace_id', workspaceId) : q.eq('user_id', userId);
 
             // Get current candidate data to check if stage is changing
             let oldStage: CandidateStage | undefined;
             let candidateName: string | undefined;
             if (updates.stage !== undefined) {
-                const { data: currentData } = await supabase
-                    .from('candidates')
-                    .select('stage, name')
-                    .eq('id', candidateId)
-                    .eq('user_id', userId)
-                    .single();
-                
+                const { data: currentData } = await scopeCandidate(
+                    supabase.from('candidates').select('stage, name').eq('id', candidateId)
+                ).single();
+
                 if (currentData) {
                     oldStage = currentData.stage as CandidateStage;
                     candidateName = currentData.name;
                 }
-                
+
                 // Check if a workflow is configured for the target stage before allowing movement
                 // Interview stage is exempt - interviews are manually scheduled, not automatic
                 // New → Screening is exempt - the email draft is handled manually in the UI
                 if (updates.stage !== 'Interview' && !(oldStage === 'New' && updates.stage === 'Screening')) {
-                const { data: workflows, error: workflowCheckError } = await supabase
-                    .from('email_workflows')
-                    .select('id')
-                    .eq('user_id', userId)
+                // Workflow check: search workspace-wide (any member's workflow covers the workspace)
+                const workflowQuery = workspaceId
+                    ? supabase.from('email_workflows').select('id').eq('workspace_id', workspaceId)
+                    : supabase.from('email_workflows').select('id').eq('user_id', userId);
+                const { data: workflows, error: workflowCheckError } = await workflowQuery
                     .eq('trigger_stage', updates.stage)
                     .eq('enabled', true)
                     .limit(1);
@@ -3166,11 +3169,11 @@ export const api = {
                 
                 // Special check for Offer stage: candidate must have an active offer specifically linked to them
                 if (updates.stage === 'Offer') {
-                    const { data: offers, error: offerCheckError } = await supabase
-                        .from('offers')
-                        .select('id, status, candidate_id')
-                        .eq('user_id', userId)
-                        .eq('candidate_id', candidateId) // Must be specifically linked to this candidate
+                    const offerScopeQuery = workspaceId
+                        ? supabase.from('offers').select('id, status, candidate_id').eq('workspace_id', workspaceId)
+                        : supabase.from('offers').select('id, status, candidate_id').eq('user_id', userId);
+                    const { data: offers, error: offerCheckError } = await offerScopeQuery
+                        .eq('candidate_id', candidateId)
                         .in('status', ['draft', 'sent', 'viewed', 'negotiating', 'accepted'])
                         .limit(1);
                     
@@ -3196,15 +3199,10 @@ export const api = {
             if (updates.aiMatchScore !== undefined) updateData.ai_match_score = updates.aiMatchScore;
             if (updates.aiAnalysis !== undefined) updateData.ai_analysis = updates.aiAnalysis;
 
-            // Atomic update: This UPDATE statement REPLACES the stage value
-            // The candidate will be in the NEW stage only, not the old one
-            const { data, error } = await supabase
-                .from('candidates')
-                .update(updateData)
-                .eq('id', candidateId)
-                .eq('user_id', userId)
-                .select()
-                .single();
+            // Atomic update: scoped to workspace so any authorized member can update
+            const { data, error } = await scopeCandidate(
+                supabase.from('candidates').update(updateData).eq('id', candidateId)
+            ).select().single();
 
             if (error) throw error;
 
@@ -6474,19 +6472,16 @@ export const api = {
 
             // Move candidate to Offer stage after successful send
             try {
-                const { data: candidateBeforeUpdate } = await supabase
-                    .from('candidates')
-                    .select('stage, name')
-                    .eq('id', offer.candidateId)
-                    .eq('user_id', userId)
-                    .single();
+                const wsId = await getCurrentWorkspaceId();
+                const scopeQ = (q: any) => wsId ? q.eq('workspace_id', wsId) : q.eq('user_id', userId);
+                const { data: candidateBeforeUpdate } = await scopeQ(
+                    supabase.from('candidates').select('stage, name').eq('id', offer.candidateId)
+                ).single();
                 const oldStage = candidateBeforeUpdate?.stage;
                 const candidateName = candidateBeforeUpdate?.name;
-                const { error: stageUpdateError } = await supabase
-                    .from('candidates')
-                    .update({ stage: 'Offer' })
-                    .eq('id', offer.candidateId)
-                    .eq('user_id', userId);
+                const { error: stageUpdateError } = await scopeQ(
+                    supabase.from('candidates').update({ stage: 'Offer' }).eq('id', offer.candidateId)
+                );
                 if (!stageUpdateError && oldStage && oldStage !== 'Offer' && candidateName) {
                     try {
                         const { logCandidateMoved } = await import('./activityLogger');

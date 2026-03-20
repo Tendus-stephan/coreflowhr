@@ -431,9 +431,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                       const { playNotificationSound } = await import('../utils/soundUtils');
                       playNotificationSound();
                       onUpdate(updatedCandidate);
-                  } catch (stageError) {
+                  } catch (stageError: any) {
                       console.error('Error updating candidate stage:', stageError);
-                      // Don't show error to user — email was sent successfully
+                      toast.error(stageError?.message || 'Email sent, but failed to move candidate stage.');
                   }
               }
           }
