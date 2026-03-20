@@ -2286,7 +2286,7 @@ export const api = {
             const { data: candidate, error: insertError } = await supabase
                 .from('candidates')
                 .insert({
-                    user_id: job.user_id,
+                    user_id: userId,
                     workspace_id: job.workspace_id ?? workspaceId,
                     job_id: jobId,
                     name,
@@ -2911,23 +2911,29 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
+            const workspaceId = await getCurrentWorkspaceId();
+
+            // Scope by workspace when available so all workspace members see all candidates,
+            // regardless of which member originally imported them.
+            // Solo users (no workspace) fall back to user_id scope.
+            const scopeFilter = (q: any) =>
+                workspaceId ? q.eq('workspace_id', workspaceId) : q.eq('user_id', userId);
+
             const page = options?.page || 1;
             const pageSize = options?.pageSize || 50; // Default 50 per page
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
             // Get total count first
-            const { count, error: countError } = await supabase
-                .from('candidates')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userId);
+            const { count, error: countError } = await scopeFilter(
+                supabase.from('candidates').select('*', { count: 'exact', head: true })
+            );
 
             if (countError) throw countError;
 
-            const { data, error } = await supabase
-                .from('candidates')
-                .select('*')
-                .eq('user_id', userId)
+            const { data, error } = await scopeFilter(
+                supabase.from('candidates').select('*')
+            )
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
@@ -2952,11 +2958,9 @@ export const api = {
             const linkedinUrls = [...new Set((filteredCandidates as any[]).map(c => c.linkedin_url).filter(Boolean))] as string[];
             let alsoInMap = new Map<string, { jobId: string; jobTitle: string }[]>();
             if (linkedinUrls.length > 0) {
-                const { data: dupRows } = await supabase
-                    .from('candidates')
-                    .select('id, job_id, linkedin_url')
-                    .eq('user_id', userId)
-                    .in('linkedin_url', linkedinUrls);
+                const { data: dupRows } = await scopeFilter(
+                    supabase.from('candidates').select('id, job_id, linkedin_url')
+                ).in('linkedin_url', linkedinUrls);
                 if (dupRows && dupRows.length > 0) {
                     const otherJobIds = [...new Set((dupRows as any[]).map((r: any) => r.job_id))];
                     const missingJobIds = otherJobIds.filter(jid => !jobsMap.has(jid));
