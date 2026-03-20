@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Note } from '../types';
 import { api } from '../services/api';
+import { supabase } from '../services/supabase';
 import { FileText, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
@@ -20,7 +21,12 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
     const [editContent, setEditContent] = useState('');
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const confirm = useConfirm();
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+    }, []);
 
     // Load notes
     useEffect(() => {
@@ -241,23 +247,25 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                             <p className="text-[10px] text-gray-500">{formatDate(note.createdAt)}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={() => handleStartEdit(note)}
-                                            className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded hover:bg-gray-100"
-                                            title="Edit note"
-                                        >
-                                            <Edit2 size={14} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteNote(note.id)}
-                                            disabled={deletingId === note.id}
-                                            className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded hover:bg-gray-100 disabled:opacity-50"
-                                            title="Delete note"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
+                                    {currentUserId === note.userId && (
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleStartEdit(note)}
+                                                className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded hover:bg-gray-100"
+                                                title="Edit note"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteNote(note.id)}
+                                                disabled={deletingId === note.id}
+                                                className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded hover:bg-gray-100 disabled:opacity-50"
+                                                title="Delete note"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{note.content}</p>
                                 {note.updatedAt !== note.createdAt && (

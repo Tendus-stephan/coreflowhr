@@ -3400,29 +3400,28 @@ export const api = {
 
             if (error) throw error;
 
-            // Get user names and avatars for all unique user IDs
+            // Get display names (falls back to email local-part for members with no profile name)
             const userIds = [...new Set((notes || []).map((n: any) => n.user_id))];
+            const { data: displayNames } = await supabase.rpc('get_display_names_for_users', { p_user_ids: userIds });
+            // Also fetch avatars from profiles
             const { data: profiles } = await supabase
                 .from('profiles')
-                .select('id, name, avatar_url')
+                .select('id, avatar_url')
                 .in('id', userIds);
+            const avatarMap = new Map((profiles || []).map((p: any) => [p.id, p.avatar_url]));
+            const nameMap: Record<string, string> = displayNames || {};
 
-            const profileMap = new Map((profiles || []).map((p: any) => [p.id, { name: p.name, avatarUrl: p.avatar_url }]));
-
-            return (notes || []).map((note: any) => {
-                const profile = profileMap.get(note.user_id);
-                return {
-                    id: note.id,
-                    candidateId: note.candidate_id,
-                    userId: note.user_id,
-                    content: note.content,
-                    isPrivate: note.is_private,
-                    createdAt: note.created_at,
-                    updatedAt: note.updated_at,
-                    userName: profile?.name || 'Unknown',
-                    userAvatarUrl: profile?.avatarUrl || undefined
-                };
-            });
+            return (notes || []).map((note: any) => ({
+                id: note.id,
+                candidateId: note.candidate_id,
+                userId: note.user_id,
+                content: note.content,
+                isPrivate: note.is_private,
+                createdAt: note.created_at,
+                updatedAt: note.updated_at,
+                userName: nameMap[note.user_id] || 'Member',
+                userAvatarUrl: avatarMap.get(note.user_id) || undefined
+            }));
         },
         addNote: async (candidateId: string, content: string, isPrivate: boolean = false): Promise<Note> => {
             const userId = await getUserId();
