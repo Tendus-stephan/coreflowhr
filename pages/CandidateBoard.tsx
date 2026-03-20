@@ -16,6 +16,7 @@ import { useToast } from '../contexts/ToastContext';
 import { BulkCVUpload } from '../components/BulkCVUpload';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Notification } from '../services/api';
+import { supabase } from '../services/supabase';
 import { toUserError } from '../utils/edgeFunctionError';
 import { sendSlackNotification, buildCandidateStagedBlocks } from '../services/slack';
 
@@ -317,12 +318,47 @@ const CandidateBoard: React.FC = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const notificationRef = useRef<HTMLDivElement>(null);
     const [userRole, setUserRole] = useState<string>('');
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
     useEffect(() => {
         api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
+        supabase.auth.getUser().then(({ data }) => {
+            if (!data.user) return;
+            supabase.from('workspace_members').select('workspace_id').eq('user_id', data.user.id).limit(1).single()
+                .then(({ data: wm }) => setWorkspaceId(wm?.workspace_id ?? null));
+        });
     }, []);
 
     const isViewer = userRole === 'Viewer';
+
+    // Realtime: sync candidate changes made by other team members
+    useEffect(() => {
+        if (!workspaceId) return;
+        const channel = supabase
+            .channel(`candidates-ws-${workspaceId}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'candidates', filter: `workspace_id=eq.${workspaceId}` }, payload => {
+                const r = payload.new as any;
+                setCandidates(prev => prev.map(c => c.id === r.id ? {
+                    ...c,
+                    stage: r.stage as CandidateStage,
+                    name: r.name ?? c.name,
+                    email: r.email ?? c.email,
+                    aiMatchScore: r.ai_match_score ?? c.aiMatchScore,
+                } : c));
+                setSelectedCandidate(prev => prev?.id === r.id ? { ...prev, stage: r.stage as CandidateStage } : prev);
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'candidates', filter: `workspace_id=eq.${workspaceId}` }, () => {
+                // Refetch on new candidate — avoids complex row mapping
+                api.candidates.list({ page: 1, pageSize: 1000 }).then(r => setCandidates(r.data || [])).catch(() => {});
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'candidates' }, payload => {
+                const id = (payload.old as any).id;
+                setCandidates(prev => prev.filter(c => c.id !== id));
+                setSelectedCandidate(prev => prev?.id === id ? null : prev);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [workspaceId]);
 
     const [showBulkUpload, setShowBulkUpload] = useState(false);
 

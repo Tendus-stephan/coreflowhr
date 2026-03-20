@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { EmailLog } from '../types';
 import { api } from '../services/api';
+import { supabase } from '../services/supabase';
 import { toUserError } from '../utils/edgeFunctionError';
 import { Mail, CheckCircle, AlertCircle, Clock, ExternalLink, ArrowUpRight, ArrowDownLeft, RefreshCw, Reply } from 'lucide-react';
 
@@ -53,6 +54,40 @@ export const EmailHistory: React.FC<EmailHistoryProps> = ({ candidateId, candida
     useEffect(() => {
         if (candidateId) loadEmailHistory();
     }, [candidateId, loadEmailHistory]);
+
+    useEffect(() => {
+        if (!candidateId) return;
+        const channel = supabase
+            .channel(`email-logs-${candidateId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'email_logs', filter: `candidate_id=eq.${candidateId}` },
+                (payload) => {
+                    const row = payload.new as any;
+                    const newLog: EmailLog = {
+                        id: row.id,
+                        candidateId: row.candidate_id,
+                        userId: row.user_id,
+                        toEmail: row.to_email,
+                        fromEmail: row.from_email,
+                        subject: row.subject,
+                        content: row.content,
+                        emailType: row.email_type,
+                        status: row.status,
+                        sentAt: row.sent_at,
+                        threadId: row.thread_id || undefined,
+                        replyToId: row.reply_to_id || undefined,
+                        createdAt: row.created_at,
+                        direction: row.direction === 'inbound' ? 'inbound' : 'outbound',
+                        read: !!row.read,
+                    };
+                    setEmails((prev) => [newLog, ...prev]);
+                    onUnreadCountChangeRef.current?.();
+                }
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [candidateId]);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
