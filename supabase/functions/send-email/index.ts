@@ -75,7 +75,7 @@ function sanitizeHtml(html: string): string {
 function createEmailTemplate(content: string, logoUrl: string, companyName: string, companyWebsite: string, recipientEmail?: string): string {
   // Always render the CoreflowHR logo image. Text fallback only if no URL provided.
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="${companyName}" width="36" height="36" style="display:block;width:36px;height:36px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />`
+    ? `<img src="${logoUrl}" alt="${companyName}" width="140" style="display:block;max-width:140px;height:auto;border:0;outline:none;text-decoration:none;" />`
     : `<a href="${companyWebsite}" style="text-decoration:none;"><span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.5px;">CoreflowHR</span></a>`;
 
   return `
@@ -318,7 +318,7 @@ serve(async (req) => {
     // All emails sent through this function (candidate comms, system emails) always use
     // the CoreflowHR platform logo. The workspace company logo is reserved exclusively
     // for signed offer letter PDFs (send-offer-with-esignature / generate-offer-pdf).
-    const logoUrl = Deno.env.get('LOGO_URL') || 'https://lpjyxpxkagctaibmqcoi.supabase.co/storage/v1/object/public/email-assets/coreflow-favicon-logo.png';
+    const logoUrl = Deno.env.get('LOGO_URL') || 'https://lpjyxpxkagctaibmqcoi.supabase.co/storage/v1/object/public/email-assets/logo.png';
     const companyName = 'CoreflowHR';
     const companyWebsite = Deno.env.get('COMPANY_WEBSITE') || 'https://coreflowhr.com';
     

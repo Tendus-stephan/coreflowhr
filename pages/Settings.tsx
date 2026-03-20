@@ -836,7 +836,7 @@ const Settings: React.FC = () => {
 
 
     // Team / workspace state
-    const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; role: User['role']; isCurrentUser: boolean }[]>([]);
+    const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; avatar?: string | null; role: User['role']; isCurrentUser: boolean }[]>([]);
     const [workspaceInfo, setWorkspaceInfo] = useState<{ workspaceId: string; name: string; companyLogoUrl?: string } | null>(null);
     const [isLoadingTeam, setIsLoadingTeam] = useState(false);
     const [teamError, setTeamError] = useState<string | null>(null);
@@ -2216,36 +2216,53 @@ const Settings: React.FC = () => {
                                                 const canChangeRole = currentWorkspaceRole === 'Admin' && !isSelf;
                                                 return (
                                                     <tr key={member.userId} className="border-t border-gray-100">
-                                                        <td className="px-4 py-3 text-gray-900">
-                                                            {member.name}
-                                                            {isSelf && <span className="ml-2 text-xs text-gray-500">(You)</span>}
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <Avatar name={member.name} src={member.avatar ?? undefined} className="w-8 h-8 text-xs shrink-0" />
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-gray-900 leading-tight">
+                                                                        {member.name}
+                                                                        {isSelf && <span className="ml-1.5 text-xs text-gray-400 font-normal">(You)</span>}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
                                                         </td>
-                                                        <td className="px-4 py-3 text-gray-900">
-                                                            <CustomSelect
-                                                                value={member.role}
-                                                                disabled={!canChangeRole}
-                                                                onChange={async (val) => {
-                                                                    const newRole = val as User['role'];
-                                                                    try {
-                                                                        await api.workspaces.updateMemberRole(member.userId, newRole);
-                                                                        setTeamMembers(prev =>
-                                                                            prev.map(m =>
-                                                                                m.userId === member.userId ? { ...m, role: newRole } : m
-                                                                            )
-                                                                        );
-                                                                    } catch (error: any) {
-                                                                        console.error('Error updating member role:', error);
-                                                                        setTeamError(error.message || 'Failed to update member role.');
-                                                                    }
-                                                                }}
-                                                                className="px-3 py-1.5 rounded-lg"
-                                                                options={[
-                                                                    ...(isSelf ? [{ value: 'Admin', label: 'Admin' }] : []),
-                                                                    { value: 'Recruiter', label: 'Recruiter' },
-                                                                    { value: 'HiringManager', label: 'Hiring Manager' },
-                                                                    { value: 'Viewer', label: 'Viewer' },
-                                                                ]}
-                                                            />
+                                                        <td className="px-4 py-3">
+                                                            {canChangeRole ? (
+                                                                <CustomSelect
+                                                                    value={member.role}
+                                                                    onChange={async (val) => {
+                                                                        const newRole = val as User['role'];
+                                                                        try {
+                                                                            await api.workspaces.updateMemberRole(member.userId, newRole);
+                                                                            setTeamMembers(prev =>
+                                                                                prev.map(m =>
+                                                                                    m.userId === member.userId ? { ...m, role: newRole } : m
+                                                                                )
+                                                                            );
+                                                                        } catch (error: any) {
+                                                                            console.error('Error updating member role:', error);
+                                                                            setTeamError(error.message || 'Failed to update member role.');
+                                                                        }
+                                                                    }}
+                                                                    className="px-3 py-1.5 rounded-lg"
+                                                                    options={[
+                                                                        { value: 'Admin', label: 'Admin' },
+                                                                        { value: 'Recruiter', label: 'Recruiter' },
+                                                                        { value: 'HiringManager', label: 'Hiring Manager' },
+                                                                        { value: 'Viewer', label: 'Viewer' },
+                                                                    ]}
+                                                                />
+                                                            ) : (
+                                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                                                    member.role === 'Admin' ? 'bg-gray-900 text-white' :
+                                                                    member.role === 'Recruiter' ? 'bg-blue-100 text-blue-700' :
+                                                                    member.role === 'HiringManager' ? 'bg-purple-100 text-purple-700' :
+                                                                    'bg-gray-100 text-gray-600'
+                                                                }`}>
+                                                                    {member.role === 'HiringManager' ? 'Hiring Manager' : member.role}
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td className="px-4 py-3 text-right">
                                                             {canChangeRole ? (

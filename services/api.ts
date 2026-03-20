@@ -5398,7 +5398,7 @@ export const api = {
             workspaceId: string;
             name: string;
             companyLogoUrl?: string;
-            members: { userId: string; name: string; role: UserRole; isCurrentUser: boolean }[];
+            members: { userId: string; name: string; avatar?: string | null; role: UserRole; isCurrentUser: boolean }[];
         }> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -5428,6 +5428,7 @@ export const api = {
 
             const userIds = (membersData || []).map((m: any) => m.user_id).filter(Boolean);
             const nameById: Record<string, string> = {};
+            const avatarById: Record<string, string | null> = {};
             if (userIds.length > 0) {
                 const { data: namesData, error: namesError } = await supabase.rpc('get_display_names_for_users', {
                     p_user_ids: userIds,
@@ -5437,14 +5438,14 @@ export const api = {
                         if (id && name && typeof name === 'string') nameById[id] = name;
                     }
                 }
-                if (Object.keys(nameById).length < userIds.length) {
-                    const { data: profilesData } = await supabase.from('profiles').select('id, name').in('id', userIds);
-                    for (const p of profilesData || []) {
-                        if (p?.id && !nameById[p.id]) {
-                            const raw = (p.name as string)?.trim();
-                            nameById[p.id as string] = (raw && raw.toLowerCase() !== 'user' ? raw : null) || 'Member';
-                        }
+                const { data: profilesData } = await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds);
+                for (const p of profilesData || []) {
+                    if (!p?.id) continue;
+                    if (!nameById[p.id]) {
+                        const raw = (p.name as string)?.trim();
+                        nameById[p.id as string] = (raw && raw.toLowerCase() !== 'user' ? raw : null) || 'Member';
                     }
+                    avatarById[p.id as string] = (p.avatar_url as string) || null;
                 }
                 for (const id of userIds) {
                     if (!nameById[id]) nameById[id] = 'Member';
@@ -5454,6 +5455,7 @@ export const api = {
             const members = (membersData || []).map((m: any) => ({
                 userId: m.user_id as string,
                 name: nameById[m.user_id as string] || 'Member',
+                avatar: avatarById[m.user_id as string] ?? null,
                 role: (m.role as string) as UserRole,
                 isCurrentUser: m.user_id === userId,
             }));
