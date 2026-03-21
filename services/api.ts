@@ -25,25 +25,24 @@ const getUserId = async (): Promise<string | null> => {
 const getCurrentUserRole = async (): Promise<string> => {
   const userId = await getUserId();
   if (!userId) return 'Viewer';
-  let { data: memberships, error: membershipsError } = await supabase
-    .from('workspace_members')
-    .select('role')
-    .eq('user_id', userId);
+  const workspaceId = await getCurrentWorkspaceId();
+  // Scope role lookup to the active workspace to prevent cross-workspace privilege escalation
+  let roleQuery = supabase.from('workspace_members').select('role').eq('user_id', userId);
+  if (workspaceId) roleQuery = roleQuery.eq('workspace_id', workspaceId);
+  let { data: memberships } = await roleQuery;
   const hasAdmin = memberships?.some((m: { role: string }) => m.role === 'Admin');
   if (!hasAdmin) {
     await supabase.rpc('ensure_workspace_owner_admin');
-    const retry = await supabase.from('workspace_members').select('role').eq('user_id', userId);
-    if (!retry.error && retry.data?.length) {
-      memberships = retry.data;
-    }
+    let retryQuery = supabase.from('workspace_members').select('role').eq('user_id', userId);
+    if (workspaceId) retryQuery = retryQuery.eq('workspace_id', workspaceId);
+    const retry = await retryQuery;
+    if (!retry.error && retry.data?.length) memberships = retry.data;
   }
-  if (!memberships || memberships.length === 0) {
-    return 'Viewer';
-  }
+  if (!memberships || memberships.length === 0) return 'Viewer';
   if (memberships.some((m: { role: string }) => m.role === 'Admin')) return 'Admin';
   const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-    const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
-    return (m?.role as string) || 'Viewer';
+  const m = memberships.find((r: { role: string }) => nonAdminRoles.includes(r.role));
+  return (m?.role as string) || 'Viewer';
 };
 
 // Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace the user OWNS (created_by), then Admin, then first.
@@ -3298,38 +3297,44 @@ export const api = {
         reject: async (candidateId: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
-            const { error } = await supabase
-                .from('candidates')
-                .update({ stage: 'Rejected' })
-                .eq('id', candidateId)
-                .eq('stage', 'New'); // safety: only reject waitlisted candidates
+            const workspaceId = await getCurrentWorkspaceId();
+            let q = supabase.from('candidates').update({ stage: 'Rejected' }).eq('id', candidateId).eq('stage', 'New');
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { error } = await q;
             if (error) throw error;
         },
-        /** Permanently delete a candidate record. */
+        /** Permanently delete a candidate record. Only Admin/Recruiter may call this. */
         deleteCandidate: async (candidateId: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
-            const { error } = await supabase
-                .from('candidates')
-                .delete()
-                .eq('id', candidateId);
+            const [workspaceId, role] = await Promise.all([getCurrentWorkspaceId(), getCurrentUserRole()]);
+            if (role === 'Viewer' || role === 'HiringManager') throw new Error('Only Admins and Recruiters can delete candidates.');
+            let q = supabase.from('candidates').delete().eq('id', candidateId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { error } = await q;
             if (error) throw error;
         },
         search: async (query: string, stageFilter?: CandidateStage): Promise<Candidate[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             if (!query || query.trim().length === 0) {
                 return [];
             }
 
             const searchTerm = `%${query.trim()}%`;
-            
+
             let queryBuilder = supabase
                 .from('candidates')
                 .select('*')
-                .eq('user_id', userId)
                 .or(`name.ilike.${searchTerm},email.ilike.${searchTerm}`);
+
+            if (workspaceId) {
+                queryBuilder = queryBuilder.eq('workspace_id', workspaceId);
+            } else {
+                queryBuilder = queryBuilder.eq('user_id', userId);
+            }
 
             // Filter by stage if provided
             if (stageFilter) {
@@ -3606,14 +3611,10 @@ export const api = {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 30);
 
-            const { error } = await supabase
-                .from('candidates')
-                .update({
-                    cv_upload_token: token,
-                    cv_upload_token_expires_at: expiresAt.toISOString()
-                })
-                .eq('id', candidateId)
-                .eq('user_id', userId);
+            const workspaceId = await getCurrentWorkspaceId();
+            let updateQ = supabase.from('candidates').update({ cv_upload_token: token, cv_upload_token_expires_at: expiresAt.toISOString() }).eq('id', candidateId);
+            if (workspaceId) updateQ = updateQ.eq('workspace_id', workspaceId); else updateQ = updateQ.eq('user_id', userId);
+            const { error } = await updateQ;
 
             if (error) throw error;
             return token;
@@ -4337,24 +4338,24 @@ export const api = {
         cancel: async (interviewId: string, reason?: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+
+            const scopeFilter = (q: any) => workspaceId
+                ? q.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`)
+                : q.eq('user_id', userId);
 
             // Get current interview data first
-            const { data: interview } = await supabase
-                .from('interviews')
-                .select('notes, job_title, date, time, type, candidates!inner(name)')
-                .eq('id', interviewId)
-                .eq('user_id', userId)
-                .single();
+            const { data: interview } = await scopeFilter(
+                supabase.from('interviews').select('notes, job_title, date, time, type, candidates!inner(name)').eq('id', interviewId)
+            ).single();
 
-            const { error } = await supabase
-                .from('interviews')
-                .update({
+            const { error } = await scopeFilter(
+                supabase.from('interviews').update({
                     status: 'Cancelled',
                     notes: reason ? `${interview?.notes || ''}\n\nCancelled: ${reason}`.trim() : interview?.notes,
                     updated_at: new Date().toISOString()
-                })
-                .eq('id', interviewId)
-                .eq('user_id', userId);
+                }).eq('id', interviewId)
+            );
 
             if (error) throw error;
 
@@ -4405,12 +4406,11 @@ export const api = {
         ensureFeedbackReminders: async (): Promise<void> => {
             const userId = await getUserId();
             if (!userId) return;
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { data: interviewsData } = await supabase
-                .from('interviews')
-                .select('id, date, time, duration_minutes, job_title, candidate_id')
-                .eq('user_id', userId)
-                .eq('status', 'Scheduled');
+            let q = supabase.from('interviews').select('id, date, time, duration_minutes, job_title, candidate_id').eq('status', 'Scheduled');
+            if (workspaceId) q = q.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`); else q = q.eq('user_id', userId);
+            const { data: interviewsData } = await q;
 
             if (!interviewsData?.length) return;
 
@@ -4474,11 +4474,11 @@ export const api = {
                 .single();
             const sendEmail = prefRow?.interview_schedule_updates !== false;
 
-            const { data: interviewsData } = await supabase
-                .from('interviews')
-                .select('id, date, time, job_title, candidate_id')
-                .eq('user_id', userId)
-                .eq('status', 'Scheduled');
+            const workspaceId = await getCurrentWorkspaceId();
+            let upcomingQ = supabase.from('interviews').select('id, date, time, job_title, candidate_id').eq('status', 'Scheduled');
+            if (workspaceId) upcomingQ = upcomingQ.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`);
+            else upcomingQ = upcomingQ.eq('user_id', userId);
+            const { data: interviewsData } = await upcomingQ;
 
             if (!interviewsData?.length) return;
 
@@ -4744,14 +4744,13 @@ export const api = {
         getCandidateFeedback: async (candidateId: string): Promise<InterviewFeedback[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            // Verify candidate belongs to user
-            const { data: candidate } = await supabase
-                .from('candidates')
-                .select('id')
-                .eq('id', candidateId)
-                .eq('user_id', userId)
-                .single();
+            // Verify candidate is accessible in this workspace
+            let candidateQ = supabase.from('candidates').select('id').eq('id', candidateId);
+            if (workspaceId) candidateQ = candidateQ.eq('workspace_id', workspaceId);
+            else candidateQ = candidateQ.eq('user_id', userId);
+            const { data: candidate } = await candidateQ.single();
 
             if (!candidate) throw new Error('Candidate not found');
 
@@ -5299,6 +5298,8 @@ export const api = {
         disconnectIntegration: async (integrationId: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin' && role !== 'Recruiter') throw new Error('Only Admins and Recruiters can manage integrations.');
 
             // Slack disconnect: clear workspace's Slack OAuth columns
             const isSlack = integrationId.endsWith('_slack') || integrationId === 'slack';
@@ -5361,6 +5362,8 @@ export const api = {
         saveSlackWebhook: async (webhookUrl: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const role = await getCurrentUserRole();
+            if (role !== 'Admin' && role !== 'Recruiter') throw new Error('Only Admins and Recruiters can manage integrations.');
             const { data: membership } = await supabase
                 .from('workspace_members')
                 .select('workspace_id')
@@ -5866,13 +5869,11 @@ export const api = {
         get: async (workflowId: string): Promise<EmailWorkflow> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { data, error } = await supabase
-                .from('email_workflows')
-                .select('*')
-                .eq('id', workflowId)
-                .eq('user_id', userId)
-                .single();
+            let q = supabase.from('email_workflows').select('*').eq('id', workflowId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data, error } = await q.single();
 
             if (error) throw error;
 
@@ -5954,13 +5955,10 @@ export const api = {
             if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
             if (updates.delayMinutes !== undefined) updateData.delay_minutes = updates.delayMinutes;
 
-            const { data, error } = await supabase
-                .from('email_workflows')
-                .update(updateData)
-                .eq('id', workflowId)
-                .eq('user_id', userId)
-                .select()
-                .single();
+            const workspaceId = await getCurrentWorkspaceId();
+            let q = supabase.from('email_workflows').update(updateData).eq('id', workflowId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data, error } = await q.select().single();
 
             if (error) throw error;
 
@@ -6233,14 +6231,12 @@ export const api = {
         get: async (offerId: string): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
-            const isHiringManager = (await getCurrentUserRole()) === 'HiringManager';
+            const [workspaceId, role] = await Promise.all([getCurrentWorkspaceId(), getCurrentUserRole()]);
+            const isHiringManager = role === 'HiringManager';
 
-            const { data, error } = await supabase
-                .from('offers')
-                .select('*')
-                .eq('id', offerId)
-                .eq('user_id', userId)
-                .single();
+            let q = supabase.from('offers').select('*').eq('id', offerId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data, error } = await q.single();
 
             if (error) throw error;
 
@@ -6527,21 +6523,14 @@ export const api = {
         accept: async (offerId: string, response?: string): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             const offer = await api.offers.get(offerId);
 
-            // Update offer status
-            const { data: updated, error } = await supabase
-                .from('offers')
-                .update({
-                    status: 'accepted',
-                    responded_at: new Date().toISOString(),
-                    response: response || null
-                })
-                .eq('id', offerId)
-                .eq('user_id', userId)
-                .select()
-                .single();
+            // Update offer status (workspace-scoped)
+            let q = supabase.from('offers').update({ status: 'accepted', responded_at: new Date().toISOString(), response: response || null }).eq('id', offerId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data: updated, error } = await q.select().single();
 
             if (error) throw error;
 
@@ -6584,18 +6573,11 @@ export const api = {
         decline: async (offerId: string, response?: string): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { data: updated, error } = await supabase
-                .from('offers')
-                .update({
-                    status: 'declined',
-                    responded_at: new Date().toISOString(),
-                    response: response || null
-                })
-                .eq('id', offerId)
-                .eq('user_id', userId)
-                .select()
-                .single();
+            let q = supabase.from('offers').update({ status: 'declined', responded_at: new Date().toISOString(), response: response || null }).eq('id', offerId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data: updated, error } = await q.select().single();
 
             if (error) throw error;
 
