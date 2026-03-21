@@ -220,6 +220,15 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         try {
             // Get user info for interviewer name
             const user = await api.auth.me();
+
+            // Resolve workspace_id so the interview is visible to all workspace members
+            const { data: wmRow } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', user.id)
+                .limit(1)
+                .single();
+            const workspaceId = wmRow?.workspace_id ?? null;
             
             // Create interview record
             // Map 'Video Call' to 'Google Meet' for database compatibility
@@ -269,14 +278,18 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         .eq('id', editingInterviewId);
                 }
             } else {
-                // Check if there's an existing scheduled interview for this candidate
-                const { data: existingInterview } = await supabase
+                // Check if there's an existing scheduled interview for this candidate (workspace-scoped)
+                let existingQuery = supabase
                     .from('interviews')
                     .select('id')
-                    .eq('user_id', user.id)
                     .eq('candidate_id', selectedCandidate.id)
-                    .eq('status', 'Scheduled')
-                    .maybeSingle();
+                    .eq('status', 'Scheduled');
+                if (workspaceId) {
+                    existingQuery = existingQuery.or(`workspace_id.eq.${workspaceId},user_id.eq.${user.id}`);
+                } else {
+                    existingQuery = existingQuery.eq('user_id', user.id);
+                }
+                const { data: existingInterview } = await existingQuery.maybeSingle();
 
                 if (existingInterview) {
                     // Existing scheduled interview for this candidate → treat as reschedule
@@ -306,7 +319,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             .eq('id', existingInterview.id);
                     }
                 } else {
-                    // Insert new interview
+                    // Insert new interview — stamp workspace_id so all workspace members can see it
                     const { data: newInterview, error: insertError } = await supabase
                         .from('interviews')
                         .insert({
@@ -320,6 +333,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             meeting_link: interviewData.meetingLink,
                             notes: interviewData.address ? `Address: ${interviewData.address}` : null,
                             status: 'Scheduled',
+                            ...(workspaceId ? { workspace_id: workspaceId } : {}),
                         })
                         .select()
                         .single();
