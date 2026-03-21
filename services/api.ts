@@ -3732,8 +3732,9 @@ export const api = {
                 .order('date', { ascending: true })
                 .order('time', { ascending: true });
 
+            // Include both: workspace-scoped interviews (new) and legacy user-scoped ones (no workspace_id)
             if (workspaceId) {
-                interviewsQuery = interviewsQuery.eq('workspace_id', workspaceId);
+                interviewsQuery = interviewsQuery.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`);
             } else {
                 interviewsQuery = interviewsQuery.eq('user_id', userId);
             }
@@ -3897,8 +3898,9 @@ export const api = {
                 .order('date', { ascending: true })
                 .order('time', { ascending: true });
 
+            // Include both: workspace-scoped interviews (new) and legacy user-scoped ones (no workspace_id)
             if (workspaceId) {
-                query = query.eq('workspace_id', workspaceId);
+                query = query.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`);
             } else {
                 query = query.eq('user_id', userId);
             }
@@ -4019,7 +4021,7 @@ export const api = {
                 .eq('status', 'Scheduled');
 
             if (workspaceId) {
-                query = query.eq('workspace_id', workspaceId);
+                query = query.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`);
             } else {
                 query = query.eq('user_id', userId);
             }
@@ -4708,25 +4710,23 @@ export const api = {
         getCandidateInterviews: async (candidateId: string): Promise<Interview[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            // Verify candidate belongs to user
-            const { data: candidate } = await supabase
-                .from('candidates')
-                .select('id')
-                .eq('id', candidateId)
-                .eq('user_id', userId)
-                .single();
-
-            if (!candidate) throw new Error('Candidate not found');
-
-            // Get all interviews for this candidate (both past and future)
-            const { data: interviewsData, error } = await supabase
+            // Get all interviews for this candidate (both past and future), workspace-scoped
+            let query = supabase
                 .from('interviews')
                 .select('*')
                 .eq('candidate_id', candidateId)
-                .eq('user_id', userId)
                 .order('date', { ascending: false })
                 .order('time', { ascending: false });
+
+            if (workspaceId) {
+                query = query.or(`workspace_id.eq.${workspaceId},user_id.eq.${userId}`);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+
+            const { data: interviewsData, error } = await query;
 
             if (error) throw error;
 
