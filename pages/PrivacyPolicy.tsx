@@ -174,7 +174,7 @@ const PrivacyPolicy: React.FC = () => {
             <div className="flex justify-center mb-8">
               <img 
                 src="/assets/images/coreflow-favicon-logo.png" 
-                alt="CoreFlow" 
+                alt="CoreflowHR"
                 className="object-contain"
                 style={{ 
                   width: '120px',

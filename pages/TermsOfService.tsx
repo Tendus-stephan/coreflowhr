@@ -187,7 +187,7 @@ const TermsOfService: React.FC = () => {
             <div className="flex justify-center mb-8">
               <img 
                 src="/assets/images/coreflow-favicon-logo.png" 
-                alt="CoreFlow" 
+                alt="CoreflowHR"
                 className="object-contain"
                 style={{ 
                   width: '120px',
@@ -204,7 +204,7 @@ const TermsOfService: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">AGREEMENT TO OUR LEGAL TERMS</h2>
                 <div className="text-gray-700 leading-relaxed space-y-4">
                   <p>
-                    We are <strong>CoreflowHR</strong>, an ai recruitment site that helps with the seamless automation of candidates sourcing and hiring. 
+                    We are <strong>CoreflowHR</strong>, a recruitment platform that helps agencies and in-house teams post jobs, manage their hiring pipeline, score applicants with AI, and send offer letters — all in one place.
                     We operate the website <a href="http://www.coreflowhr.com" target="_blank" rel="noopener noreferrer" className="text-black hover:underline">http://www.coreflowhr.com</a> (the 'Site'), as well as any other 
                     related products and services that refer or link to these legal terms (the 'Legal Terms') (collectively, the 'Services').
                   </p>
@@ -298,8 +298,8 @@ const TermsOfService: React.FC = () => {
               <section id="purchases">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">5. PURCHASES AND PAYMENT</h2>
                 <div className="text-gray-700 leading-relaxed space-y-4">
-                  <p>We accept the following forms of payment:</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
+                  <p>We accept the following forms of payment via Stripe:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
                     {/* Visa */}
                     <div className="flex items-center justify-center p-4 bg-[#1A1F71] rounded-lg">
                       <span className="text-white font-bold text-lg tracking-wider">VISA</span>
@@ -318,10 +318,6 @@ const TermsOfService: React.FC = () => {
                     {/* Discover */}
                     <div className="flex items-center justify-center p-4 bg-[#FF6000] rounded-lg">
                       <span className="text-white font-bold text-xs">DISCOVER</span>
-                    </div>
-                    {/* PayPal */}
-                    <div className="flex items-center justify-center p-4 bg-[#003087] rounded-lg">
-                      <span className="text-white font-bold text-sm">PayPal</span>
                     </div>
                   </div>
                   <p className="mt-4">
@@ -345,8 +341,15 @@ const TermsOfService: React.FC = () => {
                   <div>
                     <h3 className="text-xl font-semibold mb-2">Cancellation</h3>
                     <p>
-                      All purchases are non-refundable. You can cancel your subscription at any time by logging into your account. Your cancellation will 
-                      take effect at the end of the current paid term.
+                      You can cancel your subscription at any time by contacting us at <a href="mailto:team@coreflowhr.com" className="text-black hover:underline">team@coreflowhr.com</a>. Your cancellation will
+                      take effect at the end of the current paid term, and you will not be charged again.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">14-Day Money-Back Guarantee</h3>
+                    <p>
+                      If CoreflowHR does not meet your needs within 14 days of your first payment, contact us at <a href="mailto:team@coreflowhr.com" className="text-black hover:underline">team@coreflowhr.com</a> for
+                      a full refund — no questions asked. Refund requests made after 14 days of the initial purchase are not eligible.
                     </p>
                   </div>
                 </div>

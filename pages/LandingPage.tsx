@@ -303,7 +303,7 @@ const LandingPage: React.FC = () => {
           <Link to="/" className="cursor-pointer flex items-center flex-shrink-0">
             <img 
               src="/assets/images/coreflow-logo.png" 
-              alt="CoreFlow" 
+              alt="CoreflowHR"
               className="object-contain"
               style={{ 
                 display: 'block',
@@ -325,7 +325,7 @@ const LandingPage: React.FC = () => {
           
           <div className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-medium text-gray-500">
             <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
-            <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why CoreFlow</button>
+            <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why CoreflowHR</button>
             <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
             <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
           </div>
@@ -682,7 +682,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
              <FadeIn>
                <div className="text-center mb-8 sm:mb-10 md:mb-12">
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 tracking-tight px-4">Why Agencies Choose CoreFlow</h2>
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 tracking-tight px-4">Why Agencies Choose CoreflowHR</h2>
                </div>
              </FadeIn>
              
@@ -894,7 +894,7 @@ const LandingPage: React.FC = () => {
           <FadeIn>
             <div className="text-center mb-20">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">Seamless Integrations</h2>
-              <p className="text-gray-500 max-w-xl mx-auto">CoreFlow plays nicely with the tools you already use.</p>
+              <p className="text-gray-500 max-w-xl mx-auto">CoreflowHR plays nicely with the tools you already use.</p>
             </div>
           </FadeIn>
 
@@ -1045,7 +1045,7 @@ const LandingPage: React.FC = () => {
                     { q: "How do candidates apply for my jobs?", a: "Each job gets a public application page with a unique link. You copy-paste a pre-formatted post to LinkedIn, Indeed, or CV-Library. Candidates click the link, fill in their details, attach their CV, and they appear in your Waitlist instantly — no manual entry needed." },
                     { q: "How does the AI CV scoring work?", a: "When a candidate submits their CV, CoreflowHR parses it and calculates a match score (0–100) based on overlap with your job's required skills. The more skills you define on a job, the more accurate the scoring. Scores appear as colour-coded badges on candidate cards." },
                     { q: "Is there a free trial?", a: "No free trial — but we offer a 14-day money-back guarantee. If CoreflowHR doesn't work for your hiring process within 14 days, we'll refund you in full. No questions asked." },
-                    { q: "What payment methods do you accept?", a: "We accept all major credit cards, PayPal, and bank transfers for enterprise customers." }
+                    { q: "What payment methods do you accept?", a: "We accept all major credit and debit cards via Stripe — Visa, Mastercard, American Express, and Discover." }
                 ].map((item, i) => (
                     <div key={i} className="border-b border-gray-200 py-6">
                         <button 
@@ -1071,7 +1071,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8 sm:mb-12 md:mb-16">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 sm:gap-6 md:gap-8">
                  <div className="text-gray-400 text-xs sm:text-sm">
-                     © 2026 CoreFlow HR. All rights reserved.
+                     © 2026 CoreflowHR. All rights reserved.
                  </div>
                  <div className="flex flex-wrap gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-500">
                      <Link to="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link>
@@ -1083,8 +1083,8 @@ const LandingPage: React.FC = () => {
 
         {/* Giant Text */}
         <div className="w-full flex justify-center border-t border-transparent">
-            <h1 className="text-[15vw] sm:text-[16vw] md:text-[18vw] font-bold tracking-tighter leading-none text-black select-none text-center">
-                coreflow
+            <h1 className="text-[11vw] sm:text-[12vw] md:text-[13vw] font-bold tracking-tighter leading-none text-black select-none text-center">
+                coreflowhr
             </h1>
         </div>
       </footer>
