@@ -10,6 +10,7 @@ import { useConfirm } from '../contexts/ConfirmContext';
 const Clients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -27,7 +28,11 @@ const Clients: React.FC = () => {
     notes: ''
   });
 
-  useEffect(() => { loadClients(); }, []);
+  useEffect(() => {
+    loadClients();
+    api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
+  }, []);
+  const canManage = userRole === 'Admin' || userRole === 'Recruiter';
 
   useEffect(() => {
     if (showCreateModal) {
@@ -147,9 +152,11 @@ const Clients: React.FC = () => {
             Manage your client companies and link them to open roles.
           </p>
         </div>
-        <Button onClick={handleCreate} icon={<Plus size={15} />} size="sm">
-          Add Client
-        </Button>
+        {canManage && (
+          <Button onClick={handleCreate} icon={<Plus size={15} />} size="sm">
+            Add Client
+          </Button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -185,7 +192,7 @@ const Clients: React.FC = () => {
             <p className="text-xs text-gray-400 mb-5 max-w-xs">
               {searchQuery ? 'Try a different search term' : 'Create your first client to organize jobs by company'}
             </p>
-            {!searchQuery && (
+            {!searchQuery && canManage && (
               <Button onClick={handleCreate} icon={<Plus size={15} />} size="sm">
                 Create First Client
               </Button>
@@ -257,12 +264,14 @@ const Clients: React.FC = () => {
 
                 {/* Actions */}
                 <div className="px-2 py-3 flex items-center justify-center relative">
-                  <button
-                    onClick={(e) => openMenu(e, client.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    <MoreVertical size={15} />
-                  </button>
+                  {canManage && (
+                    <button
+                      onClick={(e) => openMenu(e, client.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      <MoreVertical size={15} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

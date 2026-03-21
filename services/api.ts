@@ -3715,78 +3715,64 @@ export const api = {
         list: async (): Promise<Interview[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             // Get current date/time to filter out past interviews
             const now = new Date();
             const today = now.toISOString().split('T')[0];
             const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
 
-            // First, get all scheduled interviews for this user
-            const { data: interviewsData, error: interviewsError } = await supabase
+            // Fetch all scheduled interviews for the workspace (RLS enforces per-role access)
+            let interviewsQuery = supabase
                 .from('interviews')
-                .select('*')
-                .eq('user_id', userId)
+                .select('*, candidates(id, name)')
                 .eq('status', 'Scheduled')
-                .gte('date', today) // Only future or today's interviews
+                .gte('date', today)
                 .order('date', { ascending: true })
                 .order('time', { ascending: true });
 
-            if (interviewsError) throw interviewsError;
-
-            if (!interviewsData || interviewsData.length === 0) {
-                return [];
+            if (workspaceId) {
+                interviewsQuery = interviewsQuery.eq('workspace_id', workspaceId);
+            } else {
+                interviewsQuery = interviewsQuery.eq('user_id', userId);
             }
 
-            // Get candidate IDs and fetch their names
-            const candidateIds = [...new Set(interviewsData.map(i => i.candidate_id))];
-            
-            const { data: candidatesData, error: candidatesError } = await supabase
-                .from('candidates')
-                .select('id, name')
-                .eq('user_id', userId)
-                .in('id', candidateIds);
+            const { data: interviewsData, error: interviewsError } = await interviewsQuery;
+            if (interviewsError) throw interviewsError;
+            if (!interviewsData || interviewsData.length === 0) return [];
 
-            if (candidatesError) throw candidatesError;
+            // Fetch creator display names
+            const creatorIds = [...new Set(interviewsData.map((i: any) => i.user_id).filter(Boolean))];
+            const creatorNameById: Record<string, string> = {};
+            if (creatorIds.length > 0) {
+                const { data: namesData } = await supabase.rpc('get_display_names_for_users', { p_user_ids: creatorIds });
+                if (namesData && typeof namesData === 'object') Object.assign(creatorNameById, namesData);
+            }
 
-            // Create a map of candidate ID to candidate data
-            const candidateMap = new Map(
-                (candidatesData || []).map(c => [c.id, c])
-            );
-
-            // Filter interviews to only include those that haven't passed yet
-            const upcomingInterviews = interviewsData.filter(interview => {
-                const interviewDate = interview.date;
-                const interviewTime = interview.time;
-                
-                // If interview is today, check if time hasn't passed
-                if (interviewDate === today) {
-                    return interviewTime >= currentTime;
-                }
-                
-                // If interview is in the future, include it
-                return interviewDate > today;
+            // Filter to only interviews that haven't passed yet (for today)
+            const upcomingInterviews = interviewsData.filter((interview: any) => {
+                if (interview.date === today) return interview.time >= currentTime;
+                return interview.date > today;
             });
 
-            return upcomingInterviews.map(interview => {
-                const candidate = candidateMap.get(interview.candidate_id);
-                return {
-                    id: interview.id,
-                    candidateId: interview.candidate_id,
-                    candidateName: candidate?.name || 'Unknown',
-                    jobTitle: interview.job_title,
-                    date: interview.date,
-                    time: interview.time,
-                    endTime: interview.end_time || undefined,
-                    type: interview.type,
-                    interviewer: interview.interviewer || '',
-                    durationMinutes: interview.duration_minutes || 60,
-                    timezone: interview.timezone || 'UTC',
-                    reminderSent: interview.reminder_sent || false,
-                    meetingLink: interview.meeting_link || undefined,
-                    notes: interview.notes || undefined,
-                    status: interview.status || 'Scheduled'
-                };
-            });
+            return upcomingInterviews.map((interview: any) => ({
+                id: interview.id,
+                candidateId: interview.candidate_id,
+                candidateName: interview.candidates?.name || 'Unknown',
+                jobTitle: interview.job_title,
+                date: interview.date,
+                time: interview.time,
+                endTime: interview.end_time || undefined,
+                type: interview.type,
+                interviewer: interview.interviewer || '',
+                durationMinutes: interview.duration_minutes || 60,
+                timezone: interview.timezone || 'UTC',
+                reminderSent: interview.reminder_sent || false,
+                meetingLink: interview.meeting_link || undefined,
+                notes: interview.notes || undefined,
+                status: interview.status || 'Scheduled',
+                creatorName: creatorNameById[interview.user_id] || undefined,
+            }));
         },
         create: async (candidateId: string, interviewData: {
             jobTitle: string;
@@ -3802,6 +3788,7 @@ export const api = {
         }): Promise<Interview> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             const { data: interview, error } = await supabase
                 .from('interviews')
@@ -3820,6 +3807,7 @@ export const api = {
                     notes: interviewData.notes || null,
                     status: 'Scheduled',
                     calendar_sync_status: 'pending',
+                    ...(workspaceId ? { workspace_id: workspaceId } : {}),
                 })
                 .select('*, candidates!inner(id, name)')
                 .single();
@@ -3895,6 +3883,7 @@ export const api = {
         }): Promise<Interview[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             let query = supabase
                 .from('interviews')
@@ -3902,11 +3891,16 @@ export const api = {
                     *,
                     candidates!inner(id, name)
                 `)
-                .eq('user_id', userId)
                 .gte('date', startDate)
                 .lte('date', endDate)
                 .order('date', { ascending: true })
                 .order('time', { ascending: true });
+
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
 
             // Apply filters
             if (filters?.status) {
@@ -3973,6 +3967,14 @@ export const api = {
                 }
             }
 
+            // Fetch creator display names
+            const calendarCreatorIds = [...new Set((interviewsData || []).map((i: any) => i.user_id).filter(Boolean))];
+            const calendarCreatorNameById: Record<string, string> = {};
+            if (calendarCreatorIds.length > 0) {
+                const { data: calendarNamesData } = await supabase.rpc('get_display_names_for_users', { p_user_ids: calendarCreatorIds });
+                if (calendarNamesData && typeof calendarNamesData === 'object') Object.assign(calendarCreatorNameById, calendarNamesData);
+            }
+
             return (interviewsData || []).map((interview: any) => ({
                 id: interview.id,
                 candidateId: interview.candidate_id,
@@ -3992,11 +3994,13 @@ export const api = {
                 attendees: attendeesMap.get(interview.id) || [],
                 calendarSyncStatus: interview.calendar_sync_status || undefined,
                 calendarSyncError: interview.calendar_sync_error || undefined,
+                creatorName: calendarCreatorNameById[interview.user_id] || undefined,
             }));
         },
         checkConflicts: async (date: string, time: string, durationMinutes: number = 60, excludeInterviewId?: string): Promise<Interview[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             // Calculate end time
             const [hours, minutes] = time.split(':').map(Number);
@@ -4006,13 +4010,18 @@ export const api = {
             const endMin = endMinutes % 60;
             const endTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
 
-            // Get all interviews for this date
+            // Get all workspace interviews for this date (detect double-booking across team)
             let query = supabase
                 .from('interviews')
                 .select('*')
-                .eq('user_id', userId)
                 .eq('date', date)
                 .eq('status', 'Scheduled');
+
+            if (workspaceId) {
+                query = query.eq('workspace_id', workspaceId);
+            } else {
+                query = query.eq('user_id', userId);
+            }
 
             if (excludeInterviewId) {
                 query = query.neq('id', excludeInterviewId);
@@ -4069,12 +4078,11 @@ export const api = {
             console.log('[Reschedule API] Rescheduling interview:', { interviewId, userId, newDate, newTime });
 
             // Get old interview data before updating
-            // Note: interviews -> candidates -> jobs (no direct relationship between interviews and jobs)
+            // Note: RLS enforces access — Admin/Recruiter can reschedule any workspace interview
             const { data: oldInterview, error: fetchError } = await supabase
                 .from('interviews')
                 .select('*, candidates!inner(id, name, email, job_id, is_test)')
                 .eq('id', interviewId)
-                .eq('user_id', userId)
                 .single();
 
             if (fetchError) {
@@ -4103,7 +4111,6 @@ export const api = {
                     .from('jobs')
                     .select('title, company')
                     .eq('id', oldInterview.candidates.job_id)
-                    .eq('user_id', userId)
                     .single();
                 
                 if (jobData) {
@@ -4129,7 +4136,6 @@ export const api = {
                 .from('interviews')
                 .update(updateData)
                 .eq('id', interviewId)
-                .eq('user_id', userId)
                 .select('*, candidates!inner(id, name, email, is_test)')
                 .single();
 

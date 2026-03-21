@@ -322,6 +322,13 @@ const Calendar: React.FC = () => {
                                                 </span>
                                             </div>
 
+                                            {/* Scheduled by */}
+                                            {iv.creatorName && (
+                                                <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-1">
+                                                    <span>by {iv.creatorName}</span>
+                                                </div>
+                                            )}
+
                                             {/* Meeting link */}
                                             {iv.meetingLink && (
                                                 <a

@@ -956,7 +956,7 @@ const Dashboard: React.FC = () => {
                       <div>
                           <h3 className="font-bold text-gray-900">{interview.candidateName}</h3>
                           <p className="text-xs text-gray-500">{interview.jobTitle} • {interview.time}</p>
-                          <p className="text-xs text-gray-400 mt-1">{interview.type} with {interview.interviewer}</p>
+                          <p className="text-xs text-gray-400 mt-1">{interview.type} with {interview.interviewer}{interview.creatorName ? ` · by ${interview.creatorName}` : ''}</p>
                       </div>
                   </div>
               )) : <p className="p-6 text-center text-gray-500">No scheduled interviews.</p>}
@@ -1094,7 +1094,7 @@ const Dashboard: React.FC = () => {
                     {interviews.slice(0, 3).map((interview) => (
                         <div key={interview.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:border-gray-300 hover:shadow-sm hover:bg-white transition-all duration-150 cursor-pointer group">
                             <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex flex-col items-center justify-center transition-colors"><span className="text-lg font-bold text-gray-900 leading-none">{new Date(interview.date).getDate()}</span><span className="text-[9px] text-gray-400 uppercase font-bold">{new Date(interview.date).toLocaleString('default', { month: 'short' })}</span></div>
-                            <div className="flex-1 min-w-0"><p className="text-sm font-bold text-gray-900 truncate">{interview.candidateName}</p><div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5"><Clock size={12} /><span>{interview.time}</span><span className="w-1 h-1 rounded-full bg-gray-300"></span><span className="truncate">{interview.type}</span></div></div>
+                            <div className="flex-1 min-w-0"><p className="text-sm font-bold text-gray-900 truncate">{interview.candidateName}</p><div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5"><Clock size={12} /><span>{interview.time}</span><span className="w-1 h-1 rounded-full bg-gray-300"></span><span className="truncate">{interview.type}</span></div>{interview.creatorName && <p className="text-[10px] text-gray-400 mt-0.5 truncate">by {interview.creatorName}</p>}</div>
                         </div>
                     ))}
                     {interviews.length === 0 && <p className="text-gray-500 text-sm italic">No interviews scheduled.</p>}
@@ -1102,7 +1102,7 @@ const Dashboard: React.FC = () => {
                 <button onClick={() => navigate('/calendar')} className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View Calendar</button>
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-6 ">
-             <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><Plus size={16}/></Button></div>
+             <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3>{user?.role !== 'Viewer' && user?.role !== 'HiringManager' && <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => navigate('/jobs/new')}><Plus size={16}/></Button>}</div>
              <div className="space-y-3">
                 {jobs.slice(0, 3).map((job) => (
                     <div key={job.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 hover:shadow-sm hover:bg-white transition-all duration-150 group bg-gray-50/30">

@@ -162,6 +162,8 @@ export interface Interview {
   attendees?: InterviewAttendee[];
   calendarSyncStatus?: 'synced' | 'failed' | 'pending' | 'not_connected';
   calendarSyncError?: string;
+  /** Display name of the workspace member who scheduled this interview. */
+  creatorName?: string;
 }
 
 export interface InterviewAttendee {
