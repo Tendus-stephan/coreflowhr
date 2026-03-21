@@ -1107,7 +1107,7 @@ const Dashboard: React.FC = () => {
                 {jobs.slice(0, 3).map((job) => (
                     <div key={job.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 hover:shadow-sm hover:bg-white transition-all duration-150 group bg-gray-50/30">
                         <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-bold text-sm">{job.title.charAt(0)}</div><div><p className="text-sm font-bold text-gray-900 truncate w-32">{job.title}</p><p className="text-xs text-gray-500">{job.department}</p></div></div>
-                        <div className="text-right"><p className="text-sm font-bold text-gray-900">{job.applicantsCount}</p><p className="text-[9px] text-gray-500 uppercase tracking-wide">Applied</p></div>
+                        <div className="text-right"><p className="text-sm font-bold text-gray-900">{job.candidateCount}</p><p className="text-[9px] text-gray-500 uppercase tracking-wide">Applied</p></div>
                     </div>
                 ))}
                 {jobs.length === 0 && <p className="text-gray-500 text-sm italic">No active jobs.</p>}

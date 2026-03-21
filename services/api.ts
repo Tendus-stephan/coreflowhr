@@ -3198,6 +3198,7 @@ export const api = {
             if (updates.resumeSummary !== undefined) updateData.resume_summary = updates.resumeSummary;
             if (updates.aiMatchScore !== undefined) updateData.ai_match_score = updates.aiMatchScore;
             if (updates.aiAnalysis !== undefined) updateData.ai_analysis = updates.aiAnalysis;
+            if ((updates as any).jobId !== undefined) updateData.job_id = (updates as any).jobId;
 
             // Atomic update: scoped to workspace so any authorized member can update
             const { data, error } = await scopeCandidate(

@@ -85,6 +85,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [isViewer, setIsViewer] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [sendingOfferId, setSendingOfferId] = useState<string | null>(null);
+  const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
+  const [selectedAssignJobId, setSelectedAssignJobId] = useState('');
+  const [isAssigningJob, setIsAssigningJob] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -109,6 +112,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       };
       if (isOpen) fetchJob();
   }, [candidate.jobId, isOpen]);
+
+  // When the job resolves as the pool job, load real jobs for the assign picker
+  useEffect(() => {
+      if (!isOpen || job?.title !== '__candidate_pool__') return;
+      api.jobs.list({ pageSize: 100 }).then(res => {
+          setAvailableJobs(res.data || []);
+          setSelectedAssignJobId('');
+      }).catch(() => {});
+  }, [isOpen, job?.title]);
 
   // Load candidate interviews when modal opens (for Reschedule vs Schedule and scheduled badge)
   useEffect(() => {
@@ -629,6 +641,22 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   // Disable Rejection if Hired
   const disableRejection = isHired;
 
+  const isPoolCandidate = job?.title === '__candidate_pool__';
+
+  const handleAssignToJob = async () => {
+      if (!selectedAssignJobId) return;
+      setIsAssigningJob(true);
+      try {
+          const updated = await api.candidates.update(candidate.id, { jobId: selectedAssignJobId } as any);
+          onUpdate(updated);
+          toast.success('Candidate assigned to job.');
+      } catch (e: any) {
+          toast.error(e.message || 'Failed to assign candidate.');
+      } finally {
+          setIsAssigningJob(false);
+      }
+  };
+
   // Use real work experience from candidate data
   const experienceHistory = candidate.workExperience || [];
   const scheduledUpcoming = candidateInterviews.filter((i: { date: string; time?: string }) => {
@@ -813,6 +841,35 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
             {activeTab === 'overview' && (
                 <div className="space-y-6">
+                    {/* Pool candidate banner — must assign to a job before scheduling/offering */}
+                    {isPoolCandidate && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                            <div className="flex items-center gap-2 text-amber-800 mb-3">
+                                <AlertTriangle size={18} />
+                                <span className="text-sm font-medium">This candidate is in the pool. Assign them to a job to enable interviews and offers.</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-black"
+                                    value={selectedAssignJobId}
+                                    onChange={e => setSelectedAssignJobId(e.target.value)}
+                                >
+                                    <option value="">Select a job...</option>
+                                    {availableJobs.map(j => (
+                                        <option key={j.id} value={j.id}>{j.title}</option>
+                                    ))}
+                                </select>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!selectedAssignJobId || isAssigningJob}
+                                    onClick={handleAssignToJob}
+                                >
+                                    {isAssigningJob ? 'Assigning...' : 'Assign'}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                     {/* Upcoming interview notice */}
                     {scheduledUpcoming.length > 0 && (() => {
                       const inv = scheduledUpcoming[0];
@@ -1579,6 +1636,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 size="sm"
                                 icon={<Plus size={14} />}
                                 onClick={() => {
+                                    if (isPoolCandidate) {
+                                        toast.error('Assign this candidate to a job first before creating an offer.');
+                                        return;
+                                    }
                                     setEditingOffer(null);
                                     setIsOfferModalOpen(true);
                                 }}
@@ -1659,6 +1720,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     size="sm"
                                     icon={<Plus size={14} />}
                                     onClick={() => {
+                                        if (isPoolCandidate) {
+                                            toast.error('Assign this candidate to a job first before creating an offer.');
+                                            return;
+                                        }
                                         setEditingOffer(null);
                                         setIsOfferModalOpen(true);
                                     }}
@@ -1776,6 +1841,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 variant="outline"
                                 icon={<Calendar size={16} />}
                                 onClick={() => {
+                                  if (isPoolCandidate) {
+                                    toast.error('Assign this candidate to a job first before scheduling an interview.');
+                                    return;
+                                  }
                                   if (candidate.stage !== CandidateStage.INTERVIEW) {
                                     toast.info('Only candidates in the Interview stage can have interviews scheduled. Move this candidate to the Interview stage first.');
                                     return;

@@ -2247,7 +2247,6 @@ const Settings: React.FC = () => {
                                                                     }}
                                                                     className="px-3 py-1.5 rounded-lg"
                                                                     options={[
-                                                                        { value: 'Admin', label: 'Admin' },
                                                                         { value: 'Recruiter', label: 'Recruiter' },
                                                                         { value: 'HiringManager', label: 'Hiring Manager' },
                                                                         { value: 'Viewer', label: 'Viewer' },
