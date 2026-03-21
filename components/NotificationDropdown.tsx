@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Notification } from '../services/api';
 import { getNotificationConfig, getCategoryLabel, NotificationCategory } from './NotificationTypes';
@@ -10,13 +11,17 @@ interface NotificationDropdownProps {
     onMarkAllRead?: () => void;
     onViewAll?: () => void;
     onNotificationClick?: (notification: Notification) => void;
+    /** When provided, renders as a fixed-position portal anchored below this element,
+     *  avoiding clipping by ancestor overflow containers. */
+    anchorEl?: HTMLElement | null;
 }
 
 export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     notifications,
     onMarkAllRead,
     onViewAll,
-    onNotificationClick
+    onNotificationClick,
+    anchorEl,
 }) => {
     const navigate = useNavigate();
     const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all');
@@ -72,8 +77,29 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
     const categories: (NotificationCategory | 'all')[] = ['all', 'candidate', 'job', 'automation', 'communication', 'system'];
 
-    return (
-        <div className="absolute right-0 top-full mt-3 w-96 bg-white border border-gray-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+    // When anchorEl is provided, compute fixed coordinates and render via portal
+    // so ancestor overflow containers can't clip the dropdown.
+    const portalStyle: React.CSSProperties | undefined = anchorEl
+        ? (() => {
+            const rect = anchorEl.getBoundingClientRect();
+            return {
+                position: 'fixed',
+                top: rect.bottom + 8,
+                right: window.innerWidth - rect.right,
+                zIndex: 9999,
+                width: 384, // w-96
+            };
+        })()
+        : undefined;
+
+    const content = (
+        <div
+            className={`${anchorEl ? '' : 'absolute right-0 top-full mt-3 '}w-96 bg-white border border-gray-200 rounded-xl shadow-2xl ${anchorEl ? '' : 'z-30 '}overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200`}
+            style={portalStyle}
+            // Prevent mousedown from bubbling to document so click-outside handlers
+            // in parent pages don't close the dropdown when clicking inside it.
+            onMouseDown={(e) => anchorEl && e.stopPropagation()}
+        >
             <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
                 <h3 className="font-bold text-gray-900 text-sm">Notifications</h3>
                 {onMarkAllRead && (
@@ -192,6 +218,8 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             )}
         </div>
     );
+
+    return anchorEl ? createPortal(content, document.body) : content;
 };
 
 

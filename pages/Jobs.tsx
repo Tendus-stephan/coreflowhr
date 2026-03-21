@@ -904,6 +904,7 @@ const Jobs: React.FC = () => {
             {showNotifications && (
               <NotificationDropdown
                 notifications={notifications}
+                anchorEl={notificationRef.current}
                 onMarkAllRead={async () => {
                   await api.notifications.markRead();
                   const updated = await api.notifications.list();
