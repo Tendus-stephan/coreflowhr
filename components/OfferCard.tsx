@@ -95,6 +95,9 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     {offer.referenceNumber && (
                         <p className="text-xs text-gray-400 mt-1">{offer.referenceNumber}</p>
                     )}
+                    {offer.creatorName && (
+                        <p className="text-xs text-gray-400 mt-1">by {offer.creatorName}</p>
+                    )}
                 </div>
                 {offer.status === 'draft' && !readOnly && (
                     <button

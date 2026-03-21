@@ -503,6 +503,8 @@ export interface Offer {
   signedPdfPath?: string | null;
   /** Generated reference e.g. CF-2026-00142. Null if generation failed. */
   referenceNumber?: string | null;
+  /** Display name of the workspace member who created this offer. */
+  creatorName?: string;
 }
 
 export interface OfferTemplate {

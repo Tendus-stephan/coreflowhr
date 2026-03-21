@@ -6183,7 +6183,19 @@ export const api = {
 
             if (error) throw error;
 
-            return (data || []).map(offer => ({
+            const rows = data || [];
+
+            // Fetch creator display names for all unique user_ids
+            const creatorIds = [...new Set(rows.map((o: any) => o.user_id).filter(Boolean))];
+            const nameById: Record<string, string> = {};
+            if (creatorIds.length > 0) {
+                const { data: namesData } = await supabase.rpc('get_display_names_for_users', { p_user_ids: creatorIds });
+                if (namesData && typeof namesData === 'object') {
+                    Object.assign(nameById, namesData);
+                }
+            }
+
+            return rows.map((offer: any) => ({
                 id: offer.id,
                 candidateId: offer.candidate_id,
                 jobId: offer.job_id,
@@ -6208,6 +6220,7 @@ export const api = {
                 requireEsignature: offer.require_esignature ?? undefined,
                 signedPdfPath: offer.signed_pdf_path ?? undefined,
                 referenceNumber: offer.reference_number ?? undefined,
+                creatorName: nameById[offer.user_id] || undefined,
             }));
         },
         get: async (offerId: string): Promise<Offer> => {
