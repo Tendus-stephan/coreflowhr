@@ -18,132 +18,72 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, session, loading } = useAuth();
   const location = useLocation();
-  const [accessLoading, setAccessLoading] = useState(true);
-  const [canEnter, setCanEnter] = useState(true); // Default allow during check
-  const [accessChecked, setAccessChecked] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(true); // Only admins see pricing gate
+
+  // Single flag — only true once ALL checks have completed
+  const [checksComplete, setChecksComplete] = useState(false);
+  const [canEnter, setCanEnter] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(true); // Default to true to allow access during check
-  // Function to check if session was revoked (optimized, non-blocking)
-  const checkSessionRevoked = async (): Promise<boolean> => {
-    if (!session || !user) return false;
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
-    try {
-      const sessionToken = session.access_token;
-      if (!sessionToken) return false;
-
-      // Track session in background (fire-and-forget, don't wait)
-      const { trackSession } = await import('../services/api');
-      trackSession().catch((err) => {
-        // Silently fail - tracking is non-critical
-        console.warn('Session tracking failed (non-critical):', err);
-      });
-
-      // Check if session still exists in database (simplified check)
-      // Use a timeout to prevent hanging
-      const checkPromise = supabase
-        .from('user_sessions')
-        .select('id, created_at')
-        .eq('session_token', sessionToken)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Session check timeout')), 2000)
-      );
-
-      const { data: sessionRecord, error: sessionCheckError } = await Promise.race([
-        checkPromise,
-        timeoutPromise
-      ]) as any;
-
-      // If session doesn't exist and no error, it might be a newly created session
-      // Try to track it first, then check again to avoid false positives
-      if (!sessionCheckError && !sessionRecord) {
-        // Try to track the session (in case it wasn't tracked yet)
-        try {
-          const { trackSession } = await import('../services/api');
-          await trackSession();
-          
-          // Wait a moment for the database to update
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Check again after tracking
-          const retryCheck = await supabase
-            .from('user_sessions')
-            .select('id')
-            .eq('session_token', sessionToken)
-            .eq('user_id', user.id)
-            .maybeSingle();
-          
-          // If still not found after tracking, it was likely revoked
-          if (!retryCheck.data) {
-            return true; // Session was revoked
-          }
-          return false; // Session found after tracking
-        } catch (trackError) {
-          // If tracking fails, don't immediately revoke - might be a temporary issue
-          // Only revoke if we're confident the session should exist
-          console.warn('Session tracking failed during revocation check:', trackError);
-          return false; // Assume session is valid if we can't verify
-        }
-      }
-
-      return false; // Session is still valid
-    } catch (error) {
-      // Ignore errors - session might be valid but table doesn't exist
-      // Or timeout occurred - assume session is valid
-      return false;
-    }
-  };
-
-  // Gatekeeper: workspace-first, then subscription.
-  // Q1 — Does this user belong to a workspace? If yes, let them in (workspace owner paid; they inherit access).
-  // Q2 — If no workspace, do they have their own subscription? If yes, in. If no, send to pricing.
+  // ─── Run ALL access + onboarding checks in one pass ───────────────────────
+  // Using session?.access_token as dependency so the check re-runs on token
+  // refresh but NOT on every unrelated re-render.
   useEffect(() => {
-    const checkAccess = async () => {
-      if (!session || !user) {
-        setAccessLoading(false);
-        return;
-      }
+    if (!session || !user) {
+      // No session — checks are trivially done (render logic handles redirect)
+      setChecksComplete(true);
+      setCanEnter(false);
+      setOnboardingCompleted(false);
+      return;
+    }
 
+    let cancelled = false;
+    setChecksComplete(false); // Reset while re-checking
+
+    const runChecks = async () => {
       try {
-        // Question 1: Does this user belong to any workspace?
-        const { data: memberships, error: membershipsError } = await supabase
-          .from('workspace_members')
-          .select('role, workspace_id')
-          .eq('user_id', user.id);
-
-        const belongsToWorkspace = !membershipsError && memberships && memberships.length > 0;
         const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-        const isAdminRole = belongsToWorkspace
-          ? !(memberships || []).some((m: any) => nonAdminRoles.includes(m.role))
-          : true; // No workspace yet → treat as potential plan buyer (admin)
-        setIsAdmin(isAdminRole);
+        const isOnboardingPage = location.pathname === '/onboarding';
 
-        // Track user role for route guards
-        if (belongsToWorkspace && memberships && memberships.length > 0) {
-          const memberRole = (memberships[0] as any).role || '';
-          setUserRole(memberRole);
-        } else {
-          setUserRole('Admin');
-        }
+        // Fire all DB queries in parallel
+        const [membershipsRes, settingsRes, profileRes] = await Promise.all([
+          supabase
+            .from('workspace_members')
+            .select('role, workspace_id')
+            .eq('user_id', user.id),
+          supabase
+            .from('user_settings')
+            .select('subscription_status, subscription_stripe_id, billing_plan_name')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          isOnboardingPage
+            ? Promise.resolve({ data: { onboarding_completed: true }, error: null })
+            : supabase
+                .from('profiles')
+                .select('onboarding_completed')
+                .eq('id', user.id)
+                .maybeSingle(),
+        ]);
 
-        if (belongsToWorkspace) {
-          // Non-admin members (Recruiter, HiringManager, Viewer) inherit access from the workspace
-          // admin — they should never be asked to subscribe themselves.
-          const isNonAdminMember = (memberships || []).some((m: any) => nonAdminRoles.includes(m.role));
-          if (isNonAdminMember) {
-            setCanEnter(true);
-            setAccessChecked(true);
-            setAccessLoading(false);
-            return;
-          }
+        if (cancelled) return;
 
-          // Workspace admin — check if any workspace has free access (design partners / testers).
-          const workspaceIds = (memberships || []).map((m: any) => m.workspace_id).filter(Boolean);
+        const memberships = membershipsRes.data || [];
+        const belongsToWorkspace = !membershipsRes.error && memberships.length > 0;
+        const isNonAdminMember = memberships.some((m: any) => nonAdminRoles.includes(m.role));
 
+        // Resolve role
+        const role = memberships.length > 0 ? ((memberships[0] as any).role ?? 'Admin') : 'Admin';
+        setUserRole(role);
+
+        // ── Subscription / access check ──────────────────────────────────────
+        let access = false;
+
+        if (isNonAdminMember) {
+          // Non-admin workspace members inherit the workspace subscription
+          access = true;
+        } else if (belongsToWorkspace) {
+          // Workspace admin — check free-access flag first
+          const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
           if (workspaceIds.length > 0) {
             const { data: workspaces } = await supabase
               .from('workspaces')
@@ -152,227 +92,164 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
             const hasFreeAccess = (workspaces || []).some((ws: any) => {
               if (!ws.is_free_access) return false;
-              if (!ws.free_access_expires_at) return true; // no expiry → valid
+              if (!ws.free_access_expires_at) return true;
               return new Date(ws.free_access_expires_at) > new Date();
             });
 
             if (hasFreeAccess) {
-              setCanEnter(true);
-              setAccessChecked(true);
-              setAccessLoading(false);
-              return;
+              access = true;
             }
           }
 
-          // Admin with no free-access workspace — fall through to own subscription check.
-        }
-
-        // Check own subscription (covers workspace owners who paid via Stripe,
-        // and users with no workspace).
-        const { data: settings, error } = await supabase
-          .from('user_settings')
-          .select('subscription_status, subscription_stripe_id, billing_plan_name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (error && error.code !== 'PGRST116') {
-          setCanEnter(true);
-          setAccessChecked(true);
-        } else if (!settings) {
-          setCanEnter(false); // No workspace free access, no subscription → pricing
-          setAccessChecked(true);
+          if (!access) {
+            // Fall through to own subscription
+            const settings = settingsRes.data;
+            if (settings) {
+              const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+              access = hasActiveSubscription(settings);
+            }
+          }
         } else {
-          const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-          setCanEnter(hasActiveSubscription(settings));
-          setAccessChecked(true);
+          // No workspace — check own Stripe subscription
+          const settings = settingsRes.data;
+          if (settings) {
+            const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+            access = hasActiveSubscription(settings);
+          }
         }
-      } catch (error) {
-        console.error('Error checking access:', error);
-        setCanEnter(true);
-        setAccessChecked(true);
+
+        // ── Onboarding check ────────────────────────────────────────────────
+        let onboardingDone: boolean;
+
+        if (isOnboardingPage) {
+          onboardingDone = true; // Always allow the onboarding page itself
+        } else if (belongsToWorkspace) {
+          onboardingDone = true; // Invited users skip onboarding
+        } else {
+          onboardingDone = (profileRes as any).data?.onboarding_completed === true;
+        }
+
+        if (cancelled) return;
+
+        setCanEnter(access);
+        setOnboardingCompleted(onboardingDone);
+      } catch (err) {
+        console.error('[ProtectedRoute] access check failed:', err);
+        if (!cancelled) {
+          // Fail open so a transient DB error doesn't lock users out
+          setCanEnter(true);
+          setOnboardingCompleted(true);
+        }
       } finally {
-        setAccessLoading(false);
+        if (!cancelled) {
+          setChecksComplete(true);
+        }
       }
     };
 
-    if (session && user) {
-      checkAccess();
-    } else {
-      setAccessLoading(false);
-    }
-  }, [session, user]);
+    runChecks();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.access_token, user?.id, location.pathname]);
 
-  // Check onboarding status - only for newly subscribed users on first dashboard access
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      // Skip onboarding check entirely if user is on onboarding page
-      // Let the Onboarding component handle its own redirect logic
-      if (location.pathname === '/onboarding') {
-        setOnboardingChecked(true);
-        setOnboardingCompleted(true); // Allow access to onboarding page
-        return;
-      }
-
-      if (!session || !user) {
-        setOnboardingChecked(true);
-        return;
-      }
-
-      try {
-        // Invited users (workspace members) skip onboarding
-        const { data: memberships } = await supabase
-          .from('workspace_members')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
-        if (memberships && memberships.length > 0) {
-          setOnboardingCompleted(true);
-          setOnboardingChecked(true);
-          return;
-        }
-
-        // Always check the database for current onboarding status
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('onboarding_completed, created_at')
-          .eq('id', user.id)
-          .maybeSingle(); // Use maybeSingle to handle case where profile doesn't exist
-
-        if (error) {
-          console.error('Error fetching onboarding status:', error);
-          // If there's an error (like 400), check if it's a query syntax issue
-          // For now, allow access to prevent blocking users (fail open for this specific case)
-          // The onboarding page itself will handle checking if onboarding is needed
-          setOnboardingCompleted(true);
-          setOnboardingChecked(true);
-          return;
-        }
-
-        const isCompleted = profile?.onboarding_completed === true;
-        
-        // Update the state with the actual database value
-        setOnboardingCompleted(isCompleted);
-      } catch (error) {
-        console.error('Error checking onboarding status:', error);
-        // If query fails completely, allow access to prevent blocking
-        // The onboarding component will handle redirect if needed
-        setOnboardingCompleted(true);
-      } finally {
-        setOnboardingChecked(true);
-      }
-    };
-
-    if (session && user) {
-      checkOnboarding();
-    } else {
-      setOnboardingChecked(true);
-    }
-  }, [session, user]);
-
-  // Check for revoked sessions periodically and on navigation (non-blocking)
+  // ─── Background session-revocation check (non-blocking) ───────────────────
   useEffect(() => {
     if (!session || !user) return;
 
     let isMounted = true;
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     let lastCheckTime = 0;
-    const CHECK_COOLDOWN = 5000; // Don't check more than once every 5 seconds
+    const COOLDOWN = 5000;
 
-    const performSessionCheck = async () => {
-      if (!isMounted || !session || !user) return;
-      
-      // Skip if we checked recently (throttle checks)
+    const performCheck = async () => {
+      if (!isMounted) return;
       const now = Date.now();
-      if (now - lastCheckTime < CHECK_COOLDOWN) {
-        return;
-      }
+      if (now - lastCheckTime < COOLDOWN) return;
       lastCheckTime = now;
 
-      // Don't block UI - check in background
-      checkSessionRevoked().then((isRevoked) => {
-        if (isRevoked && isMounted) {
-          console.log('Session revoked, signing out...');
-          supabase.auth.signOut().then(() => {
-            window.location.href = '/login';
-          });
+      try {
+        const token = session.access_token;
+        if (!token) return;
+
+        const { trackSession } = await import('../services/api');
+        trackSession().catch(() => {});
+
+        const checkPromise = supabase
+          .from('user_sessions')
+          .select('id')
+          .eq('session_token', token)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const timeout = new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error('timeout')), 2000)
+        );
+
+        const { data: record } = await Promise.race([checkPromise, timeout]) as any;
+
+        if (!record && isMounted) {
+          // Not found — try tracking once then recheck
+          try {
+            await trackSession();
+            await new Promise(r => setTimeout(r, 1000));
+            const retry = await supabase
+              .from('user_sessions')
+              .select('id')
+              .eq('session_token', token)
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if (!retry.data && isMounted) {
+              supabase.auth.signOut().then(() => { window.location.href = '/login'; });
+            }
+          } catch {
+            // Can't verify — assume valid
+          }
         }
-      }).catch((error) => {
-        // Silently fail - don't block user experience
-        console.warn('Session check failed (non-critical):', error);
-      });
+      } catch {
+        // Timeout or error — assume session valid
+      }
     };
 
-    // Initial check after page loads (deferred, non-blocking)
-    // Increased delay to allow session tracking to complete after login
-    const initialTimeout = setTimeout(() => {
-      if (isMounted) {
-        performSessionCheck();
-      }
-    }, 5000); // Increased from 3s to 5s to allow session tracking to complete
-
-    // Check every 30 seconds (increased from 10s to reduce load)
-    intervalId = setInterval(() => {
-      if (isMounted) {
-        performSessionCheck();
-      }
-    }, 30000);
-
-    // Check when window gains focus (user switches back to tab) - but only if not recently checked
-    const handleFocus = () => {
-      if (isMounted) {
-        const now = Date.now();
-        if (now - lastCheckTime > CHECK_COOLDOWN) {
-          performSessionCheck();
-        }
-      }
-    };
-    window.addEventListener('focus', handleFocus);
+    const t = setTimeout(() => { if (isMounted) performCheck(); }, 5000);
+    intervalId = setInterval(() => { if (isMounted) performCheck(); }, 30000);
+    const onFocus = () => { if (isMounted) performCheck(); };
+    window.addEventListener('focus', onFocus);
 
     return () => {
       isMounted = false;
-      clearTimeout(initialTimeout);
+      clearTimeout(t);
       if (intervalId) clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', onFocus);
     };
   }, [session, user]);
 
-  // 1. Auth context still initialising
-  if (loading) {
-    return <PageLoader />;
-  }
+  // ─── Render gates (evaluated top-to-bottom, first match wins) ─────────────
 
-  // 2. User exists but email not confirmed
-  if (user && !session) {
-    return <Navigate to="/verify-email" replace />;
-  }
+  // 1. AuthContext still initialising
+  if (loading) return <PageLoader />;
 
-  // 3. Not authenticated at all
+  // 2. Session exists but email not confirmed
+  if (user && !session) return <Navigate to="/verify-email" replace />;
+
+  // 3. Not authenticated
   if (!session || !user) {
-    if (typeof window !== 'undefined') {
-      sessionStorage.clear();
-    }
+    if (typeof window !== 'undefined') sessionStorage.clear();
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 4. Wait until BOTH resource checks (subscription + onboarding) have resolved
-  //    before making any routing decisions. This prevents the dashboard → onboarding → pricing
-  //    redirect loop caused by checks completing at different times.
-  if (!accessChecked || !onboardingChecked) {
-    return <PageLoader />;
-  }
+  // 4. Waiting for all resource checks — never let children render until this clears
+  if (!checksComplete) return <PageLoader />;
 
-  // 5. No subscription / workspace access → pricing (except settings)
+  // 5. No subscription / workspace → pricing (settings always accessible)
   const isSettingsPage = location.pathname === '/settings';
-  if (!canEnter && !isSettingsPage) {
-    return <Navigate to="/?pricing=true" replace />;
-  }
+  if (!canEnter && !isSettingsPage) return <Navigate to="/?pricing=true" replace />;
 
-  // 6. Onboarding not completed → force through onboarding first
+  // 6. Onboarding not done
   if (!onboardingCompleted && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // RBAC route guard — only apply when role is resolved
+  // 7. RBAC — restrict non-admin roles to their allowed routes
   if (userRole && userRole !== 'Admin') {
     const allowed = ROLE_ALLOWED_ROUTES[userRole];
     if (allowed && allowed[0] !== '*') {
@@ -383,9 +260,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
   }
 
-  // User is authenticated (and subscribed or subscription check pending/errored), render children
   return <>{children}</>;
 };
 
 export default ProtectedRoute;
-
