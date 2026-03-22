@@ -160,3 +160,10 @@ input[type="radio"]:focus {
   to   { opacity: 0; visibility: hidden; }
 }
 .fill-mode-forwards { animation-fill-mode: forwards; }
+
+/* Hide native browser password-reveal eye (Edge/IE) so it doesn't double
+   up with our custom toggle button */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
