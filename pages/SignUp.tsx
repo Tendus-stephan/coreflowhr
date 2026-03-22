@@ -5,7 +5,6 @@ import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
-import { sanitizeError } from '../utils/edgeFunctionError';
 
 const getPasswordStrength = (pwd: string): { score: number; label: string; barColor: string; textColor: string } => {
   let score = 0;
@@ -89,19 +88,16 @@ const SignUp: React.FC = () => {
     try {
       const { error } = await signUp(email, password, name);
       if (error) {
-        // Check if this is a "user already exists" error
-        const errorMsg = sanitizeError(error.message, 'Failed to create account');
-        const normalizedError = normalizePasswordError(errorMsg);
-        
+        // AuthContext already returns user-friendly messages — no need to sanitize
+        const normalizedError = normalizePasswordError(error.message || 'Failed to create account');
+
         if (normalizedError.includes('already exists') || normalizedError.includes('already registered')) {
-          // User already exists - show error, don't redirect
           setError(normalizedError);
-        } else if (errorMsg?.includes('email') || errorMsg?.includes('sending')) {
+        } else if (normalizedError.includes('email') || normalizedError.includes('sending')) {
           const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}`;
           setTimeout(() => navigate(verifyUrl, { replace: true }), 0);
           return;
         } else {
-          // Other errors - show error message
           setError(normalizedError);
         }
       } else {
@@ -113,8 +109,7 @@ const SignUp: React.FC = () => {
         }, 0);
       }
     } catch (err: any) {
-      const errorMsg = sanitizeError(err?.message, 'An unexpected error occurred');
-      setError(normalizePasswordError(errorMsg));
+      setError(normalizePasswordError(err?.message || 'An unexpected error occurred'));
     } finally {
       setLoading(false);
     }
