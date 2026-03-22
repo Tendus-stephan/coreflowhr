@@ -187,9 +187,10 @@ serve(async (req) => {
 
         if (upsertError) {
           console.error('Error updating user_settings:', upsertError);
+          // Return 500 so Stripe retries the webhook instead of silently dropping it
           return new Response(
-            JSON.stringify({ received: true, error: upsertError.message }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: upsertError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
@@ -220,7 +221,7 @@ serve(async (req) => {
           .from('user_settings')
           .select('user_id')
           .eq('subscription_stripe_id', subscription.id)
-          .single();
+          .maybeSingle();
 
         if (findError || !settings) {
           console.error('User settings not found for subscription:', subscription.id);

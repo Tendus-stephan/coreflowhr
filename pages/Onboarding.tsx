@@ -368,15 +368,15 @@ const Onboarding: React.FC = () => {
 
     const handleComplete = async () => {
         try {
-            // Mark as completed first and wait for it to complete
             await markOnboardingCompleted();
-            // Immediately redirect to dashboard - no completion screen
-            // Using window.location.replace to force a full page reload and prevent back button issues
+            // DB write confirmed — safe to proceed to dashboard
             window.location.replace('/dashboard');
         } catch (error) {
             console.error('Error completing onboarding:', error);
-            // Even if there's an error, try to redirect to dashboard
-            window.location.replace('/dashboard');
+            // Do NOT redirect on failure — user would loop back to onboarding
+            // because onboarding_completed is still false in the DB.
+            // Show an error instead so they can retry.
+            alert('Something went wrong saving your progress. Please try again.');
         }
     };
 

@@ -26,35 +26,24 @@ const VerifyEmail: React.FC = () => {
 
   useEffect(() => {
     // Check if user is already verified
-    const getRedirectPath = () => {
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('workspaceInviteToken') : null;
-        if (token) return `/invite?token=${encodeURIComponent(token)}`;
-      } catch {
-        // ignore
-      }
-      return '/login';
-    };
-
     const checkVerification = async () => {
       if (user) {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         if (currentUser?.email_confirmed_at) {
           setVerified(true);
-          const path = getRedirectPath();
-          setTimeout(() => navigate(path), 2000);
+          // Route through /auth/redirect so subscription + onboarding checks run
+          setTimeout(() => navigate('/auth/redirect', { replace: true }), 2000);
         }
       }
     };
 
     checkVerification();
 
-    // Listen for auth state changes (when email is confirmed)
+    // Listen for auth state changes (when email is confirmed in another tab)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
         setVerified(true);
-        const path = getRedirectPath();
-        setTimeout(() => navigate(path), 2000);
+        setTimeout(() => navigate('/auth/redirect', { replace: true }), 2000);
       }
     });
 
@@ -75,7 +64,7 @@ const VerifyEmail: React.FC = () => {
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/auth/redirect`,
         },
       });
 
