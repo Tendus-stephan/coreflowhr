@@ -224,9 +224,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     // Determine redirect after email confirmation:
-    // - For regular signups, go to dashboard
+    // - For regular signups, go to /auth/redirect so subscription/onboarding checks run first
     // - For invite-based signups, return to /invite so the workspace invite can be accepted
-    let emailRedirectTo = `${window.location.origin}/dashboard`;
+    let emailRedirectTo = `${window.location.origin}/auth/redirect`;
     try {
       if (typeof window !== 'undefined') {
         const inviteToken = localStorage.getItem('workspaceInviteToken');
