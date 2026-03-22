@@ -301,18 +301,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } catch (aalCheckError) {
-        // If AAL check fails, fall back to checking if session exists
-        console.warn('Could not check AAL, falling back to session check:', aalCheckError);
-        
-        // If no session but user exists, might be MFA or email verification
+        // If AAL check fails, fall back to explicitly checking enrolled MFA factors
+        console.warn('Could not check AAL, falling back to factor check:', aalCheckError);
+
         if (!data.session) {
-          // Check email confirmation status first
           if (!data.user.email_confirmed_at) {
             return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
           }
-          
-          // Email confirmed but no session - likely MFA required
-          return { error: null, requiresMFA: true };
+
+          // Confirm the user actually has a verified TOTP factor before sending to MFA screen.
+          // Without this check a non-MFA user with no session would be trapped on the MFA screen.
+          try {
+            const { data: factors } = await supabase.auth.mfa.listFactors();
+            const hasVerifiedTOTP =
+              (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
+              (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
+            if (hasVerifiedTOTP) {
+              return { error: null, requiresMFA: true };
+            }
+          } catch {
+            // Can't confirm factors — don't assume MFA
+          }
+
+          // No confirmed MFA factor found — generic retry error
+          return { error: { message: 'Sign-in could not be completed. Please try again.' }, requiresMFA: false };
         }
       }
       
