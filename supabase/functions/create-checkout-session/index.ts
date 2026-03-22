@@ -80,8 +80,9 @@ serve(async (req) => {
     // For production, set FRONTEND_URL environment variable in Supabase Edge Functions secrets
     // Default to production domain for Stripe redirects
     const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
-    // App uses BrowserRouter — use plain paths (no # prefix)
-    const successUrl = `${frontendUrl}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`;
+    // Route through /auth/redirect so subscription + onboarding checks run after payment.
+    // AuthRedirect will poll until the Stripe webhook has updated the DB, then route correctly.
+    const successUrl = `${frontendUrl}/auth/redirect?payment=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${frontendUrl}/#pricing`;
 
     // Create Stripe Checkout Session
