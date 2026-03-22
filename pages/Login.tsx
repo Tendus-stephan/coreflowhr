@@ -144,7 +144,7 @@ const Login: React.FC = () => {
             </div>
           )}
           {error && (
-            <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {error}
             </div>
           )}
@@ -221,7 +221,7 @@ const Login: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-black bg-white" />
+                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-0 focus:ring-offset-0 bg-white" />
                   <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">Remember me</label>
                 </div>
 

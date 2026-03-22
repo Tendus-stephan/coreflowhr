@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -6,6 +6,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 import { sanitizeError } from '../utils/edgeFunctionError';
+
+const getPasswordStrength = (pwd: string): { score: number; label: string; barColor: string; textColor: string } => {
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[a-z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  if (score <= 1) return { score, label: 'Very weak', barColor: 'bg-red-500', textColor: 'text-red-500' };
+  if (score === 2) return { score, label: 'Weak', barColor: 'bg-orange-400', textColor: 'text-orange-500' };
+  if (score === 3) return { score, label: 'Fair', barColor: 'bg-yellow-400', textColor: 'text-yellow-600' };
+  if (score === 4) return { score, label: 'Good', barColor: 'bg-blue-500', textColor: 'text-blue-600' };
+  return { score, label: 'Strong', barColor: 'bg-green-500', textColor: 'text-green-600' };
+};
 
 const SignUp: React.FC = () => {
   const [name, setName] = useState('');
@@ -19,6 +33,7 @@ const SignUp: React.FC = () => {
   const [inviteEmailLocked, setInviteEmailLocked] = useState(false);
   const [inviteInvalid, setInviteInvalid] = useState(false);
   const { signUp, signInWithGoogle } = useAuth();
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite_token') || '';
@@ -150,7 +165,7 @@ const SignUp: React.FC = () => {
             </div>
           )}
           {error && (
-            <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {error}
             </div>
           )}
@@ -241,6 +256,24 @@ const SignUp: React.FC = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {password.length > 0 && (
+                <div className="mt-2">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <div
+                        key={s}
+                        className={`h-1 flex-1 rounded-full transition-colors duration-200 ${s <= passwordStrength.score ? passwordStrength.barColor : 'bg-gray-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <p className={`text-xs mt-1 ${passwordStrength.textColor}`}>
+                    {passwordStrength.label}
+                    {!/[^A-Za-z0-9]/.test(password) && ' · needs a special character'}
+                    {/[^A-Za-z0-9]/.test(password) && !/[0-9]/.test(password) && ' · needs a number'}
+                    {/[^A-Za-z0-9]/.test(password) && /[0-9]/.test(password) && !/[A-Z]/.test(password) && ' · needs an uppercase letter'}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -265,10 +298,15 @@ const SignUp: React.FC = () => {
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {confirmPassword.length > 0 && (
+                <p className={`text-xs mt-1 ${password === confirmPassword ? 'text-green-600' : 'text-red-500'}`}>
+                  {password === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center">
-                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-black bg-white" required />
+                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-0 focus:ring-offset-0 bg-white" required />
                 <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
                     I agree to the <Link to="/terms" className="text-black font-medium hover:underline">Terms</Link> and <Link to="/privacy" className="text-black font-medium hover:underline">Privacy Policy</Link>
                 </label>

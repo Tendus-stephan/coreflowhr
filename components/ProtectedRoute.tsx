@@ -336,50 +336,41 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
   }, [session, user]);
 
-  // Show loading state while checking auth or subscription
+  // 1. Auth context still initialising
   if (loading) {
     return <PageLoader />;
   }
 
-  // If user exists but email not confirmed, redirect to verify email
+  // 2. User exists but email not confirmed
   if (user && !session) {
     return <Navigate to="/verify-email" replace />;
   }
 
-  // If not authenticated, redirect to login with return path
-  // Also check user to ensure both are null (prevent stale state)
+  // 3. Not authenticated at all
   if (!session || !user) {
-    // Clear any stale state before redirecting
     if (typeof window !== 'undefined') {
       sessionStorage.clear();
     }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Show loading only while checking access for the first time
-  if (accessLoading && !accessChecked) {
+  // 4. Wait until BOTH resource checks (subscription + onboarding) have resolved
+  //    before making any routing decisions. This prevents the dashboard → onboarding → pricing
+  //    redirect loop caused by checks completing at different times.
+  if (!accessChecked || !onboardingChecked) {
     return <PageLoader />;
   }
 
-  // No workspace-with-subscription and no own subscription → pricing (except settings)
+  // 5. No subscription / workspace access → pricing (except settings)
   const isSettingsPage = location.pathname === '/settings';
-  if (accessChecked && !canEnter && !isSettingsPage) {
+  if (!canEnter && !isSettingsPage) {
     return <Navigate to="/?pricing=true" replace />;
   }
 
-  // Block ALL protected routes if onboarding not completed
-  // Allow access to onboarding page regardless of completion status
-  // (The Onboarding component will handle redirect if already completed)
-  if (
-    onboardingChecked && 
-    !onboardingCompleted && 
-    location.pathname !== '/onboarding'
-  ) {
+  // 6. Onboarding not completed → force through onboarding first
+  if (!onboardingCompleted && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
-
-  // Don't redirect from onboarding page - let the Onboarding component handle redirects
-  // This prevents redirect loops between ProtectedRoute and Onboarding component
 
   // RBAC route guard — only apply when role is resolved
   if (userRole && userRole !== 'Admin') {
