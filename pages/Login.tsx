@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { resolvePostLoginDestination } from '../utils/postLoginRoute';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -103,79 +104,13 @@ const Login: React.FC = () => {
       return;
     }
 
-    // Determine correct landing page before navigating so the URL never
-    // shows /dashboard and then bounces to /?pricing=true for non-paying users.
+    // Resolve the correct landing page without bouncing through /dashboard first
     try {
-      const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-
-      const [membershipsRes, settingsRes] = await Promise.all([
-        supabase.from('workspace_members').select('role, workspace_id').eq('user_id', currentUser.id),
-        supabase.from('user_settings').select('subscription_status, subscription_stripe_id, billing_plan_name').eq('user_id', currentUser.id).maybeSingle(),
-      ]);
-
-      const memberships = membershipsRes.data || [];
-      const isNonAdminMember = memberships.some((m: any) => nonAdminRoles.includes(m.role));
-      const belongsToWorkspace = memberships.length > 0;
-
-      // Only act on a pending invite token if the user is NOT already a member.
-      // If they are already a member the token is stale — clear it so it never
-      // triggers this redirect again on future logins.
-      try {
-        const pendingInviteToken = localStorage.getItem('workspaceInviteToken');
-        if (pendingInviteToken) {
-          if (!belongsToWorkspace) {
-            navigate(`/invite?token=${encodeURIComponent(pendingInviteToken)}`, { replace: true });
-            return;
-          }
-          // Already a member — discard the stale token
-          localStorage.removeItem('workspaceInviteToken');
-        }
-      } catch {
-        // localStorage unavailable — continue
+      const destination = await resolvePostLoginDestination(currentUser.id);
+      if (destination === '/dashboard') {
+        sessionStorage.setItem('showDashboardLoader', 'true');
       }
-
-      let hasAccess = false;
-
-      if (isNonAdminMember) {
-        hasAccess = true;
-      } else if (belongsToWorkspace) {
-        // Workspace admin — check free-access flag
-        const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
-        if (workspaceIds.length > 0) {
-          const { data: workspaces } = await supabase
-            .from('workspaces').select('is_free_access, free_access_expires_at').in('id', workspaceIds);
-          hasAccess = (workspaces || []).some((ws: any) => {
-            if (!ws.is_free_access) return false;
-            if (!ws.free_access_expires_at) return true;
-            return new Date(ws.free_access_expires_at) > new Date();
-          });
-        }
-        if (!hasAccess && settingsRes.data) {
-          const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-          hasAccess = hasActiveSubscription(settingsRes.data);
-        }
-      } else if (settingsRes.data) {
-        const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-        hasAccess = hasActiveSubscription(settingsRes.data);
-      }
-
-      if (!hasAccess) {
-        navigate('/?pricing=true', { replace: true });
-        return;
-      }
-
-      // Has access — check onboarding (workspace members skip it)
-      if (!belongsToWorkspace) {
-        const { data: profile } = await supabase
-          .from('profiles').select('onboarding_completed').eq('id', currentUser.id).maybeSingle();
-        if (profile?.onboarding_completed !== true) {
-          navigate('/onboarding', { replace: true });
-          return;
-        }
-      }
-
-      sessionStorage.setItem('showDashboardLoader', 'true');
-      navigate('/dashboard', { replace: true });
+      navigate(destination, { replace: true });
     } catch {
       // On error fall back to dashboard and let ProtectedRoute handle it
       sessionStorage.setItem('showDashboardLoader', 'true');

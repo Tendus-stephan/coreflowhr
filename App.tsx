@@ -33,6 +33,7 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
 import Invite from './pages/Invite';
+import AuthRedirect from './pages/AuthRedirect';
 
 // Shows the PageLoader for one paint frame then hands off to the real page.
 // This ensures every route change shows the spinner before the page data loads.
@@ -116,16 +117,17 @@ const Layout = () => {
 
   // Pages that don't show the sidebar
   const isStandalonePage = [
-    '/', 
-    '/login', 
-    '/signup', 
-    '/forgot-password', 
+    '/',
+    '/login',
+    '/signup',
+    '/forgot-password',
     '/verify-email',
     '/terms',
     '/privacy',
     '/onboarding',
     '/change-email',
-  ].some(path => location.pathname === path || 
+    '/auth/redirect',
+  ].some(path => location.pathname === path ||
     location.pathname.startsWith('/jobs/apply') || 
     location.pathname.startsWith('/offers/respond') ||
     location.pathname.startsWith('/candidates/register') ||
@@ -421,6 +423,7 @@ const AppRoutes: React.FC = () => {
           path="/offers/respond/:token" 
           element={<OfferResponse />}
         />
+        <Route path="/auth/redirect" element={<AuthRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="/forgot-password" element={<ForgotPassword />} />

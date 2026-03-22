@@ -402,15 +402,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signInWithGoogle = async () => {
-    let redirectTo = `${window.location.origin}/dashboard`;
-    try {
-      const inviteToken = localStorage.getItem('workspaceInviteToken');
-      if (inviteToken) {
-        redirectTo = `${window.location.origin}/invite?token=${encodeURIComponent(inviteToken)}`;
-      }
-    } catch {
-      // ignore storage errors
-    }
+    // Always land on /auth/redirect after OAuth so we can run subscription +
+    // onboarding checks before choosing a destination. The invite token (if any)
+    // is read from localStorage inside resolvePostLoginDestination.
+    const redirectTo = `${window.location.origin}/auth/redirect`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
