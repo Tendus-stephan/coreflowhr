@@ -296,7 +296,7 @@ const SignUp: React.FC = () => {
             </div>
 
             <div className="flex items-center">
-                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-0 focus:ring-offset-0 bg-white" required />
+                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-0 focus:ring-offset-0 focus:outline-none bg-white" required />
                 <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
                     I agree to the <Link to="/terms" className="text-black font-medium hover:underline">Terms</Link> and <Link to="/privacy" className="text-black font-medium hover:underline">Privacy Policy</Link>
                 </label>
