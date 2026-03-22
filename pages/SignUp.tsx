@@ -84,16 +84,6 @@ const SignUp: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -313,11 +303,16 @@ const SignUp: React.FC = () => {
             </div>
 
             <div>
-              <Button 
-                variant="black" 
-                className="w-full justify-center" 
+              <Button
+                variant="black"
+                className="w-full justify-center"
                 type="submit"
-                disabled={loading}
+                disabled={
+                  loading ||
+                  passwordStrength.score < 3 ||
+                  (confirmPassword.length > 0 && password !== confirmPassword) ||
+                  (confirmPassword.length === 0 && password.length > 0)
+                }
               >
                 {loading ? 'Creating account...' : 'Create Account'}
               </Button>
