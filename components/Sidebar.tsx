@@ -180,7 +180,7 @@ const Sidebar: React.FC = () => {
 
       {/* Logo */}
       <div className="px-5 pt-6 pb-3 flex-shrink-0">
-        <Link to="/dashboard" className="flex items-center gap-2.5">
+        <Link to="/dashboard" className="flex items-center gap-1.5">
           <img
             src="/assets/images/coreflow-favicon-logo.png"
             alt="CoreFlowHR"
