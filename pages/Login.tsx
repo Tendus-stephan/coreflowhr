@@ -97,20 +97,6 @@ const Login: React.FC = () => {
       return;
     }
 
-    // If the user has a pending workspace invite, send them to accept it first.
-    // This must be checked before the subscription gate — a newly invited user
-    // has no workspace_members record and no subscription yet, so without this
-    // they would incorrectly land on /?pricing=true.
-    try {
-      const pendingInviteToken = localStorage.getItem('workspaceInviteToken');
-      if (pendingInviteToken) {
-        navigate(`/invite?token=${encodeURIComponent(pendingInviteToken)}`, { replace: true });
-        return;
-      }
-    } catch {
-      // localStorage unavailable — continue with normal flow
-    }
-
     // If user was heading somewhere specific, honour that and let ProtectedRoute decide
     if (from?.pathname) {
       navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
@@ -130,6 +116,23 @@ const Login: React.FC = () => {
       const memberships = membershipsRes.data || [];
       const isNonAdminMember = memberships.some((m: any) => nonAdminRoles.includes(m.role));
       const belongsToWorkspace = memberships.length > 0;
+
+      // Only act on a pending invite token if the user is NOT already a member.
+      // If they are already a member the token is stale — clear it so it never
+      // triggers this redirect again on future logins.
+      try {
+        const pendingInviteToken = localStorage.getItem('workspaceInviteToken');
+        if (pendingInviteToken) {
+          if (!belongsToWorkspace) {
+            navigate(`/invite?token=${encodeURIComponent(pendingInviteToken)}`, { replace: true });
+            return;
+          }
+          // Already a member — discard the stale token
+          localStorage.removeItem('workspaceInviteToken');
+        }
+      } catch {
+        // localStorage unavailable — continue
+      }
 
       let hasAccess = false;
 
