@@ -87,27 +87,83 @@ const Login: React.FC = () => {
   };
 
   const handleLoginSuccess = async () => {
-    // Wait a moment for AuthContext to update
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Check email verification
     const { data: { session: currentSession } } = await supabase.auth.getSession();
-    const user = currentSession?.user;
+    const currentUser = currentSession?.user;
 
-    if (!user?.email_confirmed_at) {
-      // Email not verified - redirect to verify email page
+    if (!currentUser?.email_confirmed_at) {
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
       return;
     }
 
-    // Let ProtectedRoute handle subscription/paywall based on workspace role.
-    // Here we just send the user to their intended destination or dashboard.
+    // If user was heading somewhere specific, honour that and let ProtectedRoute decide
     if (from?.pathname) {
       navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
       return;
     }
-    sessionStorage.setItem('showDashboardLoader', 'true');
-    navigate('/dashboard');
+
+    // Determine correct landing page before navigating so the URL never
+    // shows /dashboard and then bounces to /?pricing=true for non-paying users.
+    try {
+      const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
+
+      const [membershipsRes, settingsRes] = await Promise.all([
+        supabase.from('workspace_members').select('role, workspace_id').eq('user_id', currentUser.id),
+        supabase.from('user_settings').select('subscription_status, subscription_stripe_id, billing_plan_name').eq('user_id', currentUser.id).maybeSingle(),
+      ]);
+
+      const memberships = membershipsRes.data || [];
+      const isNonAdminMember = memberships.some((m: any) => nonAdminRoles.includes(m.role));
+      const belongsToWorkspace = memberships.length > 0;
+
+      let hasAccess = false;
+
+      if (isNonAdminMember) {
+        hasAccess = true;
+      } else if (belongsToWorkspace) {
+        // Workspace admin — check free-access flag
+        const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
+        if (workspaceIds.length > 0) {
+          const { data: workspaces } = await supabase
+            .from('workspaces').select('is_free_access, free_access_expires_at').in('id', workspaceIds);
+          hasAccess = (workspaces || []).some((ws: any) => {
+            if (!ws.is_free_access) return false;
+            if (!ws.free_access_expires_at) return true;
+            return new Date(ws.free_access_expires_at) > new Date();
+          });
+        }
+        if (!hasAccess && settingsRes.data) {
+          const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+          hasAccess = hasActiveSubscription(settingsRes.data);
+        }
+      } else if (settingsRes.data) {
+        const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+        hasAccess = hasActiveSubscription(settingsRes.data);
+      }
+
+      if (!hasAccess) {
+        navigate('/?pricing=true', { replace: true });
+        return;
+      }
+
+      // Has access — check onboarding (workspace members skip it)
+      if (!belongsToWorkspace) {
+        const { data: profile } = await supabase
+          .from('profiles').select('onboarding_completed').eq('id', currentUser.id).maybeSingle();
+        if (profile?.onboarding_completed !== true) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+      }
+
+      sessionStorage.setItem('showDashboardLoader', 'true');
+      navigate('/dashboard', { replace: true });
+    } catch {
+      // On error fall back to dashboard and let ProtectedRoute handle it
+      sessionStorage.setItem('showDashboardLoader', 'true');
+      navigate('/dashboard', { replace: true });
+    }
   };
 
   return (
