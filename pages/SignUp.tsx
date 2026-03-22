@@ -156,7 +156,14 @@ const SignUp: React.FC = () => {
           )}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-              {error}
+              {error.includes('already exists') ? (
+                <>
+                  An account with this email already exists.{' '}
+                  <Link to={loginPath} className="font-semibold underline hover:opacity-80">Sign in instead</Link>
+                </>
+              ) : (
+                error
+              )}
             </div>
           )}
           {!inviteEmailLocked && (
@@ -288,10 +295,8 @@ const SignUp: React.FC = () => {
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {confirmPassword.length > 0 && (
-                <p className={`text-xs mt-1 ${password === confirmPassword ? 'text-green-600' : 'text-red-500'}`}>
-                  {password === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
-                </p>
+              {confirmPassword.length > 0 && password !== confirmPassword && (
+                <p className="text-xs mt-1 text-red-500">Passwords do not match</p>
               )}
             </div>
 

@@ -16,6 +16,26 @@ const Login: React.FC = () => {
   const [requiresMFA, setRequiresMFA] = useState(false);
   const [verifyingMFA, setVerifyingMFA] = useState(false);
   const { signIn, verifyMFA, signInWithGoogle } = useAuth();
+
+  const normalizeLoginError = (msg: string): string => {
+    const m = msg?.toLowerCase() || '';
+    if (m.includes('invalid login credentials') || m.includes('invalid credentials') || m.includes('invalid email or password')) {
+      return 'Incorrect email or password. Please try again.';
+    }
+    if (m.includes('email not confirmed')) {
+      return 'Your email isn\'t verified yet. Check your inbox for a confirmation link.';
+    }
+    if (m.includes('too many requests') || m.includes('rate limit') || m.includes('too many failed')) {
+      return 'Too many sign-in attempts. Please wait a moment and try again.';
+    }
+    if (m.includes('user not found') || m.includes('no user found')) {
+      return 'No account found with this email. Did you mean to sign up?';
+    }
+    if (m.includes('network') || m.includes('failed to fetch')) {
+      return 'Connection error. Please check your internet and try again.';
+    }
+    return msg;
+  };
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -44,7 +64,7 @@ const Login: React.FC = () => {
     try {
       const { error, requiresMFA: mfaRequired } = await signIn(email, password);
       if (error) {
-        setError(error.message || 'Failed to sign in');
+        setError(normalizeLoginError(error.message || 'Failed to sign in'));
       } else if (mfaRequired) {
         // MFA is required - create challenge and show code input
         // Note: TOTP codes come from authenticator app, not email/SMS
@@ -54,7 +74,7 @@ const Login: React.FC = () => {
         await handleLoginSuccess();
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      setError(normalizeLoginError(err.message || 'An unexpected error occurred'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +93,11 @@ const Login: React.FC = () => {
     try {
       const { error } = await verifyMFA(mfaCode);
       if (error) {
-        setError(error.message || 'Invalid verification code. Please try again.');
+        const m = error.message?.toLowerCase() || '';
+        const msg = m.includes('invalid') || m.includes('expired') || m.includes('mismatch')
+          ? 'Invalid or expired code. Please check your authenticator app and try again.'
+          : error.message || 'Invalid verification code. Please try again.';
+        setError(msg);
         setMfaCode('');
       } else {
         // MFA verified - proceed with login
