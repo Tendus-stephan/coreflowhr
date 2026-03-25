@@ -91,8 +91,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }).catch((error) => {
       // Handle any errors in getSession itself
-      const isOffline = !navigator.onLine || error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.message?.includes('timeout');
-      if (isOffline) {
+      const msg = (error?.message || '').toLowerCase();
+      const isRefreshError = msg.includes('refresh token') || msg.includes('invalid refresh');
+      const isOffline = !navigator.onLine || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout');
+
+      if (isRefreshError) {
+        // Stale or revoked refresh token — clear React state AND scrub localStorage
+        // so the next page load doesn't re-attempt the dead token.
+        setSession(null);
+        setUser(null);
+        try {
+          const authKey = Object.keys(localStorage).find(
+            k => k.startsWith('sb-') && k.endsWith('-auth-token')
+          );
+          if (authKey) localStorage.removeItem(authKey);
+        } catch { /* ignore */ }
+      } else if (isOffline) {
         // Network is down — don't wipe auth state, just stop loading
         console.warn('Network unavailable during session init. Retaining cached auth state.');
       } else {
@@ -107,6 +121,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // SIGNED_OUT fires for both explicit sign-outs and refresh-token failures.
+      // Belt-and-suspenders: also wipe the Supabase auth entry from localStorage so
+      // the next page load doesn't re-attempt the dead refresh token and log a noisy
+      // "Invalid Refresh Token: Refresh Token Not Found" console error.
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        try {
+          const authKey = Object.keys(localStorage).find(
+            k => k.startsWith('sb-') && k.endsWith('-auth-token')
+          );
+          if (authKey) localStorage.removeItem(authKey);
+        } catch { /* ignore */ }
+        setLoading(false);
+        return;
+      }
+
       // Only set session if email is confirmed
       if (session?.user?.email_confirmed_at) {
         // On SIGNED_IN, verify the AAL is sufficient before exposing the session.
