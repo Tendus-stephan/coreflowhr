@@ -117,7 +117,14 @@ const Login: React.FC = () => {
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const currentUser = currentSession?.user;
 
-    if (!currentUser?.email_confirmed_at) {
+    // If the session isn't available yet (extremely rare — e.g. storage write race),
+    // route through /auth/redirect which will re-check once state settles.
+    if (!currentSession || !currentUser) {
+      navigate('/auth/redirect', { replace: true });
+      return;
+    }
+
+    if (!currentUser.email_confirmed_at) {
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
       return;
     }

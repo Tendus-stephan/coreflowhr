@@ -66,6 +66,8 @@ const AuthRedirect: React.FC = () => {
         // is confirmed. Up to 8 attempts × 2 s wait = ~16 s window, each capped at
         // 5 s so a single hanging query doesn't eat the entire budget.
         for (let attempt = 0; attempt < 8; attempt++) {
+          // Hard deadline may have already fired — abort so we don't double-navigate.
+          if (settledRef.current) return;
           if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
           let destination: string;
           try {
@@ -101,9 +103,11 @@ const AuthRedirect: React.FC = () => {
         }
         // Webhook still hasn't fired after retries — send to settings so the user
         // can see their billing status rather than being shown a sign-up pricing page.
+        if (settledRef.current) return;
         navigate('/settings', { replace: true });
       } else {
         const destination = await resolvePostLoginDestination(user.id);
+        if (settledRef.current) return;
 
         // If user has no subscription but chose a plan on the landing page before
         // signing up, resume checkout automatically instead of dropping them at pricing.
@@ -112,11 +116,12 @@ const AuthRedirect: React.FC = () => {
             const pendingPlan = sessionStorage.getItem('pendingPlan') as 'professional' | 'founding' | null;
             const pendingBilling = sessionStorage.getItem('pendingBilling') as 'monthly' | 'yearly' | null;
             if (pendingPlan && pendingBilling) {
-              sessionStorage.removeItem('pendingPlan');
-              sessionStorage.removeItem('pendingBilling');
               const { createCheckoutSession } = await import('../services/stripe');
               const { url, error } = await createCheckoutSession(pendingPlan, pendingBilling);
               if (url && !error) {
+                // Only clear after a successful URL — keeps items for retry if checkout fails.
+                sessionStorage.removeItem('pendingPlan');
+                sessionStorage.removeItem('pendingBilling');
                 window.location.replace(url);
                 return;
               }
