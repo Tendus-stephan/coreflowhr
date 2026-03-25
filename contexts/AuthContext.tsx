@@ -46,6 +46,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety net: if both getSession() and onAuthStateChange somehow fail to clear
+    // loading (e.g. a hung token-refresh request with no network timeout), force it
+    // after 5 s so PublicRoute never shows a permanent spinner on login/signup.
+    const loadingTimeout = setTimeout(() => setLoading(false), 5000);
+
     // Get initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
@@ -210,6 +215,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, 60000); // Check every 60 seconds (reduced frequency)
 
     return () => {
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };
@@ -219,9 +225,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check if user already exists, is verified, and has MFA enabled using SQL function
     // This prevents sending verification emails to existing verified users
     try {
-      const { data: userCheck, error: checkError } = await supabase.rpc('check_user_exists_and_verified', {
-        user_email: email
-      });
+      // Cap at 3 s — a hanging RPC should not block the signup button forever.
+      const { data: userCheck, error: checkError } = await Promise.race([
+        supabase.rpc('check_user_exists_and_verified', { user_email: email }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
 
       if (checkError) {
         // Log the error but don't block signup (fail open)
@@ -359,14 +367,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Only set session if email is confirmed and we have a session
       if (data.user.email_confirmed_at && data.session) {
         setSession(data.session);
-        
-        // Track session in database - wait for it to complete to avoid race conditions
+
+        // Track session — capped at 3 s so a slow DB query never blocks login.
+        // ProtectedRoute has its own retry if the session isn't tracked yet.
         try {
           const { trackSession } = await import('../services/api');
-          await trackSession();
+          await Promise.race([
+            trackSession(),
+            new Promise<void>(resolve => setTimeout(resolve, 3000)),
+          ]);
         } catch (err) {
           console.error('Failed to track session:', err);
-          // Don't fail login if tracking fails, but log the error
         }
       } else {
         // Email not confirmed - don't set session
