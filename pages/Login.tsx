@@ -3,8 +3,6 @@ import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-do
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { resolvePostLoginDestination } from '../utils/postLoginRoute';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -111,42 +109,15 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleLoginSuccess = async () => {
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    const currentUser = currentSession?.user;
-
-    // If the session isn't available yet (extremely rare — e.g. storage write race),
-    // route through /auth/redirect which will re-check once state settles.
-    if (!currentSession || !currentUser) {
-      navigate('/auth/redirect', { replace: true });
-      return;
-    }
-
-    if (!currentUser.email_confirmed_at) {
-      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
-      return;
-    }
-
-    // If user was heading somewhere specific, honour that and let ProtectedRoute decide
+  const handleLoginSuccess = () => {
+    // If the user was heading somewhere specific, honour that and let ProtectedRoute decide.
     if (from?.pathname) {
       navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
       return;
     }
-
-    // Resolve the correct landing page without bouncing through /dashboard first
-    try {
-      const destination = await resolvePostLoginDestination(currentUser.id);
-      if (destination === '/dashboard') {
-        sessionStorage.setItem('showDashboardLoader', 'true');
-      }
-      navigate(destination, { replace: true });
-    } catch {
-      // On error fall back to dashboard and let ProtectedRoute handle it
-      sessionStorage.setItem('showDashboardLoader', 'true');
-      navigate('/dashboard', { replace: true });
-    }
+    // Route through /auth/redirect, which runs resolvePostLoginDestination with
+    // per-attempt timeouts and a 20-second hard deadline — no hanging DB calls here.
+    navigate('/auth/redirect', { replace: true });
   };
 
   return (
