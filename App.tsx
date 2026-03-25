@@ -32,6 +32,8 @@ import Onboarding from './pages/Onboarding';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
+import Reports from './pages/Reports';
+import ChangeEmail from './pages/ChangeEmail';
 import Invite from './pages/Invite';
 import AuthRedirect from './pages/AuthRedirect';
 
@@ -180,7 +182,12 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // For login/signup pages, if already logged in, let ProtectedRoute handle redirect
+  // Already authenticated with a confirmed session — route them correctly.
+  // /auth/redirect runs subscription + onboarding checks before picking a destination.
+  if (user && session) {
+    return <Navigate to="/auth/redirect" replace />;
+  }
+
   return <>{children}</>;
 };
 
@@ -319,13 +326,9 @@ const AppRoutes: React.FC = () => {
           path="/privacy" 
           element={<PrivacyPolicy />}
         />
-        <Route 
-          path="/invite" 
-          element={
-            <PublicRoute>
-              <Invite />
-            </PublicRoute>
-          }
+        <Route
+          path="/invite"
+          element={<Invite />}
         />
         <Route 
           path="/onboarding" 
@@ -399,14 +402,23 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/clients" 
+        <Route
+          path="/clients"
           element={
             <ProtectedRoute>
               <Clients />
             </ProtectedRoute>
-          } 
+          }
         />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/change-email" element={<ChangeEmail />} />
 <Route
           path="/jobs/apply/:jobId"
           element={<JobApplication />}

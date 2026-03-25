@@ -42,7 +42,34 @@ export const resolvePostLoginDestination = async (userId: string): Promise<strin
   let hasAccess = false;
 
   if (isNonAdminMember) {
-    hasAccess = true;
+    // Non-admin members access through the workspace — verify the workspace has an active subscription
+    const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
+    if (workspaceIds.length > 0) {
+      const { data: workspaces } = await supabase
+        .from('workspaces')
+        .select('is_free_access, free_access_expires_at')
+        .in('id', workspaceIds);
+      hasAccess = (workspaces || []).some((ws: any) => {
+        if (!ws.is_free_access) return false;
+        if (!ws.free_access_expires_at) return true;
+        return new Date(ws.free_access_expires_at) > new Date();
+      });
+      if (!hasAccess) {
+        const { data: memberRows } = await supabase
+          .from('workspace_members')
+          .select('user_id')
+          .in('workspace_id', workspaceIds);
+        const memberIds = [...new Set((memberRows || []).map((r: any) => r.user_id))] as string[];
+        if (memberIds.length > 0) {
+          const { data: subs } = await supabase
+            .from('user_settings')
+            .select('subscription_status, subscription_stripe_id, billing_plan_name')
+            .in('user_id', memberIds);
+          const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+          hasAccess = (subs || []).some((s: any) => hasActiveSubscription(s));
+        }
+      }
+    }
   } else if (belongsToWorkspace) {
     const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
     if (workspaceIds.length > 0) {
@@ -66,11 +93,17 @@ export const resolvePostLoginDestination = async (userId: string): Promise<strin
   }
 
   if (!hasAccess) {
+    // past_due means an existing subscription whose payment failed.
+    // Routing them to pricing causes them to create a second subscription on top of the broken one.
+    // Send them to Settings/billing so they can fix the payment method instead.
+    const rawStatus = (settingsRes.data?.subscription_status || '').toLowerCase();
+    if (rawStatus === 'past_due') return '/settings';
     return '/?pricing=true';
   }
 
-  // Workspace members skip onboarding
-  if (!belongsToWorkspace) {
+  // Only invited non-admin members (Recruiter, HiringManager, Viewer) skip onboarding.
+  // Workspace owners/admins must complete onboarding even if their workspace exists.
+  if (!isNonAdminMember) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('onboarding_completed')

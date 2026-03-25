@@ -211,7 +211,7 @@ const Invite: React.FC = () => {
                 <>
                   <button
                     type="button"
-                    onClick={() => { setStatus('idle'); setMessage(''); }}
+                    onClick={() => { acceptStartedRef.current = false; setStatus('idle'); setMessage(''); }}
                     className="text-sm font-medium text-amber-800 underline hover:no-underline"
                   >
                     Try again

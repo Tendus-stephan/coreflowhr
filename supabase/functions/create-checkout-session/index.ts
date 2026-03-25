@@ -83,7 +83,7 @@ serve(async (req) => {
     // Route through /auth/redirect so subscription + onboarding checks run after payment.
     // AuthRedirect will poll until the Stripe webhook has updated the DB, then route correctly.
     const successUrl = `${frontendUrl}/auth/redirect?payment=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${frontendUrl}/#pricing`;
+    const cancelUrl = `${frontendUrl}/?pricing=true`;
 
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({

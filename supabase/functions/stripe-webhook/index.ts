@@ -290,11 +290,13 @@ serve(async (req) => {
           break;
         }
 
-        // Reset subscription data in user_settings
+        // Reset subscription data in user_settings.
+        // Keep subscription_stripe_id intact — nulling it here would break any
+        // out-of-order customer.subscription.updated delivery that arrives after
+        // this event (the updated handler looks up by subscription_stripe_id).
         const { error: updateError } = await supabaseClient
           .from('user_settings')
           .update({
-            subscription_stripe_id: null,
             subscription_status: 'canceled',
             subscription_current_period_end: null,
             billing_plan_name: null,

@@ -369,8 +369,23 @@ const Onboarding: React.FC = () => {
     const handleComplete = async () => {
         try {
             await markOnboardingCompleted();
-            // DB write confirmed — safe to proceed to dashboard
-            window.location.replace('/dashboard');
+            // Route through /auth/redirect rather than directly to /dashboard.
+            // This re-runs subscription + onboarding checks and, if payment params
+            // are present, polls for the Stripe webhook before committing a route.
+            // This prevents the "payment pending trap" where a newly-paid user who
+            // finishes onboarding gets bounced to pricing because ProtectedRoute's
+            // fresh DB check runs before the webhook has updated the subscription.
+            let redirectTarget = '/auth/redirect';
+            try {
+                const pending = sessionStorage.getItem('pendingPaymentSuccess');
+                if (pending) {
+                    // pending is like "?payment=success&session_id=cs_..."
+                    sessionStorage.removeItem('pendingPaymentSuccess');
+                    redirectTarget = `/auth/redirect${pending}`;
+                }
+            } catch { /* sessionStorage unavailable */ }
+            sessionStorage.setItem('showDashboardLoader', 'true');
+            window.location.replace(redirectTarget);
         } catch (error) {
             console.error('Error completing onboarding:', error);
             // Do NOT redirect on failure — user would loop back to onboarding

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { 
   User as UserIcon, CreditCard, Mail, AlertCircle, Monitor, Smartphone, X, Sparkles,
   Save, MessageSquare, FileText, Layers, Plus, Shield, CheckCircle, Lock, Key, LogOut, Upload,
@@ -2806,7 +2806,7 @@ const Settings: React.FC = () => {
                                 <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                                     <Lock size={16} className="text-gray-400" /> Password & Login
                                 </h3>
-                                <button 
+                                <button
                                     onClick={() => setIsPasswordModalOpen(true)}
                                     className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
                                 >
@@ -2817,6 +2817,17 @@ const Settings: React.FC = () => {
                                     </div>
                                     <Key size={16} className="text-gray-400 group-hover:text-gray-900" />
                                 </button>
+                                <Link
+                                    to="/change-email"
+                                    className="mt-3 w-full flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-bold text-gray-900 group-hover:underline">Change Email</p>
+                                        <span className="text-gray-400">•</span>
+                                        <p className="text-xs text-gray-500">Update the email you use to sign in</p>
+                                    </div>
+                                    <Mail size={16} className="text-gray-400 group-hover:text-gray-900" />
+                                </Link>
                              </div>
 
                              {/* Active Sessions */}

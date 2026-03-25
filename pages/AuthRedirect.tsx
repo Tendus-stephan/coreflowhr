@@ -49,6 +49,16 @@ const AuthRedirect: React.FC = () => {
               sessionStorage.setItem('showDashboardLoader', 'true');
               navigate(`/dashboard${qs}`, { replace: true });
             } else {
+              // If routing to onboarding after a successful payment, stash the payment
+              // params so Dashboard can show the success toast once onboarding completes.
+              if (destination === '/onboarding' && isPaymentSuccess) {
+                try {
+                  const qs = sessionId
+                    ? `?payment=success&session_id=${encodeURIComponent(sessionId)}`
+                    : '?payment=success';
+                  sessionStorage.setItem('pendingPaymentSuccess', qs);
+                } catch { /* sessionStorage unavailable */ }
+              }
               navigate(destination, { replace: true });
             }
             return;
@@ -58,6 +68,28 @@ const AuthRedirect: React.FC = () => {
         navigate('/?pricing=true', { replace: true });
       } else {
         const destination = await resolvePostLoginDestination(user.id);
+
+        // If user has no subscription but chose a plan on the landing page before
+        // signing up, resume checkout automatically instead of dropping them at pricing.
+        if (destination === '/?pricing=true') {
+          try {
+            const pendingPlan = sessionStorage.getItem('pendingPlan') as 'professional' | 'founding' | null;
+            const pendingBilling = sessionStorage.getItem('pendingBilling') as 'monthly' | 'yearly' | null;
+            if (pendingPlan && pendingBilling) {
+              sessionStorage.removeItem('pendingPlan');
+              sessionStorage.removeItem('pendingBilling');
+              const { createCheckoutSession } = await import('../services/stripe');
+              const { url, error } = await createCheckoutSession(pendingPlan, pendingBilling);
+              if (url && !error) {
+                window.location.replace(url);
+                return;
+              }
+            }
+          } catch {
+            // Checkout failed — fall through to pricing page
+          }
+        }
+
         if (destination === '/dashboard') {
           sessionStorage.setItem('showDashboardLoader', 'true');
         }

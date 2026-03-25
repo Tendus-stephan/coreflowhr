@@ -49,6 +49,21 @@ const SignUp: React.FC = () => {
     }
   }, [inviteToken]);
 
+  // Preserve plan intent from landing page so AuthRedirect can pick it up after
+  // email verification and route straight to the correct Stripe checkout.
+  useEffect(() => {
+    const plan = searchParams.get('plan');
+    const billing = searchParams.get('billing');
+    if (plan && billing) {
+      try {
+        sessionStorage.setItem('pendingPlan', plan);
+        sessionStorage.setItem('pendingBilling', billing);
+      } catch {
+        // ignore
+      }
+    }
+  }, [searchParams]);
+
   // Invite flow: prefill and lock email from invite
   useEffect(() => {
     if (!inviteToken) return;

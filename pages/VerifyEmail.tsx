@@ -25,29 +25,37 @@ const VerifyEmail: React.FC = () => {
   }, [searchParams, user]);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let isMounted = true;
+
+    const doRedirect = () => {
+      if (!isMounted) return;
+      setVerified(true);
+      // Route through /auth/redirect so subscription + onboarding checks run
+      timer = setTimeout(() => {
+        if (isMounted) navigate('/auth/redirect', { replace: true });
+      }, 2000);
+    };
+
     // Check if user is already verified
     const checkVerification = async () => {
-      if (user) {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (currentUser?.email_confirmed_at) {
-          setVerified(true);
-          // Route through /auth/redirect so subscription + onboarding checks run
-          setTimeout(() => navigate('/auth/redirect', { replace: true }), 2000);
-        }
-      }
+      if (!user) return;
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser?.email_confirmed_at) doRedirect();
     };
 
     checkVerification();
 
     // Listen for auth state changes (when email is confirmed in another tab)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-        setVerified(true);
-        setTimeout(() => navigate('/auth/redirect', { replace: true }), 2000);
-      }
+      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) doRedirect();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, [user, navigate]);
 
   const [resendError, setResendError] = useState<string | null>(null);
@@ -60,12 +68,21 @@ const VerifyEmail: React.FC = () => {
     setResendError(null);
 
     try {
+      // Preserve invite token redirect if one is stored (matches original signup email behaviour)
+      let emailRedirectTo = `${window.location.origin}/auth/redirect`;
+      try {
+        const inviteToken = localStorage.getItem('workspaceInviteToken');
+        if (inviteToken) {
+          emailRedirectTo = `${window.location.origin}/invite?token=${encodeURIComponent(inviteToken)}`;
+        }
+      } catch {
+        // localStorage unavailable — fall back to /auth/redirect
+      }
+
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/redirect`,
-        },
+        options: { emailRedirectTo },
       });
 
       if (error) {

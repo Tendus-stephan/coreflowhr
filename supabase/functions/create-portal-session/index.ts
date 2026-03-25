@@ -215,8 +215,7 @@ serve(async (req) => {
     // For production, set FRONTEND_URL in Supabase Edge Functions secrets
     // Default to production domain for Stripe redirects
     const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://www.coreflowhr.com';
-    // Using HashRouter, so need # before route
-    const returnUrl = `${frontendUrl}/#/settings`;
+    const returnUrl = `${frontendUrl}/settings`;
 
     // Create Stripe Portal Session
     let portalSession;

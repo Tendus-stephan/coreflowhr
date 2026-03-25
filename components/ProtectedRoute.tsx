@@ -22,6 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Single flag — only true once ALL checks have completed
   const [checksComplete, setChecksComplete] = useState(false);
   const [canEnter, setCanEnter] = useState(false);
+  const [isPastDue, setIsPastDue] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
@@ -39,6 +40,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
     let cancelled = false;
     setChecksComplete(false); // Reset while re-checking
+    setIsPastDue(false);
 
     const runChecks = async () => {
       try {
@@ -71,16 +73,47 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const belongsToWorkspace = !membershipsRes.error && memberships.length > 0;
         const isNonAdminMember = memberships.some((m: any) => nonAdminRoles.includes(m.role));
 
-        // Resolve role
-        const role = memberships.length > 0 ? ((memberships[0] as any).role ?? 'Admin') : 'Admin';
+        // Resolve role — prefer Admin if present in any membership, then fall through
+        // to the first recognised non-admin role. Avoids non-deterministic memberships[0].
+        const roleHierarchy = ['Admin', 'Recruiter', 'HiringManager', 'Viewer'];
+        const allRoles = memberships.map((m: any) => m.role).filter(Boolean) as string[];
+        const role = roleHierarchy.find(r => allRoles.includes(r)) ?? (memberships.length > 0 ? 'Admin' : 'Admin');
         setUserRole(role);
 
         // ── Subscription / access check ──────────────────────────────────────
         let access = false;
 
         if (isNonAdminMember) {
-          // Non-admin workspace members inherit the workspace subscription
-          access = true;
+          // Non-admin members access through the workspace — verify workspace has an active subscription
+          const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
+          if (workspaceIds.length > 0) {
+            const { data: workspaces } = await supabase
+              .from('workspaces')
+              .select('id, is_free_access, free_access_expires_at')
+              .in('id', workspaceIds);
+            const hasFreeAccess = (workspaces || []).some((ws: any) => {
+              if (!ws.is_free_access) return false;
+              if (!ws.free_access_expires_at) return true;
+              return new Date(ws.free_access_expires_at) > new Date();
+            });
+            if (hasFreeAccess) {
+              access = true;
+            } else {
+              const { data: memberRows } = await supabase
+                .from('workspace_members')
+                .select('user_id')
+                .in('workspace_id', workspaceIds);
+              const memberIds = [...new Set((memberRows || []).map((r: any) => r.user_id))] as string[];
+              if (memberIds.length > 0) {
+                const { data: subs } = await supabase
+                  .from('user_settings')
+                  .select('subscription_status, subscription_stripe_id, billing_plan_name')
+                  .in('user_id', memberIds);
+                const { hasActiveSubscription } = await import('../services/subscriptionAccess');
+                access = (subs || []).some((s: any) => hasActiveSubscription(s));
+              }
+            }
+          }
         } else if (belongsToWorkspace) {
           // Workspace admin — check free-access flag first
           const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
@@ -123,13 +156,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
         if (isOnboardingPage) {
           onboardingDone = true; // Always allow the onboarding page itself
-        } else if (belongsToWorkspace) {
-          onboardingDone = true; // Invited users skip onboarding
+        } else if (isNonAdminMember) {
+          onboardingDone = true; // Invited non-admin members skip onboarding
         } else {
           onboardingDone = (profileRes as any).data?.onboarding_completed === true;
         }
 
         if (cancelled) return;
+
+        // Detect past_due so gate 5 can route to Settings instead of pricing,
+        // preventing users from creating a duplicate subscription.
+        if (!access) {
+          const rawStatus = (settingsRes.data?.subscription_status || '').toLowerCase();
+          if (rawStatus === 'past_due') setIsPastDue(true);
+        }
 
         setCanEnter(access);
         setOnboardingCompleted(onboardingDone);
@@ -172,7 +212,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         if (!token) return;
 
         const { trackSession } = await import('../services/api');
-        trackSession().catch(() => {});
 
         const checkPromise = supabase
           .from('user_sessions')
@@ -228,8 +267,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // 1. AuthContext still initialising
   if (loading) return <PageLoader />;
 
-  // 2. Session exists but email not confirmed
-  if (user && !session) return <Navigate to="/verify-email" replace />;
+  // 2. User is set but no session.
+  // Two cases: (a) email not confirmed → verify-email, (b) MFA required → back to login.
+  if (user && !session) {
+    if (!user.email_confirmed_at) return <Navigate to="/verify-email" replace />;
+    // Email confirmed but session suppressed (MFA aal2 required and not yet verified).
+    return <Navigate to="/login" replace />;
+  }
 
   // 3. Not authenticated
   if (!session || !user) {
@@ -240,9 +284,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // 4. Waiting for all resource checks — never let children render until this clears
   if (!checksComplete) return <PageLoader />;
 
-  // 5. No subscription / workspace → pricing (settings always accessible)
+  // 5. No subscription / workspace → pricing (settings + onboarding always accessible)
+  // Onboarding is bypassed here to prevent a timing race where a newly-paid user's
+  // subscription hasn't propagated to ProtectedRoute's fresh DB check yet.
+  // past_due → Settings so user can fix their payment, not create a second subscription.
   const isSettingsPage = location.pathname === '/settings';
-  if (!canEnter && !isSettingsPage) return <Navigate to="/?pricing=true" replace />;
+  const isOnboardingPageGate = location.pathname === '/onboarding';
+  if (!canEnter && !isSettingsPage && !isOnboardingPageGate) {
+    return <Navigate to={isPastDue ? '/settings' : '/?pricing=true'} replace />;
+  }
 
   // 6. Onboarding not done
   if (!onboardingCompleted && location.pathname !== '/onboarding') {

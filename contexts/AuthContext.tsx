@@ -51,6 +51,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         // Only set session if email is confirmed
         if (session?.user?.email_confirmed_at) {
+          // Check MFA requirement — if the stored session is aal1 but aal2 is required,
+          // expose user but NOT session so the user is prompted for their TOTP code.
+          try {
+            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+              setUser(session.user);
+              setSession(null);
+              return; // finally block still runs → setLoading(false)
+            }
+          } catch {
+            // AAL check failed — fail-open and set session
+          }
           // Don't check for revocation on initial load - session might not be tracked yet
           // Session revocation check will happen on ProtectedRoute navigation
           setSession(session);
@@ -89,9 +101,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       // Only set session if email is confirmed
       if (session?.user?.email_confirmed_at) {
+        // On SIGNED_IN, verify the AAL is sufficient before exposing the session.
+        // If MFA is enabled and the user hasn't verified their TOTP yet, the session
+        // will be aal1 while nextLevel is aal2. Exposing it here would let PublicRoute
+        // redirect them to /auth/redirect before Login shows the MFA form.
+        if (event === 'SIGNED_IN') {
+          try {
+            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+              // MFA required but not yet verified — expose user but NOT session.
+              // signIn() will return { requiresMFA: true } and show the TOTP form.
+              setUser(session.user);
+              setSession(null);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // AAL check failed — fall through and set session (fail-open)
+          }
+        }
         // Don't check for revocation on auth state change - let ProtectedRoute handle it
         // This prevents blocking valid sessions during sign-in
         setSession(session);
@@ -301,31 +332,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } catch (aalCheckError) {
-        // If AAL check fails, fall back to explicitly checking enrolled MFA factors
+        // If AAL check fails, fall back to explicitly checking enrolled MFA factors.
+        // NOTE: do NOT gate this on !data.session — signInWithPassword always returns a
+        // session on success, so that gate would silently skip the MFA check entirely.
         console.warn('Could not check AAL, falling back to factor check:', aalCheckError);
 
-        if (!data.session) {
-          if (!data.user.email_confirmed_at) {
-            return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
-          }
-
-          // Confirm the user actually has a verified TOTP factor before sending to MFA screen.
-          // Without this check a non-MFA user with no session would be trapped on the MFA screen.
-          try {
-            const { data: factors } = await supabase.auth.mfa.listFactors();
-            const hasVerifiedTOTP =
-              (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
-              (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
-            if (hasVerifiedTOTP) {
-              return { error: null, requiresMFA: true };
-            }
-          } catch {
-            // Can't confirm factors — don't assume MFA
-          }
-
-          // No confirmed MFA factor found — generic retry error
-          return { error: { message: 'Sign-in could not be completed. Please try again.' }, requiresMFA: false };
+        if (!data.user.email_confirmed_at) {
+          return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
         }
+
+        // Confirm the user actually has a verified TOTP factor before sending to MFA screen.
+        try {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const hasVerifiedTOTP =
+            (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
+            (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
+          if (hasVerifiedTOTP) {
+            return { error: null, requiresMFA: true };
+          }
+        } catch {
+          // Can't confirm factors — fall through to normal session handling
+        }
+        // No verified MFA factor found — fall through to normal login flow below
       }
       
       // Only set session if email is confirmed and we have a session
@@ -393,11 +421,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error: verifyError };
       }
 
-      // MFA verified - get the session
-      if (verifyData.session) {
-        setSession(verifyData.session);
-        setUser(verifyData.session.user);
-        
+      // MFA verified — get the session.
+      // verifyData.session is present in most SDK versions, but fall back to
+      // getSession() in case the SDK omits it (e.g., older Supabase versions).
+      let mfaSession = verifyData.session ?? null;
+      if (!mfaSession) {
+        const { data: { session: fallback } } = await supabase.auth.getSession();
+        mfaSession = fallback ?? null;
+      }
+
+      if (mfaSession) {
+        setSession(mfaSession);
+        setUser(mfaSession.user);
+
         // Track session in database
         try {
           const { trackSession } = await import('../services/api');
@@ -405,6 +441,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (err) {
           console.error('Failed to track session:', err);
         }
+      } else {
+        // Verification succeeded but we have no usable session — treat as error
+        // so the user isn't left in a logged-in-but-sessionless limbo.
+        return { error: new Error('MFA verified but session could not be established. Please sign in again.') };
       }
 
       return { error: null };
