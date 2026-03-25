@@ -252,7 +252,10 @@ const AppRoutes: React.FC = () => {
       }
 
       import('./services/api').then(({ api }) => {
-        api.workspaces.getInviteByToken(stored).then((r) => {
+        Promise.race([
+          api.workspaces.getInviteByToken(stored),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+        ]).then((r) => {
           if (cancelled) return;
           try {
             if (!r.found) {

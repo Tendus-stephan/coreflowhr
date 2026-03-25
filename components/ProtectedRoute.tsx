@@ -238,7 +238,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
               .eq('user_id', user.id)
               .maybeSingle();
             if (!retry.data && isMounted) {
-              supabase.auth.signOut().then(() => { window.location.href = '/login'; });
+              supabase.auth.signOut().catch(() => {}).finally(() => { window.location.href = '/login'; });
             }
           } catch {
             // Can't verify — assume valid
@@ -260,7 +260,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener('focus', onFocus);
     };
-  }, [session, user]);
+  }, [session?.access_token, user?.id]);
 
   // ─── Render gates (evaluated top-to-bottom, first match wins) ─────────────
 
