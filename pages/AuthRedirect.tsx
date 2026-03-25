@@ -17,6 +17,10 @@ const AuthRedirect: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const ran = useRef(false);
+  // Use refs so the hard deadline and settled flag survive if the effect ever
+  // re-runs (e.g. token refresh changes session?.access_token mid-flight).
+  const settledRef = useRef(false);
+  const hardDeadlineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -28,6 +32,7 @@ const AuthRedirect: React.FC = () => {
     }
 
     ran.current = true;
+    settledRef.current = false;
 
     const isPaymentSuccess = searchParams.get('payment') === 'success';
     const sessionId = searchParams.get('session_id');
@@ -35,10 +40,11 @@ const AuthRedirect: React.FC = () => {
     // Hard deadline — if resolve() stalls indefinitely (e.g. a Supabase fetch() hangs
     // during the network transition away from Stripe checkout), bail to dashboard after
     // 20 seconds so the user is never stuck on the spinner forever.
-    let settled = false;
-    const hardDeadlineId = setTimeout(() => {
-      if (!settled) {
-        settled = true;
+    // Stored in a ref so the timer survives cleanup calls caused by session
+    // object reference changes (INITIAL_SESSION vs getSession race in AuthContext).
+    hardDeadlineRef.current = setTimeout(() => {
+      if (!settledRef.current) {
+        settledRef.current = true;
         sessionStorage.setItem('showDashboardLoader', 'true');
         navigate('/dashboard', { replace: true });
       }
@@ -128,19 +134,40 @@ const AuthRedirect: React.FC = () => {
     };
 
     resolve()
-      .then(() => { settled = true; clearTimeout(hardDeadlineId); })
+      .then(() => {
+        settledRef.current = true;
+        if (hardDeadlineRef.current) {
+          clearTimeout(hardDeadlineRef.current);
+          hardDeadlineRef.current = null;
+        }
+      })
       .catch(() => {
-        settled = true;
-        clearTimeout(hardDeadlineId);
+        settledRef.current = true;
+        if (hardDeadlineRef.current) {
+          clearTimeout(hardDeadlineRef.current);
+          hardDeadlineRef.current = null;
+        }
         sessionStorage.setItem('showDashboardLoader', 'true');
         navigate('/dashboard', { replace: true });
       });
 
     return () => {
-      settled = true;
-      clearTimeout(hardDeadlineId);
+      // Runs on true component unmount (navigation away). With stable primitive deps
+      // below, this won't fire during normal polling due to session object reference
+      // churn. On true unmount, cancel timers so nothing fires after navigation.
+      settledRef.current = true;
+      if (hardDeadlineRef.current) {
+        clearTimeout(hardDeadlineRef.current);
+        hardDeadlineRef.current = null;
+      }
     };
-  }, [loading, session, user, navigate, searchParams]);
+  // Use stable primitives rather than full objects. AuthContext fires two state
+  // updates on load (getSession + INITIAL_SESSION) that create new session/user
+  // object references even though the data is identical. Using session?.access_token
+  // and user?.id means those spurious re-renders don't re-run this effect and
+  // accidentally cancel the hard-deadline timer through the cleanup function.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, session?.access_token, user?.id, navigate, searchParams]);
 
   return <PageLoader />;
 };
