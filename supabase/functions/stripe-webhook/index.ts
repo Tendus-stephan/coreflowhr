@@ -224,8 +224,15 @@ serve(async (req) => {
           .maybeSingle();
 
         if (findError || !settings) {
-          console.error('User settings not found for subscription:', subscription.id);
-          break;
+          // Return 500 so Stripe retries this webhook. This fires when
+          // customer.subscription.updated arrives before checkout.session.completed
+          // has had time to write the subscription_stripe_id to user_settings.
+          // A retry a few minutes later will find the row and succeed.
+          console.error('User settings not found for subscription:', subscription.id, '— returning 500 so Stripe retries');
+          return new Response(
+            JSON.stringify({ error: 'User settings not found, will retry' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
 
         // Retrieve full subscription details

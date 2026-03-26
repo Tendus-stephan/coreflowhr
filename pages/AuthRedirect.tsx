@@ -102,8 +102,13 @@ const AuthRedirect: React.FC = () => {
           }
         }
         if (!cancelled) {
-          t('payment webhook never confirmed — navigating /settings');
-          navigate('/settings', { replace: true });
+          // Webhook didn't confirm in time — go to /dashboard and let ProtectedRoute
+          // decide access. If the subscription is active by then, the user gets in;
+          // if not, ProtectedRoute bounces them to pricing. Never send them to
+          // /settings which looks like a payment failure.
+          t('payment webhook never confirmed — navigating /dashboard to let ProtectedRoute decide');
+          sessionStorage.setItem('showDashboardLoader', 'true');
+          navigate('/dashboard', { replace: true });
         }
       } else {
         let destination: string;

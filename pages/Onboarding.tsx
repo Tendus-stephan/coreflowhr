@@ -307,6 +307,7 @@ const Onboarding: React.FC = () => {
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [tab, setTab] = useState<'steps' | 'troubleshoot' | 'tips'>('steps');
+    const [completing, setCompleting] = useState(false);
 
     // Check if onboarding already completed
     // Only redirect if truly completed to prevent loops
@@ -351,13 +352,15 @@ const Onboarding: React.FC = () => {
     }, [navigate]); // Added navigate to dependencies
 
     const handleNext = useCallback(() => {
+        if (completing) return;
         if (currentIndex < slides.length - 1) {
             setCurrentIndex(prev => prev + 1);
             setTab('steps');
         } else {
             handleComplete();
         }
-    }, [currentIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentIndex, completing]);
 
     const handleBack = useCallback(() => {
         if (currentIndex > 0) {
@@ -367,6 +370,7 @@ const Onboarding: React.FC = () => {
     }, [currentIndex]);
 
     const handleComplete = async () => {
+        setCompleting(true);
         try {
             await markOnboardingCompleted();
             // Route through /auth/redirect rather than directly to /dashboard.
@@ -392,6 +396,8 @@ const Onboarding: React.FC = () => {
             // because onboarding_completed is still false in the DB.
             // Show an error instead so they can retry.
             alert('Something went wrong saving your progress. Please try again.');
+        } finally {
+            setCompleting(false);
         }
     };
 
@@ -646,11 +652,12 @@ const Onboarding: React.FC = () => {
                     </Button>
                     <Button
                         variant="black"
-                                size="lg" 
+                                size="lg"
                         onClick={handleNext}
+                                disabled={completing}
                                 className="min-w-[200px] rounded-[1.5rem] gap-3"
                             >
-                                {currentIndex === slides.length - 1 ? 'Finish Setup' : 'Next Step'}
+                                {completing ? 'Saving...' : currentIndex === slides.length - 1 ? 'Finish Setup' : 'Next Step'}
                                 <ChevronRight className="w-5 h-5" />
                     </Button>
                 </div>

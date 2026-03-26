@@ -85,9 +85,18 @@ serve(async (req) => {
     const successUrl = `${frontendUrl}/auth/redirect?payment=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${frontendUrl}/?pricing=true`;
 
+    // Validate email is present before handing off to Stripe
+    const customerEmail = userEmail || user.email;
+    if (!customerEmail) {
+      return new Response(
+        JSON.stringify({ error: 'No email address available for checkout. Please update your profile.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
-      customer_email: userEmail || user.email,
+      customer_email: customerEmail,
       payment_method_types: ['card'],
       line_items: [
         {
