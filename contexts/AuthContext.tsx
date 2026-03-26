@@ -40,9 +40,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Safety net: force loading=false after 5 s if both getSession() and
-    // onAuthStateChange stall (e.g. hung token-refresh with no network timeout).
-    const loadingTimeout = setTimeout(() => setLoading(false), 5000);
+    // Safety net: force loading=false after 5 s if getSession() stalls.
+    // Also clear any stale auth token from localStorage — this is the root cause of
+    // new-user "stuck on signing in": the email-confirmation session stored after
+    // signup causes getSession() to hang trying to refresh it, which holds the
+    // Supabase SDK's internal auth lock. Any subsequent signInWithPassword() call
+    // queues behind that lock and never proceeds. Clearing the token unblocks the lock
+    // so the sign-in completes normally when the user clicks the button.
+    const loadingTimeout = setTimeout(() => {
+      try {
+        const key = Object.keys(localStorage).find(
+          k => k.startsWith('sb-') && k.endsWith('-auth-token')
+        );
+        if (key) localStorage.removeItem(key);
+      } catch { /* ignore */ }
+      setLoading(false);
+    }, 5000);
 
     // ── Initial session ──────────────────────────────────────────────────────
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -223,56 +236,88 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // ── signIn ─────────────────────────────────────────────────────────────────
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // 15 s hard cap on the auth request itself. The Supabase SDK holds an internal
+    // lock while a background getSession() refresh is in progress — if that refresh
+    // hangs (e.g. stale email-confirmation token for a brand-new account), every
+    // subsequent auth call queues behind it and never resolves. The timeout surfaces
+    // a clear error instead of leaving the button stuck forever.
+    let signInResult: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+    try {
+      signInResult = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('connection_slow')), 15000)
+        ),
+      ]);
+    } catch (e: any) {
+      if (e?.message === 'connection_slow') {
+        return {
+          error: { message: 'Sign-in is taking longer than expected. Please refresh the page and try again.' },
+          requiresMFA: false,
+        };
+      }
+      return { error: e, requiresMFA: false };
+    }
 
+    const { data, error } = signInResult;
     if (error) return { error, requiresMFA: false };
+    if (!data.user) return { error: { message: 'Failed to sign in. Please try again.' }, requiresMFA: false };
 
-    if (data.user) {
-      setUser(data.user);
-
-      // Check AAL — if aal2 is required but not yet met, don't expose the session.
-      // Cap at 5 s: a hung AAL call must never block the login button forever.
+    // ── AAL check BEFORE touching any React state ─────────────────────────────
+    // Must run first so we never emit a (user=set, session=null) intermediate render.
+    // That transient state causes ProtectedRoute to redirect back to /login, which
+    // is why new users end up stuck on the login page after confirming their email.
+    let requiresMFA = false;
+    try {
+      const { data: aal, error: aalError } = await Promise.race([
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ]);
+      if (!aalError && aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+        requiresMFA = true;
+      }
+    } catch {
+      // Timed out or failed — fall back to factor list
       try {
-        const { data: aal, error: aalError } = await Promise.race([
-          supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        const { data: factors } = await Promise.race([
+          supabase.auth.mfa.listFactors(),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
         ]);
-        if (!aalError && aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
-          return { error: null, requiresMFA: true };
-        }
-      } catch (aalCheckError) {
-        console.warn('AAL check failed, falling back to factor list:', aalCheckError);
-        if (!data.user.email_confirmed_at) {
-          return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
-        }
-        try {
-          const { data: factors } = await Promise.race([
-            supabase.auth.mfa.listFactors(),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-          ]);
-          const hasVerifiedTOTP =
-            (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
-            (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
-          if (hasVerifiedTOTP) return { error: null, requiresMFA: true };
-        } catch { /* fall through */ }
-      }
-
-      if (data.user.email_confirmed_at && data.session) {
-        setSession(data.session);
-        // Track session — capped at 3 s so a slow DB call never blocks login.
-        // ProtectedRoute retries if the record isn't found yet.
-        try {
-          const { trackSession } = await import('../services/api');
-          await Promise.race([
-            trackSession(),
-            new Promise<void>(resolve => setTimeout(resolve, 3000)),
-          ]);
-        } catch { /* non-critical */ }
-      } else if (!data.user.email_confirmed_at) {
-        setSession(null);
-        return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
-      }
+        const hasVerifiedTOTP =
+          (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
+          (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
+        if (hasVerifiedTOTP) requiresMFA = true;
+      } catch { /* fail-open — no MFA assumed */ }
     }
+
+    if (requiresMFA) {
+      // Only expose user, keep session null until the second factor is verified.
+      setUser(data.user);
+      return { error: null, requiresMFA: true };
+    }
+
+    if (!data.user.email_confirmed_at) {
+      return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
+    }
+
+    if (!data.session) {
+      return { error: { message: 'Failed to establish session. Please try again.' }, requiresMFA: false };
+    }
+
+    // ── Set user + session in the same tick (no await between them) ───────────
+    // React 18 batches synchronous state updates — setting both here ensures
+    // PublicRoute always sees (user + session) together, never a partial state.
+    setUser(data.user);
+    setSession(data.session);
+
+    // Track session — capped at 3 s so a slow DB call never blocks login.
+    try {
+      const { trackSession } = await import('../services/api');
+      await Promise.race([
+        trackSession(),
+        new Promise<void>(resolve => setTimeout(resolve, 3000)),
+      ]);
+    } catch { /* non-critical */ }
 
     return { error: null, requiresMFA: false };
   };
