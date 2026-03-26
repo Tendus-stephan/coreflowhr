@@ -40,6 +40,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log(`[Auth ${new Date().toISOString()}] AuthProvider mounted — calling getSession()`);
+
     // Safety net: force loading=false after 5 s if getSession() stalls.
     // Also clear any stale auth token from localStorage — this is the root cause of
     // new-user "stuck on signing in": the email-confirmation session stored after
@@ -59,6 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // ── Initial session ──────────────────────────────────────────────────────
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log(`[Auth ${new Date().toISOString()}] getSession() resolved: user=${!!session?.user} confirmed=${!!session?.user?.email_confirmed_at}`);
       try {
         if (session?.user?.email_confirmed_at) {
           // MFA check: if aal2 required but not yet met, expose user but not session.
@@ -122,6 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // ── Auth state changes ───────────────────────────────────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[Auth ${new Date().toISOString()}] onAuthStateChange: ${event} user=${!!session?.user} confirmed=${!!session?.user?.email_confirmed_at}`);
       // SIGNED_OUT fires for both explicit sign-outs and expired/revoked refresh tokens.
       // Only clear React state here — do NOT touch localStorage because SIGNED_OUT
       // also fires for the old session during a fresh sign-in (SDK fires SIGNED_OUT
@@ -236,6 +240,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // ── signIn ─────────────────────────────────────────────────────────────────
   const signIn = async (email: string, password: string) => {
+    const t = (label: string) => console.log(`[Auth ${new Date().toISOString()}] ${label}`);
+
+    t('signIn START');
+
     // 15 s hard cap on the auth request itself. The Supabase SDK holds an internal
     // lock while a background getSession() refresh is in progress — if that refresh
     // hangs (e.g. stale email-confirmation token for a brand-new account), every
@@ -243,13 +251,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // a clear error instead of leaving the button stuck forever.
     let signInResult: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
     try {
+      t('signInWithPassword → calling...');
       signInResult = await Promise.race([
         supabase.auth.signInWithPassword({ email, password }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('connection_slow')), 15000)
         ),
       ]);
+      t('signInWithPassword → returned');
     } catch (e: any) {
+      t(`signInWithPassword → ERROR: ${e?.message}`);
       if (e?.message === 'connection_slow') {
         return {
           error: { message: 'Sign-in is taking longer than expected. Please refresh the page and try again.' },
@@ -260,38 +271,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     const { data, error } = signInResult;
+    t(`signInWithPassword data: user=${!!data?.user} session=${!!data?.session} error=${error?.message}`);
     if (error) return { error, requiresMFA: false };
     if (!data.user) return { error: { message: 'Failed to sign in. Please try again.' }, requiresMFA: false };
 
     // ── AAL check BEFORE touching any React state ─────────────────────────────
-    // Must run first so we never emit a (user=set, session=null) intermediate render.
-    // That transient state causes ProtectedRoute to redirect back to /login, which
-    // is why new users end up stuck on the login page after confirming their email.
+    t('AAL check → calling...');
     let requiresMFA = false;
     try {
       const { data: aal, error: aalError } = await Promise.race([
         supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
       ]);
+      t(`AAL check → currentLevel=${aal?.currentLevel} nextLevel=${aal?.nextLevel} error=${aalError?.message}`);
       if (!aalError && aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
         requiresMFA = true;
       }
-    } catch {
-      // Timed out or failed — fall back to factor list
+    } catch (aalErr: any) {
+      t(`AAL check → timed out or failed (${aalErr?.message}), trying listFactors...`);
       try {
         const { data: factors } = await Promise.race([
           supabase.auth.mfa.listFactors(),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
         ]);
+        t(`listFactors → totp=${factors?.totp?.length} all=${factors?.all?.length}`);
         const hasVerifiedTOTP =
           (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
           (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
         if (hasVerifiedTOTP) requiresMFA = true;
-      } catch { /* fail-open — no MFA assumed */ }
+      } catch (fErr: any) { t(`listFactors → failed (${fErr?.message}), fail-open`); }
     }
 
+    t(`requiresMFA=${requiresMFA} email_confirmed=${!!data.user.email_confirmed_at} session=${!!data.session}`);
+
     if (requiresMFA) {
-      // Only expose user, keep session null until the second factor is verified.
       setUser(data.user);
       return { error: null, requiresMFA: true };
     }
@@ -308,17 +321,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // React 18 batches synchronous state updates — setting both here ensures
     // PublicRoute always sees (user + session) together, never a partial state.
     setUser(data.user);
+    t('setting user + session...');
+    setUser(data.user);
     setSession(data.session);
+    t('user + session set');
 
     // Track session — capped at 3 s so a slow DB call never blocks login.
+    t('trackSession → calling...');
     try {
       const { trackSession } = await import('../services/api');
       await Promise.race([
         trackSession(),
         new Promise<void>(resolve => setTimeout(resolve, 3000)),
       ]);
-    } catch { /* non-critical */ }
+      t('trackSession → done');
+    } catch (tsErr: any) { t(`trackSession → error (${tsErr?.message})`); }
 
+    t('signIn DONE → returning success');
     return { error: null, requiresMFA: false };
   };
 
