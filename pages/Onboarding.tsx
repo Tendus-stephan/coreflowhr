@@ -389,7 +389,11 @@ const Onboarding: React.FC = () => {
                 }
             } catch { /* sessionStorage unavailable */ }
             sessionStorage.setItem('showDashboardLoader', 'true');
-            window.location.replace(redirectTarget);
+            // Use React Router navigate (not window.location.replace) so the
+            // in-memory Supabase session is preserved. A hard reload would lose the
+            // localStorage auth token (removed by AuthContext's loadingTimeout after
+            // 5 s) and log the user out immediately after onboarding.
+            navigate(redirectTarget, { replace: true });
         } catch (error) {
             console.error('Error completing onboarding:', error);
             // Do NOT redirect on failure — user would loop back to onboarding

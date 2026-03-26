@@ -42,14 +42,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     console.log(`[Auth ${new Date().toISOString()}] AuthProvider mounted — calling getSession()`);
 
+    // Tracks whether getSession() has returned (success or error).
+    // The loadingTimeout below MUST NOT remove the localStorage token if getSession()
+    // already resolved cleanly — doing so would destroy the session on the next hard
+    // page reload (e.g. window.location.replace after onboarding) and log the user out.
+    let sessionResolved = false;
+
     // Safety net: force loading=false after 5 s if getSession() stalls.
-    // Also clear any stale auth token from localStorage — this is the root cause of
-    // new-user "stuck on signing in": the email-confirmation session stored after
-    // signup causes getSession() to hang trying to refresh it, which holds the
-    // Supabase SDK's internal auth lock. Any subsequent signInWithPassword() call
-    // queues behind that lock and never proceeds. Clearing the token unblocks the lock
-    // so the sign-in completes normally when the user clicks the button.
+    // Only clear the stale auth token when getSession() is STILL hanging — this is the
+    // root cause of new-user "stuck on signing in": the email-confirmation session
+    // stored after signup causes getSession() to hang trying to refresh it, which holds
+    // the Supabase SDK's internal auth lock. Clearing the token unblocks the lock.
+    // If getSession() already resolved (sessionResolved=true), leave the token alone.
     const loadingTimeout = setTimeout(() => {
+      if (sessionResolved) return; // getSession() resolved fine — do NOT touch the token
       try {
         const key = Object.keys(localStorage).find(
           k => k.startsWith('sb-') && k.endsWith('-auth-token')
@@ -61,6 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // ── Initial session ──────────────────────────────────────────────────────
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      sessionResolved = true; // Mark immediately — before any async work inside .then()
       console.log(`[Auth ${new Date().toISOString()}] getSession() resolved: user=${!!session?.user} confirmed=${!!session?.user?.email_confirmed_at}`);
       try {
         if (session?.user?.email_confirmed_at) {
@@ -96,6 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setLoading(false);
       }
     }).catch((error) => {
+      sessionResolved = true; // Even on error — don't let the timeout remove the token
       const msg = (error?.message || '').toLowerCase();
       const isRefreshError = msg.includes('refresh token') || msg.includes('invalid refresh');
       const isOffline = !navigator.onLine || msg.includes('failed to fetch') ||
