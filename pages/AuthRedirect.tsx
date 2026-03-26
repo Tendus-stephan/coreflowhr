@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PageLoader } from '../components/ui/PageLoader';
@@ -11,50 +11,47 @@ import { resolvePostLoginDestination } from '../utils/postLoginRoute';
  *
  * When ?payment=success is present (Stripe redirect), polls resolvePostLoginDestination
  * with retries to handle webhook processing delay before committing to a route.
+ *
+ * React Strict Mode safe: uses a local `cancelled` flag (not shared refs) so that
+ * Strict Mode's double-invocation pattern doesn't cancel the second run's resolve().
  */
 const AuthRedirect: React.FC = () => {
   const { user, session, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const ran = useRef(false);
-  // Use refs so the hard deadline and settled flag survive if the effect ever
-  // re-runs (e.g. token refresh changes session?.access_token mid-flight).
-  const settledRef = useRef(false);
-  const hardDeadlineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (loading) return;
-    if (ran.current) return;
 
     if (!session || !user) {
       navigate('/login', { replace: true });
       return;
     }
 
-    ran.current = true;
-    settledRef.current = false;
-
+    // Snapshot values from the closure at effect-run time.
+    const userId = user.id;
     const isPaymentSuccess = searchParams.get('payment') === 'success';
     const sessionId = searchParams.get('session_id');
 
-    // Hard deadline — if resolve() stalls indefinitely (e.g. a Supabase fetch() hangs
-    // during the network transition away from Stripe checkout), bail to dashboard after
-    // 20 seconds so the user is never stuck on the spinner forever.
-    // Stored in a ref so the timer survives cleanup calls caused by session
-    // object reference changes (INITIAL_SESSION vs getSession race in AuthContext).
-    hardDeadlineRef.current = setTimeout(() => {
-      if (!settledRef.current) {
-        settledRef.current = true;
+    // Local cancellation flag — each effect invocation owns its own copy.
+    // When React Strict Mode runs the effect twice (run → cleanup → run), the
+    // first run's `cancelled` is set true by the cleanup, while the second run
+    // starts with a fresh `cancelled = false` and completes normally.
+    let cancelled = false;
+
+    // Hard deadline: bail to dashboard after 20 s if resolve() stalls completely.
+    const hardDeadline = setTimeout(() => {
+      if (!cancelled) {
+        cancelled = true;
         sessionStorage.setItem('showDashboardLoader', 'true');
         navigate('/dashboard', { replace: true });
       }
     }, 20000);
 
-    // Wraps a single resolvePostLoginDestination call with a 5-second timeout so a
-    // hanging DB query skips to the next poll attempt rather than blocking forever.
-    const pollOnce = (userId: string): Promise<string> =>
+    // Single attempt with a 5 s cap so a hanging DB query doesn't block forever.
+    const pollOnce = (uid: string): Promise<string> =>
       Promise.race([
-        resolvePostLoginDestination(userId),
+        resolvePostLoginDestination(uid),
         new Promise<string>((_, rej) =>
           setTimeout(() => rej(new Error('poll timeout')), 5000)
         ),
@@ -62,33 +59,30 @@ const AuthRedirect: React.FC = () => {
 
     const resolve = async () => {
       if (isPaymentSuccess) {
-        // Stripe webhook may not have updated the DB yet — poll until subscription
-        // is confirmed. Up to 8 attempts × 2 s wait = ~16 s window, each capped at
-        // 5 s so a single hanging query doesn't eat the entire budget.
+        // Poll up to 8 × 2 s while waiting for the Stripe webhook to update the DB.
         for (let attempt = 0; attempt < 8; attempt++) {
-          // Hard deadline may have already fired — abort so we don't double-navigate.
-          if (settledRef.current) return;
+          if (cancelled) return;
           if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+          if (cancelled) return;
+
           let destination: string;
           try {
-            destination = await pollOnce(user.id);
+            destination = await pollOnce(userId);
           } catch {
-            // Timed-out or errored — try again next iteration
-            continue;
+            continue; // timed out — try again
           }
+
+          if (cancelled) return;
+
           if (destination !== '/?pricing=true') {
-            // Subscription confirmed — route correctly (includes onboarding check).
             if (destination === '/dashboard') {
-              // Pass payment params through so Dashboard can show the success toast.
               const qs = sessionId
                 ? `?payment=success&session_id=${encodeURIComponent(sessionId)}`
                 : '?payment=success';
               sessionStorage.setItem('showDashboardLoader', 'true');
               navigate(`/dashboard${qs}`, { replace: true });
             } else {
-              // If routing to onboarding after a successful payment, stash the payment
-              // params so Dashboard can show the success toast once onboarding completes.
-              if (destination === '/onboarding' && isPaymentSuccess) {
+              if (destination === '/onboarding') {
                 try {
                   const qs = sessionId
                     ? `?payment=success&session_id=${encodeURIComponent(sessionId)}`
@@ -101,16 +95,12 @@ const AuthRedirect: React.FC = () => {
             return;
           }
         }
-        // Webhook still hasn't fired after retries — send to settings so the user
-        // can see their billing status rather than being shown a sign-up pricing page.
-        if (settledRef.current) return;
-        navigate('/settings', { replace: true });
+        // Webhook never fired — send to settings so user can check billing status.
+        if (!cancelled) navigate('/settings', { replace: true });
       } else {
-        const destination = await pollOnce(user.id);
-        if (settledRef.current) return;
+        const destination = await pollOnce(userId);
+        if (cancelled) return;
 
-        // If user has no subscription but chose a plan on the landing page before
-        // signing up, resume checkout automatically instead of dropping them at pricing.
         if (destination === '/?pricing=true') {
           try {
             const pendingPlan = sessionStorage.getItem('pendingPlan') as 'professional' | 'founding' | null;
@@ -119,7 +109,6 @@ const AuthRedirect: React.FC = () => {
               const { createCheckoutSession } = await import('../services/stripe');
               const { url, error } = await createCheckoutSession(pendingPlan, pendingBilling);
               if (url && !error) {
-                // Only clear after a successful URL — keeps items for retry if checkout fails.
                 sessionStorage.removeItem('pendingPlan');
                 sessionStorage.removeItem('pendingBilling');
                 window.location.replace(url);
@@ -131,6 +120,7 @@ const AuthRedirect: React.FC = () => {
           }
         }
 
+        if (cancelled) return;
         if (destination === '/dashboard') {
           sessionStorage.setItem('showDashboardLoader', 'true');
         }
@@ -140,45 +130,26 @@ const AuthRedirect: React.FC = () => {
 
     resolve()
       .then(() => {
-        settledRef.current = true;
-        if (hardDeadlineRef.current) {
-          clearTimeout(hardDeadlineRef.current);
-          hardDeadlineRef.current = null;
-        }
+        cancelled = true;
+        clearTimeout(hardDeadline);
       })
       .catch(() => {
-        settledRef.current = true;
-        if (hardDeadlineRef.current) {
-          clearTimeout(hardDeadlineRef.current);
-          hardDeadlineRef.current = null;
+        if (!cancelled) {
+          cancelled = true;
+          clearTimeout(hardDeadline);
+          sessionStorage.setItem('showDashboardLoader', 'true');
+          navigate('/dashboard', { replace: true });
         }
-        sessionStorage.setItem('showDashboardLoader', 'true');
-        navigate('/dashboard', { replace: true });
       });
 
     return () => {
-      // Runs on true component unmount (navigation away). With stable primitive deps
-      // below, this won't fire during normal polling due to session object reference
-      // churn. On true unmount, cancel timers so nothing fires after navigation.
-      settledRef.current = true;
-      if (hardDeadlineRef.current) {
-        clearTimeout(hardDeadlineRef.current);
-        hardDeadlineRef.current = null;
-      }
+      cancelled = true;
+      clearTimeout(hardDeadline);
     };
-  // Only re-run when loading flips to false (initial page load / OAuth return).
-  // All other deps are intentionally omitted.
-  //
-  // Why: signIn() calls setUser+setSession after signInWithPassword returns,
-  // causing AuthContext to re-render all consumers including AuthRedirect.
-  // If session?.access_token, user?.id, navigate, or searchParams are in deps,
-  // that re-render runs the effect cleanup — which sets settledRef.current=true
-  // and clears the hard-deadline timer — BEFORE ran.current is checked in the
-  // new run. The new run then hits `if (ran.current) return` and exits without
-  // calling navigate(), leaving the user stuck on the spinner forever.
-  //
-  // With [loading] as the only dep, re-renders from AuthContext state updates
-  // never interrupt the in-flight resolve().
+  // [loading] only: re-run when auth finishes loading, never on session/user/
+  // searchParams changes. Excluding those deps ensures that AuthContext re-renders
+  // (e.g. from signIn() calling setUser+setSession) don't trigger the cleanup
+  // and cancel the in-flight resolve().
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
