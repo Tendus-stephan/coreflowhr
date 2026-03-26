@@ -190,7 +190,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     runChecks();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.access_token, user?.id, location.pathname]);
+  }, [session?.access_token, user?.id]);
 
   // ─── Background session-revocation check (non-blocking) ───────────────────
   useEffect(() => {
