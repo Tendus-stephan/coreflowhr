@@ -166,13 +166,21 @@ const AuthRedirect: React.FC = () => {
         hardDeadlineRef.current = null;
       }
     };
-  // Use stable primitives rather than full objects. AuthContext fires two state
-  // updates on load (getSession + INITIAL_SESSION) that create new session/user
-  // object references even though the data is identical. Using session?.access_token
-  // and user?.id means those spurious re-renders don't re-run this effect and
-  // accidentally cancel the hard-deadline timer through the cleanup function.
+  // Only re-run when loading flips to false (initial page load / OAuth return).
+  // All other deps are intentionally omitted.
+  //
+  // Why: signIn() calls setUser+setSession after signInWithPassword returns,
+  // causing AuthContext to re-render all consumers including AuthRedirect.
+  // If session?.access_token, user?.id, navigate, or searchParams are in deps,
+  // that re-render runs the effect cleanup — which sets settledRef.current=true
+  // and clears the hard-deadline timer — BEFORE ran.current is checked in the
+  // new run. The new run then hits `if (ran.current) return` and exits without
+  // calling navigate(), leaving the user stuck on the spinner forever.
+  //
+  // With [loading] as the only dep, re-renders from AuthContext state updates
+  // never interrupt the in-flight resolve().
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, session?.access_token, user?.id, navigate, searchParams]);
+  }, [loading]);
 
   return <PageLoader />;
 };
