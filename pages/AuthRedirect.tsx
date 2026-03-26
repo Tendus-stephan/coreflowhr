@@ -106,7 +106,7 @@ const AuthRedirect: React.FC = () => {
         if (settledRef.current) return;
         navigate('/settings', { replace: true });
       } else {
-        const destination = await resolvePostLoginDestination(user.id);
+        const destination = await pollOnce(user.id);
         if (settledRef.current) return;
 
         // If user has no subscription but chose a plan on the landing page before

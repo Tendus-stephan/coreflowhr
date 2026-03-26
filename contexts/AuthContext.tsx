@@ -246,7 +246,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return { error: { message: 'Please verify your email before signing in.' }, requiresMFA: false };
         }
         try {
-          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const { data: factors } = await Promise.race([
+            supabase.auth.mfa.listFactors(),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+          ]);
           const hasVerifiedTOTP =
             (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
             (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
