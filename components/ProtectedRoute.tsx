@@ -187,8 +187,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       }
     };
 
+    // Fail-open safety net: if any DB query hangs indefinitely,
+    // let the user through after 10 s rather than showing PageLoader forever.
+    const failOpenTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[ProtectedRoute] access check timed out — failing open');
+        cancelled = true;
+        setCanEnter(true);
+        setOnboardingCompleted(true);
+        setChecksComplete(true);
+      }
+    }, 10000);
+
     runChecks();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(failOpenTimeout); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token, user?.id]);
 
