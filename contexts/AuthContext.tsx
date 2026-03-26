@@ -50,14 +50,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (session?.user?.email_confirmed_at) {
           // MFA check: if aal2 required but not yet met, expose user but not session.
           try {
-            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            const { data: aal } = await Promise.race([
+              supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+            ]);
             if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
               setUser(session.user);
               setSession(null);
               return; // finally still runs → setLoading(false)
             }
           } catch {
-            // AAL check failed — fail-open
+            // AAL check failed or timed out — fail-open
           }
           setSession(session);
           setUser(session.user);
@@ -120,9 +123,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (session?.user?.email_confirmed_at) {
         // On SIGNED_IN, block the session if aal2 MFA is required but not yet verified.
+        // Cap at 5 s so a hung AAL call doesn't prevent setSession() from ever firing.
         if (event === 'SIGNED_IN') {
           try {
-            const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            const { data: aal } = await Promise.race([
+              supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+            ]);
             if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
               setUser(session.user);
               setSession(null);
@@ -130,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               return;
             }
           } catch {
-            // AAL check failed — fail-open
+            // AAL check failed or timed out — fail-open
           }
         }
         setSession(session);
@@ -224,8 +231,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(data.user);
 
       // Check AAL — if aal2 is required but not yet met, don't expose the session.
+      // Cap at 5 s: a hung AAL call must never block the login button forever.
       try {
-        const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        const { data: aal, error: aalError } = await Promise.race([
+          supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+        ]);
         if (!aalError && aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
           return { error: null, requiresMFA: true };
         }
