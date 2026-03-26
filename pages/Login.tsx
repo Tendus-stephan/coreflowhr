@@ -115,8 +115,11 @@ const Login: React.FC = () => {
       navigate(from.pathname + (from.search || '') + (from.hash || ''), { replace: true });
       return;
     }
-    // Route through /auth/redirect, which runs resolvePostLoginDestination with
-    // per-attempt timeouts and a 20-second hard deadline — no hanging DB calls here.
+    // Don't re-navigate if already on /auth/redirect — redundant navigation causes
+    // useSearchParams() to return a new reference, re-triggering AuthRedirect's
+    // useEffect cleanup which sets settledRef.current=true and cancels the in-flight
+    // resolve(), leaving the user stuck on the spinner forever.
+    if (window.location.pathname === '/auth/redirect') return;
     navigate('/auth/redirect', { replace: true });
   };
 
