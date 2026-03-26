@@ -320,7 +320,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // ── Set user + session in the same tick (no await between them) ───────────
     // React 18 batches synchronous state updates — setting both here ensures
     // PublicRoute always sees (user + session) together, never a partial state.
-    setUser(data.user);
     t('setting user + session...');
     setUser(data.user);
     setSession(data.session);

@@ -4,16 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { PageLoader } from '../components/ui/PageLoader';
 import { resolvePostLoginDestination } from '../utils/postLoginRoute';
 
+const t = (msg: string) => console.log(`[Redirect ${new Date().toISOString()}] ${msg}`);
+
 /**
  * Landing page for Google OAuth, email verification, and Stripe payment redirects.
  * Runs subscription + onboarding checks before choosing a destination so users
  * never see /dashboard flash to /pricing.
  *
- * When ?payment=success is present (Stripe redirect), polls resolvePostLoginDestination
- * with retries to handle webhook processing delay before committing to a route.
- *
- * React Strict Mode safe: uses a local `cancelled` flag (not shared refs) so that
- * Strict Mode's double-invocation pattern doesn't cancel the second run's resolve().
+ * React Strict Mode safe: uses a local `cancelled` flag per effect invocation.
  */
 const AuthRedirect: React.FC = () => {
   const { user, session, loading } = useAuth();
@@ -21,34 +19,40 @@ const AuthRedirect: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    if (loading) return;
+    t(`effect invoked — loading=${loading} user=${!!user} session=${!!session}`);
+
+    if (loading) {
+      t('loading still true — deferring');
+      return;
+    }
 
     if (!session || !user) {
+      t('no session/user — redirecting to /login');
       navigate('/login', { replace: true });
       return;
     }
 
-    // Snapshot values from the closure at effect-run time.
+    // Snapshot stable values from closure at effect-run time.
     const userId = user.id;
     const isPaymentSuccess = searchParams.get('payment') === 'success';
     const sessionId = searchParams.get('session_id');
+    t(`starting resolve — userId=${userId} isPaymentSuccess=${isPaymentSuccess}`);
 
-    // Local cancellation flag — each effect invocation owns its own copy.
-    // When React Strict Mode runs the effect twice (run → cleanup → run), the
-    // first run's `cancelled` is set true by the cleanup, while the second run
-    // starts with a fresh `cancelled = false` and completes normally.
+    // Local cancellation flag — each effect invocation owns its own copy so that
+    // React Strict Mode's double-invocation doesn't corrupt the second (real) run.
     let cancelled = false;
 
-    // Hard deadline: bail to dashboard after 20 s if resolve() stalls completely.
+    // Hard deadline: if resolve() stalls completely, bail to dashboard after 20 s.
     const hardDeadline = setTimeout(() => {
       if (!cancelled) {
+        t('hard deadline fired — navigating /dashboard');
         cancelled = true;
         sessionStorage.setItem('showDashboardLoader', 'true');
         navigate('/dashboard', { replace: true });
       }
     }, 20000);
 
-    // Single attempt with a 5 s cap so a hanging DB query doesn't block forever.
+    // Single attempt capped at 5 s so a hanging DB query doesn't block forever.
     const pollOnce = (uid: string): Promise<string> =>
       Promise.race([
         resolvePostLoginDestination(uid),
@@ -69,9 +73,11 @@ const AuthRedirect: React.FC = () => {
           try {
             destination = await pollOnce(userId);
           } catch {
-            continue; // timed out — try again
+            t(`payment poll attempt ${attempt} timed out — retrying`);
+            continue;
           }
 
+          t(`payment poll attempt ${attempt} → ${destination}`);
           if (cancelled) return;
 
           if (destination !== '/?pricing=true') {
@@ -95,10 +101,21 @@ const AuthRedirect: React.FC = () => {
             return;
           }
         }
-        // Webhook never fired — send to settings so user can check billing status.
-        if (!cancelled) navigate('/settings', { replace: true });
+        if (!cancelled) {
+          t('payment webhook never confirmed — navigating /settings');
+          navigate('/settings', { replace: true });
+        }
       } else {
-        const destination = await pollOnce(userId);
+        let destination: string;
+        try {
+          destination = await pollOnce(userId);
+        } catch (e: any) {
+          t(`pollOnce failed: ${e?.message} — falling back to /dashboard`);
+          if (!cancelled) navigate('/dashboard', { replace: true });
+          return;
+        }
+
+        t(`destination resolved: ${destination}`);
         if (cancelled) return;
 
         if (destination === '/?pricing=true') {
@@ -106,34 +123,53 @@ const AuthRedirect: React.FC = () => {
             const pendingPlan = sessionStorage.getItem('pendingPlan') as 'professional' | 'founding' | null;
             const pendingBilling = sessionStorage.getItem('pendingBilling') as 'monthly' | 'yearly' | null;
             if (pendingPlan && pendingBilling) {
+              t(`resuming checkout — plan=${pendingPlan} billing=${pendingBilling}`);
               const { createCheckoutSession } = await import('../services/stripe');
-              const { url, error } = await createCheckoutSession(pendingPlan, pendingBilling);
-              if (url && !error) {
+              // 8 s cap: if Stripe API hangs, fall through to the pricing page
+              const result = await Promise.race([
+                createCheckoutSession(pendingPlan, pendingBilling),
+                new Promise<{ url: null; error: string }>(resolve =>
+                  setTimeout(() => resolve({ url: null, error: 'timeout' }), 8000)
+                ),
+              ]);
+              if (cancelled) return;
+              if (result.url && !result.error) {
                 sessionStorage.removeItem('pendingPlan');
                 sessionStorage.removeItem('pendingBilling');
-                window.location.replace(url);
+                window.location.replace(result.url);
                 return;
               }
+              t(`checkout session failed/timed out — falling through to pricing page`);
             }
           } catch {
             // Checkout failed — fall through to pricing page
           }
+        } else {
+          // User has a valid subscription — clear any stale pending checkout state
+          // so a subsequent login doesn't mistakenly trigger another checkout.
+          try {
+            sessionStorage.removeItem('pendingPlan');
+            sessionStorage.removeItem('pendingBilling');
+          } catch { /* ignore */ }
         }
 
         if (cancelled) return;
         if (destination === '/dashboard') {
           sessionStorage.setItem('showDashboardLoader', 'true');
         }
+        t(`navigating to ${destination}`);
         navigate(destination, { replace: true });
       }
     };
 
     resolve()
       .then(() => {
+        t('resolve() completed');
         cancelled = true;
         clearTimeout(hardDeadline);
       })
-      .catch(() => {
+      .catch((e: any) => {
+        t(`resolve() threw: ${e?.message}`);
         if (!cancelled) {
           cancelled = true;
           clearTimeout(hardDeadline);
@@ -143,13 +179,12 @@ const AuthRedirect: React.FC = () => {
       });
 
     return () => {
+      t('effect cleanup — cancelling in-flight resolve');
       cancelled = true;
       clearTimeout(hardDeadline);
     };
-  // [loading] only: re-run when auth finishes loading, never on session/user/
-  // searchParams changes. Excluding those deps ensures that AuthContext re-renders
-  // (e.g. from signIn() calling setUser+setSession) don't trigger the cleanup
-  // and cancel the in-flight resolve().
+  // [loading] only: any other dep change would trigger cleanup and cancel the
+  // in-flight resolve(), leaving the user stuck on the spinner.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
