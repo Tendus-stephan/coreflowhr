@@ -331,10 +331,12 @@ const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            {user && session ? (
-              <Button 
-                variant="outline" 
-                size="sm" 
+            {loading ? (
+              <div className="w-24" />
+            ) : user && session ? (
+              <Button
+                variant="outline"
+                size="sm"
                 className="font-semibold rounded-full px-6"
                 onClick={handleLogout}
                 icon={<LogOut size={14} />}

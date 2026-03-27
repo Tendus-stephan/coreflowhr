@@ -34,10 +34,38 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Read the stored Supabase session from localStorage synchronously so the first
+// render already reflects the correct auth state. This eliminates the ~4 s flash
+// where navbar shows "Sign in / Get Started" for a returning logged-in user while
+// getSession() is resolving. Only seeds state for fully confirmed sessions that have
+// a refresh_token (excludes transient email-confirmation tokens).
+function readStoredSession(): { user: SupabaseUser | null; session: Session | null } {
+  try {
+    const key = Object.keys(localStorage).find(
+      k => k.startsWith('sb-') && k.endsWith('-auth-token')
+    );
+    if (key) {
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
+      if (
+        stored?.user &&
+        stored?.refresh_token &&
+        stored?.access_token &&
+        stored.user.email_confirmed_at
+      ) {
+        return { user: stored.user as SupabaseUser, session: stored as Session };
+      }
+    }
+  } catch { /* ignore — SSR or corrupted storage */ }
+  return { user: null, session: null };
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = readStoredSession();
+  const [user, setUser] = useState<SupabaseUser | null>(cached.user);
+  const [session, setSession] = useState<Session | null>(cached.session);
+  // Skip the loading spinner entirely when we already have a confirmed cached session.
+  // getSession() will still run in the background to refresh tokens and update state.
+  const [loading, setLoading] = useState(cached.user === null);
   // Flag set during an active signIn() call. The Supabase SDK fires SIGNED_OUT for the
   // old session BEFORE firing SIGNED_IN for the new one. Suppressing SIGNED_OUT state
   // clearing during signIn prevents ProtectedRoute from redirecting to /login mid-flight.
