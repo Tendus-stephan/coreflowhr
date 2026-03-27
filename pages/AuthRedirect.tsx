@@ -121,10 +121,26 @@ const AuthRedirect: React.FC = () => {
         let destination: string;
         try {
           destination = await pollOnce(userId);
-        } catch (e: any) {
-          t(`pollOnce failed: ${e?.message} — falling back to /dashboard`);
-          if (!cancelled) navigate('/dashboard', { replace: true });
-          return;
+        } catch {
+          // First attempt timed out (5 s cap). Retry with a longer window before
+          // falling back to /dashboard. Without this retry, a slow DB connection
+          // causes AuthRedirect to land on /dashboard, then ProtectedRoute's fresh
+          // check finds no subscription and immediately bounces to /?pricing=true —
+          // producing the "dashboard flash then pricing redirect" bug.
+          if (cancelled) return;
+          t('pollOnce timed out — retrying with extended window');
+          try {
+            destination = await Promise.race([
+              resolvePostLoginDestination(userId),
+              new Promise<string>((_, rej) =>
+                setTimeout(() => rej(new Error('poll timeout')), 12000)
+              ),
+            ]);
+          } catch (e: any) {
+            t(`destination resolve timed out after retry: ${e?.message} — falling back to /dashboard`);
+            if (!cancelled) navigate('/dashboard', { replace: true });
+            return;
+          }
         }
 
         t(`destination resolved: ${destination}`);
