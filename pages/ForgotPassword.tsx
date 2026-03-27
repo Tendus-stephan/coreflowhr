@@ -19,13 +19,25 @@ const ForgotPassword: React.FC = () => {
 
     try {
       const { error } = await resetPassword(email);
+      // Never surface Supabase errors to the user — doing so reveals whether an
+      // address is registered (email enumeration). Always show success.
+      // Network errors are the only exception: they clearly aren't about email
+      // existence and give the user actionable feedback.
       if (error) {
-        setError(error.message || 'Failed to send reset email');
+        const m = (error.message || '').toLowerCase();
+        if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network')) {
+          setError('Connection error. Please check your internet and try again.');
+          return;
+        }
+      }
+      setSuccess(true);
+    } catch (err: any) {
+      const m = (err?.message || '').toLowerCase();
+      if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network')) {
+        setError('Connection error. Please check your internet and try again.');
       } else {
         setSuccess(true);
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
