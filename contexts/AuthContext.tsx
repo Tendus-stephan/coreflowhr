@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 
@@ -38,6 +38,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  // Flag set during an active signIn() call. The Supabase SDK fires SIGNED_OUT for the
+  // old session BEFORE firing SIGNED_IN for the new one. Suppressing SIGNED_OUT state
+  // clearing during signIn prevents ProtectedRoute from redirecting to /login mid-flight.
+  const isSigningIn = useRef(false);
 
   useEffect(() => {
     console.log(`[Auth ${new Date().toISOString()}] AuthProvider mounted — calling getSession()`);
@@ -60,10 +64,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const key = Object.keys(localStorage).find(
           k => k.startsWith('sb-') && k.endsWith('-auth-token')
         );
-        if (key) localStorage.removeItem(key);
+        if (key) {
+          // Only remove the token if it lacks a refresh_token. That pattern identifies
+          // transient email-confirmation tokens (one-time links) which cause getSession()
+          // to hang indefinitely holding the SDK's internal auth lock. Valid sessions
+          // always have a refresh_token — removing those evicts established sessions on
+          // slow networks and is the root cause of "logged out after tab reopen".
+          try {
+            const stored = JSON.parse(localStorage.getItem(key) || '{}');
+            if (!stored?.refresh_token) localStorage.removeItem(key);
+          } catch {
+            localStorage.removeItem(key); // corrupt token — safe to remove
+          }
+        }
       } catch { /* ignore */ }
       setLoading(false);
-    }, 5000);
+    }, 8000);
 
     // ── Initial session ──────────────────────────────────────────────────────
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -139,7 +155,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // also fires for the old session during a fresh sign-in (SDK fires SIGNED_OUT
       // for the replaced session BEFORE firing SIGNED_IN for the new one). Wiping
       // localStorage at that point would delete the newly-stored valid session.
+      //
+      // Additionally: if we are mid-signIn(), suppress the SIGNED_OUT clearing entirely.
+      // The signIn() function will set the correct user+session after signInWithPassword
+      // resolves. Without this guard, the SIGNED_OUT event briefly clears auth state and
+      // ProtectedRoute redirects authenticated users to /login.
       if (event === 'SIGNED_OUT') {
+        if (isSigningIn.current) return;
         setSession(null);
         setUser(null);
         setLoading(false);
@@ -238,6 +260,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     if (data.user) {
+      // Supabase v2 silently succeeds for existing verified emails by returning a
+      // user with an empty identities array instead of an error. Detect this and
+      // surface a proper duplicate-account error so the user isn't sent to /verify-email.
+      if (!data.user.identities || data.user.identities.length === 0) {
+        return {
+          error: {
+            message: 'An account with this email already exists. Please sign in instead.',
+          },
+        };
+      }
       setUser(data.user);
       setSession(null);
       return { error: null };
@@ -257,9 +289,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // hangs (e.g. stale email-confirmation token for a brand-new account), every
     // subsequent auth call queues behind it and never resolves. The timeout surfaces
     // a clear error instead of leaving the button stuck forever.
+    //
+    // isSigningIn is set for the duration of signInWithPassword — the SDK fires
+    // SIGNED_OUT for the old session during this call. The onAuthStateChange handler
+    // skips SIGNED_OUT while isSigningIn is true so ProtectedRoute doesn't redirect
+    // authenticated users to /login mid-flight.
     let signInResult: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
     try {
       t('signInWithPassword → calling...');
+      isSigningIn.current = true;
       signInResult = await Promise.race([
         supabase.auth.signInWithPassword({ email, password }),
         new Promise<never>((_, reject) =>
@@ -269,6 +307,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       t('signInWithPassword → returned');
     } catch (e: any) {
       t(`signInWithPassword → ERROR: ${e?.message}`);
+      isSigningIn.current = false;
       if (e?.message === 'connection_slow') {
         return {
           error: { message: 'Sign-in is taking longer than expected. Please refresh the page and try again.' },
@@ -276,6 +315,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
       }
       return { error: e, requiresMFA: false };
+    } finally {
+      // Ensure flag is cleared even if an unexpected throw occurs
+      isSigningIn.current = false;
     }
 
     const { data, error } = signInResult;
@@ -419,8 +461,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       sessionStorage.clear();
       localStorage.removeItem('testMode');
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('sb-' + window.location.hostname.split('.')[0] + '-auth-token');
     } catch { /* ignore */ }
     window.history.replaceState(null, '', '/login');
     window.location.href = '/login';

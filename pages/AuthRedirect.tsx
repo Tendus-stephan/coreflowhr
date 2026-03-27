@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PageLoader } from '../components/ui/PageLoader';
+import { Button } from '../components/ui/Button';
 import { resolvePostLoginDestination } from '../utils/postLoginRoute';
 
 const t = (msg: string) => console.log(`[Redirect ${new Date().toISOString()}] ${msg}`);
@@ -17,6 +18,7 @@ const AuthRedirect: React.FC = () => {
   const { user, session, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [paymentPending, setPaymentPending] = useState(false);
 
   useEffect(() => {
     t(`effect invoked — loading=${loading} user=${!!user} session=${!!session}`);
@@ -42,13 +44,19 @@ const AuthRedirect: React.FC = () => {
     // React Strict Mode's double-invocation doesn't corrupt the second (real) run.
     let cancelled = false;
 
-    // Hard deadline: if resolve() stalls completely, bail to dashboard after 20 s.
+    // Hard deadline: if resolve() stalls completely, bail after 20 s.
+    // For payment flows, show a pending UI rather than bouncing to pricing.
     const hardDeadline = setTimeout(() => {
       if (!cancelled) {
-        t('hard deadline fired — navigating /dashboard');
         cancelled = true;
-        sessionStorage.setItem('showDashboardLoader', 'true');
-        navigate('/dashboard', { replace: true });
+        if (isPaymentSuccess) {
+          t('hard deadline fired (payment flow) — showing payment pending UI');
+          setPaymentPending(true);
+        } else {
+          t('hard deadline fired — navigating /dashboard');
+          sessionStorage.setItem('showDashboardLoader', 'true');
+          navigate('/dashboard', { replace: true });
+        }
       }
     }, 20000);
 
@@ -102,13 +110,12 @@ const AuthRedirect: React.FC = () => {
           }
         }
         if (!cancelled) {
-          // Webhook didn't confirm in time — go to /dashboard and let ProtectedRoute
-          // decide access. If the subscription is active by then, the user gets in;
-          // if not, ProtectedRoute bounces them to pricing. Never send them to
-          // /settings which looks like a payment failure.
-          t('payment webhook never confirmed — navigating /dashboard to let ProtectedRoute decide');
-          sessionStorage.setItem('showDashboardLoader', 'true');
-          navigate('/dashboard', { replace: true });
+          // Webhook didn't confirm in time — show a pending UI so the user knows
+          // their payment was received but confirmation is delayed. Navigating to
+          // /dashboard at this point would cause ProtectedRoute to bounce them to
+          // pricing since the subscription isn't yet active in the DB.
+          t('payment webhook never confirmed — showing payment pending UI');
+          setPaymentPending(true);
         }
       } else {
         let destination: string;
@@ -192,6 +199,33 @@ const AuthRedirect: React.FC = () => {
   // in-flight resolve(), leaving the user stuck on the spinner.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
+
+  if (paymentPending) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 font-sans">
+        <div className="w-full max-w-md text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">Payment received!</h2>
+          <p className="text-sm text-gray-600">
+            We're confirming your subscription with our payment provider.
+            This usually takes just a moment.
+          </p>
+          <p className="text-sm text-gray-500">
+            Your account will be upgraded shortly. You can continue to your dashboard now.
+          </p>
+          <Button
+            variant="black"
+            className="w-full justify-center"
+            onClick={() => {
+              sessionStorage.setItem('showDashboardLoader', 'true');
+              navigate('/dashboard', { replace: true });
+            }}
+          >
+            Continue to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return <PageLoader />;
 };

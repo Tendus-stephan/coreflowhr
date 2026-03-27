@@ -170,6 +170,15 @@ const parseUserAgent = () => {
   return { browser, os, deviceType, userAgent, deviceFingerprint };
 };
 
+// Exported so ProtectedRoute can query user_sessions by fingerprint instead of
+// session_token. The fingerprint is stable across access-token refreshes (it is
+// derived from browser/OS/userAgent, not the token), preventing false-positive
+// session-revocation sign-outs after a hard reload.
+export const getDeviceFingerprint = (): string => {
+  const { deviceFingerprint } = parseUserAgent();
+  return deviceFingerprint;
+};
+
 // Helper to track/create session in database
 export const trackSession = async (): Promise<void> => {
   try {

@@ -220,15 +220,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       lastCheckTime = now;
 
       try {
-        const token = session.access_token;
-        if (!token) return;
+        const { trackSession, getDeviceFingerprint } = await import('../services/api');
 
-        const { trackSession } = await import('../services/api');
+        // Query by device_fingerprint (stable across access-token refreshes) instead of
+        // session_token. Access tokens rotate on every refresh — checking by token causes
+        // false-positive sign-outs after a hard reload because the refreshed token isn't
+        // in user_sessions yet. The fingerprint is derived from browser/OS/UA and is
+        // constant for the same device/browser, so it correctly identifies whether
+        // *this device* has an active session.
+        const fingerprint = getDeviceFingerprint();
 
         const checkPromise = supabase
           .from('user_sessions')
           .select('id')
-          .eq('session_token', token)
+          .eq('device_fingerprint', fingerprint)
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -246,7 +251,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             const retry = await supabase
               .from('user_sessions')
               .select('id')
-              .eq('session_token', token)
+              .eq('device_fingerprint', fingerprint)
               .eq('user_id', user.id)
               .maybeSingle();
             if (!retry.data && isMounted) {

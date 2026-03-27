@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
@@ -59,9 +59,42 @@ const VerifyEmail: React.FC = () => {
   }, [user, navigate]);
 
   const [resendError, setResendError] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up cooldown interval on unmount
+  useEffect(() => {
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  }, []);
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current!);
+          cooldownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const normalizeResendError = (err: any): string => {
+    const raw = (err?.message || '').toLowerCase();
+    const status = err?.status ?? (err as any)?.code;
+    if (status === 429 || raw.includes('rate limit') || raw.includes('too many requests')) {
+      return 'Too many requests. Please wait a minute before requesting another email.';
+    }
+    if (raw.includes('failed to fetch') || raw.includes('network')) {
+      return 'We could not reach the email service. Please check your internet connection and try again.';
+    }
+    return 'We could not resend the verification email right now. Please try again in a moment.';
+  };
 
   const handleResendEmail = async () => {
-    if (!email) return;
+    if (!email || resendCooldown > 0) return;
 
     setResending(true);
     setResent(false);
@@ -86,24 +119,14 @@ const VerifyEmail: React.FC = () => {
       });
 
       if (error) {
-        const rawMessage = error.message || '';
-        const isNetwork = rawMessage.toLowerCase().includes('failed to fetch') || rawMessage.toLowerCase().includes('network');
-        const friendlyMessage = isNetwork
-          ? 'We could not reach the email service. Please check your internet connection and try again in a moment.'
-          : 'We could not resend the verification email right now. Please try again in a moment. If this keeps happening, contact support.';
-        setResendError(friendlyMessage);
+        setResendError(normalizeResendError(error));
         console.error('Error resending email:', error);
-        console.error('Full error details (SMTP/domain verification, etc.):', JSON.stringify(error, null, 2));
       } else {
         setResent(true);
+        startResendCooldown();
       }
     } catch (err: any) {
-      const rawMessage = err?.message || '';
-      const isNetwork = rawMessage.toLowerCase().includes('failed to fetch') || rawMessage.toLowerCase().includes('network');
-      const friendlyMessage = isNetwork
-        ? 'We could not reach the email service. Please check your internet connection and try again in a moment.'
-        : 'We could not resend the verification email right now. Please try again in a moment. If this keeps happening, contact support.';
-      setResendError(friendlyMessage);
+      setResendError(normalizeResendError(err));
       console.error('Error resending email:', err);
     } finally {
       setResending(false);
@@ -169,13 +192,17 @@ const VerifyEmail: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={handleResendEmail}
-                disabled={resending || resent || !email}
+                disabled={resending || !email || resendCooldown > 0}
                 className="w-full"
               >
-                {resending ? 'Sending...' : resent ? 'Email Sent!' : 'Resend Verification Email'}
+                {resending
+                  ? 'Sending...'
+                  : resendCooldown > 0
+                  ? `Resend in ${resendCooldown}s`
+                  : 'Resend Verification Email'}
               </Button>
-              
-              {resent && (
+
+              {resent && resendCooldown > 0 && (
                 <p className="mt-2 text-sm text-green-600">
                   Verification email sent! Check your inbox.
                 </p>

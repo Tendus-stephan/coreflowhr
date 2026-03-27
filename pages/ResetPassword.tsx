@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -12,21 +12,36 @@ const ResetPassword: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [linkExpired, setLinkExpired] = useState(false);
   const navigate = useNavigate();
+  const readyRef = useRef(false);
 
   // Supabase puts the recovery tokens in the URL hash.
   // onAuthStateChange fires PASSWORD_RECOVERY once the hash is parsed.
+  // If neither the event nor an existing session appears within 20 s, the link
+  // is expired or invalid — show an actionable error instead of hanging forever.
   useEffect(() => {
+    const expiredTimer = setTimeout(() => {
+      if (!readyRef.current) setLinkExpired(true);
+    }, 20000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        readyRef.current = true;
         setReady(true);
       }
     });
     // Also check if a session already exists (e.g. page refresh after landing)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+      if (session) {
+        readyRef.current = true;
+        setReady(true);
+      }
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(expiredTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,8 +96,23 @@ const ResetPassword: React.FC = () => {
 
       <div className="mt-8 w-full max-w-md">
         <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
-          {!ready && !success && (
+          {!ready && !success && !linkExpired && (
             <p className="text-sm text-gray-500 text-center">Verifying reset link…</p>
+          )}
+
+          {linkExpired && !ready && !success && (
+            <div className="text-center space-y-4">
+              <p className="text-sm font-medium text-gray-900">This reset link has expired.</p>
+              <p className="text-sm text-gray-500">
+                Password reset links are valid for 1 hour. Please request a new one.
+              </p>
+              <Link
+                to="/forgot-password"
+                className="inline-block mt-2 text-sm font-medium text-gray-900 underline hover:text-gray-600 transition-colors"
+              >
+                Request a new reset link
+              </Link>
+            </div>
           )}
 
           {ready && !success && (

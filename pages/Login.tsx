@@ -4,6 +4,12 @@ import { Button } from '../components/ui/Button';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 30; // seconds
+
+const MFA_MAX_ATTEMPTS = 5;
+const MFA_LOCKOUT_DURATION = 60; // seconds
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,7 +19,51 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [requiresMFA, setRequiresMFA] = useState(false);
   const [verifyingMFA, setVerifyingMFA] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  const [mfaFailedAttempts, setMfaFailedAttempts] = useState(0);
+  const [mfaLockoutUntil, setMfaLockoutUntil] = useState<number | null>(null);
+  const [mfaLockoutRemaining, setMfaLockoutRemaining] = useState(0);
   const { signIn, verifyMFA, signInWithGoogle } = useAuth();
+
+  // Countdown tick while password form is locked out
+  React.useEffect(() => {
+    if (!lockoutUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setLockoutUntil(null);
+        setLockoutRemaining(0);
+        setFailedAttempts(0);
+        setError(null);
+      } else {
+        setLockoutRemaining(remaining);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lockoutUntil]);
+
+  // Countdown tick while MFA form is locked out
+  React.useEffect(() => {
+    if (!mfaLockoutUntil) return;
+    const tick = () => {
+      const remaining = Math.ceil((mfaLockoutUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setMfaLockoutUntil(null);
+        setMfaLockoutRemaining(0);
+        setMfaFailedAttempts(0);
+        setError(null);
+      } else {
+        setMfaLockoutRemaining(remaining);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [mfaLockoutUntil]);
 
   const normalizeLoginError = (msg: string): string => {
     const m = msg?.toLowerCase() || '';
@@ -54,21 +104,37 @@ const Login: React.FC = () => {
   const from = (location.state as { from?: { pathname: string; search?: string; hash?: string }; emailChanged?: boolean })?.from;
   const emailChanged = (location.state as { emailChanged?: boolean })?.emailChanged;
 
+  const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isLockedOut) {
+      setError(`Too many failed attempts. Please wait ${lockoutRemaining}s before trying again.`);
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
     try {
       const { error, requiresMFA: mfaRequired } = await signIn(email, password);
       if (error) {
-        setError(normalizeLoginError(error.message || 'Failed to sign in'));
+        const next = failedAttempts + 1;
+        setFailedAttempts(next);
+        if (next >= MAX_ATTEMPTS) {
+          const until = Date.now() + LOCKOUT_DURATION * 1000;
+          setLockoutUntil(until);
+          setLockoutRemaining(LOCKOUT_DURATION);
+          setError(`Too many failed attempts. Please wait ${LOCKOUT_DURATION}s before trying again.`);
+        } else {
+          setError(normalizeLoginError(error.message || 'Failed to sign in'));
+        }
       } else if (mfaRequired) {
-        // MFA is required - create challenge and show code input
-        // Note: TOTP codes come from authenticator app, not email/SMS
         setRequiresMFA(true);
+        setFailedAttempts(0);
       } else {
-        // Regular login - proceed with normal flow
+        setFailedAttempts(0);
         await handleLoginSuccess();
       }
     } catch (err: any) {
@@ -78,8 +144,16 @@ const Login: React.FC = () => {
     }
   };
 
+  const isMfaLockedOut = mfaLockoutUntil !== null && Date.now() < mfaLockoutUntil;
+
   const handleMFAVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isMfaLockedOut) {
+      setError(`Too many incorrect codes. Please wait ${mfaLockoutRemaining}s before trying again.`);
+      return;
+    }
+
     if (mfaCode.length !== 6) {
       setError('Please enter a 6-digit code');
       return;
@@ -92,11 +166,20 @@ const Login: React.FC = () => {
       const { error } = await verifyMFA(mfaCode);
       if (error) {
         const m = error.message?.toLowerCase() || '';
-        const msg = m.includes('invalid') || m.includes('expired') || m.includes('mismatch')
-          ? 'Invalid or expired code. Please check your authenticator app and try again.'
-          : error.message || 'Invalid verification code. Please try again.';
-        setError(msg);
+        const next = mfaFailedAttempts + 1;
+        setMfaFailedAttempts(next);
         setMfaCode('');
+        if (next >= MFA_MAX_ATTEMPTS) {
+          const until = Date.now() + MFA_LOCKOUT_DURATION * 1000;
+          setMfaLockoutUntil(until);
+          setMfaLockoutRemaining(MFA_LOCKOUT_DURATION);
+          setError(`Too many incorrect codes. Please wait ${MFA_LOCKOUT_DURATION}s before trying again.`);
+        } else {
+          const msg = m.includes('invalid') || m.includes('expired') || m.includes('mismatch')
+            ? 'Invalid or expired code. Please check your authenticator app and try again.'
+            : error.message || 'Invalid verification code. Please try again.';
+          setError(msg);
+        }
       } else {
         // MFA verified - proceed with login
         await handleLoginSuccess();
@@ -232,25 +315,22 @@ const Login: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-0 focus:ring-offset-0 focus:outline-none bg-white" />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">Remember me</label>
-                </div>
-
+              <div className="flex items-center justify-end">
                 <div className="text-sm">
                   <Link to="/forgot-password" className="font-medium text-gray-500 hover:text-gray-900 hover:underline">Forgot your password?</Link>
                 </div>
               </div>
 
               <div>
-                <Button 
-                  variant="black" 
-                  className="w-full justify-center" 
+                <Button
+                  variant="black"
+                  className="w-full justify-center"
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isLockedOut}
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  {isLockedOut
+                    ? `Try again in ${lockoutRemaining}s`
+                    : loading ? 'Signing in...' : 'Sign in'}
                 </Button>
               </div>
             </form>
@@ -279,34 +359,38 @@ const Login: React.FC = () => {
                   required 
                   value={mfaCode}
                   onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  disabled={verifyingMFA}
+                  disabled={verifyingMFA || isMfaLockedOut}
                   autoFocus
                   placeholder="000000"
-                  className="block w-full appearance-none rounded-lg border border-gray-200 px-4 py-3 text-center text-lg font-mono tracking-widest placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className="block w-full appearance-none rounded-lg border border-gray-200 px-4 py-3 text-center text-lg font-mono tracking-widest placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-0 sm:text-sm transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1" 
+                <Button
+                  variant="outline"
+                  className="flex-1"
                   type="button"
                   onClick={() => {
                     setRequiresMFA(false);
                     setMfaCode('');
+                    setMfaFailedAttempts(0);
+                    setMfaLockoutUntil(null);
                     setError(null);
                   }}
                   disabled={verifyingMFA}
                 >
                   Back
                 </Button>
-                <Button 
-                  variant="black" 
-                  className="flex-1 justify-center" 
+                <Button
+                  variant="black"
+                  className="flex-1 justify-center"
                   type="submit"
-                  disabled={verifyingMFA || mfaCode.length !== 6}
+                  disabled={verifyingMFA || isMfaLockedOut || mfaCode.length !== 6}
                 >
-                  {verifyingMFA ? 'Verifying...' : 'Verify & Sign In'}
+                  {isMfaLockedOut
+                    ? `Try again in ${mfaLockoutRemaining}s`
+                    : verifyingMFA ? 'Verifying...' : 'Verify & Sign In'}
                 </Button>
               </div>
             </form>
