@@ -94,11 +94,14 @@ const VerifyEmail: React.FC = () => {
   };
 
   const handleResendEmail = async () => {
-    if (!email || resendCooldown > 0) return;
+    if (!email || resendCooldown > 0 || resending) return;
 
     setResending(true);
     setResent(false);
     setResendError(null);
+    // Start cooldown immediately — before the API call — so rapid clicks can
+    // never queue up multiple sends regardless of success or failure.
+    startResendCooldown();
 
     try {
       // Preserve invite token redirect if one is stored (matches original signup email behaviour)
@@ -123,7 +126,6 @@ const VerifyEmail: React.FC = () => {
         console.error('Error resending email:', error);
       } else {
         setResent(true);
-        startResendCooldown();
       }
     } catch (err: any) {
       setResendError(normalizeResendError(err));
@@ -202,7 +204,7 @@ const VerifyEmail: React.FC = () => {
                   : 'Resend Verification Email'}
               </Button>
 
-              {resent && resendCooldown > 0 && (
+              {resent && (
                 <p className="mt-2 text-sm text-green-600">
                   Verification email sent! Check your inbox.
                 </p>
