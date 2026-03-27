@@ -18,9 +18,26 @@ const ResetPassword: React.FC = () => {
 
   // Supabase puts the recovery tokens in the URL hash.
   // onAuthStateChange fires PASSWORD_RECOVERY once the hash is parsed.
-  // If neither the event nor an existing session appears within 20 s, the link
-  // is expired or invalid — show an actionable error instead of hanging forever.
+  // For expired/invalid links, Supabase appends error params to the URL
+  // (e.g. #error=access_denied&error_code=otp_expired) — detect these
+  // immediately instead of waiting. 20 s timeout remains as a fallback.
   useEffect(() => {
+    // ── Immediate check: Supabase error params in URL hash or query string ──
+    const hashParams = new URLSearchParams(
+      window.location.hash.startsWith('#') ? window.location.hash.slice(1) : ''
+    );
+    const qsParams = new URLSearchParams(window.location.search);
+    const urlError = hashParams.get('error') || qsParams.get('error');
+    const urlErrorCode = hashParams.get('error_code') || qsParams.get('error_code');
+
+    if (urlError || urlErrorCode) {
+      // Link is definitively invalid/expired — show error immediately, no wait.
+      readyRef.current = true; // prevent the fallback timer from overwriting
+      setLinkExpired(true);
+      return;
+    }
+
+    // ── Normal flow: wait for PASSWORD_RECOVERY, 20 s fallback ─────────────
     const expiredTimer = setTimeout(() => {
       if (!readyRef.current) setLinkExpired(true);
     }, 20000);
