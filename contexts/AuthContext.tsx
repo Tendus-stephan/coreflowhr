@@ -273,14 +273,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch { /* ignore */ }
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name: name || '' }, emailRedirectTo },
-    });
+    let signUpResult: Awaited<ReturnType<typeof supabase.auth.signUp>>;
+    try {
+      signUpResult = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name: name || '' }, emailRedirectTo },
+      });
+    } catch (e: any) {
+      const m = (e?.message || '').toLowerCase();
+      if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network')) {
+        return { error: { message: 'Connection error. Please check your internet and try again.' } };
+      }
+      return { error: e };
+    }
+
+    const { data, error } = signUpResult;
 
     if (error) {
       const m = error.message?.toLowerCase() || '';
+      if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network')) {
+        return { error: { message: 'Connection error. Please check your internet and try again.' } };
+      }
       if (m.includes('already registered') || m.includes('user already exists') || m.includes('already been registered')) {
         return { error: { ...error, message: 'An account with this email already exists. Please sign in instead.' } };
       }
