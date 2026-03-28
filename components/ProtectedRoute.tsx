@@ -22,7 +22,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Single flag — only true once ALL checks have completed
   const [checksComplete, setChecksComplete] = useState(false);
   const [canEnter, setCanEnter] = useState(false);
-  const [isPastDue, setIsPastDue] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
@@ -40,7 +39,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
     let cancelled = false;
     setChecksComplete(false); // Reset while re-checking
-    setIsPastDue(false);
 
     const runChecks = async () => {
       try {
@@ -163,13 +161,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         }
 
         if (cancelled) return;
-
-        // Detect past_due so gate 5 can route to Settings instead of pricing,
-        // preventing users from creating a duplicate subscription.
-        if (!access) {
-          const rawStatus = (settingsRes.data?.subscription_status || '').toLowerCase();
-          if (rawStatus === 'past_due') setIsPastDue(true);
-        }
 
         setCanEnter(access);
         setOnboardingCompleted(onboardingDone);
@@ -301,19 +292,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // 4. Waiting for all resource checks — never let children render until this clears
   if (!checksComplete) return <PageLoader />;
 
-  // 5. No subscription / workspace → pricing.
-  // Exceptions: /settings and /onboarding are always accessible regardless of
-  // subscription state so users can manage billing and complete onboarding.
-  const isSettingsPage = location.pathname === '/settings';
-  const isOnboardingPage = location.pathname === '/onboarding';
-  if (!canEnter && !isSettingsPage && !isOnboardingPage) {
+  // 5. No subscription / workspace → pricing. No exceptions.
+  if (!canEnter) {
     return <Navigate to="/?pricing=true" replace />;
   }
 
-  // 6. Onboarding not done — only enforce for users who have subscription access.
-  // Unsubscribed users landing on /settings via Gate 5 exception must not be
-  // bounced into the onboarding flow; they haven't paid yet.
-  if (canEnter && !onboardingCompleted && location.pathname !== '/onboarding') {
+  // 6. Onboarding not done
+  if (!onboardingCompleted && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 
