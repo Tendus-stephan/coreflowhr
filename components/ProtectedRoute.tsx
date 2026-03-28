@@ -313,8 +313,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to={isPastDue ? '/settings' : '/?pricing=true'} replace />;
   }
 
-  // 6. Onboarding not done
-  if (!onboardingCompleted && location.pathname !== '/onboarding') {
+  // 6. Onboarding not done — only enforce for users who have subscription access.
+  // Unsubscribed users landing on /settings via Gate 5 exception must not be
+  // bounced into the onboarding flow; they haven't paid yet.
+  if (canEnter && !onboardingCompleted && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 
