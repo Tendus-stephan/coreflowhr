@@ -192,8 +192,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
     runChecks();
     return () => { cancelled = true; clearTimeout(failOpenTimeout); };
+  // location.pathname is included so the check re-runs on every navigation.
+  // This prevents stale canEnter=true state from a previous route rendering
+  // protected content momentarily before the redirect fires.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.access_token, user?.id]);
+  }, [session?.access_token, user?.id, location.pathname]);
 
   // ─── Background session-revocation check (non-blocking) ───────────────────
   useEffect(() => {
