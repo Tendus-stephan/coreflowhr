@@ -19,6 +19,9 @@ const AuthRedirect: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [paymentPending, setPaymentPending] = useState(false);
+  // True when all destination-resolve attempts timed out and we can't determine
+  // where to send the user without risking a /dashboard → pricing flash.
+  const [checkingPending, setCheckingPending] = useState(false);
 
   useEffect(() => {
     t(`effect invoked — loading=${loading} user=${!!user} session=${!!session}`);
@@ -53,9 +56,8 @@ const AuthRedirect: React.FC = () => {
           t('hard deadline fired (payment flow) — showing payment pending UI');
           setPaymentPending(true);
         } else {
-          t('hard deadline fired — navigating /dashboard');
-          sessionStorage.setItem('showDashboardLoader', 'true');
-          navigate('/dashboard', { replace: true });
+          t('hard deadline fired — showing checking pending UI');
+          setCheckingPending(true);
         }
       }
     }, 20000);
@@ -137,8 +139,8 @@ const AuthRedirect: React.FC = () => {
               ),
             ]);
           } catch (e: any) {
-            t(`destination resolve timed out after retry: ${e?.message} — falling back to /dashboard`);
-            if (!cancelled) navigate('/dashboard', { replace: true });
+            t(`destination resolve timed out after retry: ${e?.message} — showing checking pending UI`);
+            if (!cancelled) setCheckingPending(true);
             return;
           }
         }
@@ -201,8 +203,7 @@ const AuthRedirect: React.FC = () => {
         if (!cancelled) {
           cancelled = true;
           clearTimeout(hardDeadline);
-          sessionStorage.setItem('showDashboardLoader', 'true');
-          navigate('/dashboard', { replace: true });
+          setCheckingPending(true);
         }
       });
 
@@ -237,6 +238,26 @@ const AuthRedirect: React.FC = () => {
             }}
           >
             Continue to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (checkingPending) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 font-sans">
+        <div className="w-full max-w-md text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">Just a moment…</h2>
+          <p className="text-sm text-gray-600">
+            We're having trouble reaching our servers. Your account is safe.
+          </p>
+          <Button
+            variant="black"
+            className="w-full justify-center"
+            onClick={() => { window.location.href = '/auth/redirect'; }}
+          >
+            Try again
           </Button>
         </div>
       </div>
