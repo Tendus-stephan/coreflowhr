@@ -93,11 +93,6 @@ export const resolvePostLoginDestination = async (userId: string): Promise<strin
   }
 
   if (!hasAccess) {
-    // past_due means an existing subscription whose payment failed.
-    // Routing them to pricing causes them to create a second subscription on top of the broken one.
-    // Send them to Settings/billing so they can fix the payment method instead.
-    const rawStatus = (settingsRes.data?.subscription_status || '').toLowerCase();
-    if (rawStatus === 'past_due') return '/settings';
     return '/?pricing=true';
   }
 

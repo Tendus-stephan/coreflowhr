@@ -302,15 +302,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!checksComplete) return <PageLoader />;
 
   // 5. No subscription / workspace → pricing.
-  // Exceptions: /settings (all users) and /onboarding (all users) are always
-  // accessible regardless of subscription state so users can manage billing
-  // and complete onboarding after subscribing.
-  // past_due users are redirected to /settings instead of pricing to fix their
-  // payment method rather than creating a duplicate subscription.
+  // Exceptions: /settings and /onboarding are always accessible regardless of
+  // subscription state so users can manage billing and complete onboarding.
   const isSettingsPage = location.pathname === '/settings';
   const isOnboardingPage = location.pathname === '/onboarding';
   if (!canEnter && !isSettingsPage && !isOnboardingPage) {
-    return <Navigate to={isPastDue ? '/settings' : '/?pricing=true'} replace />;
+    return <Navigate to="/?pricing=true" replace />;
   }
 
   // 6. Onboarding not done — only enforce for users who have subscription access.
