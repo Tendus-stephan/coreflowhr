@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -24,6 +24,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [canEnter, setCanEnter] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+
+  // ─── Synchronously block children on every navigation ────────────────────
+  // useLayoutEffect fires after DOM commit but BEFORE the browser paints.
+  // This ensures the stale checksComplete=true state from a previous route
+  // never causes protected page content to flash for even one frame when the
+  // user navigates to a new protected route.
+  useLayoutEffect(() => {
+    if (session && user) {
+      setChecksComplete(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // ─── Run ALL access + onboarding checks in one pass ───────────────────────
   // Using session?.access_token as dependency so the check re-runs on token
