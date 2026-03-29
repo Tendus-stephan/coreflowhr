@@ -158,6 +158,18 @@ const LandingPage: React.FC = () => {
   // Get user display name
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
 
+  // Redirect authenticated + subscribed users away from the landing page to the app.
+  // ProtectedRoute will handle onboarding and RBAC from there.
+  // Do NOT redirect when ?pricing=true is present — that means ProtectedRoute sent
+  // them here because they have no subscription and need to see the pricing section.
+  useEffect(() => {
+    if (loading || subscriptionLoading) return;
+    const hasPricingParam = new URLSearchParams(window.location.search).has('pricing');
+    if (session && user && isSubscribed && !hasPricingParam) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [loading, subscriptionLoading, session, user, isSubscribed, navigate]);
+
   // Can user enter app? Workspace with subscription first, then own subscription.
   useEffect(() => {
     const checkAccess = async () => {
