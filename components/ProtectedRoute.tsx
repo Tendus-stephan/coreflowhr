@@ -288,7 +288,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // ─── Render gates (evaluated top-to-bottom, first match wins) ─────────────
 
   // 1. AuthContext still initialising
-  if (loading) return <PageLoader />;
+  if (loading) return <PageLoader fullScreen />;
 
   // 2. User is set but no session.
   // Two cases: (a) email not confirmed → verify-email, (b) MFA required → back to login.
@@ -305,7 +305,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // 4. Waiting for all resource checks — never let children render until this clears
-  if (!checksComplete) return <PageLoader />;
+  if (!checksComplete) return <PageLoader fullScreen />;
 
   // 5. No subscription / workspace → pricing. No exceptions.
   if (!canEnter) {
