@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,7 +16,7 @@ const ChangeEmail: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [emailChangeJustConfirmed, setEmailChangeJustConfirmed] = useState(false);
     const [waitingForSecondConfirmation, setWaitingForSecondConfirmation] = useState(false);
-    const [sentToNewAddress, setSentToNewAddress] = useState(false); // after confirming from current email
+    const [sentToNewAddress, setSentToNewAddress] = useState(false);
     const didSendSuccessEmail = useRef(false);
     const initialEmailRef = useRef<string | null>(null);
     const didHandleConfirmCurrent = useRef(false);
@@ -40,7 +40,6 @@ const ChangeEmail: React.FC = () => {
         return () => { cancelled = true; };
     }, [session]);
 
-    // Step "confirm current": user clicked link in current-email message; verify token then send to new address.
     const searchParams = new URLSearchParams(location.search);
     const confirmCurrentToken = searchParams.get('token');
     const stepConfirmCurrent = searchParams.get('step') === 'confirm_current';
@@ -53,11 +52,9 @@ const ChangeEmail: React.FC = () => {
         }
         didHandleConfirmCurrent.current = true;
         (async () => {
-            // Brief delay so session is attached to the client after login redirect.
             await new Promise((r) => setTimeout(r, 800));
             const doVerify = () => api.auth.verifyEmailChangeToken(confirmCurrentToken);
             let verify = await doVerify();
-            // Retry once after a short delay (session may not be attached yet after login redirect).
             if (!verify.success && verify.error?.includes("couldn't verify the link right now")) {
                 await new Promise((r) => setTimeout(r, 2000));
                 verify = await doVerify();
@@ -70,16 +67,9 @@ const ChangeEmail: React.FC = () => {
                 }
                 const update = await api.auth.updateEmail(verify.newEmail);
                 if (update.success) {
-                    try {
-                        sessionStorage.setItem('pendingEmailChange', verify.newEmail);
-                    } catch {
-                        // ignore
-                    }
+                    try { sessionStorage.setItem('pendingEmailChange', verify.newEmail); } catch { /* ignore */ }
                     setSentToNewAddress(true);
-                    setMessage({
-                        type: 'success',
-                        text: `We've sent a confirmation link to ${verify.newEmail}. Click it to complete the change.`,
-                    });
+                    setMessage({ type: 'success', text: `We've sent a confirmation link to ${verify.newEmail}. Click it to complete the change.` });
                     window.history.replaceState(null, '', window.location.pathname);
                 } else {
                     setMessage({ type: 'error', text: update.error || 'Failed to send to new address' });
@@ -92,7 +82,6 @@ const ChangeEmail: React.FC = () => {
         })();
     }, [stepConfirmCurrent, confirmCurrentToken, session, authLoading, navigate, location.search]);
 
-    // When landed from email-change link (success or error in hash), parse and set flag. Do NOT clear hash yet so Supabase can process tokens.
     const [confirmationHashPresent, setConfirmationHashPresent] = useState(false);
     const confirmationDecided = useRef(false);
     useEffect(() => {
@@ -118,18 +107,14 @@ const ChangeEmail: React.FC = () => {
             if (msg && (msg.includes('Confirmation') || msg.includes('link accepted'))) {
                 setConfirmationHashPresent(true);
             }
-        } catch {
-            // ignore
-        }
+        } catch { /* ignore */ }
     }, []);
 
-    // Capture initial session email when we have confirmation hash (so we can detect "email changed" on first click).
     useEffect(() => {
         if (!confirmationHashPresent || !session?.user?.email) return;
         if (initialEmailRef.current === null) initialEmailRef.current = (session.user.email || '').toLowerCase();
     }, [confirmationHashPresent, session, session?.user?.email]);
 
-    // After hash is present, wait for auth to process tokens then decide: success if session email changed or matches pending.
     useEffect(() => {
         if (!confirmationHashPresent || authLoading || confirmationDecided.current) return;
         const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
@@ -138,29 +123,18 @@ const ChangeEmail: React.FC = () => {
             const currentSessionEmail = (session?.user?.email || '').toLowerCase();
             const pendingEmail = (pending || '').toLowerCase();
             const initialEmail = (initialEmailRef.current || '').toLowerCase();
-
-            // First click = success: session email changed from initial (Supabase already updated).
             if (session && currentSessionEmail && initialEmail && currentSessionEmail !== initialEmail) {
                 confirmationDecided.current = true;
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
-                try {
-                    sessionStorage.removeItem('pendingEmailChange');
-                } catch {
-                    // ignore
-                }
+                try { sessionStorage.removeItem('pendingEmailChange'); } catch { /* ignore */ }
                 setEmailChangeJustConfirmed(true);
                 setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
                 return;
             }
-            // Or session already shows new email (matches pending).
             if (session && pending && currentSessionEmail === pendingEmail) {
                 confirmationDecided.current = true;
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
-                try {
-                    sessionStorage.removeItem('pendingEmailChange');
-                } catch {
-                    // ignore
-                }
+                try { sessionStorage.removeItem('pendingEmailChange'); } catch { /* ignore */ }
                 setEmailChangeJustConfirmed(true);
                 setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
                 return;
@@ -172,13 +146,7 @@ const ChangeEmail: React.FC = () => {
                 setMessage({ type: 'success', text: 'Check your new inbox for the confirmation link.' });
                 return;
             }
-            if (pending) {
-                try {
-                    sessionStorage.removeItem('pendingEmailChange');
-                } catch {
-                    // ignore
-                }
-            }
+            if (pending) { try { sessionStorage.removeItem('pendingEmailChange'); } catch { /* ignore */ } }
             confirmationDecided.current = true;
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
             setEmailChangeJustConfirmed(true);
@@ -188,22 +156,16 @@ const ChangeEmail: React.FC = () => {
         return () => clearTimeout(t);
     }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
 
-    // When session updates to the new email (after Supabase processes hash), mark complete immediately.
     useEffect(() => {
         if (!confirmationHashPresent || authLoading || !session) return;
         const currentSessionEmail = (session.user?.email || '').toLowerCase();
         const initialEmail = (initialEmailRef.current || '').toLowerCase();
         const pending = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pendingEmailChange') : null;
         const pendingEmail = (pending || '').toLowerCase();
-
         if (currentSessionEmail && initialEmail && currentSessionEmail !== initialEmail) {
             confirmationDecided.current = true;
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
-            try {
-                sessionStorage.removeItem('pendingEmailChange');
-            } catch {
-                // ignore
-            }
+            try { sessionStorage.removeItem('pendingEmailChange'); } catch { /* ignore */ }
             setEmailChangeJustConfirmed(true);
             setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
             return;
@@ -211,17 +173,12 @@ const ChangeEmail: React.FC = () => {
         if (pending && currentSessionEmail === pendingEmail) {
             confirmationDecided.current = true;
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
-            try {
-                sessionStorage.removeItem('pendingEmailChange');
-            } catch {
-                // ignore
-            }
+            try { sessionStorage.removeItem('pendingEmailChange'); } catch { /* ignore */ }
             setEmailChangeJustConfirmed(true);
             setMessage({ type: 'success', text: 'Email changed. Sign in with your new email.' });
         }
     }, [confirmationHashPresent, authLoading, session, session?.user?.email]);
 
-    // After confirmation: send success email if logged in, then sign out and redirect to login (user must log in with new email before dashboard).
     useEffect(() => {
         if (!emailChangeJustConfirmed) return;
         if (session && !didSendSuccessEmail.current) {
@@ -234,7 +191,6 @@ const ChangeEmail: React.FC = () => {
         }
     }, [emailChangeJustConfirmed, session, signOut, navigate]);
 
-    // When not logged in but confirmation just happened, redirect to login (user must log in with new email).
     useEffect(() => {
         if (!emailChangeJustConfirmed || session || authLoading) return;
         const t = setTimeout(() => navigate('/login', { replace: true, state: { emailChanged: true } }), 3000);
@@ -250,10 +206,7 @@ const ChangeEmail: React.FC = () => {
         try {
             const result = await api.auth.requestEmailChange(email);
             if (result.success) {
-                setMessage({
-                    type: 'success',
-                    text: 'Sending confirmation to your current email address. Click the link there; we\'ll then send a link to your new address to complete the change.',
-                });
+                setMessage({ type: 'success', text: "Confirmation sent to your current address. Click the link there and we'll send a final link to your new address." });
                 setNewEmail('');
             } else {
                 setMessage({ type: 'error', text: result.error || 'Failed to send confirmation' });
@@ -265,191 +218,189 @@ const ChangeEmail: React.FC = () => {
         }
     };
 
+    // ── Shared layout shell ──────────────────────────────────────────────────
+    const Shell: React.FC<{ backTo?: string; backLabel?: string; children: React.ReactNode }> = ({
+        backTo = '/dashboard',
+        backLabel = 'Back to dashboard',
+        children,
+    }) => (
+        <div className="min-h-screen bg-[#F7F7F5] flex flex-col py-16 px-4 font-sans">
+            <div className="mx-auto w-full max-w-[440px]">
+                <Link
+                    to={backTo}
+                    className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors mb-8"
+                >
+                    <ArrowLeft size={14} />
+                    {backLabel}
+                </Link>
+                {children}
+            </div>
+        </div>
+    );
+
+    // ── Loading ──────────────────────────────────────────────────────────────
     if (authLoading || (session && loading)) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 size={24} className="animate-spin text-gray-400" />
-            </div>
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center justify-center py-16">
+                    <Loader2 size={20} className="animate-spin text-gray-300" />
+                </div>
+            </Shell>
         );
     }
 
     const returnTo = { pathname: '/change-email', search: location.search, hash: location.hash };
 
-    // After confirming from current email we sent to new address; show short message.
+    // ── Sent to new address ──────────────────────────────────────────────────
     if (session && sentToNewAddress) {
         return (
-            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
-                <div className="mx-auto w-full max-w-md">
-                    <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6">
-                        <ArrowLeft size={16} />
-                        Back to dashboard
-                    </Link>
-                    <div className="bg-white border border-gray-100 rounded-xl  p-8">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-gray-100 rounded-xl">
-                                <Mail size={24} className="text-gray-700" />
-                            </div>
-                            <h1 className="text-xl font-bold text-gray-900">Check your new email</h1>
-                        </div>
-                        <p className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
-                            {message?.text}
-                        </p>
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-100">
+                        <h1 className="text-base font-semibold text-gray-900">Check your new inbox</h1>
+                        <p className="mt-0.5 text-sm text-gray-500">One more step to complete the change.</p>
+                    </div>
+                    <div className="px-6 py-5">
+                        <p className="text-sm text-gray-700">{message?.text}</p>
                     </div>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Confirmed — signing out ──────────────────────────────────────────────
     if (emailChangeJustConfirmed && session) {
         return (
-            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
-                <div className="mx-auto w-full max-w-md text-center">
-                    <Loader2 size={32} className="animate-spin text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-800 font-medium">Email changed. Sign in with your new email.</p>
-                    <p className="text-sm text-gray-500 mt-1">Sending confirmation to your new email and redirecting to login…</p>
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center py-14 px-6 text-center">
+                    <Loader2 size={24} className="animate-spin text-gray-300 mb-4" />
+                    <p className="text-sm font-medium text-gray-800">Email updated successfully</p>
+                    <p className="mt-1 text-xs text-gray-400">Signing you out and redirecting to login…</p>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Waiting for second confirmation ──────────────────────────────────────
     if (session && waitingForSecondConfirmation) {
         return (
-            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
-                <div className="mx-auto w-full max-w-md">
-                    <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6">
-                        <ArrowLeft size={16} />
-                        Back to dashboard
-                    </Link>
-                    <div className="bg-white border border-gray-100 rounded-xl  p-8">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-gray-100 rounded-xl">
-                                <Mail size={24} className="text-gray-700" />
-                            </div>
-                            <h1 className="text-xl font-bold text-gray-900">Check your new email</h1>
-                        </div>
-                        <p className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
-                            {message?.text}
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-100">
+                        <h1 className="text-base font-semibold text-gray-900">Check your new inbox</h1>
+                        <p className="mt-0.5 text-sm text-gray-500">A confirmation link is on its way.</p>
+                    </div>
+                    <div className="px-6 py-5 space-y-4">
+                        <p className="text-sm text-gray-700">{message?.text}</p>
+                        <p className="text-xs text-gray-400">
+                            Didn't get it? The change may already be complete — try signing in with your new email.
                         </p>
-                        <p className="mt-4 text-sm text-gray-600">
-                            If you didn&apos;t receive an email, the change may already be complete—try signing in with your new email.
-                        </p>
-                        <Link to="/login" className="mt-4 block">
-                            <Button variant="outline" className="w-full">Sign in with new email</Button>
+                    </div>
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                        <Link to="/login">
+                            <Button variant="black" size="sm" className="rounded-lg w-full justify-center">
+                                Sign in with new email
+                            </Button>
                         </Link>
                     </div>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Not signed in ────────────────────────────────────────────────────────
     if (!session) {
         return (
-            <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
-                <div className="mx-auto w-full max-w-md">
-                    <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6">
-                        <ArrowLeft size={16} />
-                        Back to Home
-                    </Link>
-                    <div className="bg-white border border-gray-100 rounded-xl  p-8">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-gray-100 rounded-xl">
-                                <Mail size={24} className="text-gray-700" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold text-gray-900">Change email address</h1>
-                                <p className="text-sm text-gray-500">Sign in to update the email you use to sign in.</p>
-                            </div>
-                        </div>
+            <Shell backTo="/" backLabel="Back to home">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-100">
+                        <h1 className="text-base font-semibold text-gray-900">Change email address</h1>
+                        <p className="mt-0.5 text-sm text-gray-500">Sign in to update the email you use to sign in.</p>
+                    </div>
+                    <div className="px-6 py-5">
                         {message && (
-                            <div className="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm">
+                            <div className={`mb-4 px-3.5 py-3 rounded-lg text-sm ${message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
                                 {message.text}
                             </div>
                         )}
                         {emailChangeJustConfirmed && (
-                            <p className="mb-4 text-xs text-gray-500">Redirecting to login in 3 seconds…</p>
+                            <p className="mb-3 text-xs text-gray-400">Redirecting to login in 3 seconds…</p>
                         )}
+                    </div>
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                         <Link to="/login" state={{ from: returnTo }}>
-                            <Button className="w-full">{emailChangeJustConfirmed ? 'Sign in with your new email' : 'Sign in to change email'}</Button>
+                            <Button variant="black" size="sm" className="rounded-lg w-full justify-center">
+                                {emailChangeJustConfirmed ? 'Sign in with your new email' : 'Sign in to continue'}
+                            </Button>
                         </Link>
                     </div>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Main form ────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-white flex flex-col justify-center py-12 sm:px-6 font-sans">
-        <div className="max-w-xl mx-auto w-full">
-            <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6"
-            >
-                <ArrowLeft size={16} />
-                Back to dashboard
-            </Link>
-            <div className="bg-white border border-gray-100 rounded-xl  p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-gray-100 rounded-xl">
-                        <Mail size={24} className="text-gray-700" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold text-gray-900">Change email address</h1>
-                        <p className="text-sm text-gray-500">Update the email you use to sign in.</p>
-                    </div>
+        <Shell>
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-gray-100">
+                    <h1 className="text-base font-semibold text-gray-900">Change email address</h1>
+                    <p className="mt-0.5 text-sm text-gray-500">Update the email you use to sign in.</p>
                 </div>
 
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-1">Current email</label>
+                {/* Fields */}
+                <div className="px-6 py-5 space-y-4">
+                    <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-gray-600">Current email</label>
                         <input
                             type="email"
                             value={currentEmail}
                             disabled
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-400 cursor-not-allowed"
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-1">New email address</label>
+                    <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-gray-700">New email address</label>
                         <input
                             type="email"
                             value={newEmail}
-                            onChange={(e) => {
-                                setNewEmail(e.target.value);
-                                setMessage(null);
-                            }}
+                            onChange={(e) => { setNewEmail(e.target.value); setMessage(null); }}
                             placeholder="you@example.com"
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900/8 focus:border-gray-400 transition-colors"
                             disabled={isUpdating}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && newEmail.trim()) handleUpdateEmail(e as any); }}
                         />
                     </div>
                     {message && (
-                        <div className={`p-4 rounded-xl border text-sm ${message.type === 'error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-gray-200 bg-gray-50 text-gray-800'}`}>
+                        <div className={`px-3.5 py-3 rounded-lg text-sm ${message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
                             {message.text}
                         </div>
                     )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-4">
+                    <p className="text-xs text-gray-400 leading-snug">
+                        We'll send confirmation links to both addresses to verify the change.
+                    </p>
                     <Button
                         type="button"
-                        variant="outline"
+                        variant="black"
+                        size="sm"
                         onClick={handleUpdateEmail}
                         disabled={isUpdating || !newEmail.trim()}
-                        className="flex items-center gap-2"
+                        className="shrink-0 rounded-lg flex items-center gap-1.5"
                     >
                         {isUpdating ? (
-                            <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Sending...
-                            </>
+                            <><Loader2 size={13} className="animate-spin" />Sending…</>
                         ) : (
                             'Update email'
                         )}
                     </Button>
-                    <p className="text-xs text-gray-500">
-                        We’ll send a confirmation link to your current address first; after you click it, we'll send a link to your new address to complete the change.
-                    </p>
                 </div>
             </div>
-        </div>
-        </div>
+        </Shell>
     );
 };
 
