@@ -1,11 +1,11 @@
 /**
- * PeopleDataLabs (PDL) integration service.
- * Handles candidate search, mapping, and caching.
+ * PeopleDataLabs (PDL) integration service — mapping and caching helpers only.
+ * Actual PDL search runs server-side inside the trigger-sourcing / source-more
+ * Edge Functions. This module must NEVER make direct calls to the PDL API from
+ * the browser — the PDL_API_KEY must not be exposed client-side.
  */
 
 import { supabase } from './supabase';
-
-const PDL_API_URL = 'https://api.peopledatalabs.com/v5/person/search';
 
 export interface PdlPerson {
   id?: string;
@@ -33,84 +33,18 @@ export interface SearchResult {
 }
 
 /**
- * Search PDL for candidates matching the job criteria.
+ * Search PDL for candidates — no-op stub on the client.
+ * Real PDL search is handled server-side by the trigger-sourcing / source-more
+ * Edge Functions which receive PDL_API_KEY via Deno.env, never the browser.
  */
 export async function searchCandidates(
-  job_title: string,
-  location: string,
-  skills: string[],
-  size: number = 20,
-  offset: number = 0
+  _job_title: string,
+  _location: string,
+  _skills: string[],
+  _size: number = 20,
+  _offset: number = 0
 ): Promise<SearchResult> {
-  // NOTE: pdlService runs server-side (Edge Function) only.
-  // PDL API key must NEVER be exposed to the browser.
-  const apiKey = typeof process !== 'undefined' ? process.env.PDL_API_KEY : undefined;
-
-  if (!apiKey || apiKey === 'YOUR_PDL_API_KEY_HERE') {
-    console.error('[PDL] PDL_API_KEY not configured');
-    return { data: [], total: 0 };
-  }
-
-  const requestBody = {
-    query: {
-      bool: {
-        must: [
-          {
-            match: {
-              job_title: job_title,
-            },
-          },
-        ],
-        should: [
-          {
-            term: {
-              location_locality: location.toLowerCase(),
-            },
-          },
-          {
-            term: {
-              location_country: location.toLowerCase(),
-            },
-          },
-          ...skills.map((skill) => ({
-            term: {
-              skills: skill.toLowerCase(),
-            },
-          })),
-        ],
-        minimum_should_match: 1,
-      },
-    },
-    size,
-    from: offset,
-    pretty: true,
-  };
-
-  try {
-    const response = await fetch(PDL_API_URL, {
-      method: 'POST',
-      headers: {
-        'X-Api-Key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[PDL] Search failed: ${response.status} ${response.statusText}`, errText);
-      return { data: [], total: 0 };
-    }
-
-    const json = await response.json();
-    return {
-      data: json.data || [],
-      total: json.total || 0,
-    };
-  } catch (err) {
-    console.error('[PDL] Search request error:', err);
-    return { data: [], total: 0 };
-  }
+  return { data: [], total: 0 };
 }
 
 /**

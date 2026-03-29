@@ -1,12 +1,11 @@
 /**
- * AI candidate scoring service.
- * Uses Claude (claude-sonnet-4-20250514) to score candidates against a job.
+ * AI candidate scoring service — types and helpers only.
+ * Actual scoring runs server-side inside the analyze-candidate / trigger-sourcing
+ * Edge Functions. This module must NEVER make direct calls to third-party AI APIs
+ * from the browser — API keys must not be exposed client-side.
  */
 
 import type { Job } from '../types'; // Candidate type not used here — scoring uses CandidateScoringInput
-
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 
 export interface CandidateScore {
   score: number;       // 0–100
@@ -25,52 +24,15 @@ export interface CandidateScoringInput {
 }
 
 /**
- * Score a single candidate against a job using Claude AI.
- * Returns { score: 0, reason: '' } on any error — never throws.
+ * Score a single candidate against a job.
+ * This is a no-op stub on the client — real scoring is handled server-side
+ * by the analyze-candidate and trigger-sourcing Edge Functions.
  */
 export async function scoreCandidate(
-  job: Pick<Job, 'title' | 'description' | 'skills' | 'location'>,
-  candidate: CandidateScoringInput
+  _job: Pick<Job, 'title' | 'description' | 'skills' | 'location'>,
+  _candidate: CandidateScoringInput
 ): Promise<CandidateScore> {
-  // NOTE: scoringService runs server-side (Edge Function) only.
-  // Anthropic API key must NEVER be exposed to the browser.
-  const apiKey = typeof process !== 'undefined' ? process.env.ANTHROPIC_API_KEY : undefined;
-
-  if (!apiKey) {
-    console.error('[Scoring] ANTHROPIC_API_KEY not configured — scoring is server-side only');
-    return { score: 0, reason: '' };
-  }
-
-  const prompt = buildScoringPrompt(job, candidate);
-
-  try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 128,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[Scoring] API error ${response.status}:`, errText);
-      return { score: 0, reason: '' };
-    }
-
-    const json = await response.json();
-    const text: string = json?.content?.[0]?.text || '';
-    return parseScoreResponse(text);
-  } catch (err) {
-    console.error('[Scoring] Request error:', err);
-    return { score: 0, reason: '' };
-  }
+  return { score: 0, reason: '' };
 }
 
 /**
