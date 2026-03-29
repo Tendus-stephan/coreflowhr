@@ -25,7 +25,17 @@ const Login: React.FC = () => {
   const [mfaFailedAttempts, setMfaFailedAttempts] = useState(0);
   const [mfaLockoutUntil, setMfaLockoutUntil] = useState<number | null>(null);
   const [mfaLockoutRemaining, setMfaLockoutRemaining] = useState(0);
-  const { signIn, verifyMFA, signInWithGoogle } = useAuth();
+  const { signIn, verifyMFA, signInWithGoogle, user, session, loading: authLoading } = useAuth();
+
+  // Google OAuth + MFA: AuthContext sets user but clears session when aal2 is
+  // required. AuthRedirect sends the user here, but requiresMFA is false because
+  // signIn() was never called. Detect the pending-MFA state and show the code
+  // entry form immediately so the user isn't stuck on the email/password screen.
+  React.useEffect(() => {
+    if (!authLoading && user && !session && user.email_confirmed_at) {
+      setRequiresMFA(true);
+    }
+  }, [authLoading, user, session]);
 
   // Countdown tick while password form is locked out
   React.useEffect(() => {
