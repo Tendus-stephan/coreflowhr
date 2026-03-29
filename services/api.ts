@@ -966,10 +966,13 @@ export const api = {
                 throw new Error('Invalid response from MFA enrollment. QR code or secret missing.');
             }
 
-            // Generate backup codes
-            const backupCodes = Array.from({ length: 8 }, () => 
-                Math.random().toString(36).substring(2, 8).toUpperCase()
-            );
+            // Generate backup codes using cryptographically secure random values
+            const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const backupCodes = Array.from({ length: 8 }, () => {
+                const bytes = new Uint8Array(6);
+                crypto.getRandomValues(bytes);
+                return Array.from(bytes, b => alphabet[b % 36]).join('');
+            });
 
             // Store in security settings (create if doesn't exist)
             const { error: settingsError } = await supabase
@@ -1146,6 +1149,9 @@ export const api = {
 
                     if (unenrollError) {
                         console.error('Error unenrolling factor:', unenrollError);
+                        // Propagate — if unenroll fails the TOTP factor still exists in
+                        // Supabase auth, so updating the DB would leave them out of sync.
+                        throw unenrollError;
                     }
                 }
             }

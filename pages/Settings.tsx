@@ -501,6 +501,14 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
         }
     }, [isOpen]);
 
+    // Clear stale code after a failed verification attempt so the user
+    // doesn't have to manually delete the wrong digits before re-typing.
+    useEffect(() => {
+        if (error && step === 'verify') {
+            setVerificationCode('');
+        }
+    }, [error]);
+
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault();
         if (verificationCode.length !== 6) return;

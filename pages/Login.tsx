@@ -25,7 +25,7 @@ const Login: React.FC = () => {
   const [mfaFailedAttempts, setMfaFailedAttempts] = useState(0);
   const [mfaLockoutUntil, setMfaLockoutUntil] = useState<number | null>(null);
   const [mfaLockoutRemaining, setMfaLockoutRemaining] = useState(0);
-  const { signIn, verifyMFA, signInWithGoogle, user, session, loading: authLoading } = useAuth();
+  const { signIn, verifyMFA, signInWithGoogle, signOut, user, session, loading: authLoading } = useAuth();
 
   // Google OAuth + MFA: AuthContext sets user but clears session when aal2 is
   // required. AuthRedirect sends the user here, but requiresMFA is false because
@@ -381,13 +381,7 @@ const Login: React.FC = () => {
                   variant="outline"
                   className="flex-1"
                   type="button"
-                  onClick={() => {
-                    setRequiresMFA(false);
-                    setMfaCode('');
-                    setMfaFailedAttempts(0);
-                    setMfaLockoutUntil(null);
-                    setError(null);
-                  }}
+                  onClick={() => signOut()}
                   disabled={verifyingMFA}
                 >
                   Back
