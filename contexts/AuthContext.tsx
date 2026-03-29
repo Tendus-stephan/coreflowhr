@@ -70,6 +70,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // old session BEFORE firing SIGNED_IN for the new one. Suppressing SIGNED_OUT state
   // clearing during signIn prevents ProtectedRoute from redirecting to /login mid-flight.
   const isSigningIn = useRef(false);
+  // Tracks whether MFA is pending (user set, session null, awaiting TOTP code).
+  // Used to re-run the AAL check on TOKEN_REFRESHED so an inactivity token refresh
+  // doesn't silently grant a full session while the user is on the MFA entry screen.
+  const mfaPendingRef = useRef(false);
 
   useEffect(() => {
     console.log(`[Auth ${new Date().toISOString()}] AuthProvider mounted — calling getSession()`);
@@ -122,6 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
             ]);
             if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+              mfaPendingRef.current = true;
               setUser(session.user);
               setSession(null);
               return; // finally still runs → setLoading(false)
@@ -129,6 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } catch {
             // AAL check failed or timed out — fail-open
           }
+          mfaPendingRef.current = false;
           setSession(session);
           setUser(session.user);
         } else if (session?.user) {
@@ -197,15 +203,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (session?.user?.email_confirmed_at) {
-        // On SIGNED_IN, block the session if aal2 MFA is required but not yet verified.
-        // Cap at 5 s so a hung AAL call doesn't prevent setSession() from ever firing.
-        if (event === 'SIGNED_IN') {
+        // On SIGNED_IN (or TOKEN_REFRESHED while MFA is still pending), block the session
+        // if aal2 MFA is required but not yet verified. The TOKEN_REFRESHED branch prevents
+        // an inactivity token refresh from silently granting a full session while the user
+        // is on the MFA entry screen. Cap at 5 s so a hung AAL call never blocks setSession().
+        if (event === 'SIGNED_IN' || (event === 'TOKEN_REFRESHED' && mfaPendingRef.current)) {
           try {
             const { data: aal } = await Promise.race([
               supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
             ]);
             if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+              mfaPendingRef.current = true;
               setUser(session.user);
               setSession(null);
               setLoading(false);
@@ -215,6 +224,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // AAL check failed or timed out — fail-open
           }
         }
+        mfaPendingRef.current = false;
         setSession(session);
         setUser(session.user);
       } else if (session?.user) {
@@ -397,6 +407,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     t(`requiresMFA=${requiresMFA} email_confirmed=${!!data.user.email_confirmed_at} session=${!!data.session}`);
 
     if (requiresMFA) {
+      mfaPendingRef.current = true;
       setUser(data.user);
       return { error: null, requiresMFA: true };
     }
@@ -413,6 +424,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // React 18 batches synchronous state updates — setting both here ensures
     // PublicRoute always sees (user + session) together, never a partial state.
     t('setting user + session...');
+    mfaPendingRef.current = false;
     setUser(data.user);
     setSession(data.session);
     t('user + session set');
@@ -466,6 +478,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (mfaSession) {
+        mfaPendingRef.current = false;
         setSession(mfaSession);
         setUser(mfaSession.user);
         try {
@@ -493,6 +506,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // ── signOut ────────────────────────────────────────────────────────────────
   const signOut = async () => {
+    mfaPendingRef.current = false;
     setUser(null);
     setSession(null);
     try {
