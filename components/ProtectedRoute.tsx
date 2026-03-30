@@ -23,6 +23,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [checksComplete, setChecksComplete] = useState(false);
   const [canEnter, setCanEnter] = useState(false);
   const [isPastDue, setIsPastDue] = useState(false);
+  const [isLapsedMember, setIsLapsedMember] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
@@ -35,6 +36,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       setChecksComplete(true);
       setCanEnter(false);
       setIsPastDue(false);
+      setIsLapsedMember(false);
       setOnboardingCompleted(false);
       return;
     }
@@ -147,8 +149,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const pastDue = !access && !isNonAdminMember &&
           settingsRes.data?.subscription_status?.toLowerCase() === 'past_due';
 
+        // Non-admin member of a workspace whose subscription lapsed — they can't self-subscribe
+        const lapsedMember = !access && isNonAdminMember;
+
         setCanEnter(access);
         setIsPastDue(pastDue);
+        setIsLapsedMember(lapsedMember);
         setOnboardingCompleted(onboardingDone);
       } catch (err) {
         console.error('[ProtectedRoute] access check failed:', err);
@@ -172,6 +178,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         cancelled = true;
         setCanEnter(true);
         setIsPastDue(false);
+        setIsLapsedMember(false);
         setOnboardingCompleted(true);
         setChecksComplete(true);
       }
@@ -282,9 +289,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // 4. Waiting for all resource checks — never let children render until this clears
   if (!checksComplete) return <PageLoader />;
 
-  // 5. No subscription / workspace → pricing. past_due admins → settings to update billing.
-  //    Allow past_due users to render /settings (don't redirect back to itself).
+  // 5. No subscription / workspace → pricing, with exceptions:
+  //    - past_due admins → /settings to update billing (fall through when already there)
+  //    - lapsed non-admin members → /workspace-lapsed (they can't self-subscribe)
   if (!canEnter) {
+    if (isLapsedMember) {
+      return <Navigate to="/workspace-lapsed" replace />;
+    }
     if (isPastDue && location.pathname === '/settings') {
       // Fall through — let them render the settings page to fix their billing
     } else {

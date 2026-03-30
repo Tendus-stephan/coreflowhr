@@ -73,8 +73,12 @@ export const resolvePostLoginDestination = async (userId: string): Promise<strin
   }
 
   if (!hasAccess) {
+    // Non-admin member of an expired workspace — they can't self-subscribe
+    if (isNonAdminMember) {
+      return '/workspace-lapsed';
+    }
     // past_due admins should update billing in /settings rather than see the pricing page
-    if (!isNonAdminMember && settingsRes.data?.subscription_status?.toLowerCase() === 'past_due') {
+    if (settingsRes.data?.subscription_status?.toLowerCase() === 'past_due') {
       return '/settings';
     }
     return '/?pricing=true';

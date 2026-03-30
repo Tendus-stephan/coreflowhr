@@ -15,6 +15,8 @@ export type AppAccessResult = {
   reason: 'workspace' | 'own_subscription' | 'none';
   /** True when the user's own subscription is past_due (payment failed). Only set for non-workspace-member paths. */
   isPastDue?: boolean;
+  /** True when the user is a non-admin workspace member but the workspace subscription has lapsed. */
+  isLapsedMember?: boolean;
 };
 
 /**
@@ -28,7 +30,7 @@ export async function checkAppAccess(userId: string): Promise<AppAccessResult> {
   // 1) User's workspace memberships
   const { data: memberships, error: memError } = await supabase
     .from('workspace_members')
-    .select('workspace_id')
+    .select('workspace_id, role')
     .eq('user_id', userId);
 
   if (memError) {
@@ -37,7 +39,10 @@ export async function checkAppAccess(userId: string): Promise<AppAccessResult> {
     return checkOwnSubscription(userId);
   }
 
+  const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
   const workspaceIds = [...new Set((memberships || []).map((m: { workspace_id: string }) => m.workspace_id))];
+  const isNonAdminMember = (memberships || []).some((m: any) => nonAdminRoles.includes(m.role));
+
   if (workspaceIds.length > 0) {
     // Use SECURITY DEFINER RPC — direct user_settings queries are blocked by RLS
     // (auth.uid() = user_id), so querying another user's subscription row returns nothing.
@@ -46,6 +51,10 @@ export async function checkAppAccess(userId: string): Promise<AppAccessResult> {
       if (hasActiveSub === true) {
         return { canEnter: true, reason: 'workspace' };
       }
+    }
+    // Non-admin member whose workspace subscription has lapsed — they can't subscribe themselves
+    if (isNonAdminMember) {
+      return { canEnter: false, reason: 'none', isLapsedMember: true };
     }
   }
 

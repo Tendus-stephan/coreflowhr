@@ -132,6 +132,7 @@ const LandingPage: React.FC = () => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isPastDueUser, setIsPastDueUser] = useState(false);
+  const [isLapsedMember, setIsLapsedMember] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [founding, setFounding] = useState<{ spotsLeft: number; available: boolean; loaded: boolean }>({
@@ -178,6 +179,7 @@ const LandingPage: React.FC = () => {
         setSubscriptionLoading(false);
         setIsSubscribed(false);
         setIsPastDueUser(false);
+        setIsLapsedMember(false);
         return;
       }
       try {
@@ -185,6 +187,7 @@ const LandingPage: React.FC = () => {
         const result = await checkAppAccess(user.id);
         setIsSubscribed(result.canEnter);
         setIsPastDueUser(result.isPastDue ?? false);
+        setIsLapsedMember(result.isLapsedMember ?? false);
       } catch (error: any) {
         if (error?.message?.includes('timeout') || error?.message?.includes('Failed to fetch')) {
           setIsSubscribed(false);
@@ -410,8 +413,9 @@ const LandingPage: React.FC = () => {
                   
                   if (isSubscribed) {
                     navigate('/dashboard');
+                  } else if (isLapsedMember) {
+                    navigate('/workspace-lapsed');
                   } else if (isPastDueUser) {
-                    // Payment failed — send them to settings to update billing
                     navigate('/settings');
                   } else {
                     scrollToSection('pricing');

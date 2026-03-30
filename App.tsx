@@ -36,6 +36,7 @@ import Reports from './pages/Reports';
 import ChangeEmail from './pages/ChangeEmail';
 import Invite from './pages/Invite';
 import AuthRedirect from './pages/AuthRedirect';
+import WorkspaceLapsed from './pages/WorkspaceLapsed';
 
 // Shows the PageLoader for one paint frame then hands off to the real page.
 // This ensures every route change shows the spinner before the page data loads.
@@ -332,6 +333,10 @@ const AppRoutes: React.FC = () => {
         <Route
           path="/invite"
           element={<Invite />}
+        />
+        <Route
+          path="/workspace-lapsed"
+          element={<WorkspaceLapsed />}
         />
         <Route 
           path="/onboarding" 
