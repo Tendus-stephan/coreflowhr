@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { PageLoader } from './components/ui/PageLoader';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AccessProvider, useAccess } from './contexts/AccessContext';
 import { SourcingProvider } from './contexts/SourcingContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
 import { ModalProvider, useModal } from './contexts/ModalContext';
@@ -52,6 +53,7 @@ const NavLoader: React.FC<{ onMount: () => void }> = ({ onMount }) => {
 const Layout = () => {
   const location = useLocation();
   const { session, user, loading: authLoading } = useAuth();
+  const { sidebarReady } = useAccess();
   const { isCandidateModalOpen } = useModal(); // Move this BEFORE any conditional returns
 
   // Route-transition loader — shows in content area, sidebar stays visible
@@ -142,10 +144,10 @@ const Layout = () => {
     return <Outlet />;
   }
 
-  // Don't render the sidebar until auth is confirmed. Unauthenticated users who
-  // navigate directly to a protected URL would otherwise see the sidebar flash
-  // while ProtectedRoute's async access check is running.
-  if (authLoading || !session || !user) {
+  // Don't render the sidebar until ProtectedRoute has confirmed the user can enter.
+  // This prevents the sidebar flashing for unauthenticated users AND for authenticated
+  // users during ProtectedRoute's async DB access check.
+  if (authLoading || !session || !user || !sidebarReady) {
     return <Outlet />;
   }
 
@@ -472,18 +474,20 @@ const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <SourcingProvider>
-          <SidebarProvider>
-            <ModalProvider>
-              <ToastProvider>
-                <ConfirmProvider>
-                  <AppRoutes />
-                  <DevToastTester />
-                </ConfirmProvider>
-              </ToastProvider>
-            </ModalProvider>
-          </SidebarProvider>
-        </SourcingProvider>
+        <AccessProvider>
+          <SourcingProvider>
+            <SidebarProvider>
+              <ModalProvider>
+                <ToastProvider>
+                  <ConfirmProvider>
+                    <AppRoutes />
+                    <DevToastTester />
+                  </ConfirmProvider>
+                </ToastProvider>
+              </ModalProvider>
+            </SidebarProvider>
+          </SourcingProvider>
+        </AccessProvider>
       </AuthProvider>
     </Router>
   );
