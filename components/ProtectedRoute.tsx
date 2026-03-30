@@ -161,6 +161,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         if (!cancelled) {
           // Fail open so a transient DB error doesn't lock users out
           setCanEnter(true);
+          setIsPastDue(false);
+          setIsLapsedMember(false);
           setOnboardingCompleted(true);
         }
       } finally {
