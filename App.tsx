@@ -51,6 +51,7 @@ const NavLoader: React.FC<{ onMount: () => void }> = ({ onMount }) => {
 
 const Layout = () => {
   const location = useLocation();
+  const { session, user, loading: authLoading } = useAuth();
   const { isCandidateModalOpen } = useModal(); // Move this BEFORE any conditional returns
 
   // Route-transition loader — shows in content area, sidebar stays visible
@@ -130,13 +131,21 @@ const Layout = () => {
     '/onboarding',
     '/change-email',
     '/auth/redirect',
+    '/workspace-lapsed',
   ].some(path => location.pathname === path ||
-    location.pathname.startsWith('/jobs/apply') || 
+    location.pathname.startsWith('/jobs/apply') ||
     location.pathname.startsWith('/offers/respond') ||
     location.pathname.startsWith('/candidates/register') ||
     location.pathname.startsWith('/invite'));
 
   if (isStandalonePage) {
+    return <Outlet />;
+  }
+
+  // Don't render the sidebar until auth is confirmed. Unauthenticated users who
+  // navigate directly to a protected URL would otherwise see the sidebar flash
+  // while ProtectedRoute's async access check is running.
+  if (authLoading || !session || !user) {
     return <Outlet />;
   }
 
