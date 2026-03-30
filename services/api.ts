@@ -5747,7 +5747,7 @@ export const api = {
         /**
          * Get invite details by token (no auth required). Used to show "invite sent to X" and to check email match before accepting.
          */
-        getInviteByToken: async (token: string): Promise<{ found: boolean; email?: string; role?: string; workspaceName?: string }> => {
+        getInviteByToken: async (token: string): Promise<{ found: boolean; email?: string; role?: string; workspaceName?: string; alreadyAccepted?: boolean }> => {
             const trimmed = token.trim();
             if (!trimmed) return { found: false };
             const { data, error } = await supabase.rpc('get_invite_by_token', { p_token: trimmed });
@@ -5758,6 +5758,7 @@ export const api = {
                     email: data.email as string,
                     role: data.role as string,
                     workspaceName: (data.workspace_name as string | undefined) || undefined,
+                    alreadyAccepted: data.already_accepted === true,
                 };
             }
             return { found: false };

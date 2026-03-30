@@ -22,6 +22,7 @@ const Invite: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(true);
+  const [alreadyAccepted, setAlreadyAccepted] = useState(false);
   const acceptStartedRef = useRef(false);
 
   const token = searchParams.get('token') || '';
@@ -59,6 +60,7 @@ const Invite: React.FC = () => {
         if (r.found && r.email) {
           setInviteEmail(r.email);
           if (r.workspaceName) setInviteWorkspaceName(r.workspaceName);
+          if (r.alreadyAccepted) setAlreadyAccepted(true);
         } else {
           setInviteEmail(null);
           setStatus('expired');
@@ -99,6 +101,16 @@ const Invite: React.FC = () => {
     ? user.email.trim().toLowerCase() === inviteEmail.trim().toLowerCase()
     : false;
 
+  // Already-accepted invite: skip re-accepting and redirect straight to dashboard.
+  useEffect(() => {
+    if (!alreadyAccepted || loading || !user || !inviteEmail) return;
+    if (!emailMatches) return; // wrong account — let the wrong-account UI handle it
+    clearInviteStorage();
+    setStatus('success');
+    setMessage('You\'re already in the workspace. Redirecting to dashboard…');
+    setTimeout(() => navigate('/dashboard'), 1500);
+  }, [alreadyAccepted, loading, user, inviteEmail, emailMatches, navigate]);
+
   useEffect(() => {
     if (!token || loading || status !== 'idle') return;
     if (!user) return;
@@ -109,6 +121,7 @@ const Invite: React.FC = () => {
       return;
     }
     if (!emailMatches) return;
+    if (alreadyAccepted) return; // handled by the effect above
     if (acceptStartedRef.current) return;
     acceptStartedRef.current = true;
 
@@ -157,7 +170,7 @@ const Invite: React.FC = () => {
     };
 
     accept();
-  }, [token, user, loading, status, inviteLoading, inviteEmail, emailMatches, navigate]);
+  }, [token, user, loading, status, inviteLoading, inviteEmail, emailMatches, alreadyAccepted, navigate]);
 
   const showAuthCta = !loading && !user && !!token && status !== 'expired';
   const showWrongAccount = !loading && !!user && !!token && !!inviteEmail && !emailMatches && status !== 'expired';
