@@ -160,17 +160,16 @@ const LandingPage: React.FC = () => {
   // Get user display name
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
 
-  // Redirect authenticated + subscribed users away from the landing page to the app.
-  // ProtectedRoute will handle onboarding and RBAC from there.
-  // Do NOT redirect when ?pricing=true is present — that means ProtectedRoute sent
-  // them here because they have no subscription and need to see the pricing section.
+  // Redirect any authenticated user to /dashboard immediately.
+  // ProtectedRoute handles all routing from there (onboarding, RBAC, lapsed, past_due).
+  // Skip when ?pricing=true — that means ProtectedRoute sent them here to subscribe.
   useEffect(() => {
-    if (loading || subscriptionLoading) return;
+    if (loading) return;
     const hasPricingParam = new URLSearchParams(window.location.search).has('pricing');
-    if (session && user && isSubscribed && !hasPricingParam) {
+    if (session && user && !hasPricingParam) {
       navigate('/dashboard', { replace: true });
     }
-  }, [loading, subscriptionLoading, session, user, isSubscribed, navigate]);
+  }, [loading, session, user, navigate]);
 
   // Can user enter app? Workspace with subscription first, then own subscription.
   useEffect(() => {
@@ -399,30 +398,23 @@ const LandingPage: React.FC = () => {
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 md:mb-24 px-4">
             {user && session ? (
-              <Button 
-                variant="black" 
-                size="xl" 
+              <Button
+                variant="black"
+                size="xl"
                 className="h-12 sm:h-14 px-6 sm:px-8 rounded-full text-sm sm:text-base shadow-xl shadow-gray-900/10 hover:shadow-gray-900/20 transition-all w-full sm:w-auto"
-                disabled={subscriptionLoading}
                 onClick={() => {
-                  // If subscription check is still loading, wait
-                  if (subscriptionLoading) {
-                    console.log('Subscription check still loading...');
-                    return;
-                  }
-                  
-                  if (isSubscribed) {
-                    navigate('/dashboard');
-                  } else if (isLapsedMember) {
-                    navigate('/workspace-lapsed');
-                  } else if (isPastDueUser) {
-                    navigate('/settings');
-                  } else {
+                  // Logged-in users: go to /dashboard — ProtectedRoute routes them correctly
+                  // from there (lapsed → /workspace-lapsed, past_due → /settings, etc.)
+                  // Only stay on the pricing section if ProtectedRoute already sent them here
+                  const hasPricingParam = new URLSearchParams(window.location.search).has('pricing');
+                  if (hasPricingParam) {
                     scrollToSection('pricing');
+                  } else {
+                    navigate('/dashboard');
                   }
                 }}
               >
-                {subscriptionLoading ? 'Loading...' : 'Start Hiring Now'}
+                Start Hiring Now
               </Button>
             ) : (
               <Link to="/signup" className="w-full sm:w-auto">
