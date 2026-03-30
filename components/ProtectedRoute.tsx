@@ -22,6 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Single flag — only true once ALL checks have completed
   const [checksComplete, setChecksComplete] = useState(false);
   const [canEnter, setCanEnter] = useState(false);
+  const [isPastDue, setIsPastDue] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
@@ -33,6 +34,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       // No session — checks are trivially done (render logic handles redirect)
       setChecksComplete(true);
       setCanEnter(false);
+      setIsPastDue(false);
       setOnboardingCompleted(false);
       return;
     }
@@ -141,7 +143,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
         if (cancelled) return;
 
+        // Detect past_due so we can route to /settings instead of /?pricing=true
+        const pastDue = !access && !isNonAdminMember &&
+          settingsRes.data?.subscription_status?.toLowerCase() === 'past_due';
+
         setCanEnter(access);
+        setIsPastDue(pastDue);
         setOnboardingCompleted(onboardingDone);
       } catch (err) {
         console.error('[ProtectedRoute] access check failed:', err);
@@ -164,6 +171,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         console.warn('[ProtectedRoute] access check timed out — failing open');
         cancelled = true;
         setCanEnter(true);
+        setIsPastDue(false);
         setOnboardingCompleted(true);
         setChecksComplete(true);
       }
@@ -274,9 +282,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // 4. Waiting for all resource checks — never let children render until this clears
   if (!checksComplete) return <PageLoader />;
 
-  // 5. No subscription / workspace → pricing. No exceptions.
+  // 5. No subscription / workspace → pricing. past_due admins → settings to update billing.
+  //    Allow past_due users to render /settings (don't redirect back to itself).
   if (!canEnter) {
-    return <Navigate to="/?pricing=true" replace />;
+    if (isPastDue && location.pathname === '/settings') {
+      // Fall through — let them render the settings page to fix their billing
+    } else {
+      return <Navigate to={isPastDue ? '/settings' : '/?pricing=true'} replace />;
+    }
   }
 
   // 6. Onboarding not done

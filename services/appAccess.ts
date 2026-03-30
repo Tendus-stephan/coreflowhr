@@ -13,13 +13,16 @@ import type { SubscriptionSettings } from './subscriptionAccess';
 export type AppAccessResult = {
   canEnter: boolean;
   reason: 'workspace' | 'own_subscription' | 'none';
+  /** True when the user's own subscription is past_due (payment failed). Only set for non-workspace-member paths. */
+  isPastDue?: boolean;
 };
 
 /**
  * Determines if the user can enter the app (dashboard, etc.).
  * 1. If user belongs to at least one workspace that has an active subscription → can enter (reason: workspace).
+ *    Uses the workspace_has_active_subscription SECURITY DEFINER RPC to bypass RLS on user_settings.
  * 2. Else if user has their own active subscription → can enter (reason: own_subscription).
- * 3. Else → cannot enter (reason: none); show pricing.
+ * 3. Else → cannot enter (reason: none); show pricing. isPastDue=true if payment failed.
  */
 export async function checkAppAccess(userId: string): Promise<AppAccessResult> {
   // 1) User's workspace memberships
@@ -31,41 +34,33 @@ export async function checkAppAccess(userId: string): Promise<AppAccessResult> {
   if (memError) {
     console.warn('App access: workspace_members check failed', memError);
     // Fall back to own subscription only
-    const own = await getOwnSubscription(userId);
-    return {
-      canEnter: hasActiveSubscription(own),
-      reason: hasActiveSubscription(own) ? 'own_subscription' : 'none',
-    };
+    return checkOwnSubscription(userId);
   }
 
   const workspaceIds = [...new Set((memberships || []).map((m: { workspace_id: string }) => m.workspace_id))];
   if (workspaceIds.length > 0) {
-    // 2) Any member of those workspaces with active subscription?
-    const { data: memberRows } = await supabase
-      .from('workspace_members')
-      .select('user_id')
-      .in('workspace_id', workspaceIds);
-    const memberUserIds = [...new Set((memberRows || []).map((r: { user_id: string }) => r.user_id))];
-    if (memberUserIds.length > 0) {
-      const { data: settingsRows } = await supabase
-        .from('user_settings')
-        .select('subscription_status')
-        .in('user_id', memberUserIds);
-      const workspaceHasActive = (settingsRows || []).some(
-        (s: { subscription_status?: string | null }) => hasActiveSubscription(s as SubscriptionSettings)
-      );
-      if (workspaceHasActive) {
+    // Use SECURITY DEFINER RPC — direct user_settings queries are blocked by RLS
+    // (auth.uid() = user_id), so querying another user's subscription row returns nothing.
+    for (const wsId of workspaceIds) {
+      const { data: hasActiveSub } = await supabase.rpc('workspace_has_active_subscription', { ws_id: wsId });
+      if (hasActiveSub === true) {
         return { canEnter: true, reason: 'workspace' };
       }
     }
   }
 
-  // 3) Own subscription
+  // 2) Own subscription
+  return checkOwnSubscription(userId);
+}
+
+async function checkOwnSubscription(userId: string): Promise<AppAccessResult> {
   const ownSettings = await getOwnSubscription(userId);
   const hasOwn = hasActiveSubscription(ownSettings);
+  const isPastDue = !hasOwn && (ownSettings?.subscription_status || '').toLowerCase() === 'past_due';
   return {
     canEnter: hasOwn,
     reason: hasOwn ? 'own_subscription' : 'none',
+    isPastDue,
   };
 }
 

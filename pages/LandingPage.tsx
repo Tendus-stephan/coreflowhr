@@ -131,6 +131,7 @@ const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isPastDueUser, setIsPastDueUser] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [founding, setFounding] = useState<{ spotsLeft: number; available: boolean; loaded: boolean }>({
@@ -176,12 +177,14 @@ const LandingPage: React.FC = () => {
       if (!session || !user) {
         setSubscriptionLoading(false);
         setIsSubscribed(false);
+        setIsPastDueUser(false);
         return;
       }
       try {
         const { checkAppAccess } = await import('../services/appAccess');
         const result = await checkAppAccess(user.id);
         setIsSubscribed(result.canEnter);
+        setIsPastDueUser(result.isPastDue ?? false);
       } catch (error: any) {
         if (error?.message?.includes('timeout') || error?.message?.includes('Failed to fetch')) {
           setIsSubscribed(false);
@@ -405,13 +408,12 @@ const LandingPage: React.FC = () => {
                     return;
                   }
                   
-                  // If user has paid subscription, go to dashboard; otherwise show pricing
-                  console.log('Start Hiring Now clicked - isSubscribed:', isSubscribed);
                   if (isSubscribed) {
-                    console.log('Redirecting to dashboard');
                     navigate('/dashboard');
+                  } else if (isPastDueUser) {
+                    // Payment failed — send them to settings to update billing
+                    navigate('/settings');
                   } else {
-                    console.log('Scrolling to pricing section');
                     scrollToSection('pricing');
                   }
                 }}

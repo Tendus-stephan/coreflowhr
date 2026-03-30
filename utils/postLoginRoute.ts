@@ -73,6 +73,10 @@ export const resolvePostLoginDestination = async (userId: string): Promise<strin
   }
 
   if (!hasAccess) {
+    // past_due admins should update billing in /settings rather than see the pricing page
+    if (!isNonAdminMember && settingsRes.data?.subscription_status?.toLowerCase() === 'past_due') {
+      return '/settings';
+    }
     return '/?pricing=true';
   }
 
