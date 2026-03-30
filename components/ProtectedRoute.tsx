@@ -159,7 +159,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsPastDue(pastDue);
         setIsLapsedMember(lapsedMember);
         setOnboardingCompleted(onboardingDone);
-        if (access) setSidebarReady(true);
+        setSidebarReady(access);
       } catch (err) {
         console.error('[ProtectedRoute] access check failed:', err);
         if (!cancelled) {
