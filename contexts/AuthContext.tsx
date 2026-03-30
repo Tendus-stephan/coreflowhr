@@ -237,27 +237,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (session?.user?.email_confirmed_at) {
-        // Run the AAL check on SIGNED_IN, INITIAL_SESSION, and TOKEN_REFRESHED-while-pending.
-        // INITIAL_SESSION fires synchronously when onAuthStateChange is attached (Supabase
-        // ≥ 2.65) and previously bypassed the AAL check, letting the stored AAL1 session
-        // through before getSession() could block it — the user would land on /dashboard
-        // without entering their MFA code.
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || (event === 'TOKEN_REFRESHED' && mfaPendingRef.current)) {
+        // ── MFA gate ────────────────────────────────────────────────────────────
+        // SIGNED_IN / TOKEN_REFRESHED: use a *sync* check (JWT aal claim +
+        // session.user.factors). Supabase awaits our callback inside
+        // signInWithPassword, so an async network call here cascades into a
+        // 15 s+ sign-in and ultimately fails open (user lands on /dashboard
+        // without entering their MFA code).
+        //
+        // INITIAL_SESSION: safe to use async — Supabase emits this in a
+        // background IIFE, not inside signInWithPassword. The stored session
+        // in localStorage may not carry user.factors, so we need the network.
+        let mfaBlocked = false;
+
+        if (event === 'SIGNED_IN' || (event === 'TOKEN_REFRESHED' && mfaPendingRef.current)) {
+          const sessionAal = getJwtAal(session.access_token);
+          const hasVerifiedMFA = (session.user.factors ?? []).some(
+            (f: any) => f.factor_type === 'totp' && f.status === 'verified'
+          );
+          mfaBlocked = sessionAal !== 'aal2' && hasVerifiedMFA;
+        } else if (event === 'INITIAL_SESSION') {
           try {
             const { data: aal } = await Promise.race([
               supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
             ]);
-            if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
-              mfaPendingRef.current = true;
-              setUser(session.user);
-              setSession(null);
-              setLoading(false);
-              return;
-            }
+            mfaBlocked = aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel;
           } catch {
             // AAL check failed or timed out — fail-open
           }
+        }
+
+        if (mfaBlocked) {
+          mfaPendingRef.current = true;
+          setUser(session.user);
+          setSession(null);
+          setLoading(false);
+          return;
         }
         mfaPendingRef.current = false;
         setSession(session);
@@ -412,32 +427,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (error) return { error, requiresMFA: false };
     if (!data.user) return { error: { message: 'Failed to sign in. Please try again.' }, requiresMFA: false };
 
-    // ── AAL check BEFORE touching any React state ─────────────────────────────
-    t('AAL check → calling...');
-    let requiresMFA = false;
-    try {
-      const { data: aal, error: aalError } = await Promise.race([
-        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-      ]);
-      t(`AAL check → currentLevel=${aal?.currentLevel} nextLevel=${aal?.nextLevel} error=${aalError?.message}`);
-      if (!aalError && aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
-        requiresMFA = true;
-      }
-    } catch (aalErr: any) {
-      t(`AAL check → timed out or failed (${aalErr?.message}), trying listFactors...`);
-      try {
-        const { data: factors } = await Promise.race([
-          supabase.auth.mfa.listFactors(),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-        ]);
-        t(`listFactors → totp=${factors?.totp?.length} all=${factors?.all?.length}`);
-        const hasVerifiedTOTP =
-          (factors?.totp ?? []).some((f: any) => f.status === 'verified') ||
-          (factors?.all ?? []).some((f: any) => f.factor_type === 'totp' && f.status === 'verified');
-        if (hasVerifiedTOTP) requiresMFA = true;
-      } catch (fErr: any) { t(`listFactors → failed (${fErr?.message}), fail-open`); }
-    }
+    // ── AAL check — sync via JWT decode + user.factors ───────────────────────
+    // signInWithPassword returns the full user object (always includes factors).
+    // A sync check avoids 5–15 s of cascading network timeouts that previously
+    // caused fail-open MFA bypass (SIGNED_IN callback was awaited by Supabase
+    // inside signInWithPassword, delaying its return by up to 5 s per attempt).
+    t('AAL check → sync (JWT decode + user.factors)');
+    const sessionAal = data.session ? getJwtAal(data.session.access_token) : undefined;
+    const hasVerifiedMFA = (data.user.factors ?? []).some(
+      (f: any) => f.factor_type === 'totp' && f.status === 'verified'
+    );
+    const requiresMFA = sessionAal !== 'aal2' && hasVerifiedMFA;
+    t(`AAL check → sessionAal=${sessionAal} hasVerifiedMFA=${hasVerifiedMFA} requiresMFA=${requiresMFA}`);
 
     t(`requiresMFA=${requiresMFA} email_confirmed=${!!data.user.email_confirmed_at} session=${!!data.session}`);
 
