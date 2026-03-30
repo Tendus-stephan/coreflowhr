@@ -76,13 +76,12 @@ function readStoredSession(): { user: SupabaseUser | null; session: Session | nu
         stored.user.email_confirmed_at
       ) {
         const aal = getJwtAal(stored.access_token);
-        const hasVerifiedMFA = Array.isArray(stored.user?.factors) &&
-          stored.user.factors.some(
-            (f: any) => f.factor_type === 'totp' && f.status === 'verified'
-          );
-        // Don't fast-path an AAL1 session when the user has MFA enrolled —
-        // the session is not yet at the required assurance level.
-        if (aal !== 'aal2' && hasVerifiedMFA) {
+        // Only fast-path sessions that are already at AAL2 (MFA verified).
+        // For AAL1 sessions we cannot know from localStorage alone whether
+        // MFA is required — user.factors is often absent from the stored
+        // object. Keep loading=true and let the async INITIAL_SESSION / getSession()
+        // AAL check decide, so AuthRedirect never races ahead to /dashboard.
+        if (aal !== 'aal2') {
           return { user: stored.user as SupabaseUser, session: null, needsMFACheck: true };
         }
         return { user: stored.user as SupabaseUser, session: stored as Session, needsMFACheck: false };
