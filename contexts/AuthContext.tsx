@@ -34,12 +34,35 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Decode the 'aal' claim from a JWT access token without verifying the signature.
+// Used only for the fast-path optimisation in readStoredSession — the authoritative
+// check is always the async getAuthenticatorAssuranceLevel() call.
+function getJwtAal(accessToken: string): string | undefined {
+  try {
+    const payload = accessToken.split('.')[1];
+    // JWT uses base64url — convert to standard base64 before atob()
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(
+      payload.length + (4 - payload.length % 4) % 4, '='
+    );
+    return JSON.parse(atob(base64))?.aal;
+  } catch {
+    return undefined;
+  }
+}
+
 // Read the stored Supabase session from localStorage synchronously so the first
 // render already reflects the correct auth state. This eliminates the ~4 s flash
 // where navbar shows "Sign in / Get Started" for a returning logged-in user while
 // getSession() is resolving. Only seeds state for fully confirmed sessions that have
 // a refresh_token (excludes transient email-confirmation tokens).
-function readStoredSession(): { user: SupabaseUser | null; session: Session | null } {
+//
+// MFA guard: if the stored session is AAL1 AND the user has verified TOTP factors,
+// MFA verification is still required. In that case we return the user (so the page
+// doesn't flash as unauthenticated) but NOT the session, and set needsMFACheck=true
+// so loading stays true until the async AAL check completes. Without this guard,
+// Supabase's INITIAL_SESSION event would set the session before the AAL check runs
+// and AuthRedirect would navigate to the dashboard, bypassing MFA entirely.
+function readStoredSession(): { user: SupabaseUser | null; session: Session | null; needsMFACheck: boolean } {
   try {
     const key = Object.keys(localStorage).find(
       k => k.startsWith('sb-') && k.endsWith('-auth-token')
@@ -52,20 +75,32 @@ function readStoredSession(): { user: SupabaseUser | null; session: Session | nu
         stored?.access_token &&
         stored.user.email_confirmed_at
       ) {
-        return { user: stored.user as SupabaseUser, session: stored as Session };
+        const aal = getJwtAal(stored.access_token);
+        const hasVerifiedMFA = Array.isArray(stored.user?.factors) &&
+          stored.user.factors.some(
+            (f: any) => f.factor_type === 'totp' && f.status === 'verified'
+          );
+        // Don't fast-path an AAL1 session when the user has MFA enrolled —
+        // the session is not yet at the required assurance level.
+        if (aal !== 'aal2' && hasVerifiedMFA) {
+          return { user: stored.user as SupabaseUser, session: null, needsMFACheck: true };
+        }
+        return { user: stored.user as SupabaseUser, session: stored as Session, needsMFACheck: false };
       }
     }
   } catch { /* ignore — SSR or corrupted storage */ }
-  return { user: null, session: null };
+  return { user: null, session: null, needsMFACheck: false };
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const cached = readStoredSession();
   const [user, setUser] = useState<SupabaseUser | null>(cached.user);
   const [session, setSession] = useState<Session | null>(cached.session);
-  // Skip the loading spinner entirely when we already have a confirmed cached session.
-  // getSession() will still run in the background to refresh tokens and update state.
-  const [loading, setLoading] = useState(cached.user === null);
+  // Skip the loading spinner for confirmed cached sessions. Exception: when
+  // needsMFACheck is true (AAL1 session + verified MFA factors), we must keep
+  // loading=true so AuthRedirect/ProtectedRoute wait for the async AAL check
+  // instead of racing to navigate while the session is in a partially-set state.
+  const [loading, setLoading] = useState(cached.user === null || cached.needsMFACheck);
   // Flag set during an active signIn() call. The Supabase SDK fires SIGNED_OUT for the
   // old session BEFORE firing SIGNED_IN for the new one. Suppressing SIGNED_OUT state
   // clearing during signIn prevents ProtectedRoute from redirecting to /login mid-flight.
@@ -203,11 +238,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (session?.user?.email_confirmed_at) {
-        // On SIGNED_IN (or TOKEN_REFRESHED while MFA is still pending), block the session
-        // if aal2 MFA is required but not yet verified. The TOKEN_REFRESHED branch prevents
-        // an inactivity token refresh from silently granting a full session while the user
-        // is on the MFA entry screen. Cap at 5 s so a hung AAL call never blocks setSession().
-        if (event === 'SIGNED_IN' || (event === 'TOKEN_REFRESHED' && mfaPendingRef.current)) {
+        // Run the AAL check on SIGNED_IN, INITIAL_SESSION, and TOKEN_REFRESHED-while-pending.
+        // INITIAL_SESSION fires synchronously when onAuthStateChange is attached (Supabase
+        // ≥ 2.65) and previously bypassed the AAL check, letting the stored AAL1 session
+        // through before getSession() could block it — the user would land on /dashboard
+        // without entering their MFA code.
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || (event === 'TOKEN_REFRESHED' && mfaPendingRef.current)) {
           try {
             const { data: aal } = await Promise.race([
               supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
