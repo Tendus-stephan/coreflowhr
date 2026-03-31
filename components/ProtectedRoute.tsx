@@ -211,17 +211,18 @@ const ProtectedRoute: React.FC = () => {
 
     let cancelled = false;
 
-    supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .maybeSingle();
         if (!cancelled) setOnboardingCompleted(data?.onboarding_completed === true);
-      })
-      .catch(() => {
+      } catch {
         // Fail open — keep existing value on transient error
-      });
+      }
+    })();
 
     return () => { cancelled = true; };
   // checksComplete and isNonAdminMember are used as guards but not deps —
