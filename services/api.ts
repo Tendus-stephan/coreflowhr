@@ -3,6 +3,7 @@ export type { Client };
 import { supabase } from "./supabase";
 import { getSourcingCap } from "./planLimits";
 import { userFacingEdgeError } from "../utils/edgeFunctionError";
+import * as activityLogger from "./activityLogger";
 
 // Helper to convert text to URL slug
 function toSlug(text: string): string {
@@ -800,7 +801,7 @@ export const api = {
 
             // Log activity
             try {
-                const { logActivity } = await import('./activityLogger');
+                const { logActivity } = activityLogger;
                 await logActivity({
                     action: 'permission_updated',
                     target: 'Password'
@@ -1120,7 +1121,7 @@ export const api = {
 
             // Log activity
             try {
-                const { logActivity } = await import('./activityLogger');
+                const { logActivity } = activityLogger;
                 await logActivity({
                     action: 'automation_updated',
                     target: 'Two-Factor Authentication'
@@ -1184,7 +1185,7 @@ export const api = {
 
             // Log activity
             try {
-                const { logActivity } = await import('./activityLogger');
+                const { logActivity } = activityLogger;
                 await logActivity({
                     action: 'automation_updated',
                     target: 'Two-Factor Authentication'
@@ -1803,7 +1804,7 @@ export const api = {
             if (jobError) throw jobError;
 
             // Log activity
-            const { logJobCreated } = await import('./activityLogger');
+            const { logJobCreated } = activityLogger;
             await logJobCreated(job.title);
 
             // Sourcing via PDL removed. CrustData integration is pending usage-based pricing.
@@ -1885,7 +1886,7 @@ export const api = {
             // Log activity for status changes
             if (updateData.status && oldStatus && oldStatus !== data.status && jobTitle) {
                 try {
-                    const { logJobPublished, logJobUnpublished, logJobClosed } = await import('./activityLogger');
+                    const { logJobPublished, logJobUnpublished, logJobClosed } = activityLogger;
                     if (data.status === 'Active' && oldStatus !== 'Active') {
                         await logJobPublished(jobTitle);
                         // Note: Candidate sourcing should be handled by the frontend when explicitly activating a draft job
@@ -1902,7 +1903,7 @@ export const api = {
             // Log activity for job edits (if status didn't change)
             if (!updateData.status && Object.keys(updateData).length > 0) {
                 try {
-                    const { logJobEdited } = await import('./activityLogger');
+                    const { logJobEdited } = activityLogger;
                     await logJobEdited(data.title);
                 } catch (error) {
                     console.error('Error logging job edit:', error);
@@ -1953,7 +1954,7 @@ export const api = {
 
             if (row?.title) {
                 try {
-                    const { logJobDeleted } = await import('./activityLogger');
+                    const { logJobDeleted } = activityLogger;
                     await logJobDeleted(row.title);
                 } catch (logError) {
                     console.error('Error logging job deletion:', logError);
@@ -2452,7 +2453,7 @@ export const api = {
             
             // Log activity for candidate creation
             try {
-                const { logCandidateAdded } = await import('./activityLogger');
+                const { logCandidateAdded } = activityLogger;
                 await logCandidateAdded(candidateData.name);
             } catch (logError) {
                 console.error('Error logging candidate creation:', logError);
@@ -3224,7 +3225,7 @@ export const api = {
             // Log stage change activity
             if (updates.stage !== undefined && oldStage && oldStage !== updates.stage && candidateName) {
                 try {
-                    const { logCandidateMoved } = await import('./activityLogger');
+                    const { logCandidateMoved } = activityLogger;
                     await logCandidateMoved(candidateName, oldStage, updates.stage as CandidateStage);
                 } catch (error) {
                     console.error('Error logging candidate stage change:', error);
@@ -3234,7 +3235,7 @@ export const api = {
             // Log candidate edit activity
             if (updates.name || updates.email || updates.role || updates.location) {
                 try {
-                    const { logCandidateEdited } = await import('./activityLogger');
+                    const { logCandidateEdited } = activityLogger;
                     await logCandidateEdited(candidateName || data.name);
                 } catch (error) {
                     console.error('Error logging candidate edit:', error);
@@ -3244,7 +3245,7 @@ export const api = {
             // Log candidate scoring if AI match score was updated
             if (updates.aiMatchScore !== undefined && candidateName) {
                 try {
-                    const { logCandidateScored } = await import('./activityLogger');
+                    const { logCandidateScored } = activityLogger;
                     await logCandidateScored(candidateName, updates.aiMatchScore);
                 } catch (error) {
                     console.error('Error logging candidate score:', error);
@@ -5351,7 +5352,7 @@ export const api = {
 
             if (integration?.name) {
                 try {
-                    const { logIntegrationDisconnected } = await import('./activityLogger');
+                    const { logIntegrationDisconnected } = activityLogger;
                     await logIntegrationDisconnected(integration.name);
                 } catch (logErr) {
                     console.error('Error logging integration disconnect activity:', logErr);
@@ -6524,7 +6525,7 @@ export const api = {
                 );
                 if (!stageUpdateError && oldStage && oldStage !== 'Offer' && candidateName) {
                     try {
-                        const { logCandidateMoved } = await import('./activityLogger');
+                        const { logCandidateMoved } = activityLogger;
                         await logCandidateMoved(candidateName, oldStage as CandidateStage, CandidateStage.OFFER);
                     } catch (logError) {
                         console.error('Error logging candidate stage change:', logError);
