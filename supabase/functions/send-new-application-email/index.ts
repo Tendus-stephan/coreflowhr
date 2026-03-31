@@ -128,6 +128,35 @@ serve(async (req) => {
       );
     }
 
+    // Notify all workspace members in-app about the new application
+    try {
+      const { data: membership } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', recruiterId)
+        .limit(1);
+      const workspaceId = membership?.[0]?.workspace_id;
+      if (workspaceId) {
+        const { data: members } = await supabase
+          .from('workspace_members')
+          .select('user_id')
+          .eq('workspace_id', workspaceId);
+        if (members?.length) {
+          const notifRows = members.map((m: { user_id: string }) => ({
+            user_id: m.user_id,
+            title: 'New application received',
+            desc: `${candidateName} applied for ${jobTitle}.`,
+            type: 'new_application',
+            category: 'job',
+            unread: true,
+          }));
+          await supabase.from('notifications').insert(notifRows);
+        }
+      }
+    } catch (notifErr) {
+      console.warn('[send-new-application-email] notification broadcast failed', notifErr);
+    }
+
     return new Response(JSON.stringify({ sent: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

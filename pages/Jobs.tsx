@@ -432,7 +432,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                         type="checkbox"
                                                         className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black shrink-0"
                                                         checked={checked}
-                                                        disabled={!canManageAssignments || savingAssignments}
+                                                        disabled={!canManageAssignments || savingAssignments || m.isCurrentUser}
                                                         onChange={() => toggleAssignment(m.userId)}
                                                     />
                                                     <span className="text-gray-900 font-medium truncate">

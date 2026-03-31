@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { createNotification, notifyCandidateEvent, notifyJobEvent } from './notificationHelpers';
+import { createNotification, notifyCandidateEvent, notifyJobEvent, notifyWorkspaceMembers } from './notificationHelpers';
 
 /**
  * Comprehensive activity logging service
@@ -207,16 +207,12 @@ export const logWorkflowTriggered = async (workflowName: string, candidateName?:
 export const logJobCreated = async (jobTitle: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-        // Log activity
-        await logActivity({
-            action: 'job_created',
-            target: jobTitle
-        });
-        // Create notification - use job_status_update since job_created doesn't exist
+        await logActivity({ action: 'job_created', target: jobTitle });
+        // Notify all other workspace members so the team sees the new job
         try {
-            await notifyJobEvent(user.id, 'status_update', jobTitle, 'Job has been created');
+            await notifyWorkspaceMembers(user.id, 'job_status_update', 'New job posted', `${jobTitle} has been posted to the workspace.`);
         } catch (error) {
-            console.error('Error creating job created notification:', error);
+            console.error('Error broadcasting job created notification:', error);
         }
     }
 };
@@ -231,16 +227,11 @@ export const logJobEdited = async (jobTitle: string) => {
 export const logJobPublished = async (jobTitle: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-        // Log activity
-        await logActivity({
-            action: 'job_published',
-            target: jobTitle
-        });
-        // Create notification
+        await logActivity({ action: 'job_published', target: jobTitle });
         try {
-            await notifyJobEvent(user.id, 'status_update', jobTitle, 'Job has been published');
+            await notifyWorkspaceMembers(user.id, 'job_status_update', 'Job published', `${jobTitle} is now live and accepting applications.`);
         } catch (error) {
-            console.error('Error creating job published notification:', error);
+            console.error('Error broadcasting job published notification:', error);
         }
     }
 };
@@ -270,16 +261,11 @@ export const logJobCloned = async (originalTitle: string, newTitle: string) => {
 export const logJobClosed = async (jobTitle: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-        // Log activity
-        await logActivity({
-            action: 'job_closed',
-            target: jobTitle
-        });
-        // Create notification
+        await logActivity({ action: 'job_closed', target: jobTitle });
         try {
-            await notifyJobEvent(user.id, 'status_update', jobTitle, 'Job has been closed');
+            await notifyWorkspaceMembers(user.id, 'job_status_update', 'Job closed', `${jobTitle} has been closed.`);
         } catch (error) {
-            console.error('Error creating job closed notification:', error);
+            console.error('Error broadcasting job closed notification:', error);
         }
     }
 };
