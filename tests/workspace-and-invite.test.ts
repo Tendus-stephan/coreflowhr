@@ -6,6 +6,19 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+/** Creates a Supabase query mock that supports unlimited .eq()/.in()/.limit() chaining
+ *  AND can be awaited directly. Resolves to { data, error: null }. */
+const chainable = (data: any[]) => {
+  const result = { data, error: null };
+  const obj: any = {
+    eq: () => obj,
+    in: () => obj,
+    limit: () => Promise.resolve(result),
+    then: (resolve: any, reject: any) => Promise.resolve(result).then(resolve, reject),
+  };
+  return obj;
+};
+
 // Mock supabase before importing api (api uses getCurrentUserRole which uses workspace_members)
 const mockFrom = vi.fn();
 const mockGetUser = vi.fn();
@@ -34,13 +47,11 @@ describe('Workspace role and dashboard', () => {
     const { api } = await import('../services/api');
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
+        return { select: () => chainable([{ role: 'Admin', workspace_id: 'ws-1' }]) };
+      }
+      if (table === 'workspaces') {
         return {
-          select: () => ({
-            eq: () => Promise.resolve({
-              data: [{ role: 'Admin' }],
-              error: null,
-            }),
-          }),
+          select: () => ({ eq: () => ({ in: () => ({ limit: () => Promise.resolve({ data: [{ id: 'ws-1' }], error: null }) }) }) }),
         };
       }
       if (table === 'profiles') {
@@ -55,7 +66,7 @@ describe('Workspace role and dashboard', () => {
           }),
         };
       }
-      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: [], error: null }) };
     });
 
     const me = await api.auth.me();
@@ -66,13 +77,11 @@ describe('Workspace role and dashboard', () => {
     const { api } = await import('../services/api');
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
+        return { select: () => chainable([{ role: 'Viewer', workspace_id: 'ws-1' }, { role: 'Admin', workspace_id: 'ws-2' }]) };
+      }
+      if (table === 'workspaces') {
         return {
-          select: () => ({
-            eq: () => Promise.resolve({
-              data: [{ role: 'Viewer' }, { role: 'Admin' }],
-              error: null,
-            }),
-          }),
+          select: () => ({ eq: () => ({ in: () => ({ limit: () => Promise.resolve({ data: [{ id: 'ws-2' }], error: null }) }) }) }),
         };
       }
       if (table === 'profiles') {
@@ -87,7 +96,7 @@ describe('Workspace role and dashboard', () => {
           }),
         };
       }
-      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: [], error: null }) };
     });
 
     const me = await api.auth.me();
@@ -103,14 +112,10 @@ describe('Workspace role and dashboard', () => {
     ];
     mockFrom.mockImplementation((table: string) => {
       if (table === 'jobs') {
-        return {
-          select: () => Promise.resolve({ data: jobsData, error: null }),
-        };
+        return { select: () => chainable(jobsData) };
       }
       if (table === 'candidates') {
-        return {
-          select: () => Promise.resolve({ data: candidatesData, error: null }),
-        };
+        return { select: () => chainable(candidatesData) };
       }
       if (table === 'activity_log') {
         return {
@@ -118,7 +123,7 @@ describe('Workspace role and dashboard', () => {
             eq: () => ({
               eq: () => ({
                 like: () => ({
-                  order: () => Promise.resolve({ data: [], error: null }),
+                  order: () => chainable([]),
                 }),
               }),
             }),
@@ -126,10 +131,11 @@ describe('Workspace role and dashboard', () => {
         };
       }
       if (table === 'workspace_members') {
+        return { select: () => chainable([{ role: 'Admin', workspace_id: 'ws-1' }]) };
+      }
+      if (table === 'workspaces') {
         return {
-          select: () => ({
-            eq: () => Promise.resolve({ data: [{ role: 'Admin' }], error: null }),
-          }),
+          select: () => ({ eq: () => ({ in: () => ({ limit: () => Promise.resolve({ data: [{ id: 'ws-1' }], error: null }) }) }) }),
         };
       }
       if (table === 'profiles') {
@@ -144,7 +150,7 @@ describe('Workspace role and dashboard', () => {
           }),
         };
       }
-      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: [], error: null }) };
     });
 
     const { api } = await import('../services/api');
@@ -206,13 +212,11 @@ describe('One Admin per workspace (owner only)', () => {
     const { api } = await import('../services/api');
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
+        return { select: () => chainable([{ role: 'Viewer', workspace_id: 'ws-1' }]) };
+      }
+      if (table === 'workspaces') {
         return {
-          select: () => ({
-            eq: () => Promise.resolve({
-              data: [{ role: 'Viewer' }],
-              error: null,
-            }),
-          }),
+          select: () => ({ eq: () => ({ in: () => ({ limit: () => Promise.resolve({ data: [], error: null }) }) }) }),
         };
       }
       if (table === 'profiles') {
@@ -227,7 +231,7 @@ describe('One Admin per workspace (owner only)', () => {
           }),
         };
       }
-      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: [], error: null }) };
     });
     const me = await api.auth.me();
     expect(me.role).toBe('Viewer');
@@ -241,13 +245,11 @@ describe('One Admin per workspace (owner only)', () => {
     const { api } = await import('../services/api');
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
+        return { select: () => chainable([{ role: 'Admin', workspace_id: 'ws-1' }]) };
+      }
+      if (table === 'workspaces') {
         return {
-          select: () => ({
-            eq: () => Promise.resolve({
-              data: [{ role: 'Admin' }],
-              error: null,
-            }),
-          }),
+          select: () => ({ eq: () => ({ in: () => ({ limit: () => Promise.resolve({ data: [{ id: 'ws-1' }], error: null }) }) }) }),
         };
       }
       if (table === 'profiles') {
@@ -262,7 +264,7 @@ describe('One Admin per workspace (owner only)', () => {
           }),
         };
       }
-      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: [], error: null }) };
     });
     const me = await api.auth.me();
     expect(me.role).toBe('Admin');
