@@ -188,11 +188,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
     runChecks();
     return () => { cancelled = true; clearTimeout(failOpenTimeout); };
-  // location.pathname is included so the check re-runs on every navigation.
-  // This prevents stale canEnter=true state from a previous route rendering
-  // protected content momentarily before the redirect fires.
+  // Only re-run when the session token or user changes — NOT on every navigation.
+  // The subscription check result is stable within a session; re-querying the DB
+  // on every route change adds 300-500 ms of latency for no benefit.
+  // Gate 7 (RBAC) is synchronous and still enforces per-route access on every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.access_token, user?.id, location.pathname]);
+  }, [session?.access_token, user?.id]);
 
   // ─── Background session-revocation check (non-blocking) ───────────────────
   useEffect(() => {
