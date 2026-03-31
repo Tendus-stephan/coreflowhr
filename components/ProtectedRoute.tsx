@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { PageLoader } from './ui/PageLoader';
-
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
 
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   Viewer: ['/dashboard', '/candidates', '/settings'],
@@ -15,7 +11,7 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   Admin: ['*'],
 };
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const ProtectedRoute: React.FC = () => {
   const { user, session, loading } = useAuth();
   const location = useLocation();
 
@@ -26,10 +22,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isLapsedMember, setIsLapsedMember] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+  const [isNonAdminMember, setIsNonAdminMember] = useState(false);
 
-  // ─── Run ALL access + onboarding checks in one pass ───────────────────────
-  // Using session?.access_token as dependency so the check re-runs on token
-  // refresh but NOT on every unrelated re-render.
+  // ─── Effect 1: subscription + access + role check ─────────────────────────
+  // Runs once per session (on login / token refresh), NOT on every navigation.
+  // This is the expensive check (3+ DB queries). Result is cached for the
+  // lifetime of the session — see Effect 2 for the lightweight onboarding
+  // re-check that runs on every route change.
   useEffect(() => {
     if (!session || !user) {
       // No session — checks are trivially done (render logic handles redirect)
@@ -38,6 +37,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       setIsPastDue(false);
       setIsLapsedMember(false);
       setOnboardingCompleted(false);
+      setIsNonAdminMember(false);
       return;
     }
 
@@ -73,7 +73,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
         const memberships = membershipsRes.data || [];
         const belongsToWorkspace = !membershipsRes.error && memberships.length > 0;
-        const isNonAdminMember = memberships.some((m: any) => nonAdminRoles.includes(m.role));
+        const isMemberNonAdmin = memberships.some((m: any) => nonAdminRoles.includes(m.role));
 
         // Resolve role — prefer Admin if present in any membership, then fall through
         // to the first recognised non-admin role. Avoids non-deterministic memberships[0].
@@ -81,11 +81,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const allRoles = memberships.map((m: any) => m.role).filter(Boolean) as string[];
         const role = roleHierarchy.find(r => allRoles.includes(r)) ?? (memberships.length > 0 ? 'Admin' : 'Admin');
         setUserRole(role);
+        setIsNonAdminMember(isMemberNonAdmin);
 
         // ── Subscription / access check ──────────────────────────────────────
         let access = false;
 
-        if (isNonAdminMember) {
+        if (isMemberNonAdmin) {
           // Non-admin members access through the workspace — verify workspace has an active
           // subscription via a SECURITY DEFINER RPC. Direct user_settings queries are blocked
           // by RLS (users can only read their own row), so querying the admin's subscription
@@ -137,7 +138,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
         if (isOnboardingPage) {
           onboardingDone = true; // Always allow the onboarding page itself
-        } else if (isNonAdminMember) {
+        } else if (isMemberNonAdmin) {
           onboardingDone = true; // Invited non-admin members skip onboarding
         } else {
           onboardingDone = (profileRes as any).data?.onboarding_completed === true;
@@ -146,11 +147,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         if (cancelled) return;
 
         // Detect past_due so we can route to /settings instead of /?pricing=true
-        const pastDue = !access && !isNonAdminMember &&
+        const pastDue = !access && !isMemberNonAdmin &&
           settingsRes.data?.subscription_status?.toLowerCase() === 'past_due';
 
         // Non-admin member of a workspace whose subscription lapsed — they can't self-subscribe
-        const lapsedMember = !access && isNonAdminMember;
+        const lapsedMember = !access && isMemberNonAdmin;
 
         setCanEnter(access);
         setIsPastDue(pastDue);
@@ -163,6 +164,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           setCanEnter(true);
           setIsPastDue(false);
           setIsLapsedMember(false);
+          setIsNonAdminMember(false);
           setOnboardingCompleted(true);
         }
       } finally {
@@ -181,6 +183,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setCanEnter(true);
         setIsPastDue(false);
         setIsLapsedMember(false);
+        setIsNonAdminMember(false);
         setOnboardingCompleted(true);
         setChecksComplete(true);
       }
@@ -188,12 +191,43 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
     runChecks();
     return () => { cancelled = true; clearTimeout(failOpenTimeout); };
-  // Only re-run when the session token or user changes — NOT on every navigation.
-  // The subscription check result is stable within a session; re-querying the DB
-  // on every route change adds 300-500 ms of latency for no benefit.
-  // Gate 7 (RBAC) is synchronous and still enforces per-route access on every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token, user?.id]);
+
+  // ─── Effect 2: lightweight onboarding re-check on every navigation ────────
+  // Effect 1 only runs on session change. This effect re-checks onboarding
+  // status on every route change so that completing onboarding and navigating
+  // to /dashboard doesn't loop back to /onboarding due to stale state.
+  // One lightweight DB query per navigation (vs 3+ in Effect 1).
+  useEffect(() => {
+    if (!checksComplete) return;     // Wait for Effect 1 first
+    if (isNonAdminMember) return;    // Non-admin members always skip onboarding
+    if (!session || !user) return;
+
+    if (location.pathname === '/onboarding') {
+      setOnboardingCompleted(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setOnboardingCompleted(data?.onboarding_completed === true);
+      })
+      .catch(() => {
+        // Fail open — keep existing value on transient error
+      });
+
+    return () => { cancelled = true; };
+  // checksComplete and isNonAdminMember are used as guards but not deps —
+  // Effect 2 must only re-run on navigation, not whenever Effect 1 commits state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, session?.access_token, user?.id]);
 
   // ─── Background session-revocation check (non-blocking) ───────────────────
   useEffect(() => {
@@ -322,7 +356,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

@@ -346,94 +346,20 @@ const AppRoutes: React.FC = () => {
           path="/workspace-lapsed"
           element={<WorkspaceLapsed />}
         />
-        <Route 
-          path="/onboarding" 
-          element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/candidates" 
-          element={
-            <ProtectedRoute>
-              <CandidateBoard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/jobs" 
-          element={
-            <ProtectedRoute>
-              <Jobs />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/jobs/new" 
-          element={
-            <ProtectedRoute>
-              <AddJob />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/jobs/edit/:id" 
-          element={
-            <ProtectedRoute>
-              <AddJob />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings" 
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/calendar" 
-          element={
-            <ProtectedRoute>
-              <Calendar />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/offers" 
-          element={
-            <ProtectedRoute>
-              <Offers />
-            </ProtectedRoute>
-          } 
-        />
-        <Route
-          path="/clients"
-          element={
-            <ProtectedRoute>
-              <Clients />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          }
-        />
+        {/* Single shared ProtectedRoute — DB access check runs once per session */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/onboarding"    element={<Onboarding />} />
+          <Route path="/dashboard"     element={<Dashboard />} />
+          <Route path="/candidates"    element={<CandidateBoard />} />
+          <Route path="/jobs"          element={<Jobs />} />
+          <Route path="/jobs/new"      element={<AddJob />} />
+          <Route path="/jobs/edit/:id" element={<AddJob />} />
+          <Route path="/settings"      element={<Settings />} />
+          <Route path="/calendar"      element={<Calendar />} />
+          <Route path="/offers"        element={<Offers />} />
+          <Route path="/clients"       element={<Clients />} />
+          <Route path="/reports"       element={<Reports />} />
+        </Route>
         <Route path="/change-email" element={<ChangeEmail />} />
 <Route
           path="/jobs/apply/:jobId"
