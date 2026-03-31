@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useAccess } from '../contexts/AccessContext';
 import { supabase } from '../services/supabase';
 import { PageLoader } from './ui/PageLoader';
 
@@ -18,7 +17,6 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, session, loading } = useAuth();
-  const { setSidebarReady } = useAccess();
   const location = useLocation();
 
   // Single flag — only true once ALL checks have completed
@@ -40,7 +38,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       setIsPastDue(false);
       setIsLapsedMember(false);
       setOnboardingCompleted(false);
-      setSidebarReady(false);
       return;
     }
 
@@ -159,7 +156,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsPastDue(pastDue);
         setIsLapsedMember(lapsedMember);
         setOnboardingCompleted(onboardingDone);
-        setSidebarReady(access);
       } catch (err) {
         console.error('[ProtectedRoute] access check failed:', err);
         if (!cancelled) {
@@ -168,7 +164,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           setIsPastDue(false);
           setIsLapsedMember(false);
           setOnboardingCompleted(true);
-          setSidebarReady(true);
         }
       } finally {
         if (!cancelled) {
@@ -187,7 +182,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsPastDue(false);
         setIsLapsedMember(false);
         setOnboardingCompleted(true);
-        setSidebarReady(true);
         setChecksComplete(true);
       }
     }, 10000);
