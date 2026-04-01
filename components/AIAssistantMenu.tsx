@@ -39,7 +39,7 @@ export const AIAssistantMenu: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRequestTime = useRef<number>(0);
-  const MIN_REQUEST_INTERVAL = 8000; // 8 seconds — keeps under free-tier ~15 req/min so you hit rate limit less
+  const MIN_REQUEST_INTERVAL = 2000; // 2 seconds — prevents accidental double-sends; Claude API rate limits are generous on paid plans
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -72,7 +72,7 @@ export const AIAssistantMenu: React.FC = () => {
       const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
       setMessages(prev => [...prev, { 
         role: 'model', 
-        text: `Please wait ${Math.ceil(waitTime / 1000)} seconds before sending again. The AI has a free-tier limit (about 15 messages per minute); waiting helps avoid hitting it.` 
+        text: `Please wait ${Math.ceil(waitTime / 1000)} second before sending again.`
       }]);
       return;
     }

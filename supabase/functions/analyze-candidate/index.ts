@@ -49,34 +49,47 @@ serve(async (req) => {
     const jobSkillsList = Array.isArray(jobSkills) ? jobSkills.join(", ") : "";
     const experienceText = experience != null ? `${experience} years` : "unknown";
 
-    const prompt = `You are an expert technical recruiter. Analyze this candidate for the role of "${jobTitle}" and provide a structured assessment.
+    const prompt = `Assess this candidate holistically for the role of "${jobTitle}".
 
-Candidate Information:
-- Current/Recent Role: ${role || "Not specified"}
-- Experience: ${experienceText}
-- Skills: ${skillsList || "Not specified"}
-- Resume Summary: ${resumeSummary || "Not provided"}
+<candidate>
+Role/Title: ${role || "Not specified"}
+Experience: ${experienceText}
+Skills: ${skillsList || "Not specified"}
+Background summary: ${resumeSummary || "Not provided"}
+</candidate>
 
-Job Requirements:
-- Job Title: ${jobTitle}
-- Job Description: ${jobDescription || "Not provided"}
-- Required Skills: ${jobSkillsList || "Not specified"}
+<job>
+Title: ${jobTitle}
+Description: ${jobDescription || "Not provided"}
+Required skills: ${jobSkillsList || "Not specified"}
+</job>
 
-Provide a JSON response with this exact structure:
+Evaluate across ALL of these dimensions — do NOT just match keywords:
+
+1. EXPERIENCE RELEVANCE: Is their background genuinely applicable, even if in a slightly different context or industry?
+2. CAREER TRAJECTORY: Is this role a natural next step, or a lateral move, regression, or stretch beyond their level?
+3. SENIORITY MATCH: Does their experience level match what the role demands (not over/under-qualified)?
+4. SKILL DEPTH vs BREADTH: Do they have real expertise in the core skills, or just surface exposure?
+5. TRANSFERABLE VALUE: What relevant skills/experience do they bring even if not exact keyword matches?
+6. RED FLAGS: Anything concerning — very short tenures, unexplained gaps, significant misalignment?
+
+Scoring (calibrated to real hiring standards — be honest, not generous):
+- 88–100: Exceptional — would be a top hire; exceeds requirements
+- 75–87: Strong — clearly qualified, hire with confidence, minor gaps only
+- 60–74: Good — qualified, some development areas but hireable
+- 45–59: Moderate — meets some requirements, notable gaps, risky hire
+- 25–44: Weak — significant gaps, would need substantial development
+- 0–24: Poor — does not meet core requirements
+
+A score of 75+ means the candidate is genuinely ready to perform in this role today.
+
+Return ONLY this JSON (no markdown, no backticks):
 {
   "score": <integer 0-100>,
-  "summary": "<2-3 sentence assessment of fit>",
-  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-  "weaknesses": ["<gap 1>", "<gap 2>"]
-}
-
-Scoring guide (be strict):
-- 85-100: Exceptional fit — meets or exceeds all key requirements
-- 70-84: Strong fit — meets most requirements with minor gaps
-- 50-69: Moderate fit — meets some requirements but has notable gaps
-- 0-49: Poor fit — significant gaps in skills or experience
-
-Return ONLY the JSON object, no markdown, no backticks, no explanation.`;
+  "summary": "<2-3 sentences: overall fit verdict, key reason for score, and one specific insight>",
+  "strengths": ["<specific strength 1>", "<specific strength 2>", "<specific strength 3>"],
+  "weaknesses": ["<specific gap or risk 1>", "<specific gap or risk 2>"]
+}`;
 
     const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -88,7 +101,7 @@ Return ONLY the JSON object, no markdown, no backticks, no explanation.`;
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1000,
-        system: "You are an expert technical recruiter. Analyze candidates and return only valid JSON assessments. Never wrap your response in markdown code blocks.",
+        system: "You are a senior talent acquisition specialist with 15+ years of experience across technical and professional recruitment. You assess candidates holistically — considering career trajectory, seniority match, transferable skills, and real-world role fit — not just keyword overlap. Your scores are calibrated and honest. Return only valid JSON, no markdown.",
         messages: [{ role: "user", content: prompt }],
       }),
     });

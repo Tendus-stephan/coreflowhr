@@ -332,48 +332,53 @@ export interface EmailDraft {
 }
 
 export const draftEmail = async (candidate: Candidate, type: 'Screening' | 'Offer' | 'Hired' | 'Rejection'): Promise<EmailDraft> => {
-    const modelId = "gemini-2.0-flash";
-    
-    // Build context about the candidate
+    // Build candidate context
     const candidateContext = [];
-    if (candidate.experience) {
-        candidateContext.push(`${candidate.experience} years of experience`);
-    }
-    if (candidate.skills && candidate.skills.length > 0) {
-        candidateContext.push(`Skills: ${candidate.skills.slice(0, 5).join(', ')}`);
-    }
-    if (candidate.aiMatchScore) {
-        candidateContext.push(`Match score: ${candidate.aiMatchScore}%`);
-    }
-    
-    const contextText = candidateContext.length > 0 ? `\n\nCandidate Context:\n${candidateContext.join('\n')}` : '';
-    
-    const typeSpecificInstructions = {
-        Screening: `Write a warm, engaging screening email that invites the candidate to proceed to the next stage. Highlight why they're a good fit based on their background. Keep it concise (2-3 short paragraphs max).`,
-        Offer: `Write an enthusiastic job offer email. Congratulate them and express excitement about having them join the team. Include next steps. Keep it concise (2-3 short paragraphs max).`,
-        Hired: `Write a warm welcome email for a newly hired candidate. Express excitement about them joining the team. Include onboarding information and next steps. Keep it concise (2-3 short paragraphs max).`,
-        Rejection: `Write a respectful and empathetic rejection email. Thank them for their interest and time. Keep it brief and professional (1-2 short paragraphs max).`
+    if (candidate.experience) candidateContext.push(`${candidate.experience} years of experience`);
+    if (candidate.skills && candidate.skills.length > 0) candidateContext.push(`Skills: ${candidate.skills.slice(0, 5).join(', ')}`);
+    if (candidate.aiMatchScore) candidateContext.push(`AI match score: ${candidate.aiMatchScore}%`);
+    if (candidate.location) candidateContext.push(`Location: ${candidate.location}`);
+    const contextText = candidateContext.length > 0 ? `\nCandidate details:\n${candidateContext.join('\n')}` : '';
+
+    const typeInstructions: Record<string, { instructions: string; tone: string }> = {
+        Screening: {
+            tone: 'professional and warm',
+            instructions: `You are inviting this candidate to progress to the screening stage. Briefly acknowledge why their profile stood out, explain what the next step is, and make it easy for them to respond. 2–3 short paragraphs.`
+        },
+        Offer: {
+            tone: 'genuinely excited and professional',
+            instructions: `You are extending a job offer. Open with a clear congratulation. Mention the role and express real enthusiasm for having them join. Note that full offer details will follow and invite any questions. 2–3 short paragraphs. Do not invent salary figures.`
+        },
+        Hired: {
+            tone: 'warm and welcoming',
+            instructions: `The candidate has accepted and is now hired. Write an onboarding welcome email. Express genuine excitement, confirm the role, and let them know someone will be in touch with start details. 2–3 short paragraphs.`
+        },
+        Rejection: {
+            tone: 'respectful and empathetic',
+            instructions: `Decline the candidate's application with genuine respect. Acknowledge their effort, explain briefly that you've moved forward with another candidate, and leave a positive impression. Keep it to 1–2 short paragraphs — no hollow promises about future roles unless you mean them.`
+        }
     };
-    
-    const prompt = `Write a professional ${type} email for ${candidate.name} applying for the ${candidate.role} position.
 
-${typeSpecificInstructions[type]}
+    const { instructions, tone } = typeInstructions[type];
 
-Requirements:
-- Generate both a subject line and email body
-- Subject line should be clear, professional, and under 60 characters
-- Email body should be concise, warm, and professional
-- Use the candidate's name naturally
-- Keep the tone appropriate for a ${type} email
+    const prompt = `You are a senior recruiter writing a ${type.toLowerCase()} email to ${candidate.name}, who applied for the ${candidate.role || 'open'} position.
 
-Return a JSON object with:
-1. "subject": The email subject line (string)
-2. "content": The email body content (string, use \\n for line breaks)
+${instructions}
 
-${contextText}`;
+Tone: ${tone}
+${contextText}
+
+Rules:
+- Use the candidate's first name in the greeting
+- No generic corporate filler ("We appreciate your interest", "After careful consideration")
+- Subject line: clear, specific, under 60 characters
+- Body: plain text, use \\n for line breaks between paragraphs
+- End with a professional sign-off (no name — the recruiter will add their own)
+
+Return ONLY valid JSON: { "subject": "...", "content": "..." }`;
     
     try {
-        const resultText = await callAI(prompt, { jsonMode: true });
+        const resultText = await callAI(prompt, { jsonMode: true, temperature: 0.7 });
         if (!resultText) throw new Error("No response from AI");
 
         const parsed = JSON.parse(resultText);
@@ -391,7 +396,6 @@ ${contextText}`;
 };
 
 export const draftOutreachMessage = async (candidate: Candidate, job: Job, registrationLink: string): Promise<EmailDraft> => {
-    const modelId = "gemini-2.0-flash";
     
     // Build context about the candidate and job
     const candidateContext = [];
@@ -469,8 +473,7 @@ export interface EmailTemplateGeneration {
 }
 
 export const generateEmailTemplate = async (templateType: 'interview' | 'screening' | 'rejection' | 'offer' | 'hired' | 'reschedule'): Promise<EmailTemplateGeneration> => {
-    const modelId = "gemini-2.0-flash";
-    
+
     const templateDescriptions: Record<string, { name: string; purpose: string; tone: string; variables: string }> = {
         interview: {
             name: 'Interview Invitation',
@@ -754,7 +757,7 @@ Format your response as JSON with "subject" and "content" fields. The content sh
         // Try generating with JSON mode first; fall back to plain text + manual extract
         let result;
         try {
-            const resultText = await callAI(prompt, { jsonMode: true, temperature: 1.0, topP: 0.95 });
+            const resultText = await callAI(prompt, { jsonMode: true, temperature: 0.7 });
             if (!resultText) throw new Error("No response from AI");
 
             const parsed = JSON.parse(resultText);
@@ -770,7 +773,7 @@ Format your response as JSON with "subject" and "content" fields. The content sh
             // Fallback: plain text request + manual JSON extraction
             const fallbackText = await callAI(
                 prompt + "\n\nIMPORTANT: Respond ONLY with valid JSON in this exact format: {\"subject\": \"...\", \"content\": \"...\"}",
-                { temperature: 1.0, topP: 0.95 }
+                { temperature: 0.7 }
             ) || "";
             // Try to extract JSON from response
             const jsonMatch = fallbackText.match(/\{[\s\S]*"subject"[\s\S]*"content"[\s\S]*\}/);
@@ -875,15 +878,15 @@ RESPONSE FORMAT (always follow when answering):
  * Get AI chat response for general conversation
  */
 export const getAIChatResponse = async (userPrompt: string, history: ChatMessage[] = []): Promise<string> => {
-  // Use the comprehensive system prompt + structured response format for chat
   const SYSTEM_PROMPT = COMPREHENSIVE_SYSTEM_PROMPT + CHAT_RESPONSE_FORMAT;
+  // Cap history to last 10 exchanges to keep token usage bounded
+  const trimmedHistory = history.slice(-10);
 
   try {
     const resultText = await callAI(userPrompt, {
       systemInstruction: SYSTEM_PROMPT,
-      history,
+      history: trimmedHistory,
       temperature: 0.7,
-      topP: 0.8,
     });
     if (!resultText) throw new Error("No response from AI");
     return resultText;
