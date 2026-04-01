@@ -91,14 +91,13 @@ async function extractTextFromPDF(file: File): Promise<string> {
     try {
         const arrayBuffer = await file.arrayBuffer();
         
-        // Configure PDF.js with worker from local file
         const loadingTask = pdfjsLib.getDocument({
             data: arrayBuffer,
             useSystemFonts: true,
-            verbosity: 0, // Suppress console warnings
-            standardFontDataUrl: '/node_modules/pdfjs-dist/cmaps/',
-            cMapUrl: '/node_modules/pdfjs-dist/cmaps/',
-            cMapPacked: true
+            verbosity: 0,
+            cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/cmaps/',
+            cMapPacked: true,
+            standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/standard_fonts/',
         });
         
         const pdf = await loadingTask.promise;

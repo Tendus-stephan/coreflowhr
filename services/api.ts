@@ -2590,27 +2590,31 @@ export const api = {
                 try {
                     // Extract text from CV
                     const cvText = await extractTextFromCV(applicationData.cvFile);
-                    
-                    // Parse CV text using AI only (no regex fallback)
-                    const { parseCVTextWithAI } = await import('./cvParser');
-                    parsedData = await parseCVTextWithAI(cvText, job.skills || []);
-                    
-                    // Override email with form email (form email is more reliable)
-                    parsedData.email = normalizedEmail;
-                    
-                    // Override phone with form phone if provided
-                    if (applicationData.phone) {
-                        parsedData.phone = applicationData.phone;
+
+                    // Try AI parse first; fall back to regex so applications never block
+                    try {
+                        const { parseCVTextWithAI } = await import('./cvParser');
+                        parsedData = await parseCVTextWithAI(cvText, job.skills || []);
+                    } catch (aiErr) {
+                        console.warn('[apply] AI CV parse failed, using regex fallback:', aiErr);
+                        const { parseCVText } = await import('./cvParser');
+                        parsedData = parseCVText(cvText, job.skills || []);
                     }
-                    
-                    // Calculate match score based on skills overlap (returns score and matching count)
+
+                    // Form fields always win over extracted values
+                    parsedData.email = normalizedEmail;
+                    if (applicationData.phone) parsedData.phone = applicationData.phone;
+
+                    // Calculate match score
                     const matchResult = calculateBasicMatchScore(parsedData.skills, job.skills || []);
-                    parsedData.matchScore = matchResult.score; // Will be null if no job skills
+                    parsedData.matchScore = matchResult.score;
                     parsedData.matchingSkillsCount = matchResult.matchingCount;
                 } catch (parseError: any) {
-                    console.error('Error parsing CV with AI:', parseError);
-                    // Re-throw error - AI parsing is required
-                    throw new Error('CV parsing temporarily unavailable. Please try again.');
+                    console.error('[apply] CV text extraction failed:', parseError);
+                    // Text extraction itself failed (corrupt/image-only PDF).
+                    // Still allow the application through with form data only.
+                    parsedData = { fullText: '', skills: [], email: normalizedEmail };
+                    if (applicationData.phone) parsedData.phone = applicationData.phone;
                 }
 
                 const extractedSkills = parsedData.skills;
