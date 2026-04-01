@@ -2223,11 +2223,29 @@ export const api = {
                 throw new Error('CV appears to be empty or image-only — no text could be extracted');
             }
 
-            // Step 2: AI parse — non-fatal but log failures
-            try {
-                const { data: fnData, error: fnError } = await supabase.functions.invoke('parse-cv', {
+            // Steps 2 & 3: AI parse + AI score — run in parallel to halve latency
+            const [parseResult, analyzeResult] = await Promise.allSettled([
+                supabase.functions.invoke('parse-cv', {
                     body: { cvText, jobSkills: job.skills ?? [] },
-                });
+                }),
+                supabase.functions.invoke('analyze-candidate', {
+                    body: {
+                        // analyze-candidate can start immediately with raw text —
+                        // no need to wait for parse-cv structured output
+                        resumeSummary: cvText.substring(0, 800),
+                        skills: [],
+                        experience: null,
+                        role: job.title,
+                        jobTitle: job.title,
+                        jobDescription: '',
+                        jobSkills: job.skills ?? [],
+                    },
+                }),
+            ]);
+
+            // Consume parse-cv result
+            if (parseResult.status === 'fulfilled') {
+                const { data: fnData, error: fnError } = parseResult.value;
                 if (fnError) {
                     console.error('[bulkImport] parse-cv edge function error:', fnError);
                 } else if (fnData?.error) {
@@ -2236,8 +2254,8 @@ export const api = {
                     aiParsed = fnData;
                     parsed = { ...fnData, fullText: cvText };
                 }
-            } catch (parseErr) {
-                console.error('[bulkImport] parse-cv invocation threw:', parseErr);
+            } else {
+                console.error('[bulkImport] parse-cv invocation threw:', parseResult.reason);
             }
 
             const linkedinUrl: string | null = aiParsed?.portfolioUrls?.linkedin || null;
@@ -2257,35 +2275,22 @@ export const api = {
                 .replace(/\d{4}[-–]\d{2}[-–]\d{2}/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
-            // Extract the first two name-like words to strip trailing job titles / seniority words.
-            // Single uppercase initials are skipped. Words must start uppercase with a lowercase
-            // second char — filters all-caps abbreviations like HR, VP, IT while keeping AlHassan etc.
             const nameWords = rawFromFile.split(' ');
             const nameOnlyWords: string[] = [];
             for (const word of nameWords) {
                 if (nameOnlyWords.length >= 2) break;
-                if (/^[A-ZÀ-ÖØ-Ý]$/.test(word)) continue; // skip bare initials
+                if (/^[A-ZÀ-ÖØ-Ý]$/.test(word)) continue;
                 if (/^[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ][a-zA-ZÀ-ÿ'\-]*$/.test(word)) nameOnlyWords.push(word);
                 else break;
             }
             const nameFromFile = nameOnlyWords.length >= 2 ? nameOnlyWords.join(' ') : rawFromFile;
             const name = parsed.name?.trim() || nameFromFile;
 
-            // Step 3: AI scoring — non-fatal but log failures
+            // Consume analyze-candidate result
             let aiScore: number | null = null;
             let aiAnalysis: string | null = null;
-            try {
-                const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
-                    body: {
-                        resumeSummary: cvText.substring(0, 800),
-                        skills: parsed.skills ?? [],
-                        experience: parsed.experienceYears ?? null,
-                        role: parsed.workExperience?.[0]?.role || job.title,
-                        jobTitle: job.title,
-                        jobDescription: '',
-                        jobSkills: job.skills ?? [],
-                    },
-                });
+            if (analyzeResult.status === 'fulfilled') {
+                const { data: analysis, error: analysisError } = analyzeResult.value;
                 if (analysisError) {
                     console.error('[bulkImport] analyze-candidate error:', analysisError);
                 } else if (analysis?.score) {
@@ -2294,8 +2299,8 @@ export const api = {
                     const w = analysis.weaknesses?.length ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}` : '';
                     aiAnalysis = `${analysis.summary}${s}${w}`;
                 }
-            } catch (analysisErr) {
-                console.error('[bulkImport] analyze-candidate invocation threw:', analysisErr);
+            } else {
+                console.error('[bulkImport] analyze-candidate invocation threw:', analyzeResult.reason);
             }
 
             const { data: candidate, error: insertError } = await supabase

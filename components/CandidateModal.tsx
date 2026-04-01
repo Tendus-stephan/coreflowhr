@@ -1863,7 +1863,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
     {/* Confirmation Modal */}
     {showConfirmSend && createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">

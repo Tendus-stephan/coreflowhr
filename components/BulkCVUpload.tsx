@@ -105,27 +105,33 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
     const importedIds: string[] = [];
 
-    for (const entry of files) {
-      if (entry.status === 'done') continue;
-      setFiles(prev => prev.map(f => f.id === entry.id ? { ...f, status: 'processing' } : f));
+    // Process files in batches of 2 to halve total import time
+    const pending = files.filter(f => f.status !== 'done');
+    for (let i = 0; i < pending.length; i += 2) {
+      const batch = pending.slice(i, i + 2);
 
-      try {
-        const result = await api.candidates.bulkImport(jobId, entry.file);
+      // Mark batch as processing
+      setFiles(prev => prev.map(f =>
+        batch.some(b => b.id === f.id) ? { ...f, status: 'processing' } : f
+      ));
 
-        if (result.candidateId) importedIds.push(result.candidateId);
-
-        setFiles(prev => prev.map(f =>
-          f.id === entry.id
-            ? { ...f, status: 'done', candidateId: result.candidateId }
-            : f
-        ));
-      } catch (err: any) {
-        setFiles(prev => prev.map(f =>
-          f.id === entry.id
-            ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
-            : f
-        ));
-      }
+      await Promise.allSettled(
+        batch.map(async (entry) => {
+          try {
+            const result = await api.candidates.bulkImport(jobId, entry.file);
+            if (result.candidateId) importedIds.push(result.candidateId);
+            setFiles(prev => prev.map(f =>
+              f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId } : f
+            ));
+          } catch (err: any) {
+            setFiles(prev => prev.map(f =>
+              f.id === entry.id
+                ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
+                : f
+            ));
+          }
+        })
+      );
     }
 
     setImporting(false);
@@ -186,7 +192,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: '90vh' }}>
 
         {/* Header */}
