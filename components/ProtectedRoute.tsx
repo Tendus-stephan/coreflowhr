@@ -270,21 +270,15 @@ const ProtectedRoute: React.FC = () => {
         const { data: record } = await Promise.race([checkPromise, timeout]) as any;
 
         if (!record && isMounted) {
-          // Not found — try tracking once then recheck
+          // No record for this device — register it. Supabase auth is the source
+          // of truth for session validity; a missing user_sessions row just means
+          // this device hasn't been tracked yet (new browser, cleared storage, etc.).
+          // Never force a sign-out based solely on a missing row — that causes
+          // false-positive logouts when trackSession() fails or is slow.
           try {
             await trackSession();
-            await new Promise(r => setTimeout(r, 1000));
-            const retry = await supabase
-              .from('user_sessions')
-              .select('id')
-              .eq('device_fingerprint', fingerprint)
-              .eq('user_id', user.id)
-              .maybeSingle();
-            if (!retry.data && isMounted) {
-              supabase.auth.signOut().catch(() => {}).finally(() => { window.location.href = '/login'; });
-            }
           } catch {
-            // Can't verify — assume valid
+            // Ignore — best-effort tracking only
           }
         }
       } catch {

@@ -143,7 +143,8 @@ export const notifySystemEvent = async (
 
 /**
  * Broadcast a notification to all workspace members except the actor.
- * Used for team-wide events: job created, new application, offer accepted, etc.
+ * Uses a SECURITY DEFINER RPC to bypass the RLS policy that otherwise
+ * prevents inserting notifications for other users.
  */
 export const notifyWorkspaceMembers = async (
     actorUserId: string,
@@ -152,36 +153,12 @@ export const notifyWorkspaceMembers = async (
     desc: string
 ): Promise<void> => {
     try {
-        // Find actor's workspace
-        const { data: myMembership } = await supabase
-            .from('workspace_members')
-            .select('workspace_id')
-            .eq('user_id', actorUserId)
-            .limit(1);
-
-        const workspaceId = myMembership?.[0]?.workspace_id;
-        if (!workspaceId) return;
-
-        // Get all other workspace members
-        const { data: members } = await supabase
-            .from('workspace_members')
-            .select('user_id')
-            .eq('workspace_id', workspaceId)
-            .neq('user_id', actorUserId);
-
-        if (!members?.length) return;
-
-        const config = getNotificationConfig(type);
-        const rows = members.map((m: { user_id: string }) => ({
-            user_id: m.user_id,
-            title,
-            desc,
-            type,
-            category: config.category,
-            unread: true,
-        }));
-
-        const { error } = await supabase.from('notifications').insert(rows);
+        const { error } = await supabase.rpc('broadcast_workspace_notification', {
+            p_actor_user_id: actorUserId,
+            p_type: type,
+            p_title: title,
+            p_desc: desc,
+        });
         if (error) console.error('Error broadcasting workspace notification:', error);
     } catch (error) {
         console.error('Error in notifyWorkspaceMembers:', error);
