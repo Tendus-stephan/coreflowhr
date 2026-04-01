@@ -33,7 +33,7 @@ export const AIAssistantMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: 'CoreFlowHR AI system initialized. How can I help you with recruitment today?' }
+    { role: 'model', text: "Hi, I'm Cora — your CoreFlowHR recruitment assistant. How can I help you today?" }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -122,7 +122,7 @@ export const AIAssistantMenu: React.FC = () => {
               <Command size={16} />
             </div>
             <div>
-              <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-wider">CoreFlowHR AI</h3>
+              <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-wider">Cora AI</h3>
               <div className="flex items-center gap-1">
                 <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
