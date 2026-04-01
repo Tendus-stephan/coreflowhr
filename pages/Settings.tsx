@@ -181,7 +181,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
             
             const geminiType = templateTypeMap[formData.type] || 'interview';
             
-            const { generateEmailTemplate } = await import('../services/geminiService');
+            const { generateEmailTemplate } = await import('../services/aiService');
             const generated = await generateEmailTemplate(geminiType);
             
             setFormData({

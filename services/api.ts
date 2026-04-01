@@ -2629,7 +2629,7 @@ export const api = {
                 // This happens during CV upload, so it's ready immediately when viewing
                 if (job.description && cvText && cvText.length > 100) {
                     try {
-                        const { generateCandidateAnalysis } = await import('./geminiService');
+                        const { generateCandidateAnalysis } = await import('./aiService');
                         const candidateForAnalysis: Candidate = {
                             id: '', // Temporary, won't be used in analysis
                             name: applicationData.name, // Always use form name, never CV-extracted name

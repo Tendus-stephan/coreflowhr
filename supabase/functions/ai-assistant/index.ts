@@ -11,7 +11,6 @@ interface AIRequest {
   systemInstruction?: string;
   history?: Array<{ role: 'user' | 'model'; text: string }>;
   temperature?: number;
-  topP?: number;
   jsonMode?: boolean;
 }
 
@@ -30,7 +29,7 @@ serve(async (req) => {
     }
 
     const body: AIRequest = await req.json();
-    const { prompt, systemInstruction, history = [], temperature = 0.7, topP = 0.8, jsonMode = false } = body;
+    const { prompt, systemInstruction, history = [], temperature = 0.7, jsonMode = false } = body;
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: 'prompt is required' }), {
@@ -40,20 +39,14 @@ serve(async (req) => {
     }
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
-    let text: string;
-
-    if (ANTHROPIC_API_KEY) {
-      text = await callClaude(ANTHROPIC_API_KEY, { prompt, systemInstruction, history, temperature, topP, jsonMode });
-    } else if (GEMINI_API_KEY) {
-      text = await callGemini(GEMINI_API_KEY, { prompt, systemInstruction, history, temperature, topP, jsonMode });
-    } else {
+    if (!ANTHROPIC_API_KEY) {
       return new Response(
-        JSON.stringify({ error: 'No AI provider configured. Set ANTHROPIC_API_KEY or GEMINI_API_KEY in Supabase secrets.' }),
+        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured. Set it in Supabase Edge Function secrets.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    const text = await callClaude(ANTHROPIC_API_KEY, { prompt, systemInstruction, history, temperature, jsonMode });
 
     return new Response(JSON.stringify({ text }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,7 +67,6 @@ async function callClaude(
     systemInstruction?: string;
     history?: Array<{ role: string; text: string }>;
     temperature?: number;
-    topP?: number;
     jsonMode?: boolean;
   },
 ): Promise<string> {
@@ -87,7 +79,7 @@ async function callClaude(
   ];
 
   const body: Record<string, unknown> = {
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     messages,
     temperature: opts.temperature ?? 0.7,
@@ -95,6 +87,11 @@ async function callClaude(
 
   if (opts.systemInstruction) {
     body.system = opts.systemInstruction;
+  }
+
+  // For JSON mode, append instruction to system prompt
+  if (opts.jsonMode) {
+    body.system = (body.system ? body.system + '\n\n' : '') + 'You must respond with valid JSON only. No markdown, no explanation.';
   }
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -114,56 +111,4 @@ async function callClaude(
 
   const data = await res.json();
   return data.content?.[0]?.text ?? '';
-}
-
-async function callGemini(
-  apiKey: string,
-  opts: {
-    prompt: string;
-    systemInstruction?: string;
-    history?: Array<{ role: string; text: string }>;
-    temperature?: number;
-    topP?: number;
-    jsonMode?: boolean;
-  },
-): Promise<string> {
-  const contents = [
-    ...(opts.history || []).map((m) => ({
-      role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: m.text }],
-    })),
-    { role: 'user', parts: [{ text: opts.prompt }] },
-  ];
-
-  const generationConfig: Record<string, unknown> = {
-    temperature: opts.temperature ?? 0.7,
-    topP: opts.topP ?? 0.8,
-  };
-
-  if (opts.jsonMode) {
-    generationConfig.responseMimeType = 'application/json';
-  }
-
-  const reqBody: Record<string, unknown> = { contents, generationConfig };
-
-  if (opts.systemInstruction) {
-    reqBody.systemInstruction = { parts: [{ text: opts.systemInstruction }] };
-  }
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reqBody),
-    },
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }

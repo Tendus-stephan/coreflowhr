@@ -100,7 +100,7 @@ serve(async (req) => {
 const PDL_API_URL = 'https://api.peopledatalabs.com/v5/person/search';
 // Note: PDL v5 Person Search requires SQL-style queries via GET; pagination via scroll_token (not 'from').
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
+const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
 function getSourcingCap(isFreeAccess: boolean): number {
   return isFreeAccess ? 30 : 100;

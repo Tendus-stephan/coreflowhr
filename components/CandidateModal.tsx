@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
 import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply } from 'lucide-react';
 import { Button } from './ui/Button';
-import { draftEmail, draftOutreachMessage } from '../services/geminiService';
+import { draftEmail, draftOutreachMessage } from '../services/aiService';
 import { api } from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList, Legend } from 'recharts';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';

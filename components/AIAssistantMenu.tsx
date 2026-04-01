@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Send, X, Sparkles, Command, ChevronDown, Zap, Loader2 } from 'lucide-react';
 import { useSourcing } from '../contexts/SourcingContext';
-import { getAIChatResponse, ChatMessage } from '../services/geminiService';
+import { getAIChatResponse, ChatMessage } from '../services/aiService';
 
 /** Renders AI message with paragraphs, **bold**, and line breaks */
 function FormattedMessage({ text }: { text: string }) {
