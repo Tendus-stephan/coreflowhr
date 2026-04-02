@@ -298,7 +298,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
               >
                 <Upload size={20} className="mx-auto mb-2 text-gray-400" />
                 <p className="text-sm font-medium text-gray-700">
-                  Drop CVs here or <span className="underline">browse</span>
+                  Drop CVs here or <span className="text-gray-900 font-semibold underline">browse</span>
                 </p>
                 <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX · Multiple files supported</p>
                 <input
@@ -320,7 +320,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-gray-800 truncate">{entry.file.name}</p>
                         {entry.status === 'done' && (
-                          <p className="text-xs text-green-600 mt-0.5">
+                          <p className="text-xs text-gray-400 mt-0.5">
                             {entry.isUpdate ? 'Updated existing candidate' : 'Added to pipeline'}
                           </p>
                         )}
@@ -338,7 +338,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
                           </button>
                         )}
                         {entry.status === 'processing' && <Loader2 size={14} className="text-gray-500 animate-spin" />}
-                        {entry.status === 'done'         && <CheckCircle size={14} className="text-green-500" />}
+                        {entry.status === 'done'         && <CheckCircle size={14} className="text-gray-400" />}
                         {entry.status === 'error'        && <AlertCircle size={14} className="text-red-500" />}
                       </div>
                     </div>
@@ -372,7 +372,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
               {/* Summary */}
               {importDone && (errorCount > 0 || successCount > 0) && (
                 <p className="text-xs text-center text-gray-400">
-                  {successCount > 0 && <span className="text-green-600 font-medium">{successCount} imported</span>}
+                  {successCount > 0 && <span className="text-gray-700 font-medium">{successCount} imported</span>}
                   {successCount > 0 && errorCount > 0 && ' · '}
                   {errorCount > 0 && <span className="text-red-500 font-medium">{errorCount} failed</span>}
                 </p>
