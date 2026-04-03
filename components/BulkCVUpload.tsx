@@ -91,39 +91,40 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
   // ── Import ───────────────────────────────────────────────────────────────────
 
-  const runImport = async () => {
-    if (files.length === 0) return;
+  const resolveJobId = async (): Promise<string | null> => {
+    try {
+      return (selectedJobId && selectedJobId !== POOL)
+        ? selectedJobId
+        : await api.candidates.getOrCreateCandidatePool();
+    } catch {
+      return null;
+    }
+  };
+
+  // Core batch processor — shared by initial import, retry-all, and retry-single
+  const importEntries = async (entries: FileEntry[]) => {
+    if (entries.length === 0) return;
     cancelledRef.current = false;
     setImporting(true);
 
-    // Resolve job: use selected job or get/create pool
-    let jobId: string;
-    try {
-      jobId = (selectedJobId && selectedJobId !== POOL) ? selectedJobId : await api.candidates.getOrCreateCandidatePool();
-    } catch {
-      setImporting(false);
-      return;
-    }
+    const jobId = await resolveJobId();
+    if (!jobId) { setImporting(false); return; }
 
-    const importedIds: string[] = [];
+    let newlyImported = 0;
 
-    // Process files in batches of 2 to halve total import time
-    const pending = files.filter(f => f.status !== 'done');
-    for (let i = 0; i < pending.length; i += 2) {
+    for (let i = 0; i < entries.length; i += 2) {
       if (cancelledRef.current) break;
+      const batch = entries.slice(i, i + 2);
 
-      const batch = pending.slice(i, i + 2);
-
-      // Mark batch as processing
       setFiles(prev => prev.map(f =>
-        batch.some(b => b.id === f.id) ? { ...f, status: 'processing' } : f
+        batch.some(b => b.id === f.id) ? { ...f, status: 'processing', error: undefined } : f
       ));
 
       await Promise.allSettled(
         batch.map(async (entry) => {
           try {
             const result = await api.candidates.bulkImport(jobId, entry.file);
-            if (result.candidateId) importedIds.push(result.candidateId);
+            if (result.candidateId) newlyImported++;
             if (!cancelledRef.current) {
               setFiles(prev => prev.map(f =>
                 f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId } : f
@@ -145,9 +146,13 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
     if (!cancelledRef.current) {
       setImporting(false);
       setImportDone(true);
-      if (importedIds.length > 0) onImported(importedIds.length);
+      if (newlyImported > 0) onImported(newlyImported);
     }
   };
+
+  const runImport    = () => importEntries(files.filter(f => f.status === 'pending'));
+  const retryFailed  = () => importEntries(files.filter(f => f.status === 'error'));
+  const retrySingle  = (entry: FileEntry) => importEntries([entry]);
 
   // ── Match against jobs ───────────────────────────────────────────────────────
 
@@ -338,7 +343,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
                           <p className="text-xs text-red-500 mt-0.5 truncate">{entry.error}</p>
                         )}
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0 flex items-center gap-1.5">
                         {entry.status === 'pending' && !importing && (
                           <button
                             onClick={e => { e.stopPropagation(); removeFile(entry.id); }}
@@ -348,8 +353,20 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
                           </button>
                         )}
                         {entry.status === 'processing' && <Loader2 size={14} className="text-gray-500 animate-spin" />}
-                        {entry.status === 'done'         && <CheckCircle size={14} className="text-gray-400" />}
-                        {entry.status === 'error'        && <AlertCircle size={14} className="text-red-500" />}
+                        {entry.status === 'done'       && <CheckCircle size={14} className="text-gray-400" />}
+                        {entry.status === 'error'      && (
+                          <>
+                            <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                            {!importing && (
+                              <button
+                                onClick={e => { e.stopPropagation(); retrySingle(entry); }}
+                                className="px-2 h-5 rounded text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors whitespace-nowrap"
+                              >
+                                Try again
+                              </button>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -403,20 +420,27 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
             >
               {importDone ? 'Close' : 'Cancel'}
             </button>
-            {matchPhase !== 'done' && (
-              <button
-                onClick={runImport}
-                disabled={files.length === 0 || importing || (importDone && files.every(f => f.status === 'done'))}
-                className="px-4 h-8 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {importing && <Loader2 size={13} className="animate-spin" />}
-                {importing
-                  ? 'Importing…'
-                  : importDone
-                  ? 'Done'
-                  : `Import ${files.length > 0 ? files.length + ' CV' + (files.length !== 1 ? 's' : '') : ''}`}
-              </button>
-            )}
+            {matchPhase !== 'done' && (() => {
+              const allDone = files.length > 0 && files.every(f => f.status === 'done');
+              const hasErrors = errorCount > 0;
+              const hasPending = files.some(f => f.status === 'pending');
+              return (
+                <button
+                  onClick={hasErrors && !hasPending ? retryFailed : runImport}
+                  disabled={files.length === 0 || importing || allDone}
+                  className="px-4 h-8 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {importing && <Loader2 size={13} className="animate-spin" />}
+                  {importing
+                    ? 'Importing…'
+                    : allDone
+                    ? 'Done'
+                    : hasErrors && !hasPending
+                    ? `Retry failed (${errorCount})`
+                    : `Import ${files.length > 0 ? files.length + ' CV' + (files.length !== 1 ? 's' : '') : ''}`}
+                </button>
+              );
+            })()}
           </div>
         </div>
 
