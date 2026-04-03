@@ -46,8 +46,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       position: 'fixed',
       top,
       left: rect.left,
-      // Always use minWidth so dropdown can grow wider than trigger to show full labels
       minWidth: rect.width,
+      // Cap at viewport edge so the dropdown never overflows the screen
+      maxWidth: window.innerWidth - rect.left - 12,
       zIndex: 9999,
     });
   };
@@ -107,7 +108,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors whitespace-normal break-words ${
                 opt.value === value
                   ? 'font-semibold text-gray-900 bg-gray-50'
                   : opt.value === ''
