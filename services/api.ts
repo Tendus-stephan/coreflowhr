@@ -2181,7 +2181,7 @@ export const api = {
          * Import a single CV file as a new candidate (always creates, never deduplicates).
          * Use this for bulk imports — does not conflict with apply()'s email-dedup logic.
          */
-        bulkImport: async (jobId: string, cvFile: File): Promise<{ success: boolean; candidateId?: string }> => {
+        bulkImport: async (jobId: string, cvFile: File): Promise<{ success: boolean; candidateId?: string; isUpdate?: boolean }> => {
             const userId = await getUserId();
             const workspaceId = await getCurrentWorkspaceId();
             if (!userId || !workspaceId) throw new Error('Not authenticated');
@@ -2301,6 +2301,37 @@ export const api = {
                 }
             } else {
                 console.error('[bulkImport] analyze-candidate invocation threw:', analyzeResult.reason);
+            }
+
+            // ── Dedup: if we extracted an email, check for an existing candidate in this workspace ──
+            if (parsed.email) {
+                const normalizedEmail = (parsed.email as string).toLowerCase().trim();
+                const { data: existing } = await supabase
+                    .from('candidates')
+                    .select('id, name')
+                    .eq('workspace_id', workspaceId)
+                    .eq('email', normalizedEmail)
+                    .maybeSingle();
+
+                if (existing) {
+                    // Update CV-derived fields but preserve job_id, stage, and applied_date.
+                    // Do NOT overwrite ai_match_score — the background scorer will re-evaluate
+                    // against the candidate's actual job (which we don't know here).
+                    await supabase.from('candidates').update({
+                        name: name || existing.name,
+                        skills: parsed.skills || [],
+                        resume_summary: (parsed.fullText || '').substring(0, 2000),
+                        work_experience: parsed.workExperience || [],
+                        projects: parsed.projects || [],
+                        portfolio_urls: parsed.portfolioUrls || {},
+                        cv_file_url: tempUrl,   // new upload replaces old; old file stays in storage
+                        cv_file_name: cvFile.name,
+                        ...(linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
+                    }).eq('id', existing.id);
+
+                    try { await activityLogger.logCandidateAdded(name); } catch { /* non-critical */ }
+                    return { success: true, candidateId: existing.id, isUpdate: true };
+                }
             }
 
             const { data: candidate, error: insertError } = await supabase
@@ -3158,12 +3189,24 @@ export const api = {
             let candidateName: string | undefined;
             if (updates.stage !== undefined) {
                 const { data: currentData } = await scopeCandidate(
-                    supabase.from('candidates').select('stage, name').eq('id', candidateId)
+                    supabase.from('candidates').select('stage, name, job_id').eq('id', candidateId)
                 ).single();
 
                 if (currentData) {
                     oldStage = currentData.stage as CandidateStage;
                     candidateName = currentData.name;
+
+                    // Block stage transitions for pool candidates — they must be assigned to a job first
+                    if (currentData.job_id) {
+                        const { data: jobRow } = await supabase
+                            .from('jobs')
+                            .select('title')
+                            .eq('id', currentData.job_id)
+                            .maybeSingle();
+                        if (jobRow?.title === '__candidate_pool__') {
+                            throw new Error('Pool candidates cannot be moved to another stage. Assign them to a job first.');
+                        }
+                    }
                 }
 
                 // Check if a workflow is configured for the target stage before allowing movement

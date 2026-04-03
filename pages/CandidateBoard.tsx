@@ -676,6 +676,12 @@ const CandidateBoard: React.FC = () => {
         if (!candidate) return;
         if (candidate.stage === newStage) return;
 
+        // Pool candidates must be assigned to a job before entering the pipeline
+        if (poolJobId && candidate.jobId === poolJobId) {
+            toast.error('Assign this candidate to a job before moving them through the pipeline.');
+            return;
+        }
+
         if (!isValidStageTransition(candidate.stage, newStage)) {
             let errorMessage = '';
             if (candidate.stage === CandidateStage.HIRED || candidate.stage === CandidateStage.REJECTED) {

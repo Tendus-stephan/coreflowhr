@@ -127,7 +127,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
             if (result.candidateId) newlyImported++;
             if (!cancelledRef.current) {
               setFiles(prev => prev.map(f =>
-                f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId } : f
+                f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId, isUpdate: result.isUpdate } : f
               ));
             }
           } catch (err: any) {
