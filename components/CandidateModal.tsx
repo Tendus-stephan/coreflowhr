@@ -89,6 +89,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
   const [selectedAssignJobId, setSelectedAssignJobId] = useState('');
   const [isAssigningJob, setIsAssigningJob] = useState(false);
+  const [jobLoading, setJobLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -106,10 +107,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   useEffect(() => {
       const fetchJob = async () => {
+          setJobLoading(true);
           if (candidate.jobId) {
               const j = await api.jobs.get(candidate.jobId);
               setJob(j);
           }
+          setJobLoading(false);
       };
       if (isOpen) fetchJob();
   }, [candidate.jobId, isOpen]);
@@ -142,59 +145,75 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   useEffect(() => {
       const regenerateAnalysisSilently = async () => {
           if (!isOpen || !job) return;
-          // Pool candidates have no job context — scoring is meaningless until assigned
-          if (job.title === '__candidate_pool__') return;
-          // Only generate AI analysis for candidates who have uploaded a CV
           if (!candidate.cvFileUrl) return;
+          if (!candidate.resumeSummary || candidate.resumeSummary.length <= 100) return;
 
+          // ── Pool candidate: profile analysis (no job match, no score) ──────────
+          if (job.title === '__candidate_pool__') {
+              // Only run if no analysis exists yet — don't re-run on every open
+              if (candidate.aiAnalysis) return;
+              try {
+                  const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
+                      body: {
+                          resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
+                          skills: candidate.skills,
+                          experience: candidate.experience ?? null,
+                          role: candidate.role,
+                          // Use candidate's own role/skills as context — produces a
+                          // "how strong is this person in their own field" profile
+                          jobTitle: candidate.role || 'General Position',
+                          jobDescription: 'Assess this candidate\'s background, identify their key strengths, and describe what types of roles they would be best suited for.',
+                          jobSkills: candidate.skills,
+                      },
+                  });
+                  if (!analysisError && analysis?.summary) {
+                      const s = analysis.strengths?.length > 0 ? `\n\nStrengths:\n• ${analysis.strengths.join('\n• ')}` : '';
+                      const w = analysis.weaknesses?.length > 0 ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}` : '';
+                      const formattedAnalysis = `${analysis.summary}${s}${w}`;
+                      onUpdate({ ...candidate, aiAnalysis: formattedAnalysis });
+                      // Save analysis only — no score for pool candidates
+                      supabase.from('candidates').update({ ai_analysis: formattedAnalysis })
+                          .eq('id', candidate.id)
+                          .then(({ error }) => { if (error) console.error('[pool-profiler] persist failed:', error.message); });
+                  }
+              } catch (err) {
+                  console.warn('[pool-profiler] failed:', err);
+              }
+              return;
+          }
+
+          // ── Job candidate: standard match analysis ────────────────────────────
           const hasIncompleteAnalysis = candidate.aiAnalysis &&
               candidate.aiAnalysis.startsWith('Skills matched:') &&
               !candidate.aiAnalysis.includes('Strengths:') &&
               !candidate.aiAnalysis.includes('Areas to Explore:') &&
-              candidate.aiAnalysis.length < 200; // Basic format is short
+              candidate.aiAnalysis.length < 200;
 
           if (!candidate.aiAnalysis || hasIncompleteAnalysis) {
-              // Regenerate for candidates with CV (resumeSummary indicates CV was uploaded)
-              if (candidate.resumeSummary && candidate.resumeSummary.length > 100) {
-                  try {
-                      const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
-                          body: {
-                              resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
-                              skills: candidate.skills,
-                              experience: candidate.experience ?? null,
-                              role: candidate.role,
-                              jobTitle: job.title,
-                              jobDescription: job.description ?? '',
-                              jobSkills: job.skills ?? [],
-                          },
-                      });
-
-                      if (!analysisError && analysis?.summary) {
-                          const strengthsText = analysis.strengths?.length > 0
-                              ? `\n\nStrengths:\n• ${analysis.strengths.join('\n• ')}`
-                              : '';
-                          const weaknessesText = analysis.weaknesses?.length > 0
-                              ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}`
-                              : '';
-                          const formattedAnalysis = `${analysis.summary}${strengthsText}${weaknessesText}`;
-
-                          const updatedScore = analysis.score || candidate.aiMatchScore;
-                          onUpdate({
-                              ...candidate,
-                              aiMatchScore: updatedScore,
-                              aiAnalysis: formattedAnalysis
-                          });
-                          // Direct write — bypasses api.candidates.update's scopeCandidate/.single() which can fail silently
-                          supabase.from('candidates').update({
-                              ai_match_score: updatedScore,
-                              ai_analysis: formattedAnalysis,
-                          }).eq('id', candidate.id).then(({ error }) => {
-                              if (error) console.error('[modal-scorer] persist failed:', error.message);
-                          });
-                      }
-                  } catch (error) {
-                      console.warn('Background analysis regeneration failed:', error);
+              try {
+                  const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
+                      body: {
+                          resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
+                          skills: candidate.skills,
+                          experience: candidate.experience ?? null,
+                          role: candidate.role,
+                          jobTitle: job.title,
+                          jobDescription: job.description ?? '',
+                          jobSkills: job.skills ?? [],
+                      },
+                  });
+                  if (!analysisError && analysis?.summary) {
+                      const strengthsText = analysis.strengths?.length > 0 ? `\n\nStrengths:\n• ${analysis.strengths.join('\n• ')}` : '';
+                      const weaknessesText = analysis.weaknesses?.length > 0 ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}` : '';
+                      const formattedAnalysis = `${analysis.summary}${strengthsText}${weaknessesText}`;
+                      const updatedScore = analysis.score || candidate.aiMatchScore;
+                      onUpdate({ ...candidate, aiMatchScore: updatedScore, aiAnalysis: formattedAnalysis });
+                      supabase.from('candidates').update({ ai_match_score: updatedScore, ai_analysis: formattedAnalysis })
+                          .eq('id', candidate.id)
+                          .then(({ error }) => { if (error) console.error('[modal-scorer] persist failed:', error.message); });
                   }
+              } catch (error) {
+                  console.warn('Background analysis regeneration failed:', error);
               }
           }
       };
@@ -847,8 +866,16 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
             {activeTab === 'overview' && (
                 <div className="space-y-6">
+                    {/* Loading skeleton while job resolves — prevents flash of AI section */}
+                    {jobLoading && (
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 animate-pulse">
+                            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3" />
+                            <div className="h-3 bg-gray-100 rounded w-full mb-2" />
+                            <div className="h-3 bg-gray-100 rounded w-4/5" />
+                        </div>
+                    )}
                     {/* Pool candidate banner — must assign to a job before scheduling/offering */}
-                    {isPoolCandidate && (
+                    {!jobLoading && isPoolCandidate && (
                         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                             <div className="flex items-center gap-2 text-amber-800 mb-3">
                                 <AlertTriangle size={18} />
@@ -876,6 +903,22 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             </div>
                         </div>
                     )}
+                    {/* Candidate Profile for pool candidates — shows strengths + best-fit roles */}
+                    {!jobLoading && isPoolCandidate && candidate.cvFileUrl && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+                            <div className="flex items-center gap-2 text-gray-900 mb-3">
+                                <BrainCircuit size={18} />
+                                <h3 className="font-bold text-sm">Candidate Profile</h3>
+                            </div>
+                            {candidate.aiAnalysis ? (
+                                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                    {candidate.aiAnalysis}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500 italic">Generating candidate profile…</p>
+                            )}
+                        </div>
+                    )}
                     {/* Upcoming interview notice */}
                     {scheduledUpcoming.length > 0 && (() => {
                       const inv = scheduledUpcoming[0];
@@ -897,7 +940,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                       );
                     })()}
                     {/* Top Row: AI Summary & Score - Only show for job candidates with CVs */}
-                    {candidate.cvFileUrl && !isPoolCandidate && (
+                    {!jobLoading && candidate.cvFileUrl && !isPoolCandidate && (
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2 text-gray-900">
@@ -929,7 +972,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     )}
                     
                     {/* Message for candidates without CVs (not applicable to pool candidates) */}
-                    {!candidate.cvFileUrl && !isPoolCandidate && (
+                    {!jobLoading && !candidate.cvFileUrl && !isPoolCandidate && (
                         <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
                             <div className="flex items-center gap-2 text-gray-900 mb-2">
                                 <FileText size={18} />
@@ -942,7 +985,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     )}
 
                     {/* Charts Row - Only show for job candidates with CVs */}
-                    {candidate.cvFileUrl && !isPoolCandidate && (
+                    {!jobLoading && candidate.cvFileUrl && !isPoolCandidate && (
                     <div className="grid grid-cols-2 gap-4">
                         {/* Skills Assessment Pie Chart */}
                         <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">

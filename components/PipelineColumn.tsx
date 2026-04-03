@@ -76,7 +76,11 @@ const DraggableCandidateCard: React.FC<{
                     <Avatar name={candidate.name} className="w-8 h-8 text-[11px] flex-shrink-0 border border-gray-100" />
                     <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{candidate.name}</p>
                 </div>
-                {score != null && (
+                {isPool ? (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 bg-gray-100 text-gray-400 border border-gray-200">
+                        Pool
+                    </span>
+                ) : score != null && (
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 transition-opacity ${scoreColor} ${(onReject || onDelete) ? 'group-hover:opacity-0' : ''}`}>
                         {score}%
                     </span>
