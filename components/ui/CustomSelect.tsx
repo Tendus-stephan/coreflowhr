@@ -46,10 +46,12 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       position: 'fixed',
       top,
       left: rect.left,
-      minWidth: rect.width,
-      // Cap at viewport edge so the dropdown never overflows the screen
-      maxWidth: window.innerWidth - rect.left - 12,
       zIndex: 9999,
+      // inputStyle (full-width form field): lock to trigger width — never wider
+      // compact mode: can expand up to 280px to show longer labels
+      ...(inputStyle
+        ? { width: rect.width }
+        : { minWidth: rect.width, maxWidth: Math.min(280, window.innerWidth - rect.left - 12) }),
     });
   };
 
@@ -108,7 +110,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors whitespace-normal break-words ${
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${inputStyle ? 'truncate' : 'whitespace-normal break-words'} ${
                 opt.value === value
                   ? 'font-semibold text-gray-900 bg-gray-50'
                   : opt.value === ''
