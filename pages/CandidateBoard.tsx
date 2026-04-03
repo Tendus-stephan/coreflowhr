@@ -418,9 +418,21 @@ const CandidateBoard: React.FC = () => {
         unscored.forEach(c => scoredIds.current.add(c.id));
 
         const run = async () => {
+            // Seed cache from already-loaded jobs; fetch stragglers (closed jobs, pool, etc.) on demand
+            const jobCache = new Map<string, Job>(jobs.map(j => [j.id, j]));
+
             for (const candidate of unscored) {
-                const job = jobs.find(j => j.id === candidate.jobId);
-                if (!job) continue;
+                let job = jobCache.get(candidate.jobId);
+                if (!job) {
+                    try {
+                        job = await api.jobs.get(candidate.jobId);
+                        if (job) jobCache.set(job.id, job);
+                    } catch {
+                        continue; // Can't determine job context — skip
+                    }
+                }
+                // Skip pool sentinel jobs — no meaningful job context for scoring
+                if (!job || job.title === '__candidate_pool__') continue;
                 try {
                     const { data: analysis } = await supabase.functions.invoke('analyze-candidate', {
                         body: {
