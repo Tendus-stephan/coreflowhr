@@ -110,5 +110,13 @@ async function callClaude(
   }
 
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  let text: string = data.content?.[0]?.text ?? '';
+
+  // Strip markdown code-block fences the model sometimes adds despite the instruction
+  if (opts.jsonMode && text.includes('```')) {
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/s);
+    if (fenced) text = fenced[1].trim();
+  }
+
+  return text;
 }

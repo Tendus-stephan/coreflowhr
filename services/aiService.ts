@@ -3,6 +3,12 @@ import { ParsedCVData } from "./cvParser";
 import { COMPREHENSIVE_SYSTEM_PROMPT } from "./aiSystemPrompt";
 import { supabase } from './supabase';
 
+/** Strip markdown code-block fences that models sometimes add despite "JSON only" instructions */
+const stripJsonFences = (s: string): string => {
+  const m = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/s);
+  return m ? m[1].trim() : s.trim();
+};
+
 // Call AI via secure server-side edge function — API key never exposed to browser
 const callAI = async (
   prompt: string,
@@ -381,7 +387,7 @@ Return ONLY valid JSON: { "subject": "...", "content": "..." }`;
         const resultText = await callAI(prompt, { jsonMode: true, temperature: 0.7 });
         if (!resultText) throw new Error("No response from AI");
 
-        const parsed = JSON.parse(resultText);
+        const parsed = JSON.parse(stripJsonFences(resultText));
         return {
             subject: parsed.subject || `${type} - ${candidate.role}`,
             content: parsed.content || "Could not generate email draft."
@@ -453,7 +459,7 @@ ${contextText}`;
         const resultText = await callAI(prompt, { jsonMode: true });
         if (!resultText) throw new Error("No response from AI");
 
-        const parsed = JSON.parse(resultText);
+        const parsed = JSON.parse(stripJsonFences(resultText));
         return {
             subject: parsed.subject || `Opportunity: ${job.title}`,
             content: parsed.content || `Hi ${candidate.name},\n\nI came across your profile and was impressed by your background. We have an opening for ${job.title} that seems like a great fit.\n\nIf you're interested, please register here: ${registrationLink}\n\nLooking forward to hearing from you!`
