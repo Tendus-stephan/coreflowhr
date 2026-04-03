@@ -400,12 +400,18 @@ const CandidateBoard: React.FC = () => {
     useEffect(() => {
         if (loading || candidates.length === 0 || jobs.length === 0) return;
 
-        const unscored = candidates.filter(
-            c => !c.aiMatchScore &&
-                 c.resumeSummary &&
-                 c.resumeSummary.length > 100 &&
-                 !scoredIds.current.has(c.id)
-        );
+        const needsAiScoring = (c: Candidate) => {
+            if (!c.resumeSummary || c.resumeSummary.length <= 100) return false;
+            if (scoredIds.current.has(c.id)) return false;
+            if (!c.aiAnalysis) return true;
+            // Incomplete: basic skill-match stub, not a real AI summary
+            return c.aiAnalysis.startsWith('Skills matched:') &&
+                !c.aiAnalysis.includes('Strengths:') &&
+                !c.aiAnalysis.includes('Areas to Explore:') &&
+                c.aiAnalysis.length < 200;
+        };
+
+        const unscored = candidates.filter(needsAiScoring);
         if (unscored.length === 0) return;
 
         // Mark as queued to prevent duplicate invocations
