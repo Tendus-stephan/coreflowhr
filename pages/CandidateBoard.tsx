@@ -431,8 +431,9 @@ const CandidateBoard: React.FC = () => {
                         continue; // Can't determine job context — skip
                     }
                 }
-                // Skip pool sentinel jobs — no meaningful job context for scoring
-                if (!job || job.title === '__candidate_pool__') continue;
+                if (!job) continue;
+                // Pool candidates: score against their own role (generic quality assessment)
+                const isPool = job.title === '__candidate_pool__';
                 try {
                     const { data: analysis } = await supabase.functions.invoke('analyze-candidate', {
                         body: {
@@ -440,9 +441,9 @@ const CandidateBoard: React.FC = () => {
                             skills: candidate.skills,
                             experience: candidate.experience ?? null,
                             role: candidate.role,
-                            jobTitle: job.title,
-                            jobDescription: job.description ?? '',
-                            jobSkills: job.skills ?? [],
+                            jobTitle: isPool ? (candidate.role || 'General Assessment') : job.title,
+                            jobDescription: isPool ? '' : (job.description ?? ''),
+                            jobSkills: isPool ? candidate.skills : (job.skills ?? []),
                         },
                     });
                     if (analysis?.score) {

@@ -160,15 +160,16 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               // Regenerate for candidates with CV (resumeSummary indicates CV was uploaded)
               if (candidate.resumeSummary && candidate.resumeSummary.length > 100) {
                   try {
+                      const isPool = job.title === '__candidate_pool__';
                       const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
                           body: {
                               resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
                               skills: candidate.skills,
                               experience: candidate.experience ?? null,
                               role: candidate.role,
-                              jobTitle: job.title,
-                              jobDescription: job.description ?? '',
-                              jobSkills: job.skills ?? [],
+                              jobTitle: isPool ? (candidate.role || 'General Assessment') : job.title,
+                              jobDescription: isPool ? '' : (job.description ?? ''),
+                              jobSkills: isPool ? candidate.skills : (job.skills ?? []),
                           },
                       });
 
