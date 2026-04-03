@@ -187,11 +187,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                               aiMatchScore: updatedScore,
                               aiAnalysis: formattedAnalysis
                           });
-                          // Persist to DB so score survives page reload
-                          api.candidates.update(candidate.id, {
-                              aiMatchScore: updatedScore,
-                              aiAnalysis: formattedAnalysis,
-                          }).catch(() => {});
+                          // Direct write — bypasses api.candidates.update's scopeCandidate/.single() which can fail silently
+                          supabase.from('candidates').update({
+                              ai_match_score: updatedScore,
+                              ai_analysis: formattedAnalysis,
+                          }).eq('id', candidate.id).then(({ error }) => {
+                              if (error) console.error('[modal-scorer] persist failed:', error.message);
+                          });
                       }
                   } catch (error) {
                       console.warn('Background analysis regeneration failed:', error);

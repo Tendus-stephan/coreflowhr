@@ -440,10 +440,13 @@ const CandidateBoard: React.FC = () => {
                         setCandidates(prev => prev.map(c =>
                             c.id === candidate.id ? { ...c, aiMatchScore: analysis.score, aiAnalysis: formatted } : c
                         ));
-                        api.candidates.update(candidate.id, {
-                            aiMatchScore: analysis.score,
-                            aiAnalysis: formatted,
-                        }).catch(() => {});
+                        // Direct write — bypasses api.candidates.update's scopeCandidate/.single() which can fail silently
+                        supabase.from('candidates').update({
+                            ai_match_score: analysis.score,
+                            ai_analysis: formatted,
+                        }).eq('id', candidate.id).then(({ error }) => {
+                            if (error) console.error('[bg-scorer] persist failed:', error.message);
+                        });
                     }
                 } catch {
                     // Retry allowed on next load
