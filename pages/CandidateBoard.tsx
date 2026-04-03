@@ -383,10 +383,25 @@ const CandidateBoard: React.FC = () => {
                 api.notifications.list(),
                 supabase.from('jobs').select('id').eq('title', '__candidate_pool__').maybeSingle(),
             ]);
-            setCandidates(candidatesResult.data || []);
+            const resolvedPoolJobId = poolJobRow.data?.id ?? null;
+            setPoolJobId(resolvedPoolJobId);
+
+            // Clear any stale AI scores on pool candidates (they have no job context)
+            if (resolvedPoolJobId) {
+                supabase.from('candidates')
+                    .update({ ai_match_score: null, ai_analysis: null })
+                    .eq('job_id', resolvedPoolJobId)
+                    .not('ai_match_score', 'is', null)
+                    .then(() => {});
+            }
+
+            setCandidates((candidatesResult.data || []).map(c =>
+                c.jobId === resolvedPoolJobId
+                    ? { ...c, aiMatchScore: undefined, aiAnalysis: undefined }
+                    : c
+            ));
             setJobs(jobsResult.data || []);
             setNotifications(n);
-            setPoolJobId(poolJobRow.data?.id ?? null);
             setLoading(false);
             try {
                 await api.interviews.ensureFeedbackReminders();

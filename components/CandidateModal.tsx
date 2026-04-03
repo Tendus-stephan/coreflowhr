@@ -896,8 +896,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </div>
                       );
                     })()}
-                    {/* Top Row: AI Summary & Score - Only show for candidates with CVs */}
-                    {candidate.cvFileUrl && (
+                    {/* Top Row: AI Summary & Score - Only show for job candidates with CVs */}
+                    {candidate.cvFileUrl && !isPoolCandidate && (
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2 text-gray-900">
@@ -928,8 +928,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     </div>
                     )}
                     
-                    {/* Message for candidates without CVs */}
-                    {!candidate.cvFileUrl && (
+                    {/* Message for candidates without CVs (not applicable to pool candidates) */}
+                    {!candidate.cvFileUrl && !isPoolCandidate && (
                         <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
                             <div className="flex items-center gap-2 text-gray-900 mb-2">
                                 <FileText size={18} />
@@ -941,8 +941,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </div>
                     )}
 
-                    {/* Charts Row - Only show for candidates with CVs */}
-                    {candidate.cvFileUrl && (
+                    {/* Charts Row - Only show for job candidates with CVs */}
+                    {candidate.cvFileUrl && !isPoolCandidate && (
                     <div className="grid grid-cols-2 gap-4">
                         {/* Skills Assessment Pie Chart */}
                         <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">
