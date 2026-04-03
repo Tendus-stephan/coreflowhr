@@ -3315,6 +3315,7 @@ export const api = {
                 aiMatchScore: data.ai_match_score,
                 aiAnalysis: data.ai_analysis,
                 avatarUrl: data.avatar_url,
+                cvFileUrl: data.cv_file_url,
                 experience: data.experience,
                 skills: data.skills || [],
                 workExperience: data.work_experience || [],

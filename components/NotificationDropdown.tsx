@@ -164,7 +164,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                                 onClick={linkPath ? () => handleNotificationClick(note) : undefined}
                                 onKeyDown={linkPath ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(note); } } : undefined}
                                 className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${linkPath ? 'cursor-pointer' : ''} ${
-                                    note.unread ? 'bg-blue-50/30' : ''
+                                    note.unread ? 'bg-gray-50/80' : ''
                                 }`}
                             >
                                 <div className="flex gap-3 items-start">

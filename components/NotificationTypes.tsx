@@ -1,11 +1,11 @@
 import React from 'react';
 import {
-    UserPlus, Users, FileText, Star, ArrowRight, Briefcase, CheckCircle, Clock, 
+    UserPlus, Users, FileText, Star, ArrowRight, Briefcase, CheckCircle, Clock,
     AlertCircle, Zap, XCircle, TrendingUp, Search, Mail, FileCheck,
     Settings, Shield, Bell, Sparkles, Key, Link2, Calendar, CalendarX
 } from 'lucide-react';
 
-export type NotificationType = 
+export type NotificationType =
     // Candidate Events
     | 'candidate_added'
     | 'cv_parsed'
@@ -51,7 +51,7 @@ export type NotificationType =
     | 'member_joined'
     | 'system';
 
-export type NotificationCategory = 
+export type NotificationCategory =
     | 'candidate'
     | 'job'
     | 'automation'
@@ -65,241 +65,53 @@ export interface NotificationTypeConfig {
     category: NotificationCategory;
 }
 
+const GRAY = { color: 'text-gray-500', bgColor: 'bg-gray-100' };
+
 export const notificationTypes: Record<NotificationType, NotificationTypeConfig> = {
     // Candidate Events
-    candidate_added: {
-        icon: UserPlus,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        category: 'candidate'
-    },
-    cv_parsed: {
-        icon: FileText,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'candidate'
-    },
-    candidate_graded: {
-        icon: Star,
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50',
-        category: 'candidate'
-    },
-    candidate_moved: {
-        icon: ArrowRight,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        category: 'candidate'
-    },
+    candidate_added:            { icon: UserPlus,    ...GRAY, category: 'candidate' },
+    cv_parsed:                  { icon: FileText,    ...GRAY, category: 'candidate' },
+    candidate_graded:           { icon: Star,        ...GRAY, category: 'candidate' },
+    candidate_moved:            { icon: ArrowRight,  ...GRAY, category: 'candidate' },
     // Job Post Activity
-    new_application: {
-        icon: Briefcase,
-        color: 'text-indigo-600',
-        bgColor: 'bg-indigo-50',
-        category: 'job'
-    },
-    interview_scheduled: {
-        icon: Calendar,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        category: 'job'
-    },
-    interview_cancelled: {
-        icon: CalendarX,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        category: 'job'
-    },
-    interview_feedback_reminder: {
-        icon: FileCheck,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-        category: 'candidate'
-    },
-    interview_reminder: {
-        icon: Clock,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        category: 'job'
-    },
-    job_expired: {
-        icon: CalendarX,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'job'
-    },
-    sourcing_complete: {
-        icon: Users,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'automation'
-    },
-    sourcing_failed: {
-        icon: AlertCircle,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-        category: 'automation'
-    },
-    inactivity_nudge: {
-        icon: Bell,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        category: 'system'
-    },
-    weekly_digest: {
-        icon: FileText,
-        color: 'text-indigo-600',
-        bgColor: 'bg-indigo-50',
-        category: 'system'
-    },
-    assessment_completed: {
-        icon: CheckCircle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'job'
-    },
-    recruitment_reminder: {
-        icon: Clock,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        category: 'job'
-    },
-    job_status_update: {
-        icon: AlertCircle,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-        category: 'job'
-    },
+    new_application:            { icon: Briefcase,   ...GRAY, category: 'job' },
+    interview_scheduled:        { icon: Calendar,    ...GRAY, category: 'job' },
+    interview_cancelled:        { icon: CalendarX,   ...GRAY, category: 'job' },
+    interview_feedback_reminder:{ icon: FileCheck,   ...GRAY, category: 'candidate' },
+    interview_reminder:         { icon: Clock,       ...GRAY, category: 'job' },
+    job_expired:                { icon: CalendarX,   ...GRAY, category: 'job' },
+    sourcing_complete:          { icon: Users,       ...GRAY, category: 'automation' },
+    sourcing_failed:            { icon: AlertCircle, ...GRAY, category: 'automation' },
+    inactivity_nudge:           { icon: Bell,        ...GRAY, category: 'system' },
+    weekly_digest:              { icon: FileText,    ...GRAY, category: 'system' },
+    assessment_completed:       { icon: CheckCircle, ...GRAY, category: 'job' },
+    recruitment_reminder:       { icon: Clock,       ...GRAY, category: 'job' },
+    job_status_update:          { icon: AlertCircle, ...GRAY, category: 'job' },
     // Automation Activity
-    workflow_success: {
-        icon: Zap,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'automation'
-    },
-    workflow_failed: {
-        icon: XCircle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'automation'
-    },
-    ranking_updated: {
-        icon: TrendingUp,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        category: 'automation'
-    },
-    new_match: {
-        icon: Search,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        category: 'automation'
-    },
+    workflow_success:           { icon: Zap,         ...GRAY, category: 'automation' },
+    workflow_failed:            { icon: XCircle,     ...GRAY, category: 'automation' },
+    ranking_updated:            { icon: TrendingUp,  ...GRAY, category: 'automation' },
+    new_match:                  { icon: Search,      ...GRAY, category: 'automation' },
     // Communication Events
-    email_received: {
-        icon: Mail,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        category: 'communication'
-    },
-    cv_inbound_parsed: {
-        icon: FileCheck,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'communication'
-    },
-    candidate_replied: {
-        icon: Mail,
-        color: 'text-indigo-600',
-        bgColor: 'bg-indigo-50',
-        category: 'communication'
-    },
+    email_received:             { icon: Mail,        ...GRAY, category: 'communication' },
+    cv_inbound_parsed:          { icon: FileCheck,   ...GRAY, category: 'communication' },
+    candidate_replied:          { icon: Mail,        ...GRAY, category: 'communication' },
     // Offer Events
-    offer_accepted: {
-        icon: CheckCircle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'job'
-    },
-    offer_declined: {
-        icon: XCircle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'job'
-    },
-    counter_offer_received: {
-        icon: Briefcase,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        category: 'job'
-    },
+    offer_accepted:             { icon: CheckCircle, ...GRAY, category: 'job' },
+    offer_declined:             { icon: XCircle,     ...GRAY, category: 'job' },
+    counter_offer_received:     { icon: Briefcase,   ...GRAY, category: 'job' },
     // System Alerts
-    account_change: {
-        icon: Settings,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    permission_update: {
-        icon: Shield,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    password_expiry: {
-        icon: AlertCircle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    password_changed: {
-        icon: Key,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    '2fa_enabled': {
-        icon: Shield,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    '2fa_disabled': {
-        icon: Shield,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        category: 'system'
-    },
-    integration_connected: {
-        icon: Link2,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    integration_disconnected: {
-        icon: Link2,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    },
-    feature_announcement: {
-        icon: Sparkles,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        category: 'system'
-    },
-    member_joined: {
-        icon: UserPlus,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        category: 'system'
-    },
-    system: {
-        icon: Bell,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        category: 'system'
-    }
+    account_change:             { icon: Settings,    ...GRAY, category: 'system' },
+    permission_update:          { icon: Shield,      ...GRAY, category: 'system' },
+    password_expiry:            { icon: AlertCircle, ...GRAY, category: 'system' },
+    password_changed:           { icon: Key,         ...GRAY, category: 'system' },
+    '2fa_enabled':              { icon: Shield,      ...GRAY, category: 'system' },
+    '2fa_disabled':             { icon: Shield,      ...GRAY, category: 'system' },
+    integration_connected:      { icon: Link2,       ...GRAY, category: 'system' },
+    integration_disconnected:   { icon: Link2,       ...GRAY, category: 'system' },
+    feature_announcement:       { icon: Sparkles,    ...GRAY, category: 'system' },
+    member_joined:              { icon: UserPlus,    ...GRAY, category: 'system' },
+    system:                     { icon: Bell,        ...GRAY, category: 'system' },
 };
 
 export const getNotificationConfig = (type: string): NotificationTypeConfig => {
@@ -316,4 +128,3 @@ export const getCategoryLabel = (category: NotificationCategory): string => {
     };
     return labels[category] || 'Notifications';
 };
-
