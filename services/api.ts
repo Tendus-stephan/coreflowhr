@@ -2337,6 +2337,11 @@ export const api = {
                 throw new Error(insertError.message);
             }
 
+            // Log activity for CV-imported candidate
+            try {
+                await activityLogger.logCandidateAdded(name);
+            } catch { /* non-critical */ }
+
             // Move CV to permanent path
             try {
                 const finalPath = `${jobId}/${candidate.id}/${Date.now()}.${fileExt}`;

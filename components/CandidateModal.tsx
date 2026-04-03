@@ -19,6 +19,7 @@ import { Plus } from 'lucide-react';
 import { useModal } from '../contexts/ModalContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -180,11 +181,17 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                               : '';
                           const formattedAnalysis = `${analysis.summary}${strengthsText}${weaknessesText}`;
 
+                          const updatedScore = analysis.score || candidate.aiMatchScore;
                           onUpdate({
                               ...candidate,
-                              aiMatchScore: analysis.score || candidate.aiMatchScore,
+                              aiMatchScore: updatedScore,
                               aiAnalysis: formattedAnalysis
                           });
+                          // Persist to DB so score survives page reload
+                          api.candidates.update(candidate.id, {
+                              aiMatchScore: updatedScore,
+                              aiAnalysis: formattedAnalysis,
+                          }).catch(() => {});
                       }
                   } catch (error) {
                       console.warn('Background analysis regeneration failed:', error);
@@ -849,16 +856,16 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 <span className="text-sm font-medium">This candidate is in the pool. Assign them to a job to enable interviews and offers.</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <select
-                                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-black"
+                                <CustomSelect
+                                    inputStyle
                                     value={selectedAssignJobId}
-                                    onChange={e => setSelectedAssignJobId(e.target.value)}
-                                >
-                                    <option value="">Select a job...</option>
-                                    {availableJobs.map(j => (
-                                        <option key={j.id} value={j.id}>{j.title}</option>
-                                    ))}
-                                </select>
+                                    onChange={setSelectedAssignJobId}
+                                    className="flex-1 py-1.5"
+                                    options={[
+                                        { value: '', label: 'Select a job...' },
+                                        ...availableJobs.map(j => ({ value: j.id, label: j.title })),
+                                    ]}
+                                />
                                 <Button
                                     size="sm"
                                     variant="outline"

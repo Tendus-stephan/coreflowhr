@@ -880,6 +880,32 @@ const Dashboard: React.FC = () => {
       };
   }, []);
 
+  // Real-time subscription for activity feed
+  useEffect(() => {
+      const setupActivitySubscription = async () => {
+          const { supabase } = await import('../services/supabase');
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user?.id) return;
+
+          const channel = supabase
+              .channel(`activity_log:${user.id}`)
+              .on(
+                  'postgres_changes',
+                  { event: 'INSERT', schema: 'public', table: 'activity_log' },
+                  async () => {
+                      const updated = await api.dashboard.getActivity();
+                      setActivityFeed(updated);
+                  }
+              )
+              .subscribe();
+
+          return () => { supabase.removeChannel(channel); };
+      };
+
+      const cleanup = setupActivitySubscription();
+      return () => { cleanup.then(fn => fn && fn()); };
+  }, []);
+
   // Close notifications when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
