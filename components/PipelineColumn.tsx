@@ -69,12 +69,12 @@ const DraggableCandidateCard: React.FC<{
         >
             {/* Row 1: avatar + name + score */}
             <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                    <Avatar name={candidate.name} className="w-6 h-6 text-[9px] flex-shrink-0 border border-gray-100" />
+                <div className="flex items-center gap-2 min-w-0">
+                    <Avatar name={candidate.name} className="w-8 h-8 text-[11px] flex-shrink-0 border border-gray-100" />
                     <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{candidate.name}</p>
                 </div>
                 {score != null && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${scoreColor}`}>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 transition-opacity ${scoreColor} ${(onReject || onDelete) ? 'group-hover:opacity-0' : ''}`}>
                         {score}%
                     </span>
                 )}
@@ -82,7 +82,7 @@ const DraggableCandidateCard: React.FC<{
 
             {/* Row 2: company · role */}
             {(candidate.currentCompany || candidate.role) && (
-                <p className="text-[11px] text-gray-400 mt-1 truncate pl-[30px]">
+                <p className="text-[11px] text-gray-400 mt-1 truncate pl-[42px]">
                     {candidate.currentCompany && candidate.role
                         ? `${candidate.currentCompany} · ${candidate.role}`
                         : candidate.currentCompany || candidate.role}
@@ -98,7 +98,7 @@ const DraggableCandidateCard: React.FC<{
                         </span>
                     ))}
                     {candidate.skills.length > 2 && (
-                        <span className="text-[10px] text-gray-400">+{candidate.skills.length - 2}</span>
+                        <span className={`text-[10px] text-gray-400 ${linkedInUrl ? 'group-hover:hidden' : ''}`}>+{candidate.skills.length - 2}</span>
                     )}
                 </div>
             )}
