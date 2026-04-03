@@ -90,6 +90,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [selectedAssignJobId, setSelectedAssignJobId] = useState('');
   const [isAssigningJob, setIsAssigningJob] = useState(false);
   const [jobLoading, setJobLoading] = useState(false);
+  const [regLinkLoading, setRegLinkLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -504,6 +505,33 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   const handleCancelSend = () => {
       setShowConfirmSend(false);
+  };
+
+  // Generates a registration-link email for Waitlist candidates so they can
+  // upload their CV and auto-move to Screening. No stage transition on send —
+  // the stage changes only when they actually complete the registration.
+  const handleDraftRegistrationEmail = async () => {
+      setRegLinkLoading(true);
+      try {
+          const token = await api.candidates.generateRegistrationToken(candidate.id);
+          const frontendUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost')
+              ? window.location.origin
+              : 'https://www.coreflowhr.com';
+          const link = `${frontendUrl}/candidates/register/${candidate.id}?token=${token}`;
+          const firstName = candidate.name?.split(' ')[0] || 'there';
+          const role = candidate.role || job?.title || 'the position';
+          setCurrentEmailType(null); // no auto-stage-advance on send — CV upload does that
+          setEmailDraft({
+              subject: `Your application for ${role} — next steps`,
+              content: `Hi ${firstName},\n\nThank you for your interest in the ${role} role. To help us review your application properly, we'd like to invite you to complete your registration and upload your CV.\n\nPlease use the link below to get started:\n${link}\n\nOnce your CV is submitted, our team will be in touch with the next steps.\n\nBest regards`,
+          });
+          setEmailSent(false);
+          setEmailError(null);
+      } catch (e: any) {
+          toast.error(e.message || 'Failed to generate registration link.');
+      } finally {
+          setRegLinkLoading(false);
+      }
   };
 
   const handleGenerateOutreach = async () => {
@@ -1429,6 +1457,19 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             ) : (
                                 /* Show regular email compose for candidates with email */
                                 <>
+                                    {/* Registration invite — Waitlist candidates without a CV */}
+                                    {candidate.stage === CandidateStage.NEW && !isPoolCandidate && !candidate.cvFileUrl && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                                            <FileText size={16} className="text-amber-700 mt-0.5 flex-shrink-0" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-amber-800 mb-1">No CV on file</p>
+                                                <p className="text-xs text-amber-700 mb-3">Send this candidate a registration link so they can upload their CV. Once submitted they'll move to Screening automatically.</p>
+                                                <Button size="sm" variant="outline" onClick={handleDraftRegistrationEmail} disabled={regLinkLoading}>
+                                                    {regLinkLoading ? 'Generating link…' : 'Draft CV Registration Email'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
                                         <Button 
                                             size="sm" 
