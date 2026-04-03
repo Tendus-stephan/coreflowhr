@@ -2308,15 +2308,14 @@ export const api = {
                 const normalizedEmail = (parsed.email as string).toLowerCase().trim();
                 const { data: existing } = await supabase
                     .from('candidates')
-                    .select('id, name')
+                    .select('id, name, stage')
                     .eq('workspace_id', workspaceId)
                     .eq('email', normalizedEmail)
                     .maybeSingle();
 
                 if (existing) {
-                    // Update CV-derived fields but preserve job_id, stage, and applied_date.
-                    // Do NOT overwrite ai_match_score — the background scorer will re-evaluate
-                    // against the candidate's actual job (which we don't know here).
+                    // Update CV-derived fields. If they were in Waitlist (no CV before),
+                    // promote to Screening now that we have their CV.
                     await supabase.from('candidates').update({
                         name: name || existing.name,
                         skills: parsed.skills || [],
@@ -2324,9 +2323,10 @@ export const api = {
                         work_experience: parsed.workExperience || [],
                         projects: parsed.projects || [],
                         portfolio_urls: parsed.portfolioUrls || {},
-                        cv_file_url: tempUrl,   // new upload replaces old; old file stays in storage
+                        cv_file_url: tempUrl,
                         cv_file_name: cvFile.name,
                         ...(linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
+                        ...(existing.stage === 'New' ? { stage: 'Screening' } : {}),
                     }).eq('id', existing.id);
 
                     try { await activityLogger.logCandidateAdded(name); } catch { /* non-critical */ }
@@ -2355,7 +2355,7 @@ export const api = {
                     portfolio_urls: parsed.portfolioUrls || {},
                     cv_file_url: tempUrl,
                     cv_file_name: cvFile.name,
-                    stage: 'New',
+                    stage: 'Screening', // Candidates with a CV go directly to Screening
                     source: 'cv_import',
                     is_test: false,
                     applied_date: new Date().toISOString(),
