@@ -344,6 +344,7 @@ const CandidateBoard: React.FC = () => {
                     name: r.name ?? c.name,
                     email: r.email ?? c.email,
                     aiMatchScore: r.ai_match_score ?? c.aiMatchScore,
+                    aiAnalysis: r.ai_analysis ?? c.aiAnalysis,
                 } : c));
                 setSelectedCandidate(prev => prev?.id === r.id ? { ...prev, stage: r.stage as CandidateStage } : prev);
             })
@@ -393,6 +394,60 @@ const CandidateBoard: React.FC = () => {
         };
         loadData();
     }, []);
+
+    // Background AI scoring: score candidates with CVs but no score, without opening the modal
+    const scoredIds = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        if (loading || candidates.length === 0 || jobs.length === 0) return;
+
+        const unscored = candidates.filter(
+            c => !c.aiMatchScore &&
+                 c.resumeSummary &&
+                 c.resumeSummary.length > 100 &&
+                 !scoredIds.current.has(c.id)
+        );
+        if (unscored.length === 0) return;
+
+        // Mark as queued to prevent duplicate invocations
+        unscored.forEach(c => scoredIds.current.add(c.id));
+
+        const run = async () => {
+            for (const candidate of unscored) {
+                const job = jobs.find(j => j.id === candidate.jobId);
+                if (!job) continue;
+                try {
+                    const { data: analysis } = await supabase.functions.invoke('analyze-candidate', {
+                        body: {
+                            resumeSummary: (candidate.resumeSummary ?? '').substring(0, 800),
+                            skills: candidate.skills,
+                            experience: candidate.experience ?? null,
+                            role: candidate.role,
+                            jobTitle: job.title,
+                            jobDescription: job.description ?? '',
+                            jobSkills: job.skills ?? [],
+                        },
+                    });
+                    if (analysis?.score) {
+                        const s = analysis.strengths?.length ? `\n\nStrengths:\n• ${analysis.strengths.join('\n• ')}` : '';
+                        const w = analysis.weaknesses?.length ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}` : '';
+                        const formatted = `${analysis.summary}${s}${w}`;
+                        setCandidates(prev => prev.map(c =>
+                            c.id === candidate.id ? { ...c, aiMatchScore: analysis.score, aiAnalysis: formatted } : c
+                        ));
+                        api.candidates.update(candidate.id, {
+                            aiMatchScore: analysis.score,
+                            aiAnalysis: formatted,
+                        }).catch(() => {});
+                    }
+                } catch {
+                    // Retry allowed on next load
+                    scoredIds.current.delete(candidate.id);
+                }
+            }
+        };
+
+        run();
+    }, [loading, candidates.length, jobs.length]);
 
     // Handle candidate ID and tab from URL
     useEffect(() => {
