@@ -142,13 +142,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   useEffect(() => {
       const regenerateAnalysisSilently = async () => {
           if (!isOpen || !job) return;
-          
-          // Check if analysis is missing or incomplete (just basic "Skills matched" format)
-          // This catches cases like "Skills matched: 9/4." or "Skills matched: 3/4. Experience: 5 years."
+          // Pool candidates have no job context — scoring is meaningless until assigned
+          if (job.title === '__candidate_pool__') return;
           // Only generate AI analysis for candidates who have uploaded a CV
-          if (!candidate.cvFileUrl) {
-              return; // Skip AI analysis for candidates without CVs
-          }
+          if (!candidate.cvFileUrl) return;
 
           const hasIncompleteAnalysis = candidate.aiAnalysis &&
               candidate.aiAnalysis.startsWith('Skills matched:') &&
@@ -160,16 +157,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               // Regenerate for candidates with CV (resumeSummary indicates CV was uploaded)
               if (candidate.resumeSummary && candidate.resumeSummary.length > 100) {
                   try {
-                      const isPool = job.title === '__candidate_pool__';
                       const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
                           body: {
                               resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
                               skills: candidate.skills,
                               experience: candidate.experience ?? null,
                               role: candidate.role,
-                              jobTitle: isPool ? (candidate.role || 'General Assessment') : job.title,
-                              jobDescription: isPool ? '' : (job.description ?? ''),
-                              jobSkills: isPool ? candidate.skills : (job.skills ?? []),
+                              jobTitle: job.title,
+                              jobDescription: job.description ?? '',
+                              jobSkills: job.skills ?? [],
                           },
                       });
 
