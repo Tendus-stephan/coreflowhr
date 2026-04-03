@@ -39,7 +39,8 @@ const CandidateListView: React.FC<{
     sortField: 'name' | 'score' | 'date' | null;
     sortDir: 'asc' | 'desc';
     onSort: (field: 'name' | 'score' | 'date') => void;
-}> = ({ candidates, onSelectCandidate, sortField, sortDir, onSort }) => {
+    poolJobId: string | null;
+}> = ({ candidates, onSelectCandidate, sortField, sortDir, onSort, poolJobId }) => {
     const [currentPage, setCurrentPage] = useState(1);
 
     // Reset to page 1 whenever the candidate list changes (filter/sort)
@@ -982,6 +983,7 @@ const CandidateBoard: React.FC = () => {
                     sortField={sortField}
                     sortDir={sortDir}
                     onSort={handleSort}
+                    poolJobId={poolJobId}
                 />
             )}
 
