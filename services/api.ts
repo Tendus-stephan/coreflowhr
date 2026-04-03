@@ -2303,6 +2303,20 @@ export const api = {
                 console.error('[bulkImport] analyze-candidate invocation threw:', analyzeResult.reason);
             }
 
+            // Helper: move the already-uploaded file from temp to the candidate's permanent path
+            const moveToPermanent = async (candidateId: string): Promise<string | null> => {
+                try {
+                    const finalPath = `${jobId}/${candidateId}/${Date.now()}.${fileExt}`;
+                    const { error } = await supabase.storage
+                        .from('candidate-cvs')
+                        .upload(finalPath, cvFile, { cacheControl: '3600', upsert: false });
+                    if (error) return null;
+                    const { data: { publicUrl } } = supabase.storage.from('candidate-cvs').getPublicUrl(finalPath);
+                    await supabase.storage.from('candidate-cvs').remove([tempPath]);
+                    return publicUrl;
+                } catch { return null; }
+            };
+
             // ── Dedup by filename: same file re-imported into the same job → update, don't duplicate ──
             {
                 const { data: sameFile } = await supabase
@@ -2313,13 +2327,17 @@ export const api = {
                     .eq('cv_file_name', cvFile.name)
                     .maybeSingle();
                 if (sameFile) {
+                    const permanentUrl = await moveToPermanent(sameFile.id);
                     await supabase.from('candidates').update({
+                        name: name || sameFile.name,
                         skills: parsed.skills || [],
                         resume_summary: (parsed.fullText || '').substring(0, 2000),
                         work_experience: parsed.workExperience || [],
                         projects: parsed.projects || [],
                         portfolio_urls: parsed.portfolioUrls || {},
-                        cv_file_url: tempUrl,
+                        cv_file_url: permanentUrl ?? tempUrl,
+                        cv_file_name: cvFile.name,
+                        ...(linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
                         ...(sameFile.stage === 'New' ? { stage: 'Screening' } : {}),
                     }).eq('id', sameFile.id);
                     return { success: true, candidateId: sameFile.id, isUpdate: true };
@@ -2337,8 +2355,7 @@ export const api = {
                     .maybeSingle();
 
                 if (existing) {
-                    // Update CV-derived fields. If they were in Waitlist (no CV before),
-                    // promote to Screening now that we have their CV.
+                    const permanentUrl = await moveToPermanent(existing.id);
                     await supabase.from('candidates').update({
                         name: name || existing.name,
                         skills: parsed.skills || [],
@@ -2346,7 +2363,7 @@ export const api = {
                         work_experience: parsed.workExperience || [],
                         projects: parsed.projects || [],
                         portfolio_urls: parsed.portfolioUrls || {},
-                        cv_file_url: tempUrl,
+                        cv_file_url: permanentUrl ?? tempUrl,
                         cv_file_name: cvFile.name,
                         ...(linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
                         ...(existing.stage === 'New' ? { stage: 'Screening' } : {}),
