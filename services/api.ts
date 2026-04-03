@@ -2303,7 +2303,30 @@ export const api = {
                 console.error('[bulkImport] analyze-candidate invocation threw:', analyzeResult.reason);
             }
 
-            // ── Dedup: if we extracted an email, check for an existing candidate in this workspace ──
+            // ── Dedup by filename: same file re-imported into the same job → update, don't duplicate ──
+            {
+                const { data: sameFile } = await supabase
+                    .from('candidates')
+                    .select('id, name, stage')
+                    .eq('workspace_id', workspaceId)
+                    .eq('job_id', jobId)
+                    .eq('cv_file_name', cvFile.name)
+                    .maybeSingle();
+                if (sameFile) {
+                    await supabase.from('candidates').update({
+                        skills: parsed.skills || [],
+                        resume_summary: (parsed.fullText || '').substring(0, 2000),
+                        work_experience: parsed.workExperience || [],
+                        projects: parsed.projects || [],
+                        portfolio_urls: parsed.portfolioUrls || {},
+                        cv_file_url: tempUrl,
+                        ...(sameFile.stage === 'New' ? { stage: 'Screening' } : {}),
+                    }).eq('id', sameFile.id);
+                    return { success: true, candidateId: sameFile.id, isUpdate: true };
+                }
+            }
+
+            // ── Dedup by email: if we extracted an email, check for an existing candidate in this workspace ──
             if (parsed.email) {
                 const normalizedEmail = (parsed.email as string).toLowerCase().trim();
                 const { data: existing } = await supabase
