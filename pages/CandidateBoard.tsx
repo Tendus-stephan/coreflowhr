@@ -203,6 +203,7 @@ const CandidateBoard: React.FC = () => {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [poolJobId, setPoolJobId] = useState<string | null>(null);
 
     const [selectedJob, setSelectedJob] = useState<string>('all');
     const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All');
@@ -376,14 +377,16 @@ const CandidateBoard: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const [candidatesResult, jobsResult, n] = await Promise.all([
+            const [candidatesResult, jobsResult, n, poolJobRow] = await Promise.all([
                 api.candidates.list({ page: 1, pageSize: 1000 }),
                 api.jobs.list({ excludeClosed: true, page: 1, pageSize: 100 }),
-                api.notifications.list()
+                api.notifications.list(),
+                supabase.from('jobs').select('id').eq('title', '__candidate_pool__').maybeSingle(),
             ]);
             setCandidates(candidatesResult.data || []);
             setJobs(jobsResult.data || []);
             setNotifications(n);
+            setPoolJobId(poolJobRow.data?.id ?? null);
             setLoading(false);
             try {
                 await api.interviews.ensureFeedbackReminders();
@@ -520,12 +523,6 @@ const CandidateBoard: React.FC = () => {
     const selectedJobData = useMemo(
         () => (selectedJob === 'all' ? null : jobs.find(j => j.id === selectedJob) ?? null),
         [selectedJob, jobs]
-    );
-
-    // Pool sentinel — candidates in this job have no job context and should show no score
-    const poolJobId = useMemo(
-        () => jobs.find(j => j.title === '__candidate_pool__')?.id ?? null,
-        [jobs]
     );
 
     // --- Metrics Calculation ---
