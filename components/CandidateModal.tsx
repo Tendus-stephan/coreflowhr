@@ -454,15 +454,35 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               const { playNotificationSound } = await import('../utils/soundUtils');
               playNotificationSound();
 
-              // Automatically advance candidate stage when an email implies a transition
-              const stageMap: Partial<Record<string, { target: CandidateStage; fromStages: CandidateStage[] }>> = {
-                  Screening: { target: CandidateStage.SCREENING, fromStages: [CandidateStage.NEW] },
-                  Offer:     { target: CandidateStage.OFFER,     fromStages: [CandidateStage.SCREENING, CandidateStage.INTERVIEW] },
-                  Hired:     { target: CandidateStage.HIRED,     fromStages: [CandidateStage.OFFER] },
-                  Rejection: { target: CandidateStage.REJECTED,  fromStages: [CandidateStage.NEW, CandidateStage.SCREENING, CandidateStage.INTERVIEW, CandidateStage.OFFER] },
+              // Advance candidate stage when an email implies a transition —
+              // but only if an enabled workflow exists for the target stage.
+              // Rejection and Hired are terminal states; no workflow required.
+              const stageMap: Partial<Record<string, { target: CandidateStage; fromStages: CandidateStage[]; requiresWorkflow: boolean }>> = {
+                  Screening: { target: CandidateStage.SCREENING, fromStages: [CandidateStage.NEW], requiresWorkflow: true },
+                  Offer:     { target: CandidateStage.OFFER,     fromStages: [CandidateStage.SCREENING, CandidateStage.INTERVIEW], requiresWorkflow: true },
+                  Hired:     { target: CandidateStage.HIRED,     fromStages: [CandidateStage.OFFER], requiresWorkflow: false },
+                  Rejection: { target: CandidateStage.REJECTED,  fromStages: [CandidateStage.NEW, CandidateStage.SCREENING, CandidateStage.INTERVIEW, CandidateStage.OFFER], requiresWorkflow: false },
               };
               const stageTransition = currentEmailType ? stageMap[currentEmailType] : undefined;
               if (stageTransition && stageTransition.fromStages.includes(candidate.stage)) {
+                  // For non-terminal stages, require an enabled workflow before moving
+                  if (stageTransition.requiresWorkflow) {
+                      let hasEnabledWorkflow = false;
+                      try {
+                          const workflows = await api.workflows.list();
+                          hasEnabledWorkflow = workflows.some(
+                              (w: any) => w.triggerStage === stageTransition.target && w.enabled
+                          );
+                      } catch { /* if check fails, don't block */ }
+
+                      if (!hasEnabledWorkflow) {
+                          toast.info(
+                              `Email sent. No ${stageTransition.target} workflow is enabled — move the candidate manually when ready.`
+                          );
+                          return; // Don't auto-advance without a workflow
+                      }
+                  }
+
                   try {
                       const updatedCandidate = await api.candidates.update(candidate.id, { stage: stageTransition.target });
                       const { playNotificationSound } = await import('../utils/soundUtils');
@@ -1917,13 +1937,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               <p className="text-sm text-gray-600 mb-4">
                 Are you sure you want to send this email to <strong>{candidate.name}</strong>?
                 {currentEmailType === 'Screening' && candidate.stage === CandidateStage.NEW && (
-                  <span className="block mt-2 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 font-medium">
-                    This will automatically move the candidate from <strong>Waitlist</strong> to <strong>Screening</strong>.
+                  <span className="block mt-2 text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-1.5">
+                    If a <strong>Screening</strong> workflow is enabled, the candidate will be moved automatically. Otherwise move them manually after sending.
                   </span>
                 )}
                 {currentEmailType === 'Offer' && (
-                  <span className="block mt-2 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 font-medium">
-                    This will automatically move the candidate to <strong>Offer</strong> stage.
+                  <span className="block mt-2 text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-1.5">
+                    If an <strong>Offer</strong> workflow is enabled, the candidate will be moved automatically. Otherwise move them manually after sending.
                   </span>
                 )}
                 {currentEmailType === 'Rejection' && (

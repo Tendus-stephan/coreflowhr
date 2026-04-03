@@ -349,7 +349,7 @@ export const draftEmail = async (candidate: Candidate, type: 'Screening' | 'Offe
     const typeInstructions: Record<string, { instructions: string; tone: string }> = {
         Screening: {
             tone: 'professional and warm',
-            instructions: `You are inviting this candidate to progress to the screening stage. Briefly acknowledge why their profile stood out, explain what the next step is, and make it easy for them to respond. 2–3 short paragraphs.`
+            instructions: `You are inviting this candidate to a screening call. Acknowledge what stood out about their profile, briefly explain what the screening call involves (short, relaxed conversation — no technical tests). Close by letting them know the recruiter will follow up shortly with scheduling details. Do NOT ask them to reply with availability or times. 2–3 short paragraphs.`
         },
         Offer: {
             tone: 'genuinely excited and professional',
