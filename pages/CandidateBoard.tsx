@@ -343,6 +343,7 @@ const CandidateBoard: React.FC = () => {
                 setCandidates(prev => prev.map(c => c.id === r.id ? {
                     ...c,
                     stage: r.stage as CandidateStage,
+                    resumeSummary: r.resume_summary ?? c.resumeSummary,
                     name: r.name ?? c.name,
                     email: r.email ?? c.email,
                     aiMatchScore: r.ai_match_score ?? c.aiMatchScore,
@@ -487,7 +488,8 @@ const CandidateBoard: React.FC = () => {
         };
 
         run();
-    }, [loading, candidates.length, jobs.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, candidates.length, candidates.filter(c => !!c.resumeSummary).length, jobs.length]);
 
     // Handle candidate ID and tab from URL
     useEffect(() => {

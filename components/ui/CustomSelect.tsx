@@ -46,8 +46,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       position: 'fixed',
       top,
       left: rect.left,
-      // inputStyle: lock to trigger width; pill style: grow freely
-      ...(inputStyle ? { width: rect.width } : { minWidth: rect.width }),
+      // Always use minWidth so dropdown can grow wider than trigger to show full labels
+      minWidth: rect.width,
       zIndex: 9999,
     });
   };
@@ -115,7 +115,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                   : 'text-gray-700'
               }`}
             >
-              <span className="block truncate">{opt.label}</span>
+                {opt.label}
             </button>
           ))}
         </div>,
