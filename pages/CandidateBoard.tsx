@@ -93,7 +93,8 @@ const CandidateListView: React.FC<{
                     </div>
                 ) : (
                     paginated.map(c => {
-                        const score = c.aiMatchScore as number | undefined;
+                        const isPool = poolJobId ? c.jobId === poolJobId : false;
+                        const score = (!isPool && c.aiMatchScore != null) ? c.aiMatchScore as number : undefined;
                         const scoreColor = score != null
                             ? score >= 70 ? 'text-green-700 bg-green-50'
                             : score >= 50 ? 'text-amber-700 bg-amber-50'
@@ -124,7 +125,7 @@ const CandidateListView: React.FC<{
                                     </span>
                                 </div>
                                 <div className="w-14">
-                                    {score != null ? (
+                                    {isPool ? null : score != null ? (
                                         <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${scoreColor}`}>{score}%</span>
                                     ) : (
                                         <span className="text-[11px] text-gray-300">—</span>
@@ -521,6 +522,12 @@ const CandidateBoard: React.FC = () => {
         [selectedJob, jobs]
     );
 
+    // Pool sentinel — candidates in this job have no job context and should show no score
+    const poolJobId = useMemo(
+        () => jobs.find(j => j.title === '__candidate_pool__')?.id ?? null,
+        [jobs]
+    );
+
     // --- Metrics Calculation ---
     const metrics = useMemo(() => {
         const total = candidates.length;
@@ -913,7 +920,7 @@ const CandidateBoard: React.FC = () => {
                             className="py-1.5 text-sm"
                             options={[
                                 { value: 'all', label: 'All jobs' },
-                                ...jobs.map(j => ({ value: j.id, label: j.title }))
+                                ...jobs.filter(j => j.title !== '__candidate_pool__').map(j => ({ value: j.id, label: j.title }))
                             ]}
                         />
                     </div>
@@ -935,7 +942,7 @@ const CandidateBoard: React.FC = () => {
                 }}
             >
                 <div className="flex gap-4 w-max snap-x snap-mandatory pb-6" style={{ height: '100%' }}>
-                    <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer}
+                    <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
                         onRejectCandidate={isViewer ? undefined : (id) => {
                             const c = candidates.find(x => x.id === id);
                             if (c) setPendingAction({ type: 'reject', candidateId: id, candidateName: c.name });
@@ -945,11 +952,11 @@ const CandidateBoard: React.FC = () => {
                             if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name });
                         }}
                     />
-                    <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
-                    <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
-                    <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
-                    <PipelineColumn title="Hired" stage={CandidateStage.HIRED} candidates={getCandidatesByStage(CandidateStage.HIRED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
-                    <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} />
+                    <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
+                    <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
+                    <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
+                    <PipelineColumn title="Hired" stage={CandidateStage.HIRED} candidates={getCandidatesByStage(CandidateStage.HIRED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
+                    <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
                 </div>
             </div>
 

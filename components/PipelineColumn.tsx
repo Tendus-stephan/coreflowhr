@@ -23,6 +23,7 @@ interface PipelineColumnProps {
     readOnly?: boolean;
     onRejectCandidate?: (candidateId: string) => void;
     onDeleteCandidate?: (candidateId: string) => void;
+    poolJobId?: string;
 }
 
 const DraggableCandidateCard: React.FC<{
@@ -32,7 +33,8 @@ const DraggableCandidateCard: React.FC<{
     draggable?: boolean;
     onReject?: (id: string) => void;
     onDelete?: (id: string) => void;
-}> = ({ candidate, onSelect, draggable = true, onReject, onDelete }) => {
+    poolJobId?: string;
+}> = ({ candidate, onSelect, draggable = true, onReject, onDelete, poolJobId }) => {
     const [isDragging, setIsDragging] = useState(false);
 
     const handleDragStart = (e: React.DragEvent) => {
@@ -45,7 +47,8 @@ const DraggableCandidateCard: React.FC<{
 
     const handleDragEnd = () => setIsDragging(false);
 
-    const score = candidate.aiMatchScore as number | undefined;
+    const isPool = poolJobId ? candidate.jobId === poolJobId : false;
+    const score = (!isPool && candidate.aiMatchScore != null) ? candidate.aiMatchScore as number : undefined;
     const scoreColor = score != null
         ? score >= 70 ? 'text-green-700 bg-green-50'
         : score >= 50 ? 'text-amber-700 bg-amber-50'
@@ -146,7 +149,7 @@ const DraggableCandidateCard: React.FC<{
 export const PipelineColumn: React.FC<PipelineColumnProps> = ({
     title, stage, candidates, onSelectCandidate, onDropCandidate,
     isValidDropTarget, jobRequiredSkills, readOnly = false,
-    onRejectCandidate, onDeleteCandidate,
+    onRejectCandidate, onDeleteCandidate, poolJobId,
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -231,6 +234,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
                         draggable={!readOnly && stage !== CandidateStage.NEW}
                         onReject={!readOnly && stage === CandidateStage.NEW ? onRejectCandidate : undefined}
                         onDelete={!readOnly && stage === CandidateStage.NEW ? onDeleteCandidate : undefined}
+                        poolJobId={poolJobId}
                     />
                 ))}
                 {candidates.length === 0 && (
