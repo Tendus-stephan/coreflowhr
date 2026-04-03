@@ -1916,14 +1916,24 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Send Email</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Are you sure you want to send this email to <strong>{candidate.name}</strong>?
+                {currentEmailType === 'Screening' && candidate.stage === CandidateStage.NEW && (
+                  <span className="block mt-2 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 font-medium">
+                    This will automatically move the candidate from <strong>Waitlist</strong> to <strong>Screening</strong>.
+                  </span>
+                )}
+                {currentEmailType === 'Offer' && (
+                  <span className="block mt-2 text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 font-medium">
+                    This will automatically move the candidate to <strong>Offer</strong> stage.
+                  </span>
+                )}
                 {currentEmailType === 'Rejection' && (
-                  <span className="block mt-2 text-gray-700 font-medium">
-                    The candidate will be moved to "Rejected" stage automatically.
+                  <span className="block mt-2 text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1.5 font-medium">
+                    This will automatically move the candidate to <strong>Rejected</strong>.
                   </span>
                 )}
                 {currentEmailType === 'Hired' && (
-                  <span className="block mt-2 text-gray-700 font-medium">
-                    The candidate will be moved to "Hired" stage automatically.
+                  <span className="block mt-2 text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5 font-medium">
+                    This will automatically move the candidate to <strong>Hired</strong>.
                   </span>
                 )}
               </p>
