@@ -1096,47 +1096,41 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                         </a>
                                     )}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                                    {candidate.projects.slice(0, 4).map((project, index) => (
-                                        <div key={index} className="group">
-                                            {project.url && (
-                                                <a 
-                                                    href={project.url} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="block cursor-pointer"
-                                                >
-                                                    <div className="aspect-video bg-gray-100 rounded-lg mb-2 overflow-hidden border border-gray-200 flex items-center justify-center">
-                                                        <ExternalLink size={24} className="text-gray-400 group-hover:text-gray-600" />
-                                                    </div>
-                                                    <h4 className="font-bold text-sm text-gray-900 group-hover:text-blue-600 transition-colors">{project.name || 'Project'}</h4>
-                                                    {project.technologies && project.technologies.length > 0 && (
-                                                        <p className="text-xs text-gray-500 mt-1">{project.technologies.slice(0, 3).join(' • ')}{project.technologies.length > 3 && ` +${project.technologies.length - 3}`}</p>
-                                                    )}
-                                                    {project.description && (
-                                                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{project.description}</p>
-                                                    )}
-                                                </a>
-                                            )}
-                                            {!project.url && (
-                                                <>
-                                                    <div className="aspect-video bg-gray-100 rounded-lg mb-2 overflow-hidden border border-gray-200 flex items-center justify-center">
-                                                        <Briefcase size={24} className="text-gray-400" />
+                        <div className="grid grid-cols-2 gap-3">
+                            {candidate.projects.slice(0, 6).map((project, index) => (
+                                <div key={index} className="border border-gray-100 rounded-xl p-3.5 hover:border-gray-300 hover:shadow-sm transition-all">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <h4 className="font-semibold text-sm text-gray-900 leading-snug">{project.name || 'Project'}</h4>
+                                        {project.url && (
+                                            <a
+                                                href={project.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={e => e.stopPropagation()}
+                                                className="flex-shrink-0 text-gray-300 hover:text-gray-700 transition-colors mt-0.5"
+                                            >
+                                                <ExternalLink size={13} />
+                                            </a>
+                                        )}
                                     </div>
-                                                    <h4 className="font-bold text-sm text-gray-900">{project.name || 'Project'}</h4>
-                                                    {project.technologies && project.technologies.length > 0 && (
-                                                        <p className="text-xs text-gray-500 mt-1">{project.technologies.slice(0, 3).join(' • ')}{project.technologies.length > 3 && ` +${project.technologies.length - 3}`}</p>
-                                                    )}
-                                                    {project.description && (
-                                                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{project.description}</p>
-                                                    )}
-                                                </>
+                                    {project.technologies && project.technologies.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mb-2">
+                                            {project.technologies.slice(0, 4).map(tech => (
+                                                <span key={tech} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{tech}</span>
+                                            ))}
+                                            {project.technologies.length > 4 && (
+                                                <span className="text-[10px] text-gray-400">+{project.technologies.length - 4}</span>
                                             )}
+                                        </div>
+                                    )}
+                                    {project.description && (
+                                        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{project.description}</p>
+                                    )}
                                 </div>
                             ))}
                         </div>
-                        {candidate.projects.length > 4 && (
-                            <p className="text-xs text-gray-400 text-center mt-2">Showing 4 of {candidate.projects.length} projects</p>
+                        {candidate.projects.length > 6 && (
+                            <p className="text-xs text-gray-400 text-center mt-2">Showing 6 of {candidate.projects.length} projects</p>
                         )}
                     </div>
                         </>
