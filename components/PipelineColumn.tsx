@@ -237,7 +237,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
                         jobRequiredSkills={jobRequiredSkills}
                         draggable={!readOnly && stage !== CandidateStage.NEW}
                         onReject={!readOnly && stage === CandidateStage.NEW ? onRejectCandidate : undefined}
-                        onDelete={!readOnly && stage === CandidateStage.NEW ? onDeleteCandidate : undefined}
+                        onDelete={!readOnly ? onDeleteCandidate : undefined}
                         poolJobId={poolJobId}
                     />
                 ))}

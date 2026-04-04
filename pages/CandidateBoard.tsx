@@ -6,7 +6,7 @@ import { Candidate, CandidateStage, Job } from '../types';
 import { PipelineColumn } from '../components/PipelineColumn';
 import {
     Users, Clock, Sparkles, Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-    Download, Upload, Bell, Loader2, Mail, LayoutGrid, List,
+    Download, Upload, Bell, Loader2, Mail, LayoutGrid, List, Trash2, RotateCcw,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
@@ -227,6 +227,38 @@ const CandidateBoard: React.FC = () => {
         candidateName: string;
     } | null>(null);
     const [pendingActionLoading, setPendingActionLoading] = useState(false);
+
+    // Trash panel
+    const [trashOpen, setTrashOpen] = useState(false);
+    const [trashedCandidates, setTrashedCandidates] = useState<Candidate[]>([]);
+    const [trashLoading, setTrashLoading] = useState(false);
+    const [restoringId, setRestoringId] = useState<string | null>(null);
+
+    const openTrash = async () => {
+        setTrashOpen(true);
+        setTrashLoading(true);
+        try {
+            const deleted = await api.candidates.listDeleted();
+            setTrashedCandidates(deleted);
+        } catch { /* ignore */ }
+        finally { setTrashLoading(false); }
+    };
+
+    const handleRestore = async (id: string) => {
+        setRestoringId(id);
+        try {
+            await api.candidates.restoreCandidate(id);
+            setTrashedCandidates(prev => prev.filter(c => c.id !== id));
+            // Reload board candidates
+            const result = await api.candidates.list();
+            setCandidates(result.data);
+            toast.success('Candidate restored');
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to restore');
+        } finally {
+            setRestoringId(null);
+        }
+    };
 
     // Horizontal scroll container for pipeline columns
     const boardRef = useRef<HTMLDivElement | null>(null);
@@ -843,6 +875,15 @@ const CandidateBoard: React.FC = () => {
                             Import CVs
                         </Button>
                     )}
+                    {!isViewer && (
+                        <button
+                            title="Trash"
+                            onClick={openTrash}
+                            className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors bg-white"
+                        >
+                            <Trash2 size={15} />
+                        </button>
+                    )}
                     <Button
                         variant="black"
                         size="sm"
@@ -973,11 +1014,16 @@ const CandidateBoard: React.FC = () => {
                             if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name });
                         }}
                     />
-                    <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
-                    <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
-                    <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
-                    <PipelineColumn title="Hired" stage={CandidateStage.HIRED} candidates={getCandidatesByStage(CandidateStage.HIRED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
-                    <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined} />
+                    <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
+                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} />
+                    <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
+                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} />
+                    <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
+                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} />
+                    <PipelineColumn title="Hired" stage={CandidateStage.HIRED} candidates={getCandidatesByStage(CandidateStage.HIRED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
+                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} />
+                    <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
+                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} />
                 </div>
             </div>
 
@@ -1101,7 +1147,7 @@ const CandidateBoard: React.FC = () => {
                         <p className="text-sm text-gray-500 mb-5">
                             {pendingAction.type === 'reject'
                                 ? <>Are you sure you want to reject <span className="font-medium text-gray-700">{pendingAction.candidateName}</span>? They will be moved to the Rejected column.</>
-                                : <>Are you sure you want to permanently delete <span className="font-medium text-gray-700">{pendingAction.candidateName}</span>? This cannot be undone.</>}
+                                : <>Move <span className="font-medium text-gray-700">{pendingAction.candidateName}</span> to trash? You can restore them later.</>}}
                         </p>
                         <div className="flex justify-end gap-2">
                             <button
@@ -1135,7 +1181,7 @@ const CandidateBoard: React.FC = () => {
                                     pendingAction.type === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600'
                                 }`}
                             >
-                                {pendingActionLoading ? 'Please wait…' : pendingAction.type === 'reject' ? 'Yes, reject' : 'Yes, delete'}
+                                {pendingActionLoading ? 'Please wait…' : pendingAction.type === 'reject' ? 'Yes, reject' : 'Move to trash'}
                             </button>
                         </div>
                     </div>
@@ -1153,6 +1199,61 @@ const CandidateBoard: React.FC = () => {
                         toast.success(`${count} CV${count !== 1 ? 's' : ''} imported successfully`);
                     }}
                 />
+            )}
+
+            {/* Trash panel */}
+            {trashOpen && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+                            <div className="flex items-center gap-2">
+                                <Trash2 size={15} className="text-gray-400" />
+                                <h3 className="text-sm font-semibold text-gray-900">Trash</h3>
+                                {trashedCandidates.length > 0 && (
+                                    <span className="text-xs text-gray-400">({trashedCandidates.length})</span>
+                                )}
+                            </div>
+                            <button onClick={() => setTrashOpen(false)} className="text-gray-400 hover:text-gray-700 transition-colors text-lg leading-none">&times;</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 custom-scrollbar">
+                            {trashLoading ? (
+                                <div className="flex justify-center py-10">
+                                    <Loader2 size={20} className="animate-spin text-gray-300" />
+                                </div>
+                            ) : trashedCandidates.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+                                    <Trash2 size={28} className="text-gray-200" />
+                                    <p className="text-sm text-gray-400">Trash is empty</p>
+                                </div>
+                            ) : trashedCandidates.map(c => (
+                                <div key={c.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Avatar name={c.name} size={32} />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${STAGE_META[c.stage]?.badge || 'bg-gray-100 text-gray-500'}`}>
+                                                    {STAGE_META[c.stage]?.label || c.stage}
+                                                </span>
+                                                {c.role && <span className="text-xs text-gray-400 truncate">{c.role}</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        title="Restore"
+                                        disabled={restoringId === c.id}
+                                        onClick={() => handleRestore(c.id)}
+                                        className="flex-shrink-0 flex items-center gap-1.5 px-3 h-7 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                                    >
+                                        {restoringId === c.id ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                                        Restore
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );

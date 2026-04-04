@@ -3024,16 +3024,17 @@ export const api = {
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
-            // Get total count first
+            // Get total count first (exclude soft-deleted)
             const { count, error: countError } = await scopeFilter(
                 supabase.from('candidates').select('*', { count: 'exact', head: true })
-            );
+            ).is('deleted_at', null);
 
             if (countError) throw countError;
 
             const { data, error } = await scopeFilter(
                 supabase.from('candidates').select('*')
             )
+                .is('deleted_at', null)
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
@@ -3060,7 +3061,7 @@ export const api = {
             if (linkedinUrls.length > 0) {
                 const { data: dupRows } = await scopeFilter(
                     supabase.from('candidates').select('id, job_id, linkedin_url')
-                ).in('linkedin_url', linkedinUrls);
+                ).is('deleted_at', null).in('linkedin_url', linkedinUrls);
                 if (dupRows && dupRows.length > 0) {
                     const otherJobIds = [...new Set((dupRows as any[]).map((r: any) => r.job_id))];
                     const missingJobIds = otherJobIds.filter(jid => !jobsMap.has(jid));
@@ -3141,7 +3142,8 @@ export const api = {
                 sourcedAt: candidate.sourced_at || undefined,
                 pdlId: candidate.pdl_id || undefined,
                 aiMatchReason: candidate.ai_match_reason || undefined,
-                alsoInJobTitles: alsoInMap.get(candidate.id) || undefined
+                alsoInJobTitles: alsoInMap.get(candidate.id) || undefined,
+                deletedAt: candidate.deleted_at || undefined,
             };
             });
             
@@ -3417,16 +3419,62 @@ export const api = {
             const { error } = await q;
             if (error) throw error;
         },
-        /** Permanently delete a candidate record. Only Admin/Recruiter may call this. */
+        /** Soft-delete a candidate (moves to Trash). Only Admin/Recruiter may call this. */
         deleteCandidate: async (candidateId: string): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
             const [workspaceId, role] = await Promise.all([getCurrentWorkspaceId(), getCurrentUserRole()]);
             if (role === 'Viewer' || role === 'HiringManager') throw new Error('Only Admins and Recruiters can delete candidates.');
-            let q = supabase.from('candidates').delete().eq('id', candidateId);
+            let q = supabase.from('candidates').update({ deleted_at: new Date().toISOString() }).eq('id', candidateId);
             if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
             const { error } = await q;
             if (error) throw error;
+        },
+        /** Restore a soft-deleted candidate back to their previous stage. */
+        restoreCandidate: async (candidateId: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const [workspaceId, role] = await Promise.all([getCurrentWorkspaceId(), getCurrentUserRole()]);
+            if (role === 'Viewer' || role === 'HiringManager') throw new Error('Only Admins and Recruiters can restore candidates.');
+            let q = supabase.from('candidates').update({ deleted_at: null }).eq('id', candidateId);
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { error } = await q;
+            if (error) throw error;
+        },
+        /** List soft-deleted (trashed) candidates for the current workspace. */
+        listDeleted: async (): Promise<Candidate[]> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+            let q = supabase.from('candidates').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false });
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data, error } = await q;
+            if (error) throw error;
+            return (data || []).map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                email: c.email,
+                role: c.role || '',
+                jobId: c.job_id,
+                stage: c.stage as CandidateStage,
+                appliedDate: c.applied_date || c.created_at,
+                location: c.location || '',
+                resumeSummary: c.resume_summary,
+                aiAnalysis: c.ai_analysis,
+                avatarUrl: c.avatar_url,
+                experience: c.experience,
+                skills: c.skills || [],
+                cvFileUrl: c.cv_file_url,
+                cvFileName: c.cv_file_name,
+                source: c.source,
+                isTest: c.is_test,
+                workExperience: c.work_experience || [],
+                projects: c.projects || [],
+                portfolioUrls: c.portfolio_urls || {},
+                profileUrl: c.profile_url,
+                linkedInUrl: c.linkedin_url || undefined,
+                deletedAt: c.deleted_at,
+            }));
         },
         search: async (query: string, stageFilter?: CandidateStage): Promise<Candidate[]> => {
             const userId = await getUserId();

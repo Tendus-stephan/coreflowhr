@@ -141,6 +141,8 @@ export interface Candidate {
   aiMatchReason?: string | null;
   /** Other jobs (same user) that have a candidate with the same LinkedIn profile */
   alsoInJobTitles?: { jobId: string; jobTitle: string }[];
+  /** Set when candidate is soft-deleted (trashed). NULL = active. */
+  deletedAt?: string | null;
 }
 
 export interface Interview {
