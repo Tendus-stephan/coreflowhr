@@ -6033,11 +6033,12 @@ export const api = {
             if (!userId) throw new Error('Not authenticated');
             const workspaceId = await getCurrentWorkspaceId();
 
-            let q = supabase.from('email_workflows').select('*').eq('id', workflowId);
+            let q = supabase.from('email_workflows').select('*').eq('id', workflowId).limit(1);
             if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
-            const { data, error } = await q.maybeSingle();
+            const { data: rows, error } = await q;
 
             if (error) throw error;
+            const data = rows?.[0] ?? null;
             if (!data) throw new Error('Workflow not found');
 
             return {
@@ -6123,9 +6124,10 @@ export const api = {
             const workspaceId = await getCurrentWorkspaceId();
             let q = supabase.from('email_workflows').update(updateData).eq('id', workflowId);
             if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
-            const { data, error } = await q.select().maybeSingle();
+            const { data: rows, error } = await q.select();
 
             if (error) throw error;
+            const data = rows?.[0] ?? null;
             if (!data) throw new Error('Workflow not found or access denied');
 
             return {
