@@ -6006,12 +6006,11 @@ export const api = {
         list: async (): Promise<EmailWorkflow[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
-            const { data, error } = await supabase
-                .from('email_workflows')
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false });
+            let q = supabase.from('email_workflows').select('*');
+            if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
+            const { data, error } = await q.order('created_at', { ascending: false });
 
             if (error) throw error;
 
@@ -6036,9 +6035,10 @@ export const api = {
 
             let q = supabase.from('email_workflows').select('*').eq('id', workflowId);
             if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
-            const { data, error } = await q.single();
+            const { data, error } = await q.maybeSingle();
 
             if (error) throw error;
+            if (!data) throw new Error('Workflow not found');
 
             return {
                 id: data.id,
@@ -6065,11 +6065,13 @@ export const api = {
         }): Promise<EmailWorkflow> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
 
             const { data, error } = await supabase
                 .from('email_workflows')
                 .insert({
                     user_id: userId,
+                    ...(workspaceId ? { workspace_id: workspaceId } : {}),
                     name: workflow.name,
                     trigger_stage: workflow.triggerStage,
                     email_template_id: workflow.emailTemplateId,
@@ -6121,9 +6123,10 @@ export const api = {
             const workspaceId = await getCurrentWorkspaceId();
             let q = supabase.from('email_workflows').update(updateData).eq('id', workflowId);
             if (workspaceId) q = q.eq('workspace_id', workspaceId); else q = q.eq('user_id', userId);
-            const { data, error } = await q.select().single();
+            const { data, error } = await q.select().maybeSingle();
 
             if (error) throw error;
+            if (!data) throw new Error('Workflow not found or access denied');
 
             return {
                 id: data.id,
