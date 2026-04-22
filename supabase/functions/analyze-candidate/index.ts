@@ -34,7 +34,7 @@ serve(async (req) => {
   }
 
   try {
-    const { resumeSummary, skills, experience, role, jobTitle, jobDescription, jobSkills } = await req.json();
+    const { resumeSummary, skills, experience, role, jobTitle, jobDescription, jobSkills, isPoolCandidate, availableJobs } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -49,7 +49,55 @@ serve(async (req) => {
     const jobSkillsList = Array.isArray(jobSkills) ? jobSkills.join(", ") : "";
     const experienceText = experience != null ? `${experience} years` : "unknown";
 
-    const prompt = `Assess this candidate holistically for the role of "${jobTitle}".
+    let prompt: string;
+
+    if (isPoolCandidate) {
+      // Pool candidate: profile the person and recommend best-fit open roles
+      const openRoles = Array.isArray(availableJobs) && availableJobs.length > 0
+        ? availableJobs
+            .map((j: { title: string; description?: string; skills?: string[] }) => {
+              const jSkills = Array.isArray(j.skills) && j.skills.length ? ` | Required skills: ${j.skills.join(", ")}` : "";
+              const jDesc = j.description ? ` — ${j.description.substring(0, 200)}` : "";
+              return `• ${j.title}${jDesc}${jSkills}`;
+            })
+            .join("\n")
+        : null;
+
+      prompt = `You are a senior talent acquisition specialist. A candidate has been added to the talent pool without a specific role assigned yet.
+
+<candidate>
+Current/Recent Role: ${role || "Not specified"}
+Experience: ${experienceText}
+Skills: ${skillsList || "Not specified"}
+Background Summary: ${resumeSummary || "Not provided"}
+</candidate>
+${openRoles ? `
+<open_roles>
+${openRoles}
+</open_roles>
+
+Your tasks:
+1. Write a concise, insightful talent profile of this candidate (2–3 sentences covering seniority, core expertise, and career trajectory).
+2. From the open roles listed, identify which role(s) they are the strongest fit for. Be specific: name the role and explain exactly why their background maps to it. If they fit multiple roles, rank them.
+3. If none of the open roles are a good fit, say so clearly and describe what type of role they should be considered for.
+4. List their top professional strengths (specific, not generic).
+5. Note real gaps or areas to develop.` : `
+Your tasks:
+1. Write a concise, insightful talent profile of this candidate (2–3 sentences covering seniority, core expertise, and career trajectory).
+2. Describe what types of roles this person would be best suited for based purely on their background.
+3. List their top professional strengths (specific, not generic).
+4. Note real gaps or areas to develop.`}
+
+Return ONLY this JSON (no markdown, no backticks):
+{
+  "score": null,
+  "summary": "<talent profile + specific role recommendation(s) with reasoning>",
+  "strengths": ["<specific strength 1>", "<specific strength 2>", "<specific strength 3>"],
+  "weaknesses": ["<gap or area to develop 1>", "<gap or area to develop 2>"]
+}`;
+    } else {
+      // Standard job-match assessment
+      prompt = `Assess this candidate holistically for the role of "${jobTitle}".
 
 <candidate>
 Role/Title: ${role || "Not specified"}
@@ -90,6 +138,7 @@ Return ONLY this JSON (no markdown, no backticks):
   "strengths": ["<specific strength 1>", "<specific strength 2>", "<specific strength 3>"],
   "weaknesses": ["<specific gap or risk 1>", "<specific gap or risk 2>"]
 }`;
+    }
 
     const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

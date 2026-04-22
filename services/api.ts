@@ -14,10 +14,24 @@ function toSlug(text: string): string {
     .trim();
 }
 
+// Short-lived cache for auth helpers — avoids redundant round-trips within a single page load.
+// Cleared on auth state change so stale values never persist across sign-in/out.
+let _userIdCache: { value: string | null; ts: number } | null = null;
+let _workspaceIdCache: { value: string | null; ts: number } | null = null;
+const AUTH_CACHE_TTL = 30_000; // 30 s
+
+supabase.auth.onAuthStateChange(() => {
+  _userIdCache = null;
+  _workspaceIdCache = null;
+});
+
 // Helper to get current user ID
 const getUserId = async (): Promise<string | null> => {
+  const now = Date.now();
+  if (_userIdCache && now - _userIdCache.ts < AUTH_CACHE_TTL) return _userIdCache.value;
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.id || null;
+  _userIdCache = { value: user?.id || null, ts: now };
+  return _userIdCache.value;
 };
 
 // Helper for RBAC: workspace-scoped role (Admin, Recruiter, HiringManager, Viewer).
@@ -48,13 +62,15 @@ const getCurrentUserRole = async (): Promise<string> => {
 
 // Helper: get current user's workspace ID (for workspace-scoped job list/create). Prefer workspace the user OWNS (created_by), then Admin, then first.
 const getCurrentWorkspaceId = async (): Promise<string | null> => {
+  const now = Date.now();
+  if (_workspaceIdCache && now - _workspaceIdCache.ts < AUTH_CACHE_TTL) return _workspaceIdCache.value;
   const userId = await getUserId();
   if (!userId) return null;
   const { data: rows, error } = await supabase
     .from('workspace_members')
     .select('workspace_id, role')
     .eq('user_id', userId);
-  if (error || !rows?.length) return null;
+  if (error || !rows?.length) { _workspaceIdCache = { value: null, ts: now }; return null; }
   const workspaceIds = rows.map((r: { workspace_id: string }) => r.workspace_id);
   const { data: owned } = await supabase
     .from('workspaces')
@@ -62,9 +78,10 @@ const getCurrentWorkspaceId = async (): Promise<string | null> => {
     .eq('created_by', userId)
     .in('id', workspaceIds)
     .limit(1);
-  if (owned?.[0]?.id) return owned[0].id as string;
   const admin = rows.find((r: { role: string }) => r.role === 'Admin');
-  return (admin?.workspace_id ?? rows[0]?.workspace_id) as string | null;
+  const value = (owned?.[0]?.id ?? admin?.workspace_id ?? rows[0]?.workspace_id) as string | null;
+  _workspaceIdCache = { value, ts: now };
+  return value;
 };
 
 /** For Viewers only: return job IDs they are assigned to in the current workspace. Returns null if not a Viewer (no filter). */

@@ -790,9 +790,9 @@ const Dashboard: React.FC = () => {
                   api.auth.me(),
                   api.dashboard.getStats(),
                   api.dashboard.getActivity(),
-                  api.jobs.list({ excludeClosed: true, page: 1, pageSize: 50 }), // Exclude closed jobs from dashboard
+                  api.jobs.list({ excludeClosed: true, page: 1, pageSize: 50 }),
                   api.interviews.list(),
-                  api.candidates.list({ page: 1, pageSize: 100 }), // Load first 100 candidates for dashboard
+                  api.candidates.list({ page: 1, pageSize: 100 }),
                   api.notifications.list()
               ]);
               setUser(u);
@@ -802,25 +802,25 @@ const Dashboard: React.FC = () => {
               setInterviews(i);
               setCandidates(candidatesResult.data || []);
               setNotifications(n);
-
-              // Run all background tasks in parallel, then fetch notifications once
-              await Promise.allSettled([
-                  import('../services/jobExpirationChecker').then(m => m.checkJobExpirations()).catch(() => {}),
-                  api.interviews.ensureFeedbackReminders().catch(() => {}),
-                  api.interviews.ensureUpcomingInterviewReminders().catch(() => {}),
-                  api.settings.recordSeen().catch(() => {}),
-              ]);
-              const finalNotifications = await api.notifications.list();
-              setNotifications(finalNotifications);
           } catch (error) {
               console.error("Error loading dashboard", error);
           } finally {
               setLoading(false);
               // Signal that dashboard loading is complete (for loader coordination)
-              // Use a small delay to ensure event listener is set up before event fires
               setTimeout(() => {
                   window.dispatchEvent(new Event('dashboardLoaded'));
               }, 100);
+              // Fire background tasks after UI is unblocked — no need to await
+              Promise.allSettled([
+                  import('../services/jobExpirationChecker').then(m => m.checkJobExpirations()).catch(() => {}),
+                  api.interviews.ensureFeedbackReminders().catch(() => {}),
+                  api.interviews.ensureUpcomingInterviewReminders().catch(() => {}),
+                  api.settings.recordSeen().catch(() => {}),
+              ]).then(async () => {
+                  // Refresh notifications after background tasks may have created new ones
+                  const updated = await api.notifications.list().catch(() => null);
+                  if (updated) setNotifications(updated);
+              });
           }
       };
 

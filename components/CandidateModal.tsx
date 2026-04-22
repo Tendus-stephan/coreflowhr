@@ -149,22 +149,26 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           if (!candidate.cvFileUrl) return;
           if (!candidate.resumeSummary || candidate.resumeSummary.length <= 100) return;
 
-          // ── Pool candidate: profile analysis (no job match, no score) ──────────
+          // ── Pool candidate: profile + job-match recommendations ──────────────
           if (job.title === '__candidate_pool__') {
-              // Only run if no analysis exists yet — don't re-run on every open
-              if (candidate.aiAnalysis) return;
+              // Skip if a good analysis already exists; re-run if it's the old "Cannot assess" placeholder
+              const isStalePoolAnalysis = candidate.aiAnalysis?.startsWith('Cannot assess');
+              if (candidate.aiAnalysis && !isStalePoolAnalysis) return;
               try {
+                  // Fetch open jobs inline so we don't race against availableJobs state
+                  const jobsRes = await api.jobs.list({ pageSize: 100 }).catch(() => ({ data: [] as import('../types').Job[] }));
+                  const openJobs = (jobsRes.data || [])
+                      .filter(j => j.status === 'Active')
+                      .map(j => ({ title: j.title, description: j.description, skills: j.skills ?? [] }));
+
                   const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
                       body: {
                           resumeSummary: candidate.resumeSummary?.substring(0, 800) ?? '',
                           skills: candidate.skills,
                           experience: candidate.experience ?? null,
                           role: candidate.role,
-                          // Use candidate's own role/skills as context — produces a
-                          // "how strong is this person in their own field" profile
-                          jobTitle: candidate.role || 'General Position',
-                          jobDescription: 'Assess this candidate\'s background, identify their key strengths, and describe what types of roles they would be best suited for.',
-                          jobSkills: candidate.skills,
+                          isPoolCandidate: true,
+                          availableJobs: openJobs,
                       },
                   });
                   if (!analysisError && analysis?.summary) {
