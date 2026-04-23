@@ -1147,7 +1147,7 @@ const CandidateBoard: React.FC = () => {
                         <p className="text-sm text-gray-500 mb-5">
                             {pendingAction.type === 'reject'
                                 ? <>Are you sure you want to reject <span className="font-medium text-gray-700">{pendingAction.candidateName}</span>? They will be moved to the Rejected column.</>
-                                : <>Move <span className="font-medium text-gray-700">{pendingAction.candidateName}</span> to trash? You can restore them later.</>}}
+                                : <>Move <span className="font-medium text-gray-700">{pendingAction.candidateName}</span> to trash? You can restore them later.</>}
                         </p>
                         <div className="flex justify-end gap-2">
                             <button
