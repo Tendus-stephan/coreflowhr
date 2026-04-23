@@ -23,7 +23,7 @@ interface FileEntry {
 
 export interface ImportSessionUpdate {
   id: string;
-  status: 'processing' | 'done';
+  status: 'processing' | 'done' | 'cancelled';
   total: number;
   succeeded: number;
   failed: number;
@@ -153,7 +153,15 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onS
     setImporting(false);
     if (!cancelledRef.current) setImportDone(true);
 
-    onSessionUpdate?.({ id: sessionId, status: 'done', total: entries.length, succeeded: newlyImported, failed: failCount, jobId, jobName });
+    onSessionUpdate?.({
+      id: sessionId,
+      status: cancelledRef.current ? 'cancelled' : 'done',
+      total: entries.length,
+      succeeded: newlyImported,
+      failed: failCount,
+      jobId,
+      jobName,
+    });
   };
 
   const runImport   = () => importEntries(files.filter(f => f.status === 'pending'));

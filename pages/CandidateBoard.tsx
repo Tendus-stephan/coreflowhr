@@ -29,7 +29,7 @@ interface ImportRecord {
     startedAt: string;
     jobId: string;
     jobName: string;
-    status: 'processing' | 'success' | 'partial' | 'failed';
+    status: 'processing' | 'success' | 'partial' | 'failed' | 'interrupted' | 'cancelled';
     total: number;
     succeeded: number;
     failed: number;
@@ -255,7 +255,16 @@ const CandidateBoard: React.FC = () => {
     const [importHistory, setImportHistory] = useState<ImportRecord[]>(() => {
         try {
             const stored = localStorage.getItem(IMPORT_HISTORY_KEY);
-            return stored ? JSON.parse(stored) : [];
+            if (!stored) return [];
+            const records: ImportRecord[] = JSON.parse(stored);
+            // Any entry still "processing" when the page loads was interrupted (refresh/crash)
+            const fixed = records.map(r =>
+                r.status === 'processing' ? { ...r, status: 'interrupted' as const } : r
+            );
+            if (fixed.some((r, i) => r.status !== records[i].status)) {
+                localStorage.setItem(IMPORT_HISTORY_KEY, JSON.stringify(fixed));
+            }
+            return fixed;
         } catch { return []; }
     });
     const [showImportHistory, setShowImportHistory] = useState(false);
@@ -304,6 +313,11 @@ const CandidateBoard: React.FC = () => {
                     failed: 0,
                 };
                 updated = [record, ...prev].slice(0, 20);
+            } else if (update.status === 'cancelled') {
+                updated = prev.map(r => r.id === update.id
+                    ? { ...r, status: 'cancelled' as const, succeeded: update.succeeded, failed: update.failed }
+                    : r
+                );
             } else {
                 const finalStatus: ImportRecord['status'] =
                     update.failed === 0 ? 'success' :
@@ -468,6 +482,7 @@ const CandidateBoard: React.FC = () => {
     }, [workspaceId]);
 
     const [showBulkUpload, setShowBulkUpload] = useState(false);
+    const [bulkUploadDefaultJobId, setBulkUploadDefaultJobId] = useState<string | undefined>();
 
     // Close job dropdown when clicking outside
     useEffect(() => {
@@ -941,6 +956,8 @@ const CandidateBoard: React.FC = () => {
                                 className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${
                                     importHistory.some(r => r.status === 'processing')
                                         ? 'border-amber-300 text-amber-500'
+                                        : importHistory.some(r => r.status === 'interrupted')
+                                        ? 'border-orange-300 text-orange-500'
                                         : showImportHistory
                                         ? 'border-gray-300 text-gray-900'
                                         : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'
@@ -993,6 +1010,16 @@ const CandidateBoard: React.FC = () => {
                                                                         <Loader2 size={9} className="animate-spin" /> Processing
                                                                     </span>
                                                                 )}
+                                                                {record.status === 'interrupted' && (
+                                                                    <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                        Interrupted
+                                                                    </span>
+                                                                )}
+                                                                {record.status === 'cancelled' && (
+                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                        Cancelled
+                                                                    </span>
+                                                                )}
                                                                 {record.status === 'success' && (
                                                                     <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
                                                                         Success
@@ -1012,11 +1039,29 @@ const CandidateBoard: React.FC = () => {
                                                             <p className="text-[10px] text-gray-400">
                                                                 {record.status === 'processing'
                                                                     ? `${record.total} file${record.total !== 1 ? 's' : ''} importing…`
+                                                                    : record.status === 'interrupted'
+                                                                    ? `Interrupted after ${record.succeeded} imported · ${record.total} total`
+                                                                    : record.status === 'cancelled'
+                                                                    ? `Cancelled · ${record.succeeded} imported before stopping`
                                                                     : `${record.succeeded} imported${record.failed > 0 ? ` · ${record.failed} failed` : ''} · ${record.total} total`}
                                                             </p>
-                                                            <p className="text-[10px] text-gray-300 mt-0.5">
-                                                                {new Date(record.startedAt).toLocaleString()}
-                                                            </p>
+                                                            <div className="flex items-center justify-between mt-1">
+                                                                <p className="text-[10px] text-gray-300">
+                                                                    {new Date(record.startedAt).toLocaleString()}
+                                                                </p>
+                                                                {record.status === 'interrupted' && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setBulkUploadDefaultJobId(record.jobId);
+                                                                            setShowBulkUpload(true);
+                                                                            setShowImportHistory(false);
+                                                                        }}
+                                                                        className="text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded transition-colors"
+                                                                    >
+                                                                        Continue
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     ))
                                                 )}
@@ -1344,10 +1389,11 @@ const CandidateBoard: React.FC = () => {
             {showBulkUpload && (
                 <BulkCVUpload
                     jobs={jobs}
-                    defaultJobId={selectedJob !== 'all' ? selectedJob : jobs.find(j => j.status === 'Active')?.id}
+                    defaultJobId={bulkUploadDefaultJobId ?? (selectedJob !== 'all' ? selectedJob : undefined)}
                     onSessionUpdate={handleSessionUpdate}
                     onClose={async (count, _importedJobId) => {
                         setShowBulkUpload(false);
+                        setBulkUploadDefaultJobId(undefined);
                         if (count > 0) {
                             try {
                                 const result = await api.candidates.list({ page: 1, pageSize: 1000 });
