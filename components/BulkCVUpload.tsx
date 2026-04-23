@@ -60,6 +60,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
+  const resolvedJobIdRef = useRef<string | null>(null);
 
   // ── File helpers ─────────────────────────────────────────────────────────────
 
@@ -109,11 +110,18 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
     const jobId = await resolveJobId();
     if (!jobId) { setImporting(false); return; }
+    resolvedJobIdRef.current = jobId;
 
     let newlyImported = 0;
 
     for (let i = 0; i < entries.length; i += 2) {
-      if (cancelledRef.current) break;
+      if (cancelledRef.current) {
+        // Mark remaining pending files as cancelled (visual feedback)
+        setFiles(prev => prev.map(f =>
+          f.status === 'pending' ? { ...f, status: 'error', error: 'Cancelled' } : f
+        ));
+        break;
+      }
       const batch = entries.slice(i, i + 2);
 
       setFiles(prev => prev.map(f =>
@@ -125,29 +133,26 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
           try {
             const result = await api.candidates.bulkImport(jobId, entry.file);
             if (result.candidateId) newlyImported++;
-            if (!cancelledRef.current) {
-              setFiles(prev => prev.map(f =>
-                f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId, isUpdate: result.isUpdate } : f
-              ));
-            }
+            setFiles(prev => prev.map(f =>
+              f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId, isUpdate: result.isUpdate } : f
+            ));
           } catch (err: any) {
-            if (!cancelledRef.current) {
-              setFiles(prev => prev.map(f =>
-                f.id === entry.id
-                  ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
-                  : f
-              ));
-            }
+            setFiles(prev => prev.map(f =>
+              f.id === entry.id
+                ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
+                : f
+            ));
           }
         })
       );
     }
 
-    if (!cancelledRef.current) {
-      setImporting(false);
-      setImportDone(true);
-      if (newlyImported > 0) onImported(newlyImported, jobId);
-    }
+    setImporting(false);
+    if (!cancelledRef.current) setImportDone(true);
+
+    // Always notify parent if any candidates were created — even if cancelled mid-way,
+    // the in-flight batch completed and those candidates exist in the DB
+    if (newlyImported > 0) onImported(newlyImported, jobId);
   };
 
   const runImport    = () => importEntries(files.filter(f => f.status === 'pending'));
@@ -227,7 +232,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
             </p>
           </div>
           <button
-            onClick={() => { cancelledRef.current = true; onClose(); }}
+            onClick={() => { cancelledRef.current = true; setImporting(false); onClose(); }}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
             <X size={15} />
@@ -419,7 +424,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
           </span>
           <div className="flex gap-2">
             <button
-              onClick={() => { cancelledRef.current = true; onClose(); }}
+              onClick={() => { cancelledRef.current = true; setImporting(false); onClose(); }}
               className="px-4 h-8 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
             >
               {importDone ? 'Close' : 'Cancel'}
