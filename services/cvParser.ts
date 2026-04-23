@@ -471,13 +471,40 @@ export function calculateBasicMatchScore(candidateSkills: string[], jobSkills: s
         return { score: 0, matchingCount: 0 };
     }
 
+    // Normalize a skill string: lowercase, strip dots/hyphens/spaces so
+    // "Node.js" == "NodeJS" == "node js", "React.js" == "ReactJS", etc.
+    const norm = (s: string) => s.toLowerCase().replace(/[\s.\-_]+/g, '');
+
+    // Common aliases: expand abbreviations so "ML" matches "Machine Learning" etc.
+    const ALIASES: Record<string, string[]> = {
+        ml:  ['machine learning', 'machinelearning'],
+        ai:  ['artificial intelligence', 'artificialintelligence'],
+        nlp: ['natural language processing'],
+        cv:  ['computer vision'],
+        dl:  ['deep learning', 'deeplearning'],
+        rl:  ['reinforcement learning'],
+        k8s: ['kubernetes'],
+        ts:  ['typescript'],
+        js:  ['javascript'],
+        py:  ['python'],
+    };
+
+    const expand = (s: string): string[] => {
+        const n = norm(s);
+        const extras = ALIASES[n] ?? [];
+        return [n, ...extras];
+    };
+
     // Count matching skills (only skills that match job requirements)
-    const matchingSkills = candidateSkills.filter(skill =>
-        jobSkills.some(jobSkill => 
-            skill.toLowerCase().includes(jobSkill.toLowerCase()) ||
-            jobSkill.toLowerCase().includes(skill.toLowerCase())
-        )
-    );
+    const matchingSkills = candidateSkills.filter(skill => {
+        const cForms = expand(skill);
+        return jobSkills.some(jobSkill => {
+            const jForms = expand(jobSkill);
+            return cForms.some(c => jForms.some(j =>
+                c === j || c.includes(j) || j.includes(c)
+            ));
+        });
+    });
 
     const matchingCount = matchingSkills.length;
 

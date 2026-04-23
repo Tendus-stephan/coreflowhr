@@ -171,10 +171,14 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
     const candidates = (candidateRows ?? []) as { id: string; name: string; skills: string[] }[];
 
-    setMatchDiag({
+    const diag = {
       jobsWithSkills: activeJobs.filter(j => j.skills && j.skills.length > 0).length,
       candidatesWithSkills: candidates.filter(c => c.skills && c.skills.length > 0).length,
-    });
+    };
+    setMatchDiag(diag);
+    console.log('[skill-match] diag:', diag);
+    console.log('[skill-match] job skills:', activeJobs.map(j => ({ title: j.title, skills: j.skills })));
+    console.log('[skill-match] candidate skills:', candidates.map(c => ({ name: c.name, skills: c.skills })));
 
     // Score each candidate against each active job
     const results: JobMatch[] = activeJobs
