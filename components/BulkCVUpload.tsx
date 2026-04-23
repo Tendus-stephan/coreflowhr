@@ -34,14 +34,14 @@ export interface ImportSessionUpdate {
 interface Props {
   jobs: Job[];
   defaultJobId?: string;
-  onClose: () => void;
-  onImported: (count: number, importedJobId?: string) => void;
+  /** Called when the modal closes. `count` is 0 if nothing was imported or import was cancelled. */
+  onClose: (count: number, importedJobId?: string) => void;
   onSessionUpdate?: (update: ImportSessionUpdate) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onImported, onSessionUpdate }) => {
+export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onSessionUpdate }) => {
   const POOL = '__pool__';                   // sentinel = pool / no job
   const activeJobs = jobs.filter(j => j.status === 'Active' && j.title !== '__candidate_pool__');
 
@@ -54,6 +54,9 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
   const resolvedJobIdRef = useRef<string | null>(null);
+  // Accumulate totals across all import/retry runs so Done always passes the right count
+  const totalImportedRef = useRef(0);
+  const totalFailedRef = useRef(0);
 
   // ── File helpers ─────────────────────────────────────────────────────────────
 
@@ -144,13 +147,13 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
       }
     }
 
+    totalImportedRef.current += newlyImported;
+    totalFailedRef.current += failCount;
+
     setImporting(false);
     if (!cancelledRef.current) setImportDone(true);
 
     onSessionUpdate?.({ id: sessionId, status: 'done', total: entries.length, succeeded: newlyImported, failed: failCount, jobId, jobName });
-
-    // Notify parent — this triggers the board refresh so candidates are ready when user closes
-    if (newlyImported > 0) onImported(newlyImported, jobId);
   };
 
   const runImport   = () => importEntries(files.filter(f => f.status === 'pending'));
@@ -165,7 +168,11 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
   const hasErrors    = errorCount > 0;
   const hasPending   = files.some(f => f.status === 'pending');
 
-  const handleClose = () => { cancelledRef.current = true; setImporting(false); onClose(); };
+  const handleClose = () => {
+    cancelledRef.current = true;
+    setImporting(false);
+    onClose(totalImportedRef.current, resolvedJobIdRef.current ?? undefined);
+  };
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
