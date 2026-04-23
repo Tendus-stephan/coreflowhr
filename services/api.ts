@@ -2334,33 +2334,6 @@ export const api = {
                 } catch { return null; }
             };
 
-            // ── Dedup by filename: same file re-imported into the same job → update, don't duplicate ──
-            {
-                const { data: sameFile } = await supabase
-                    .from('candidates')
-                    .select('id, name, stage')
-                    .eq('workspace_id', workspaceId)
-                    .eq('job_id', jobId)
-                    .eq('cv_file_name', cvFile.name)
-                    .maybeSingle();
-                if (sameFile) {
-                    const permanentUrl = await moveToPermanent(sameFile.id);
-                    await supabase.from('candidates').update({
-                        name: name || sameFile.name,
-                        skills: parsed.skills || [],
-                        resume_summary: (parsed.fullText || '').substring(0, 2000),
-                        work_experience: parsed.workExperience || [],
-                        projects: parsed.projects || [],
-                        portfolio_urls: parsed.portfolioUrls || {},
-                        cv_file_url: permanentUrl ?? tempUrl,
-                        cv_file_name: cvFile.name,
-                        ...(linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
-                        ...(sameFile.stage === 'New' ? { stage: 'Screening' } : {}),
-                    }).eq('id', sameFile.id);
-                    return { success: true, candidateId: sameFile.id, isUpdate: true };
-                }
-            }
-
             // ── Dedup by email: if we extracted an email, check for an existing candidate in this workspace ──
             if (parsed.email) {
                 const normalizedEmail = (parsed.email as string).toLowerCase().trim();
