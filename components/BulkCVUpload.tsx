@@ -34,16 +34,27 @@ interface JobMatch {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
+export interface ImportSessionUpdate {
+  id: string;
+  status: 'processing' | 'done';
+  total: number;
+  succeeded: number;
+  failed: number;
+  jobId: string;
+  jobName: string;
+}
+
 interface Props {
   jobs: Job[];
   defaultJobId?: string;
   onClose: () => void;
   onImported: (count: number, importedJobId?: string) => void;
+  onSessionUpdate?: (update: ImportSessionUpdate) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onImported }) => {
+export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onImported, onSessionUpdate }) => {
   const POOL = '__pool__';                   // sentinel = pool / no job
   const activeJobs = jobs.filter(j => j.status === 'Active' && j.title !== '__candidate_pool__');
 
@@ -108,11 +119,19 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
     cancelledRef.current = false;
     setImporting(true);
 
+    const sessionId = crypto.randomUUID();
+    const jobName = selectedJobId === POOL
+      ? 'Candidate pool'
+      : jobs.find(j => j.id === selectedJobId)?.title ?? 'Unknown job';
+
     const jobId = await resolveJobId();
     if (!jobId) { setImporting(false); return; }
     resolvedJobIdRef.current = jobId;
 
+    onSessionUpdate?.({ id: sessionId, status: 'processing', total: entries.length, succeeded: 0, failed: 0, jobId, jobName });
+
     let newlyImported = 0;
+    let failCount = 0;
 
     for (let i = 0; i < entries.length; i += 2) {
       if (cancelledRef.current) {
@@ -137,6 +156,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
               f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId, isUpdate: result.isUpdate } : f
             ));
           } catch (err: any) {
+            failCount++;
             setFiles(prev => prev.map(f =>
               f.id === entry.id
                 ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
@@ -149,6 +169,8 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
     setImporting(false);
     if (!cancelledRef.current) setImportDone(true);
+
+    onSessionUpdate?.({ id: sessionId, status: 'done', total: entries.length, succeeded: newlyImported, failed: failCount, jobId, jobName });
 
     // Always notify parent if any candidates were created — even if cancelled mid-way,
     // the in-flight batch completed and those candidates exist in the DB

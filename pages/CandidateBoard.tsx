@@ -6,19 +6,36 @@ import { Candidate, CandidateStage, Job } from '../types';
 import { PipelineColumn } from '../components/PipelineColumn';
 import {
     Users, Clock, Sparkles, Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-    Download, Upload, Bell, Loader2, Mail, LayoutGrid, List, Trash2, RotateCcw,
+    Download, Upload, Bell, Loader2, Mail, LayoutGrid, List, Trash2, RotateCcw, History,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { CandidateModal } from '../components/CandidateModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { useToast } from '../contexts/ToastContext';
-import { BulkCVUpload } from '../components/BulkCVUpload';
+import { BulkCVUpload, ImportSessionUpdate } from '../components/BulkCVUpload';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Notification } from '../services/api';
 import { supabase } from '../services/supabase';
 import { toUserError } from '../utils/edgeFunctionError';
 import { sendSlackNotification, buildCandidateStagedBlocks } from '../services/slack';
+
+// ── Import History ────────────────────────────────────────────────────────────
+
+const IMPORT_HISTORY_KEY = 'coreflow_import_history';
+
+interface ImportRecord {
+    id: string;
+    startedAt: string;
+    jobId: string;
+    jobName: string;
+    status: 'processing' | 'success' | 'partial' | 'failed';
+    total: number;
+    succeeded: number;
+    failed: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const STAGE_META: Record<CandidateStage, { label: string; dot: string; badge: string }> = {
     [CandidateStage.NEW]:       { label: 'Waitlist',  dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-600'    },
@@ -234,6 +251,16 @@ const CandidateBoard: React.FC = () => {
     const [trashLoading, setTrashLoading] = useState(false);
     const [restoringId, setRestoringId] = useState<string | null>(null);
 
+    // Import history
+    const [importHistory, setImportHistory] = useState<ImportRecord[]>(() => {
+        try {
+            const stored = localStorage.getItem(IMPORT_HISTORY_KEY);
+            return stored ? JSON.parse(stored) : [];
+        } catch { return []; }
+    });
+    const [showImportHistory, setShowImportHistory] = useState(false);
+    const importHistoryRef = useRef<HTMLDivElement | null>(null);
+
     const openTrash = async () => {
         setTrashOpen(true);
         setTrashLoading(true);
@@ -259,6 +286,48 @@ const CandidateBoard: React.FC = () => {
             setRestoringId(null);
         }
     };
+
+    // Import history session handler
+    const handleSessionUpdate = (update: ImportSessionUpdate) => {
+        setImportHistory(prev => {
+            let updated: ImportRecord[];
+            if (update.status === 'processing') {
+                const record: ImportRecord = {
+                    id: update.id,
+                    startedAt: new Date().toISOString(),
+                    jobId: update.jobId,
+                    jobName: update.jobName,
+                    status: 'processing',
+                    total: update.total,
+                    succeeded: 0,
+                    failed: 0,
+                };
+                updated = [record, ...prev].slice(0, 20);
+            } else {
+                const finalStatus: ImportRecord['status'] =
+                    update.failed === 0 ? 'success' :
+                    update.succeeded === 0 ? 'failed' : 'partial';
+                updated = prev.map(r => r.id === update.id
+                    ? { ...r, status: finalStatus, succeeded: update.succeeded, failed: update.failed }
+                    : r
+                );
+            }
+            try { localStorage.setItem(IMPORT_HISTORY_KEY, JSON.stringify(updated)); } catch {}
+            return updated;
+        });
+    };
+
+    // Close import history dropdown on outside click
+    useEffect(() => {
+        if (!showImportHistory) return;
+        const handler = (e: MouseEvent) => {
+            if (importHistoryRef.current && !importHistoryRef.current.contains(e.target as Node)) {
+                setShowImportHistory(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showImportHistory]);
 
     // Horizontal scroll container for pipeline columns
     const boardRef = useRef<HTMLDivElement | null>(null);
@@ -876,6 +945,85 @@ const CandidateBoard: React.FC = () => {
                         </Button>
                     )}
                     {!isViewer && (
+                        <div className="relative" ref={importHistoryRef}>
+                            <button
+                                title="Import history"
+                                onClick={() => setShowImportHistory(v => !v)}
+                                className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${
+                                    importHistory.some(r => r.status === 'processing')
+                                        ? 'border-amber-300 text-amber-500'
+                                        : showImportHistory
+                                        ? 'border-gray-300 text-gray-900'
+                                        : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                {importHistory.some(r => r.status === 'processing')
+                                    ? <Loader2 size={15} className="animate-spin" />
+                                    : <History size={15} />
+                                }
+                            </button>
+                            {showImportHistory && (
+                                <div className="absolute right-0 top-11 z-50 w-72 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-gray-800">Import history</span>
+                                        {importHistory.length > 0 && (
+                                            <button
+                                                onClick={() => {
+                                                    setImportHistory([]);
+                                                    try { localStorage.removeItem(IMPORT_HISTORY_KEY); } catch {}
+                                                }}
+                                                className="text-[10px] text-gray-400 hover:text-gray-600"
+                                            >
+                                                Clear all
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="max-h-80 overflow-y-auto">
+                                        {importHistory.length === 0 ? (
+                                            <p className="px-4 py-6 text-xs text-gray-400 text-center">No import history yet</p>
+                                        ) : (
+                                            importHistory.map(record => (
+                                                <div key={record.id} className="px-4 py-3 border-b border-gray-50 last:border-0">
+                                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                        <span className="text-xs font-medium text-gray-800 truncate">{record.jobName}</span>
+                                                        {record.status === 'processing' && (
+                                                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                <Loader2 size={9} className="animate-spin" /> Processing
+                                                            </span>
+                                                        )}
+                                                        {record.status === 'success' && (
+                                                            <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                Success
+                                                            </span>
+                                                        )}
+                                                        {record.status === 'partial' && (
+                                                            <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                Partial
+                                                            </span>
+                                                        )}
+                                                        {record.status === 'failed' && (
+                                                            <span className="text-[10px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                Failed
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400">
+                                                        {record.status === 'processing'
+                                                            ? `${record.total} file${record.total !== 1 ? 's' : ''} importing…`
+                                                            : `${record.succeeded} imported${record.failed > 0 ? ` · ${record.failed} failed` : ''} · ${record.total} total`}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-300 mt-0.5">
+                                                        {new Date(record.startedAt).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {!isViewer && (
                         <button
                             title="Trash"
                             onClick={openTrash}
@@ -1193,6 +1341,7 @@ const CandidateBoard: React.FC = () => {
                     jobs={jobs}
                     defaultJobId={selectedJob !== 'all' ? selectedJob : jobs.find(j => j.status === 'Active')?.id}
                     onClose={() => setShowBulkUpload(false)}
+                    onSessionUpdate={handleSessionUpdate}
                     onImported={async (count: number, importedJobId?: string) => {
                         const result = await api.candidates.list({ page: 1, pageSize: 1000 });
                         setCandidates(result.data || []);
