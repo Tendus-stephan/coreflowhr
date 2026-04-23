@@ -260,6 +260,7 @@ const CandidateBoard: React.FC = () => {
     });
     const [showImportHistory, setShowImportHistory] = useState(false);
     const importHistoryRef = useRef<HTMLDivElement | null>(null);
+    const importHistoryPortalRef = useRef<HTMLDivElement | null>(null);
 
     const openTrash = async () => {
         setTrashOpen(true);
@@ -317,13 +318,13 @@ const CandidateBoard: React.FC = () => {
         });
     };
 
-    // Close import history dropdown on outside click
+    // Close import history dropdown on outside click (checks both trigger and portal)
     useEffect(() => {
         if (!showImportHistory) return;
         const handler = (e: MouseEvent) => {
-            if (importHistoryRef.current && !importHistoryRef.current.contains(e.target as Node)) {
-                setShowImportHistory(false);
-            }
+            const inTrigger = importHistoryRef.current?.contains(e.target as Node);
+            const inPortal  = importHistoryPortalRef.current?.contains(e.target as Node);
+            if (!inTrigger && !inPortal) setShowImportHistory(false);
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
@@ -644,45 +645,46 @@ const CandidateBoard: React.FC = () => {
         [selectedJob, jobs]
     );
 
-    // --- Metrics Calculation ---
+    // --- Filtering Logic ---
+    // Base: job + search only — used for stage-tab counts and metrics so they
+    // always reflect the current job/search context without the stage pill filter.
+    const filteredByJobAndSearch = useMemo(() => {
+        return candidates.filter(c => {
+            const matchesJob = selectedJob === 'all' || c.jobId === selectedJob;
+            const matchesSearch = !searchQuery || (
+                c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                c.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                c.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+            );
+            return matchesJob && matchesSearch;
+        });
+    }, [candidates, selectedJob, searchQuery]);
+
+    // --- Metrics Calculation (reflects current job + search filter) ---
     const metrics = useMemo(() => {
-        const total = candidates.length;
-        const waitlist = candidates.filter(c => c.stage === CandidateStage.NEW).length;
-        const scores = candidates.map(c => c.aiMatchScore || 0).filter(s => s > 0);
+        const total = filteredByJobAndSearch.length;
+        const waitlist = filteredByJobAndSearch.filter(c => c.stage === CandidateStage.NEW).length;
+        const scores = filteredByJobAndSearch.map(c => c.aiMatchScore || 0).filter(s => s > 0);
         const avgScore = scores.length > 0
             ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
             : 0;
         return { total, waitlist, avgScore };
-    }, [candidates]);
+    }, [filteredByJobAndSearch]);
 
-    // --- Filtering Logic ---
     const filteredCandidates = useMemo(() => {
-        return candidates.filter(c => {
-            const matchesJob = selectedJob === 'all' || c.jobId === selectedJob;
-            const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                c.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                c.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-
-            let matchesPill = true;
-            if (selectedStageFilter === 'Qualified') {
-                matchesPill = [CandidateStage.INTERVIEW, CandidateStage.OFFER, CandidateStage.HIRED, CandidateStage.SCREENING].includes(c.stage);
-            } else if (selectedStageFilter === 'Interview') {
-                matchesPill = c.stage === CandidateStage.INTERVIEW;
-            } else if (selectedStageFilter === 'Rejected') {
-                matchesPill = c.stage === CandidateStage.REJECTED;
-            } else if (selectedStageFilter === 'Waitlist') {
-                matchesPill = c.stage === CandidateStage.NEW;
-            } else if (selectedStageFilter === 'Offer') {
-                matchesPill = c.stage === CandidateStage.OFFER;
-            } else if (selectedStageFilter === 'Hired') {
-                matchesPill = c.stage === CandidateStage.HIRED;
-            } else if (selectedStageFilter === 'Screening') {
-                matchesPill = c.stage === CandidateStage.SCREENING;
-            }
-
-            return matchesJob && matchesSearch && matchesPill;
+        if (selectedStageFilter === 'All') return filteredByJobAndSearch;
+        return filteredByJobAndSearch.filter(c => {
+            if (selectedStageFilter === 'Qualified')
+                return [CandidateStage.INTERVIEW, CandidateStage.OFFER, CandidateStage.HIRED, CandidateStage.SCREENING].includes(c.stage);
+            if (selectedStageFilter === 'Interview') return c.stage === CandidateStage.INTERVIEW;
+            if (selectedStageFilter === 'Rejected')  return c.stage === CandidateStage.REJECTED;
+            if (selectedStageFilter === 'Waitlist')  return c.stage === CandidateStage.NEW;
+            if (selectedStageFilter === 'Offer')     return c.stage === CandidateStage.OFFER;
+            if (selectedStageFilter === 'Hired')     return c.stage === CandidateStage.HIRED;
+            if (selectedStageFilter === 'Screening') return c.stage === CandidateStage.SCREENING;
+            return true;
         });
-    }, [candidates, selectedJob, searchQuery, selectedStageFilter]);
+    }, [filteredByJobAndSearch, selectedStageFilter]);
 
     // --- List view sorted candidates ---
     const sortedCandidates = useMemo(() => {
@@ -848,32 +850,19 @@ const CandidateBoard: React.FC = () => {
         }
     };
 
-    // --- Filter Pill Counts ---
-    const counts = useMemo(() => {
-        const getCount = (filterType: string) => {
-            if (filterType === 'All') return candidates.length;
-            if (filterType === 'Waitlist') return candidates.filter(c => c.stage === CandidateStage.NEW).length;
-            if (filterType === 'Interview') return candidates.filter(c => c.stage === CandidateStage.INTERVIEW).length;
-            if (filterType === 'Rejected') return candidates.filter(c => c.stage === CandidateStage.REJECTED).length;
-            if (filterType === 'Screening') return candidates.filter(c => c.stage === CandidateStage.SCREENING).length;
-            if (filterType === 'Offer') return candidates.filter(c => c.stage === CandidateStage.OFFER).length;
-            if (filterType === 'Hired') return candidates.filter(c => c.stage === CandidateStage.HIRED).length;
-            if (filterType === 'Qualified') return candidates.filter(c =>
-                [CandidateStage.INTERVIEW, CandidateStage.OFFER, CandidateStage.HIRED, CandidateStage.SCREENING].includes(c.stage)
-            ).length;
-            return 0;
-        };
-        return {
-            All: getCount('All'),
-            Waitlist: getCount('Waitlist'),
-            Interview: getCount('Interview'),
-            Rejected: getCount('Rejected'),
-            Screening: getCount('Screening'),
-            Offer: getCount('Offer'),
-            Hired: getCount('Hired'),
-            Qualified: getCount('Qualified'),
-        };
-    }, [candidates]);
+    // --- Filter Pill Counts (scoped to current job + search) ---
+    const counts = useMemo(() => ({
+        All:       filteredByJobAndSearch.length,
+        Waitlist:  filteredByJobAndSearch.filter(c => c.stage === CandidateStage.NEW).length,
+        Interview: filteredByJobAndSearch.filter(c => c.stage === CandidateStage.INTERVIEW).length,
+        Rejected:  filteredByJobAndSearch.filter(c => c.stage === CandidateStage.REJECTED).length,
+        Screening: filteredByJobAndSearch.filter(c => c.stage === CandidateStage.SCREENING).length,
+        Offer:     filteredByJobAndSearch.filter(c => c.stage === CandidateStage.OFFER).length,
+        Hired:     filteredByJobAndSearch.filter(c => c.stage === CandidateStage.HIRED).length,
+        Qualified: filteredByJobAndSearch.filter(c =>
+            [CandidateStage.INTERVIEW, CandidateStage.OFFER, CandidateStage.HIRED, CandidateStage.SCREENING].includes(c.stage)
+        ).length,
+    }), [filteredByJobAndSearch]);
 
     if (loading) {
         return <CandidateBoardSkeleton />;
@@ -962,64 +951,80 @@ const CandidateBoard: React.FC = () => {
                                     : <History size={15} />
                                 }
                             </button>
-                            {showImportHistory && (
-                                <div className="absolute right-0 top-11 z-50 w-72 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                                        <span className="text-xs font-semibold text-gray-800">Import history</span>
-                                        {importHistory.length > 0 && (
-                                            <button
-                                                onClick={() => {
-                                                    setImportHistory([]);
-                                                    try { localStorage.removeItem(IMPORT_HISTORY_KEY); } catch {}
-                                                }}
-                                                className="text-[10px] text-gray-400 hover:text-gray-600"
-                                            >
-                                                Clear all
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="max-h-80 overflow-y-auto">
-                                        {importHistory.length === 0 ? (
-                                            <p className="px-4 py-6 text-xs text-gray-400 text-center">No import history yet</p>
-                                        ) : (
-                                            importHistory.map(record => (
-                                                <div key={record.id} className="px-4 py-3 border-b border-gray-50 last:border-0">
-                                                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                        <span className="text-xs font-medium text-gray-800 truncate">{record.jobName}</span>
-                                                        {record.status === 'processing' && (
-                                                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-                                                                <Loader2 size={9} className="animate-spin" /> Processing
-                                                            </span>
-                                                        )}
-                                                        {record.status === 'success' && (
-                                                            <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-                                                                Success
-                                                            </span>
-                                                        )}
-                                                        {record.status === 'partial' && (
-                                                            <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-                                                                Partial
-                                                            </span>
-                                                        )}
-                                                        {record.status === 'failed' && (
-                                                            <span className="text-[10px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-                                                                Failed
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-[10px] text-gray-400">
-                                                        {record.status === 'processing'
-                                                            ? `${record.total} file${record.total !== 1 ? 's' : ''} importing…`
-                                                            : `${record.succeeded} imported${record.failed > 0 ? ` · ${record.failed} failed` : ''} · ${record.total} total`}
-                                                    </p>
-                                                    <p className="text-[10px] text-gray-300 mt-0.5">
-                                                        {new Date(record.startedAt).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
+                            {showImportHistory && importHistoryRef.current && createPortal(
+                                (() => {
+                                    const rect = importHistoryRef.current!.getBoundingClientRect();
+                                    return (
+                                        <div
+                                            ref={importHistoryPortalRef}
+                                            style={{
+                                                position: 'fixed',
+                                                top: rect.bottom + 8,
+                                                right: window.innerWidth - rect.right,
+                                                zIndex: 9999,
+                                                width: 288,
+                                            }}
+                                            className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
+                                        >
+                                            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                                                <span className="text-xs font-semibold text-gray-800">Import history</span>
+                                                {importHistory.length > 0 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setImportHistory([]);
+                                                            try { localStorage.removeItem(IMPORT_HISTORY_KEY); } catch {}
+                                                        }}
+                                                        className="text-[10px] text-gray-400 hover:text-gray-600"
+                                                    >
+                                                        Clear all
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="max-h-80 overflow-y-auto">
+                                                {importHistory.length === 0 ? (
+                                                    <p className="px-4 py-6 text-xs text-gray-400 text-center">No import history yet</p>
+                                                ) : (
+                                                    importHistory.map(record => (
+                                                        <div key={record.id} className="px-4 py-3 border-b border-gray-50 last:border-0">
+                                                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                                <span className="text-xs font-medium text-gray-800 truncate">{record.jobName}</span>
+                                                                {record.status === 'processing' && (
+                                                                    <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                        <Loader2 size={9} className="animate-spin" /> Processing
+                                                                    </span>
+                                                                )}
+                                                                {record.status === 'success' && (
+                                                                    <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                        Success
+                                                                    </span>
+                                                                )}
+                                                                {record.status === 'partial' && (
+                                                                    <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                        Partial
+                                                                    </span>
+                                                                )}
+                                                                {record.status === 'failed' && (
+                                                                    <span className="text-[10px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                                                        Failed
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[10px] text-gray-400">
+                                                                {record.status === 'processing'
+                                                                    ? `${record.total} file${record.total !== 1 ? 's' : ''} importing…`
+                                                                    : `${record.succeeded} imported${record.failed > 0 ? ` · ${record.failed} failed` : ''} · ${record.total} total`}
+                                                            </p>
+                                                            <p className="text-[10px] text-gray-300 mt-0.5">
+                                                                {new Date(record.startedAt).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })(),
+                                document.body
                             )}
                         </div>
                     )}
@@ -1092,7 +1097,7 @@ const CandidateBoard: React.FC = () => {
             </div>
 
             {/* Filter Row: stage tabs + search + job select */}
-            <div className="px-6 flex items-center justify-between border-b border-gray-100 flex-shrink-0" style={{ position: 'relative', zIndex: 2 }}>
+            <div className="px-6 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
                 <div className="flex items-end gap-0">
                     {(['All', 'Waitlist', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'] as const).map((stage) => (
                         <button
