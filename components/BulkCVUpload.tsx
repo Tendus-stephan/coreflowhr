@@ -1,10 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, CheckCircle, AlertCircle, Loader2, FileText, Sparkles } from 'lucide-react';
+import { Upload, X, CheckCircle, AlertCircle, Loader2, FileText } from 'lucide-react';
 import { Job } from '../types';
 import { api } from '../services/api';
-import { supabase } from '../services/supabase';
-import { calculateBasicMatchScore } from '../services/cvParser';
 import { CustomSelect } from './ui/CustomSelect';
 import { toUserError } from '../utils/edgeFunctionError';
 
@@ -19,17 +17,6 @@ interface FileEntry {
   candidateId?: string;
   isUpdate?: boolean;
   error?: string;
-}
-
-interface MatchRow {
-  candidateId: string;
-  candidateName: string;
-  score: number;
-}
-
-interface JobMatch {
-  job: Job;
-  top: MatchRow[];
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -63,11 +50,6 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
   const [isDragging, setIsDragging] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importDone, setImportDone] = useState(false);
-
-  // Post-import match state
-  const [matchPhase, setMatchPhase] = useState<'idle' | 'running' | 'done'>('idle');
-  const [matchResults, setMatchResults] = useState<JobMatch[]>([]);
-  const [matchDiag, setMatchDiag] = useState<{ jobsWithSkills: number; candidatesWithSkills: number } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelledRef = useRef(false);
@@ -113,7 +95,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
     }
   };
 
-  // Core batch processor — shared by initial import, retry-all, and retry-single
+  // Process files one at a time so Cancel stops after the current file, not the entire batch
   const importEntries = async (entries: FileEntry[]) => {
     if (entries.length === 0) return;
     cancelledRef.current = false;
@@ -133,38 +115,33 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
     let newlyImported = 0;
     let failCount = 0;
 
-    for (let i = 0; i < entries.length; i += 2) {
+    for (const entry of entries) {
+      // Check before each file — cancel takes effect within one file's processing time
       if (cancelledRef.current) {
-        // Mark remaining pending files as cancelled (visual feedback)
         setFiles(prev => prev.map(f =>
           f.status === 'pending' ? { ...f, status: 'error', error: 'Cancelled' } : f
         ));
         break;
       }
-      const batch = entries.slice(i, i + 2);
 
       setFiles(prev => prev.map(f =>
-        batch.some(b => b.id === f.id) ? { ...f, status: 'processing', error: undefined } : f
+        f.id === entry.id ? { ...f, status: 'processing', error: undefined } : f
       ));
 
-      await Promise.allSettled(
-        batch.map(async (entry) => {
-          try {
-            const result = await api.candidates.bulkImport(jobId, entry.file);
-            if (result.candidateId) newlyImported++;
-            setFiles(prev => prev.map(f =>
-              f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId, isUpdate: result.isUpdate } : f
-            ));
-          } catch (err: any) {
-            failCount++;
-            setFiles(prev => prev.map(f =>
-              f.id === entry.id
-                ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
-                : f
-            ));
-          }
-        })
-      );
+      try {
+        const result = await api.candidates.bulkImport(jobId, entry.file);
+        if (result.candidateId) newlyImported++;
+        setFiles(prev => prev.map(f =>
+          f.id === entry.id ? { ...f, status: 'done', candidateId: result.candidateId, isUpdate: result.isUpdate } : f
+        ));
+      } catch (err: any) {
+        failCount++;
+        setFiles(prev => prev.map(f =>
+          f.id === entry.id
+            ? { ...f, status: 'error', error: toUserError(err, 'Failed to import CV. Please try again.') }
+            : f
+        ));
+      }
     }
 
     setImporting(false);
@@ -172,68 +149,23 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
 
     onSessionUpdate?.({ id: sessionId, status: 'done', total: entries.length, succeeded: newlyImported, failed: failCount, jobId, jobName });
 
-    // Always notify parent if any candidates were created — even if cancelled mid-way,
-    // the in-flight batch completed and those candidates exist in the DB
+    // Notify parent — this triggers the board refresh so candidates are ready when user closes
     if (newlyImported > 0) onImported(newlyImported, jobId);
   };
 
-  const runImport    = () => importEntries(files.filter(f => f.status === 'pending'));
-  const retryFailed  = () => importEntries(files.filter(f => f.status === 'error'));
-  const retrySingle  = (entry: FileEntry) => importEntries([entry]);
-
-  // ── Match against jobs ───────────────────────────────────────────────────────
-
-  const runMatch = async () => {
-    if (activeJobs.length === 0) return;
-    setMatchPhase('running');
-
-    // Fetch imported candidates' skills
-    const importedIds = files.filter(f => f.candidateId).map(f => f.candidateId!);
-    if (importedIds.length === 0) { setMatchPhase('done'); return; }
-
-    const { data: candidateRows } = await supabase
-      .from('candidates')
-      .select('id, name, skills')
-      .in('id', importedIds);
-
-    const candidates = (candidateRows ?? []) as { id: string; name: string; skills: string[] }[];
-
-    const diag = {
-      jobsWithSkills: activeJobs.filter(j => j.skills && j.skills.length > 0).length,
-      candidatesWithSkills: candidates.filter(c => c.skills && c.skills.length > 0).length,
-    };
-    setMatchDiag(diag);
-    console.log('[skill-match] diag:', diag);
-    console.log('[skill-match] job skills:', activeJobs.map(j => ({ title: j.title, skills: j.skills })));
-    console.log('[skill-match] candidate skills:', candidates.map(c => ({ name: c.name, skills: c.skills })));
-
-    // Score each candidate against each active job
-    const results: JobMatch[] = activeJobs
-      .filter(j => j.skills && j.skills.length > 0)
-      .map(job => {
-        const scored: MatchRow[] = candidates
-          .map(c => ({
-            candidateId: c.id,
-            candidateName: c.name,
-            score: calculateBasicMatchScore(c.skills ?? [], job.skills ?? []).score,
-          }))
-          .filter(r => r.score > 0)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 5);
-
-        return { job, top: scored };
-      })
-      .filter(r => r.top.length > 0)
-      .sort((a, b) => b.top[0].score - a.top[0].score);
-
-    setMatchResults(results);
-    setMatchPhase('done');
-  };
+  const runImport   = () => importEntries(files.filter(f => f.status === 'pending'));
+  const retryFailed = () => importEntries(files.filter(f => f.status === 'error'));
+  const retrySingle = (entry: FileEntry) => importEntries([entry]);
 
   // ── Derived counts ───────────────────────────────────────────────────────────
 
   const successCount = files.filter(f => f.status === 'done').length;
   const errorCount   = files.filter(f => f.status === 'error').length;
+  const allDone      = files.length > 0 && files.every(f => f.status === 'done');
+  const hasErrors    = errorCount > 0;
+  const hasPending   = files.some(f => f.status === 'pending');
+
+  const handleClose = () => { cancelledRef.current = true; setImporting(false); onClose(); };
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -244,17 +176,11 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">
-              {matchPhase === 'done' ? 'Match Results' : 'Bulk CV Import'}
-            </h2>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {matchPhase === 'done'
-                ? 'Top candidates per open role'
-                : 'PDF or Word · max 10 MB each'}
-            </p>
+            <h2 className="text-sm font-semibold text-gray-900">Bulk CV Import</h2>
+            <p className="text-xs text-gray-400 mt-0.5">PDF or Word · max 10 MB each</p>
           </div>
           <button
-            onClick={() => { cancelledRef.current = true; setImporting(false); onClose(); }}
+            onClick={handleClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
             <X size={15} />
@@ -264,178 +190,108 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
-          {/* ── Match results view ── */}
-          {matchPhase === 'done' && (
-            matchResults.length === 0 ? (
-              <div className="text-center py-10 text-sm text-gray-400 leading-relaxed">
-                {matchDiag?.jobsWithSkills === 0 ? (
-                  <>
-                    No active jobs have skills listed.<br/>
-                    <span className="text-xs">Add skills to your job listings to enable candidate matching.</span>
-                  </>
-                ) : matchDiag?.candidatesWithSkills === 0 ? (
-                  <>
-                    Skills could not be extracted from the imported CVs.<br/>
-                    <span className="text-xs">Candidates were imported successfully, but AI parsing may not be configured yet — so no skills were detected to match against.</span>
-                  </>
-                ) : (
-                  <>
-                    No skill overlaps found between the imported CVs and your open jobs.<br/>
-                    <span className="text-xs">Try adding more relevant skills to your job listings.</span>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {matchResults.map(({ job, top }) => (
-                  <div key={job.id} className="border border-gray-100 rounded-lg overflow-hidden">
-                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
-                      <p className="text-xs font-semibold text-gray-800">{job.title}</p>
-                    </div>
-                    <div className="divide-y divide-gray-50">
-                      {top.map(row => (
-                        <div key={row.candidateId} className="flex items-center justify-between px-3 py-2">
-                          <span className="text-xs text-gray-700">{row.candidateName}</span>
-                          <span className="text-xs font-semibold text-gray-900">{row.score}%</span>
-                        </div>
-                      ))}
-                    </div>
+          {/* Job selector */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+              Import into
+            </label>
+            <CustomSelect
+              inputStyle
+              value={selectedJobId}
+              onChange={setSelectedJobId}
+              disabled={importing}
+              className="h-9"
+              options={[
+                { value: POOL, label: 'Candidate pool (no job)' },
+                ...activeJobs.map(j => ({ value: j.id, label: j.title })),
+              ]}
+            />
+            {selectedJobId === POOL && (
+              <p className="text-xs text-gray-400 mt-1.5">
+                Candidates will be saved and searchable. You can assign them to a job later.
+              </p>
+            )}
+          </div>
+
+          {/* Drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={onDrop}
+            onClick={() => !importing && inputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+              isDragging ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+            } ${importing ? 'pointer-events-none opacity-50' : ''}`}
+          >
+            <Upload size={20} className="mx-auto mb-2 text-gray-400" />
+            <p className="text-sm font-medium text-gray-700">
+              Drop CVs here or <span className="text-gray-900 font-semibold underline">browse</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX · Multiple files supported</p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              multiple
+              className="hidden"
+              onChange={e => { if (e.target.files) addFiles(Array.from(e.target.files)); e.target.value = ''; }}
+            />
+          </div>
+
+          {/* File list */}
+          {files.length > 0 && (
+            <div className="space-y-1.5">
+              {files.map(entry => (
+                <div key={entry.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                  <FileText size={14} className="text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-800 truncate">{entry.file.name}</p>
+                    {entry.status === 'done' && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {entry.isUpdate ? 'Updated existing candidate' : 'Added to pipeline'}
+                      </p>
+                    )}
+                    {entry.status === 'error' && (
+                      <p className="text-xs text-red-500 mt-0.5 truncate">{entry.error}</p>
+                    )}
                   </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {/* ── Import view ── */}
-          {matchPhase !== 'done' && (
-            <>
-              {/* Job selector */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
-                  Import into
-                </label>
-                <CustomSelect
-                  inputStyle
-                  value={selectedJobId}
-                  onChange={setSelectedJobId}
-                  disabled={importing}
-                  className="h-9"
-                  options={[
-                    { value: POOL, label: 'Candidate pool (no job)' },
-                    ...activeJobs.map(j => ({ value: j.id, label: j.title })),
-                  ]}
-                />
-                {selectedJobId === POOL && (
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    Candidates will be saved and searchable. You can assign them to a job later.
-                  </p>
-                )}
-              </div>
-
-              {/* Drop zone */}
-              <div
-                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={onDrop}
-                onClick={() => !importing && inputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                  isDragging ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50'
-                } ${importing ? 'pointer-events-none opacity-50' : ''}`}
-              >
-                <Upload size={20} className="mx-auto mb-2 text-gray-400" />
-                <p className="text-sm font-medium text-gray-700">
-                  Drop CVs here or <span className="text-gray-900 font-semibold underline">browse</span>
-                </p>
-                <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX · Multiple files supported</p>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  multiple
-                  className="hidden"
-                  onChange={e => { if (e.target.files) addFiles(Array.from(e.target.files)); e.target.value = ''; }}
-                />
-              </div>
-
-              {/* File list */}
-              {files.length > 0 && (
-                <div className="space-y-1.5">
-                  {files.map(entry => (
-                    <div key={entry.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                      <FileText size={14} className="text-gray-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-800 truncate">{entry.file.name}</p>
-                        {entry.status === 'done' && (
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {entry.isUpdate ? 'Updated existing candidate' : 'Added to pipeline'}
-                          </p>
-                        )}
-                        {entry.status === 'error' && (
-                          <p className="text-xs text-red-500 mt-0.5 truncate">{entry.error}</p>
-                        )}
-                      </div>
-                      <div className="flex-shrink-0 flex items-center gap-1.5">
-                        {entry.status === 'pending' && !importing && (
+                  <div className="flex-shrink-0 flex items-center gap-1.5">
+                    {entry.status === 'pending' && !importing && (
+                      <button
+                        onClick={e => { e.stopPropagation(); removeFile(entry.id); }}
+                        className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                    {entry.status === 'processing' && <Loader2 size={14} className="text-gray-500 animate-spin" />}
+                    {entry.status === 'done'       && <CheckCircle size={14} className="text-gray-400" />}
+                    {entry.status === 'error'      && (
+                      <>
+                        <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                        {!importing && (
                           <button
-                            onClick={e => { e.stopPropagation(); removeFile(entry.id); }}
-                            className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+                            onClick={e => { e.stopPropagation(); retrySingle(entry); }}
+                            className="px-2 h-5 rounded text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors whitespace-nowrap"
                           >
-                            <X size={12} />
+                            Try again
                           </button>
                         )}
-                        {entry.status === 'processing' && <Loader2 size={14} className="text-gray-500 animate-spin" />}
-                        {entry.status === 'done'       && <CheckCircle size={14} className="text-gray-400" />}
-                        {entry.status === 'error'      && (
-                          <>
-                            <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
-                            {!importing && (
-                              <button
-                                onClick={e => { e.stopPropagation(); retrySingle(entry); }}
-                                className="px-2 h-5 rounded text-[10px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors whitespace-nowrap"
-                              >
-                                Try again
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Post-import match prompt */}
-              {importDone && successCount > 0 && activeJobs.length > 0 && (
-                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-gray-50 border border-gray-200">
-                  <Sparkles size={15} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-gray-800">
-                      {successCount} candidate{successCount !== 1 ? 's' : ''} imported
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Match them against your open jobs to surface the best fits instantly.
-                    </p>
+                      </>
+                    )}
                   </div>
-                  <button
-                    onClick={runMatch}
-                    disabled={matchPhase === 'running'}
-                    className="flex-shrink-0 px-3 h-7 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    {matchPhase === 'running' && <Loader2 size={11} className="animate-spin" />}
-                    {matchPhase === 'running' ? 'Matching…' : 'Match now'}
-                  </button>
                 </div>
-              )}
+              ))}
+            </div>
+          )}
 
-              {/* Summary */}
-              {importDone && (errorCount > 0 || successCount > 0) && (
-                <p className="text-xs text-center text-gray-400">
-                  {successCount > 0 && <span className="text-gray-700 font-medium">{successCount} imported</span>}
-                  {successCount > 0 && errorCount > 0 && ' · '}
-                  {errorCount > 0 && <span className="text-red-500 font-medium">{errorCount} failed</span>}
-                </p>
-              )}
-            </>
+          {/* Summary after import */}
+          {importDone && (successCount > 0 || errorCount > 0) && (
+            <p className="text-xs text-center text-gray-400">
+              {successCount > 0 && <span className="text-gray-700 font-medium">{successCount} imported</span>}
+              {successCount > 0 && errorCount > 0 && ' · '}
+              {errorCount > 0 && <span className="text-red-500 font-medium">{errorCount} failed</span>}
+            </p>
           )}
         </div>
 
@@ -445,17 +301,22 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
             {files.length === 0 ? 'No files selected' : `${files.length} file${files.length !== 1 ? 's' : ''}`}
           </span>
           <div className="flex gap-2">
-            <button
-              onClick={() => { cancelledRef.current = true; setImporting(false); onClose(); }}
-              className="px-4 h-8 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              {importDone ? 'Close' : 'Cancel'}
-            </button>
-            {matchPhase !== 'done' && (() => {
-              const allDone = files.length > 0 && files.every(f => f.status === 'done');
-              const hasErrors = errorCount > 0;
-              const hasPending = files.some(f => f.status === 'pending');
-              return (
+            {/* "Done" closes the modal — board is already refreshed via onImported */}
+            {importDone ? (
+              <button
+                onClick={handleClose}
+                className="px-4 h-8 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+              >
+                Done
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleClose}
+                  className="px-4 h-8 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
                 <button
                   onClick={hasErrors && !hasPending ? retryFailed : runImport}
                   disabled={files.length === 0 || importing || allDone}
@@ -464,14 +325,12 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
                   {importing && <Loader2 size={13} className="animate-spin" />}
                   {importing
                     ? 'Importing…'
-                    : allDone
-                    ? 'Done'
                     : hasErrors && !hasPending
                     ? `Retry failed (${errorCount})`
                     : `Import ${files.length > 0 ? files.length + ' CV' + (files.length !== 1 ? 's' : '') : ''}`}
                 </button>
-              );
-            })()}
+              </>
+            )}
           </div>
         </div>
 
