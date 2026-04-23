@@ -1193,9 +1193,15 @@ const CandidateBoard: React.FC = () => {
                     jobs={jobs}
                     defaultJobId={selectedJob !== 'all' ? selectedJob : jobs.find(j => j.status === 'Active')?.id}
                     onClose={() => setShowBulkUpload(false)}
-                    onImported={async (count: number) => {
+                    onImported={async (count: number, importedJobId?: string) => {
                         const result = await api.candidates.list({ page: 1, pageSize: 1000 });
                         setCandidates(result.data || []);
+                        // Switch to the job the candidates were imported into so they're immediately visible
+                        if (importedJobId && importedJobId !== poolJobId) {
+                            setSelectedJob(importedJobId);
+                        } else {
+                            setSelectedJob('all');
+                        }
                         toast.success(`${count} CV${count !== 1 ? 's' : ''} imported successfully`);
                     }}
                 />

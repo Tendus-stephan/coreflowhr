@@ -38,7 +38,7 @@ interface Props {
   jobs: Job[];
   defaultJobId?: string;
   onClose: () => void;
-  onImported: (count: number) => void;
+  onImported: (count: number, importedJobId?: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ export const BulkCVUpload: React.FC<Props> = ({ jobs, defaultJobId, onClose, onI
     if (!cancelledRef.current) {
       setImporting(false);
       setImportDone(true);
-      if (newlyImported > 0) onImported(newlyImported);
+      if (newlyImported > 0) onImported(newlyImported, jobId);
     }
   };
 
