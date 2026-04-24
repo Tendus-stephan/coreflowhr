@@ -34,8 +34,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const { setCandidateModalOpen } = useModal();
   const toast = useToast();
   const confirm = useConfirm();
-  // Prevents concurrent analyze-candidate calls from racing each other
-  const analysisInFlightRef = useRef(false);
+  // Stores the candidate.id whose analysis call is currently in flight.
+  // Using the ID (not a plain boolean) means switching to a different candidate
+  // is never blocked by a call that was started for the previous candidate.
+  const analysisInFlightRef = useRef<string | null>(null);
 
   // Update modal context when modal opens/closes (and reset when unmounting so AI button shows on other pages)
   useEffect(() => {
@@ -155,9 +157,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           if (job.id !== candidate.jobId) return;
           if (!candidate.cvFileUrl) return;
           if (!candidate.resumeSummary || candidate.resumeSummary.length <= 100) return;
-          // Guard: only one invoke at a time — prevents concurrent duplicate calls
-          // that can happen when multiple deps change in quick succession.
-          if (analysisInFlightRef.current) return;
+          // Guard: only one invoke at a time per candidate.
+          // Storing the candidate ID (not a plain boolean) means a call for a
+          // previous candidate never blocks analysis for the one now open.
+          if (analysisInFlightRef.current === candidate.id) return;
 
           // ── Pool candidate: profile + job-match recommendations ──────────────
           if (job.title === '__candidate_pool__') {
@@ -169,12 +172,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   candidate.aiAnalysis?.startsWith('Cannot assess') ||
                   candidate.aiMatchScore != null;
               if (candidate.aiAnalysis && !isStalePoolAnalysis) return;
-              analysisInFlightRef.current = true;
+              analysisInFlightRef.current = candidate.id;
               try {
                   // Fetch open jobs inline so we don't race against availableJobs state
                   const jobsRes = await api.jobs.list({ pageSize: 100 }).catch(() => ({ data: [] as import('../types').Job[] }));
                   const openJobs = (jobsRes.data || [])
-                      .filter(j => j.status === 'Active')
+                      .filter(j => j.status === 'Active' && j.title !== '__candidate_pool__')
                       .map(j => ({ title: j.title, description: j.description, skills: j.skills ?? [] }));
 
                   const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
@@ -200,7 +203,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               } catch (err) {
                   console.warn('[pool-profiler] failed:', err);
               } finally {
-                  analysisInFlightRef.current = false;
+                  if (analysisInFlightRef.current === candidate.id) analysisInFlightRef.current = null;
               }
               return;
           }
@@ -213,7 +216,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               candidate.aiAnalysis.length < 200;
 
           if (!candidate.aiAnalysis || hasIncompleteAnalysis) {
-              analysisInFlightRef.current = true;
+              analysisInFlightRef.current = candidate.id;
               try {
                   const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
                       body: {
@@ -239,7 +242,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               } catch (error) {
                   console.warn('Background analysis regeneration failed:', error);
               } finally {
-                  analysisInFlightRef.current = false;
+                  if (analysisInFlightRef.current === candidate.id) analysisInFlightRef.current = null;
               }
           }
       };
