@@ -151,8 +151,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
           // ── Pool candidate: profile + job-match recommendations ──────────────
           if (job.title === '__candidate_pool__') {
-              // Skip if a good analysis already exists; re-run if it's the old "Cannot assess" placeholder
-              const isStalePoolAnalysis = candidate.aiAnalysis?.startsWith('Cannot assess');
+              // Skip if a good pool analysis already exists.
+              // Treat as stale if: old "Cannot assess" placeholder, OR a job-match
+              // assessment was erroneously stored (identified by a non-null score —
+              // correct pool profiles always return score: null).
+              const isStalePoolAnalysis =
+                  candidate.aiAnalysis?.startsWith('Cannot assess') ||
+                  candidate.aiMatchScore != null;
               if (candidate.aiAnalysis && !isStalePoolAnalysis) return;
               try {
                   // Fetch open jobs inline so we don't race against availableJobs state

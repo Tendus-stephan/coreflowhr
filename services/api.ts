@@ -2240,24 +2240,31 @@ export const api = {
                 throw new Error('CV appears to be empty or image-only — no text could be extracted');
             }
 
-            // Steps 2 & 3: AI parse + AI score — run in parallel to halve latency
+            const isPool = job.title === '__candidate_pool__';
+
+            // Steps 2 & 3: AI parse + AI score — run in parallel to halve latency.
+            // For pool candidates skip analyze-candidate entirely: the job title is
+            // '__candidate_pool__', which is meaningless as a role, so the model
+            // produces a job-match assessment against a nonsense title.  The
+            // CandidateModal handles pool profiling lazily (with isPoolCandidate:true
+            // and the real list of open roles) when the modal is first opened.
             const [parseResult, analyzeResult] = await Promise.allSettled([
                 supabase.functions.invoke('parse-cv', {
                     body: { cvText, jobSkills: job.skills ?? [] },
                 }),
-                supabase.functions.invoke('analyze-candidate', {
-                    body: {
-                        // analyze-candidate can start immediately with raw text —
-                        // no need to wait for parse-cv structured output
-                        resumeSummary: cvText.substring(0, 800),
-                        skills: [],
-                        experience: null,
-                        role: job.title,
-                        jobTitle: job.title,
-                        jobDescription: '',
-                        jobSkills: job.skills ?? [],
-                    },
-                }),
+                ...(isPool ? [] : [
+                    supabase.functions.invoke('analyze-candidate', {
+                        body: {
+                            resumeSummary: cvText.substring(0, 800),
+                            skills: [],
+                            experience: null,
+                            role: job.title,
+                            jobTitle: job.title,
+                            jobDescription: '',
+                            jobSkills: job.skills ?? [],
+                        },
+                    }),
+                ]),
             ]);
 
             // Consume parse-cv result
@@ -2303,10 +2310,10 @@ export const api = {
             const nameFromFile = nameOnlyWords.length >= 2 ? nameOnlyWords.join(' ') : rawFromFile;
             const name = parsed.name?.trim() || nameFromFile;
 
-            // Consume analyze-candidate result
+            // Consume analyze-candidate result (skipped for pool candidates — analyzeResult is undefined)
             let aiScore: number | null = null;
             let aiAnalysis: string | null = null;
-            if (analyzeResult.status === 'fulfilled') {
+            if (!isPool && analyzeResult?.status === 'fulfilled') {
                 const { data: analysis, error: analysisError } = analyzeResult.value;
                 if (analysisError) {
                     console.error('[bulkImport] analyze-candidate error:', analysisError);
@@ -2316,7 +2323,7 @@ export const api = {
                     const w = analysis.weaknesses?.length ? `\n\nAreas to Explore:\n• ${analysis.weaknesses.join('\n• ')}` : '';
                     aiAnalysis = `${analysis.summary}${s}${w}`;
                 }
-            } else {
+            } else if (analyzeResult?.status === 'rejected') {
                 console.error('[bulkImport] analyze-candidate invocation threw:', analyzeResult.reason);
             }
 
