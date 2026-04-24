@@ -2366,34 +2366,45 @@ export const api = {
                 }
             }
 
-            const { data: candidate, error: insertError } = await supabase
+            const candidateFields = {
+                user_id: userId,
+                workspace_id: job.workspace_id ?? workspaceId,
+                job_id: jobId,
+                name,
+                email: parsed.email || null,
+                linkedin_url: linkedinUrl,
+                role: parsed.workExperience?.[0]?.role || job.title || '',
+                location: parsed.location || job.location || '',
+                experience: parsed.experienceYears || null,
+                skills: parsed.skills || [],
+                resume_summary: (parsed.fullText || '').substring(0, 2000),
+                ai_match_score: aiScore,
+                ai_analysis: aiAnalysis,
+                work_experience: parsed.workExperience || [],
+                projects: parsed.projects || [],
+                portfolio_urls: parsed.portfolioUrls || {},
+                cv_file_url: tempUrl,
+                cv_file_name: cvFile.name,
+                stage: 'Screening',
+                source: 'cv_import',
+                is_test: false,
+                applied_date: new Date().toISOString(),
+            };
+
+            let { data: candidate, error: insertError } = await supabase
                 .from('candidates')
-                .insert({
-                    user_id: userId,
-                    workspace_id: job.workspace_id ?? workspaceId,
-                    job_id: jobId,
-                    name,
-                    email: parsed.email || null,
-                    linkedin_url: linkedinUrl,
-                    role: parsed.workExperience?.[0]?.role || job.title || '',
-                    location: parsed.location || job.location || '',
-                    experience: parsed.experienceYears || null,
-                    skills: parsed.skills || [],
-                    resume_summary: (parsed.fullText || '').substring(0, 2000),
-                    ai_match_score: aiScore,
-                    ai_analysis: aiAnalysis,
-                    work_experience: parsed.workExperience || [],
-                    projects: parsed.projects || [],
-                    portfolio_urls: parsed.portfolioUrls || {},
-                    cv_file_url: tempUrl,
-                    cv_file_name: cvFile.name,
-                    stage: 'Screening', // Candidates with a CV go directly to Screening
-                    source: 'cv_import',
-                    is_test: false,
-                    applied_date: new Date().toISOString(),
-                })
+                .insert(candidateFields)
                 .select('id')
                 .single();
+
+            // Fallback: if the old workspace-wide email unique constraint blocks the insert
+            // (pre-migration), retry without email so the candidate still lands in this job.
+            if (insertError?.code === '23505' && insertError.message?.includes('workspace_email')) {
+                const retryFields = { ...candidateFields, email: null };
+                const retryResult = await supabase.from('candidates').insert(retryFields).select('id').single();
+                candidate = retryResult.data;
+                insertError = retryResult.error;
+            }
 
             if (insertError) {
                 await supabase.storage.from('candidate-cvs').remove([tempPath]);
