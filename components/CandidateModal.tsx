@@ -729,7 +729,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       if (!selectedAssignJobId) return;
       setIsAssigningJob(true);
       try {
-          const updated = await api.candidates.update(candidate.id, { jobId: selectedAssignJobId } as any);
+          // Clear stale pool analysis so the modal regenerates a proper job-match
+          // analysis (with score) against the new job when it next renders.
+          const updated = await api.candidates.update(candidate.id, {
+              jobId: selectedAssignJobId,
+              aiAnalysis: null,
+              aiMatchScore: null,
+          } as any);
           onUpdate(updated);
           toast.success('Candidate assigned to job.');
       } catch (e: any) {

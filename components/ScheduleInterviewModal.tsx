@@ -479,7 +479,12 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 // Sound not available, continue
             }
 
-            // Close modal immediately after successful scheduling
+            // Show success toast then close
+            toast.success(
+                editingInterviewId
+                    ? `Interview rescheduled with ${selectedCandidate.name}.`
+                    : `Interview scheduled with ${selectedCandidate.name}.`
+            );
             onClose();
             
             // Reset form state to prevent any issues
