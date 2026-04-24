@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
 import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply } from 'lucide-react';
@@ -34,6 +34,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const { setCandidateModalOpen } = useModal();
   const toast = useToast();
   const confirm = useConfirm();
+  // Prevents concurrent analyze-candidate calls from racing each other
+  const analysisInFlightRef = useRef(false);
 
   // Update modal context when modal opens/closes (and reset when unmounting so AI button shows on other pages)
   useEffect(() => {
@@ -142,12 +144,20 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
     return () => { cancelled = true; };
   }, [isOpen, candidate.id]);
 
-  // Silently regenerate AI analysis in background if missing or incomplete (no loading messages)
+  // Silently regenerate AI analysis in background if missing or stale (no loading messages)
   useEffect(() => {
       const regenerateAnalysisSilently = async () => {
           if (!isOpen || !job) return;
+          // Guard: job state must match the candidate's current job before acting.
+          // Without this, changing aiAnalysis → null fires this effect before the
+          // job-fetch effect has loaded the new job, causing the stale pool job to
+          // be used and a wrong pool analysis to be stored.
+          if (job.id !== candidate.jobId) return;
           if (!candidate.cvFileUrl) return;
           if (!candidate.resumeSummary || candidate.resumeSummary.length <= 100) return;
+          // Guard: only one invoke at a time — prevents concurrent duplicate calls
+          // that can happen when multiple deps change in quick succession.
+          if (analysisInFlightRef.current) return;
 
           // ── Pool candidate: profile + job-match recommendations ──────────────
           if (job.title === '__candidate_pool__') {
@@ -159,6 +169,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   candidate.aiAnalysis?.startsWith('Cannot assess') ||
                   candidate.aiMatchScore != null;
               if (candidate.aiAnalysis && !isStalePoolAnalysis) return;
+              analysisInFlightRef.current = true;
               try {
                   // Fetch open jobs inline so we don't race against availableJobs state
                   const jobsRes = await api.jobs.list({ pageSize: 100 }).catch(() => ({ data: [] as import('../types').Job[] }));
@@ -188,6 +199,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   }
               } catch (err) {
                   console.warn('[pool-profiler] failed:', err);
+              } finally {
+                  analysisInFlightRef.current = false;
               }
               return;
           }
@@ -200,6 +213,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
               candidate.aiAnalysis.length < 200;
 
           if (!candidate.aiAnalysis || hasIncompleteAnalysis) {
+              analysisInFlightRef.current = true;
               try {
                   const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-candidate', {
                       body: {
@@ -224,20 +238,16 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   }
               } catch (error) {
                   console.warn('Background analysis regeneration failed:', error);
+              } finally {
+                  analysisInFlightRef.current = false;
               }
           }
       };
-      
-      // Small delay to ensure job is loaded
-      const timer = setTimeout(() => {
-          if (isOpen && job) {
-              regenerateAnalysisSilently();
-          }
-      }, 100);
-      
+
+      const timer = setTimeout(regenerateAnalysisSilently, 100);
       return () => clearTimeout(timer);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, job?.id, candidate.id, candidate.aiAnalysis]); // Regenerate when modal opens, job loads, candidate changes, or analysis changes
+  }, [isOpen, job?.id, candidate.id, candidate.aiAnalysis]); // Fires when modal opens, job loads, candidate changes, or analysis cleared
 
 
   useEffect(() => {
