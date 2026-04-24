@@ -2334,13 +2334,15 @@ export const api = {
                 } catch { return null; }
             };
 
-            // ── Dedup by email: if we extracted an email, check for an existing candidate in this workspace ──
+            // ── Dedup by email: same email re-imported into the SAME job → update, don't duplicate ──
+            // Scoped to (job_id + email) so the same person can be a candidate in multiple jobs
+            // without cross-job updates accidentally keeping them in the wrong job.
             if (parsed.email) {
                 const normalizedEmail = (parsed.email as string).toLowerCase().trim();
                 const { data: existing } = await supabase
                     .from('candidates')
                     .select('id, name, stage')
-                    .eq('workspace_id', workspaceId)
+                    .eq('job_id', jobId)
                     .eq('email', normalizedEmail)
                     .maybeSingle();
 
