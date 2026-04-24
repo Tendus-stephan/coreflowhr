@@ -368,79 +368,81 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 }
             }
 
-            // Get interview email template
-            const templates = await api.settings.getTemplates();
-            const interviewTemplate = templates.find(t => t.type === 'Interview');
-            
-            if (interviewTemplate) {
-                // Replace template variables
-                const userName = user.name || 'Recruiter';
-                let subject = interviewTemplate.subject
-                    .replace(/{job_title}/g, interviewData.jobTitle)
-                    .replace(/{company_name}/g, companyName)
-                    .replace(/{candidate_name}/g, selectedCandidate.name)
-                    .replace(/{your_name}/g, userName);
+            // Send confirmation email to candidate — track why it wasn't sent so
+            // we can surface it to the user instead of silently swallowing it.
+            let emailFailReason: string | null = null;
 
-                // Format meeting link as clickable HTML if it exists
-                const formattedMeetingLink = interviewData.meetingLink 
-                    ? `<a href="${interviewData.meetingLink}" style="color: #2563eb; text-decoration: underline;">${interviewData.meetingLink}</a>`
-                    : '';
+            if (!selectedCandidate.email) {
+                emailFailReason = 'no_email';
+            } else {
+                const templates = await api.settings.getTemplates();
+                const interviewTemplate = templates.find(t => t.type === 'Interview');
 
-                let content = interviewTemplate.content
-                    .replace(/{candidate_name}/g, selectedCandidate.name)
-                    .replace(/{job_title}/g, interviewData.jobTitle)
-                    .replace(/{company_name}/g, companyName)
-                    .replace(/{your_name}/g, userName)
-                    .replace(/{interview_date}/g, new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
-                    .replace(/{interview_time}/g, new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }))
-                    .replace(/{interview_duration}/g, duration)
-                    .replace(/{interview_type}/g, interviewType)
-                    .replace(/{interviewer_name}/g, user.name || 'Interviewer')
-                    .replace(/{meeting_link}/g, formattedMeetingLink)
-                    .replace(/{address}/g, interviewData.address || '');
-
-                // Format interview details section
-                const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                const formattedTime = new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                
-                let detailsSection = `\n\nInterview Details:\n`;
-                detailsSection += `- Date: ${formattedDate}\n`;
-                detailsSection += `- Time: ${formattedTime}\n`;
-                detailsSection += `- Duration: ${duration}\n`;
-                detailsSection += `- Type: ${interviewType}\n`;
-                if (interviewType === 'Video Call' && interviewData.meetingLink) {
-                    // Format meeting link as clickable HTML
-                    detailsSection += `- Meeting Link: ${formattedMeetingLink}\n`;
-                }
-                if (interviewType === 'In Person' && interviewData.address) {
-                    detailsSection += `- Address: ${interviewData.address}\n`;
-                }
-                detailsSection += `- Interviewer: ${user.name || 'Interviewer'}\n`;
-
-                // Replace {interview_details} placeholder or append if not found
-                if (content.includes('{interview_details}')) {
-                    content = content.replace(/{interview_details}/g, detailsSection);
+                if (!interviewTemplate) {
+                    emailFailReason = 'no_template';
                 } else {
-                    // If placeholder doesn't exist, append details before closing
-                    content += detailsSection;
-                }
+                    const userName = user.name || 'Recruiter';
+                    let subject = interviewTemplate.subject
+                        .replace(/{job_title}/g, interviewData.jobTitle)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{candidate_name}/g, selectedCandidate.name)
+                        .replace(/{your_name}/g, userName);
 
-                // Send email via Supabase Edge Function
-                try {
-                    const { error: emailError } = await supabase.functions.invoke('send-email', {
-                        body: {
-                            to: selectedCandidate.email,
-                            subject,
-                            content,
-                            fromName: 'Recruiter' // Always use "Recruiter" as sender name
-                        }
-                    });
+                    const formattedMeetingLink = interviewData.meetingLink
+                        ? `<a href="${interviewData.meetingLink}" style="color: #2563eb; text-decoration: underline;">${interviewData.meetingLink}</a>`
+                        : '';
 
-                    if (emailError) {
-                        console.error('Error sending interview email:', emailError);
+                    let content = interviewTemplate.content
+                        .replace(/{candidate_name}/g, selectedCandidate.name)
+                        .replace(/{job_title}/g, interviewData.jobTitle)
+                        .replace(/{company_name}/g, companyName)
+                        .replace(/{your_name}/g, userName)
+                        .replace(/{interview_date}/g, new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
+                        .replace(/{interview_time}/g, new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }))
+                        .replace(/{interview_duration}/g, duration)
+                        .replace(/{interview_type}/g, interviewType)
+                        .replace(/{interviewer_name}/g, user.name || 'Interviewer')
+                        .replace(/{meeting_link}/g, formattedMeetingLink)
+                        .replace(/{address}/g, interviewData.address || '');
+
+                    const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    const formattedTime = new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    let detailsSection = `\n\nInterview Details:\n`;
+                    detailsSection += `- Date: ${formattedDate}\n`;
+                    detailsSection += `- Time: ${formattedTime}\n`;
+                    detailsSection += `- Duration: ${duration}\n`;
+                    detailsSection += `- Type: ${interviewType}\n`;
+                    if (interviewType === 'Video Call' && interviewData.meetingLink) {
+                        detailsSection += `- Meeting Link: ${formattedMeetingLink}\n`;
                     }
-                } catch (emailErr) {
-                    console.error('Unexpected error sending interview email:', emailErr);
+                    if (interviewType === 'In Person' && interviewData.address) {
+                        detailsSection += `- Address: ${interviewData.address}\n`;
+                    }
+                    detailsSection += `- Interviewer: ${user.name || 'Interviewer'}\n`;
+
+                    if (content.includes('{interview_details}')) {
+                        content = content.replace(/{interview_details}/g, detailsSection);
+                    } else {
+                        content += detailsSection;
+                    }
+
+                    try {
+                        const { error: emailError } = await supabase.functions.invoke('send-email', {
+                            body: {
+                                to: selectedCandidate.email,
+                                subject,
+                                content,
+                                fromName: 'Recruiter',
+                            }
+                        });
+                        if (emailError) {
+                            console.error('Error sending interview email:', emailError);
+                            emailFailReason = 'send_failed';
+                        }
+                    } catch (emailErr) {
+                        console.error('Unexpected error sending interview email:', emailErr);
+                        emailFailReason = 'send_failed';
+                    }
                 }
             }
 
@@ -480,11 +482,19 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             }
 
             // Show success toast then close
-            toast.success(
-                editingInterviewId
-                    ? `Interview rescheduled with ${selectedCandidate.name}.`
-                    : `Interview scheduled with ${selectedCandidate.name}.`
-            );
+            const action = editingInterviewId ? 'rescheduled' : 'scheduled';
+            if (emailFailReason === null) {
+                toast.success(`Interview ${action} with ${selectedCandidate.name}. Confirmation email sent.`);
+            } else {
+                toast.success(`Interview ${action} with ${selectedCandidate.name}.`);
+                if (emailFailReason === 'no_email') {
+                    toast.info(`No confirmation email sent — ${selectedCandidate.name} has no email address on file.`);
+                } else if (emailFailReason === 'no_template') {
+                    toast.info('No confirmation email sent — add an Interview template in Settings → Email Templates.');
+                } else if (emailFailReason === 'send_failed') {
+                    toast.info('Interview saved but confirmation email failed to send.');
+                }
+            }
             onClose();
             
             // Reset form state to prevent any issues

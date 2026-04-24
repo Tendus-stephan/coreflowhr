@@ -5240,16 +5240,42 @@ export const api = {
         getTemplates: async (): Promise<EmailTemplate[]> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+
+            // Collect all user IDs in the workspace so templates created by any
+            // member are visible to everyone (e.g. admin creates Interview template,
+            // recruiter schedules the interview and expects the email to send).
+            let userIds: string[] = [userId];
+            if (workspaceId) {
+                const { data: members } = await supabase
+                    .from('workspace_members')
+                    .select('user_id')
+                    .eq('workspace_id', workspaceId);
+                if (members?.length) {
+                    userIds = [...new Set([userId, ...members.map((m: any) => m.user_id)])];
+                }
+            }
 
             const { data, error } = await supabase
                 .from('email_templates')
                 .select('*')
-                .eq('user_id', userId)
+                .in('user_id', userIds)
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
 
-            return (data || []).map(template => ({
+            // Deduplicate by type — prefer the current user's own template when
+            // multiple workspace members have created one of the same type.
+            const seen = new Set<string>();
+            const deduped = (data || []).sort((a, b) =>
+                a.user_id === userId ? -1 : b.user_id === userId ? 1 : 0
+            ).filter(t => {
+                if (seen.has(t.type)) return false;
+                seen.add(t.type);
+                return true;
+            });
+
+            return deduped.map(template => ({
                 id: template.id,
                 title: template.title,
                 desc: template.desc || '',
