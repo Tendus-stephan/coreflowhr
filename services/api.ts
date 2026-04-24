@@ -2334,38 +2334,6 @@ export const api = {
                 } catch { return null; }
             };
 
-            // ── Dedup by email: same email re-imported into the SAME job → update, don't duplicate ──
-            // Scoped to (job_id + email) so the same person can be a candidate in multiple jobs
-            // without cross-job updates accidentally keeping them in the wrong job.
-            if (parsed.email) {
-                const normalizedEmail = (parsed.email as string).toLowerCase().trim();
-                const { data: existing } = await supabase
-                    .from('candidates')
-                    .select('id, name, stage')
-                    .eq('job_id', jobId)
-                    .eq('email', normalizedEmail)
-                    .maybeSingle();
-
-                if (existing) {
-                    const permanentUrl = await moveToPermanent(existing.id);
-                    await supabase.from('candidates').update({
-                        name: name || existing.name,
-                        skills: parsed.skills || [],
-                        resume_summary: (parsed.fullText || '').substring(0, 2000),
-                        work_experience: parsed.workExperience || [],
-                        projects: parsed.projects || [],
-                        portfolio_urls: parsed.portfolioUrls || {},
-                        cv_file_url: permanentUrl ?? tempUrl,
-                        cv_file_name: cvFile.name,
-                        ...(linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
-                        ...(existing.stage === 'New' ? { stage: 'Screening' } : {}),
-                    }).eq('id', existing.id);
-
-                    try { await activityLogger.logCandidateAdded(name); } catch { /* non-critical */ }
-                    return { success: true, candidateId: existing.id, isUpdate: true };
-                }
-            }
-
             const candidateFields = {
                 user_id: userId,
                 workspace_id: job.workspace_id ?? workspaceId,
@@ -2397,9 +2365,10 @@ export const api = {
                 .select('id')
                 .single();
 
-            // Fallback: if the old workspace-wide email unique constraint blocks the insert
-            // (pre-migration), retry without email so the candidate still lands in this job.
-            if (insertError?.code === '23505' && insertError.message?.includes('workspace_email')) {
+            // If any email uniqueness constraint fires (workspace-wide pre-migration, or
+            // per-job post-migration, or shared/duplicate emails across multiple CVs),
+            // retry without email so every CV always creates its own candidate row.
+            if (insertError?.code === '23505' && insertError.message?.toLowerCase().includes('email')) {
                 const retryFields = { ...candidateFields, email: null };
                 const retryResult = await supabase.from('candidates').insert(retryFields).select('id').single();
                 candidate = retryResult.data;
