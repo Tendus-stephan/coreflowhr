@@ -606,12 +606,17 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-gray-900">Time</label>
-                            <input 
-                                type="time" 
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-bold text-gray-900">Time</label>
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                                    {new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? 'Local'}
+                                </span>
+                            </div>
+                            <input
+                                type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                             />
                         </div>
                     </div>
