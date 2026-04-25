@@ -260,9 +260,6 @@ export const trackSession = async (): Promise<void> => {
         .eq('id', existingSessionByFingerprint.id);
 
       if (updateError) {
-        if (updateError.code !== '409' && (updateError as any).status !== 409) {
-          console.warn('Error updating session by fingerprint:', updateError);
-        }
         // Fall through to try by session token
       } else {
         return;
@@ -301,10 +298,6 @@ export const trackSession = async (): Promise<void> => {
         .eq('id', existingSessionByToken.id);
 
       if (updateError) {
-        if (!updateError.message?.includes('Failed to fetch') && !updateError.message?.includes('NetworkError') &&
-            updateError.code !== '409' && (updateError as any).status !== 409) {
-          console.warn('Error updating session:', updateError);
-        }
         return;
       }
     } else {
@@ -335,17 +328,6 @@ export const trackSession = async (): Promise<void> => {
             .eq('device_fingerprint', deviceFingerprint)
             .eq('user_id', userId);
 
-          if (updateError && updateError.code !== '409' && (updateError as any).status !== 409) {
-            console.warn('Error updating session after conflict:', updateError);
-          }
-        } else {
-          console.error('Error inserting session:', {
-            message: insertError?.message,
-            details: insertError?.details,
-            hint: insertError?.hint,
-            code: insertError?.code,
-            fullError: insertError
-          });
         }
         return;
       }
@@ -357,9 +339,8 @@ export const trackSession = async (): Promise<void> => {
       .update({ is_current: false })
       .eq('user_id', userId)
       .neq('session_token', sessionToken);
-  } catch (error) {
+  } catch {
     // Silently fail - session tracking is non-critical
-    console.error('Error tracking session:', error);
   }
 };
 
