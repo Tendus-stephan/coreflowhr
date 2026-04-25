@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
@@ -200,11 +199,9 @@ const Invite: React.FC = () => {
           </div>
         )}
         {status === 'error' && (
-          <div className="mb-4 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle size={16} className="text-white" />
-            </div>
-            <div className="flex-1 pt-0.5">
+          <div className="mb-4 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+            <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
+            <div className="flex-1">
               <p className="text-[13px] font-bold text-gray-900 leading-tight">Something went wrong</p>
               <p className="text-[12px] text-gray-500 mt-0.5">{message}</p>
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
@@ -229,20 +226,16 @@ const Invite: React.FC = () => {
           </div>
         )}
         {status === 'success' && (
-          <div className="mb-4 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-              <CheckCircle size={14} className="text-white" />
-            </div>
-            <p className="text-[12px] text-gray-700">{message}</p>
+          <div className="mb-4 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+            <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+            <p className="text-[13px] text-gray-700">{message}</p>
           </div>
         )}
 
         {showWrongAccount && (
-          <div className="mb-6 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle size={16} className="text-white" />
-            </div>
-            <div className="flex-1 pt-0.5">
+          <div className="mb-6 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+            <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
+            <div className="flex-1">
             <p className="text-[13px] font-bold text-gray-900 leading-tight">Wrong account</p>
             <p className="text-[12px] text-gray-500 mt-0.5 leading-relaxed">
               This invitation was sent to <strong className="text-gray-700">{inviteEmail}</strong>. You're signed in as <strong className="text-gray-700">{user?.email}</strong>. To accept, use the invited email address.

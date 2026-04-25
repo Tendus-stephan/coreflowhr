@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Interview } from '../types';
-import { X, Calendar as CalendarIcon, Clock, Video, Phone, MapPin, User, Briefcase, FileText, ExternalLink, AlertTriangle } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Clock, Video, Phone, MapPin, User, Briefcase, FileText, ExternalLink } from 'lucide-react';
 import { Button } from './ui/Button';
 import { api } from '../services/api';
 import { toUserError } from '../utils/edgeFunctionError';
@@ -233,11 +233,9 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
 
           {/* Calendar sync failed - retry */}
           {interview.calendarSyncStatus === 'failed' && !readOnly && (
-            <div className="bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle size={16} className="text-white" />
-              </div>
-              <div className="flex-1 pt-0.5">
+            <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+              <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
+              <div className="flex-1">
                 <p className="text-[13px] font-bold text-gray-900 leading-tight">Calendar sync failed</p>
                 <p className="text-[12px] text-gray-500 mt-0.5 mb-3">{interview.calendarSyncError || 'Could not sync to Google Calendar.'}</p>
                 <Button

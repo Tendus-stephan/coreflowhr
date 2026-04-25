@@ -1006,17 +1006,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     )}
                     {/* Pool candidate banner — must assign to a job before scheduling/offering */}
                     {!jobLoading && isPoolCandidate && (
-                        <div className="bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5">
-                            <div className="flex items-start gap-3 mb-3">
-                                <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                                    <AlertTriangle size={16} className="text-white" />
-                                </div>
-                                <div className="pt-0.5">
+                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5">
+                            <div className="flex items-start gap-2.5 mb-3">
+                                <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
+                                <div>
                                     <p className="text-[13px] font-bold text-gray-900 leading-tight">Pool Candidate</p>
                                     <p className="text-[12px] text-gray-500 mt-0.5">Assign to a job to enable interviews and offers.</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 pl-12">
+                            <div className="flex items-center gap-2 pl-7">
                                 <CustomSelect
                                     inputStyle
                                     value={selectedAssignJobId}
@@ -1056,11 +1054,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                       const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
                       const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                       return (
-                        <div className="flex items-center justify-between bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                              <CheckCircle size={16} className="text-white" />
-                            </div>
+                        <div className="flex items-center justify-between bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <div>
                               <p className="text-[13px] font-bold text-gray-900 leading-tight">Interview Scheduled</p>
                               <p className="text-[12px] text-gray-500 mt-0.5">{dateStr} at {timeStr}{inv.jobTitle ? ` · ${inv.jobTitle}` : ''}</p>
@@ -1546,11 +1542,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 <>
                                     {/* Registration invite — Waitlist candidates without a CV */}
                                     {candidate.stage === CandidateStage.NEW && !isPoolCandidate && !candidate.cvFileUrl && (
-                                        <div className="bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                                                <FileText size={16} className="text-white" />
-                                            </div>
-                                            <div className="flex-1 pt-0.5">
+                                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+                                            <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
+                                            <div className="flex-1">
                                                 <p className="text-[13px] font-bold text-gray-900 leading-tight">No CV on file</p>
                                                 <p className="text-[12px] text-gray-500 mt-0.5 mb-3">Send a registration link so they can upload their CV — they'll move to Screening automatically once submitted.</p>
                                                 <Button size="sm" variant="outline" onClick={handleDraftRegistrationEmail} disabled={regLinkLoading}>
@@ -2082,10 +2076,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   </span>
                 )}
                 {currentEmailType === 'Hired' && (
-                  <div className="mt-2 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle size={13} className="text-white" />
-                    </div>
+                  <div className="mt-2 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                    <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                     <p className="text-[12px] text-gray-600">This will automatically move the candidate to <strong className="text-gray-900">Hired</strong>.</p>
                   </div>
                 )}
