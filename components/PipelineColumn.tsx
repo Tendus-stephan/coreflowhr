@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Candidate, CandidateStage } from '../types';
 import { Avatar } from './ui/Avatar';
-import { ExternalLink, ChevronLeft, ChevronRight, XCircle, Trash2, Users } from 'lucide-react';
+import { ExternalLink, ChevronLeft, ChevronRight, XCircle, Trash2, Users, MailX, Loader2 } from 'lucide-react';
 
 export const STAGE_META: Record<CandidateStage, { label: string; dot: string; badge: string; bg: string }> = {
     [CandidateStage.NEW]:       { label: 'Waitlist',  dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-600',    bg: '#f9fafb' },
@@ -24,6 +24,7 @@ interface PipelineColumnProps {
     onRejectCandidate?: (candidateId: string) => void;
     onDeleteCandidate?: (candidateId: string) => void;
     poolJobId?: string;
+    fixingEmails?: boolean;
 }
 
 const DraggableCandidateCard: React.FC<{
@@ -34,7 +35,8 @@ const DraggableCandidateCard: React.FC<{
     onReject?: (id: string) => void;
     onDelete?: (id: string) => void;
     poolJobId?: string;
-}> = ({ candidate, onSelect, draggable = true, onReject, onDelete, poolJobId }) => {
+    fixingEmails?: boolean;
+}> = ({ candidate, onSelect, draggable = true, onReject, onDelete, poolJobId, fixingEmails }) => {
     const [isDragging, setIsDragging] = useState(false);
 
     const handleDragStart = (e: React.DragEvent) => {
@@ -123,6 +125,20 @@ const DraggableCandidateCard: React.FC<{
                 </a>
             )}
 
+            {/* No-email indicator */}
+            {!candidate.email && (
+                <div className={`absolute bottom-2 right-2 flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
+                    fixingEmails
+                        ? 'bg-amber-50 text-amber-500 border border-amber-200'
+                        : 'bg-gray-50 text-gray-400 border border-gray-200'
+                } ${(onReject || onDelete) ? 'group-hover:hidden' : ''}`}>
+                    {fixingEmails
+                        ? <><Loader2 size={9} className="animate-spin" /> Recovering…</>
+                        : <><MailX size={9} /> No email</>
+                    }
+                </div>
+            )}
+
             {/* Waitlist quick actions — visible on hover */}
             {(onReject || onDelete) && (
                 <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1">
@@ -153,7 +169,7 @@ const DraggableCandidateCard: React.FC<{
 export const PipelineColumn: React.FC<PipelineColumnProps> = ({
     title, stage, candidates, onSelectCandidate, onDropCandidate,
     isValidDropTarget, jobRequiredSkills, readOnly = false,
-    onRejectCandidate, onDeleteCandidate, poolJobId,
+    onRejectCandidate, onDeleteCandidate, poolJobId, fixingEmails,
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -239,6 +255,7 @@ export const PipelineColumn: React.FC<PipelineColumnProps> = ({
                         onReject={!readOnly && stage === CandidateStage.NEW ? onRejectCandidate : undefined}
                         onDelete={!readOnly ? onDeleteCandidate : undefined}
                         poolJobId={poolJobId}
+                        fixingEmails={fixingEmails}
                     />
                 ))}
                 {candidates.length === 0 && (
