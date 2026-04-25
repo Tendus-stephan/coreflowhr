@@ -70,10 +70,10 @@ export const InterviewFeedbackCard: React.FC<InterviewFeedbackCardProps> = ({
             <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                        <Avatar 
-                            name={feedback.userName || 'User'} 
-                            src={feedback.userAvatarUrl} 
-                            className="w-6 h-6 text-[10px]" 
+                        <Avatar
+                            name={feedback.userName || 'User'}
+                            src={feedback.userAvatarUrl}
+                            className="w-10 h-10 text-xs flex-shrink-0"
                         />
                         <div>
                             <p className="text-xs font-bold text-gray-900">{feedback.userName || 'Unknown'}</p>
