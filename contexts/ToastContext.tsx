@@ -68,20 +68,20 @@ const config: Record<ToastType, { border: string; iconBg: string; title: string;
 const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
   const { border, iconBg, title, Icon: IconComp, stroke } = config[toast.type];
   return (
-    <div className={`pointer-events-auto bg-white rounded-2xl shadow-md border border-gray-100 border-l-4 ${border} min-w-[280px] max-w-[380px] px-3.5 py-3 flex items-start gap-3 animate-in slide-in-from-right-4 fade-in duration-200`}>
-      <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg}`}>
-        <IconComp className="w-5 h-5 text-white" strokeWidth={stroke} />
+    <div className={`pointer-events-auto bg-white rounded-xl shadow-lg border border-gray-200 border-l-[5px] ${border} w-[420px] max-w-[calc(100vw-2.5rem)] px-5 py-4 flex items-start gap-4 animate-in slide-in-from-right-4 fade-in duration-200`}>
+      <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg}`}>
+        <IconComp className="w-6 h-6 text-white" strokeWidth={stroke} />
       </div>
       <div className="flex-1 min-w-0 pt-0.5">
-        <p className="text-[13px] font-bold text-gray-900 leading-tight">{title}</p>
-        <p className="text-[12px] text-gray-500 leading-snug mt-0.5">{toast.message}</p>
+        <p className="text-[15px] font-bold text-gray-900 leading-tight">{title}</p>
+        <p className="text-[13px] text-gray-500 leading-snug mt-1 line-clamp-3">{toast.message}</p>
       </div>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0 mt-1"
+        className="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0 mt-0.5"
         aria-label="Dismiss"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
     </div>
   );
