@@ -125,7 +125,7 @@ export interface Candidate {
   updatedAt?: string;
   cvFileUrl?: string;
   cvFileName?: string;
-  source?: 'manual' | 'Sourced' | 'direct_application' | 'email_application' | 'referral' | 'linkedin_extension';
+  source?: 'manual' | 'Sourced' | 'direct_application' | 'email_application' | 'referral' | 'linkedin_extension' | 'cv_import' | 'ai_sourced';
   isTest?: boolean;
   workExperience?: WorkExperience[];
   projects?: Project[];

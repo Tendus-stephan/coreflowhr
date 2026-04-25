@@ -172,6 +172,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
             // Map template type to the format expected by Gemini
             const templateTypeMap: Record<string, 'interview' | 'screening' | 'rejection' | 'offer' | 'hired' | 'reschedule'> = {
                 'Interview': 'interview',
+                'Interview - Sourced': 'interview',
                 'Sourcing': 'screening',
                 'Rejection': 'rejection',
                 'Offer': 'offer',
@@ -269,9 +270,10 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                             disabled={isSaving || isGenerating}
                         />
                         <p className="text-xs text-gray-500 mt-2">
-                            {formData.type === 'Interview' && (
+                            {(formData.type === 'Interview' || formData.type === 'Interview - Sourced') && (
                                 <>
                                     Available variables: {'{candidate_name}'}, {'{job_title}'}, {'{company_name}'}, {'{interview_date}'}, {'{interview_time}'}, {'{interview_duration}'}, {'{interview_type}'}, {'{interviewer_name}'}, {'{meeting_link}'}, {'{address}'}, {'{interview_details}'}
+                                    {formData.type === 'Interview - Sourced' && <span className="ml-1 text-gray-400">— used for imported/sourced candidates</span>}
                                 </>
                             )}
                             {formData.type === 'Reschedule' && (
@@ -683,6 +685,7 @@ const TestWorkflowModal: React.FC<{
         const stageMap: Record<string, string[]> = {
             'Screening': ['candidate_name', 'job_title', 'company_name', 'your_name'],
             'Interview': ['candidate_name', 'job_title', 'company_name', 'interview_date', 'interview_time', 'interview_duration', 'interview_type', 'interviewer_name', 'meeting_link', 'address', 'interview_details', 'your_name'],
+            'Interview - Sourced': ['candidate_name', 'job_title', 'company_name', 'interview_date', 'interview_time', 'interview_duration', 'interview_type', 'interviewer_name', 'meeting_link', 'address', 'interview_details', 'your_name'],
             'Reschedule': ['candidate_name', 'job_title', 'company_name', 'previous_interview_time', 'new_interview_time', 'interview_date', 'interview_time', 'interview_duration', 'interview_type', 'meeting_link', 'address', 'your_name'],
             'Offer': ['candidate_name', 'position_title', 'job_title', 'company_name', 'salary', 'salary_amount', 'salary_currency', 'salary_period', 'start_date', 'expires_at', 'benefits', 'benefits_list', 'your_name'],
             'Rejected': ['candidate_name', 'job_title', 'company_name', 'your_name'],

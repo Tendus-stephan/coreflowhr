@@ -46,16 +46,35 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('30 min');
     const [isScheduling, setIsScheduling] = useState(false);
-    const [templateExists, setTemplateExists] = useState<boolean | null>(null);
+    const [interviewTemplates, setInterviewTemplates] = useState<any[]>([]);
+    const [templatesLoaded, setTemplatesLoaded] = useState(false);
     const actionInFlightRef = useRef(false);
 
-    // Load integrations + interview template status when modal opens
+    // Imported candidates get the sourced template; everyone else gets the applied template
+    const IMPORTED_SOURCES = new Set(['cv_import', 'ai_sourced']);
+    const isImported = IMPORTED_SOURCES.has(selectedCandidate?.source ?? '');
+    const effectiveTemplate: any | null | undefined = !templatesLoaded
+        ? undefined
+        : isImported
+            ? (interviewTemplates.find(t => t.type === 'Interview - Sourced') ?? interviewTemplates.find(t => t.type === 'Interview') ?? null)
+            : (interviewTemplates.find(t => t.type === 'Interview') ?? null);
+    const templateExists: boolean | null = effectiveTemplate === undefined ? null : effectiveTemplate !== null;
+    const usedFallback = isImported && effectiveTemplate?.type === 'Interview';
+
+    // Load integrations + interview templates when modal opens
     useEffect(() => {
         if (isOpen) {
-            setTemplateExists(null);
+            setTemplatesLoaded(false);
+            setInterviewTemplates([]);
             api.settings.getTemplates().then(templates => {
-                setTemplateExists(templates.some((t: any) => t.type === 'Interview'));
-            }).catch(() => setTemplateExists(false));
+                setInterviewTemplates(templates.filter((t: any) =>
+                    t.type === 'Interview' || t.type === 'Interview - Sourced'
+                ));
+                setTemplatesLoaded(true);
+            }).catch(() => {
+                setInterviewTemplates([]);
+                setTemplatesLoaded(true);
+            });
 
             const loadIntegrations = async () => {
                 try {
@@ -381,8 +400,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             if (!selectedCandidate.email) {
                 emailFailReason = 'no_email';
             } else {
-                const templates = await api.settings.getTemplates();
-                const interviewTemplate = templates.find((t: any) => t.type === 'Interview');
+                const interviewTemplate = effectiveTemplate ?? null;
 
                 if (!interviewTemplate) {
                     emailFailReason = 'no_template';
@@ -739,15 +757,28 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     )}
                 </div>
 
-                {/* Workflow status banner */}
-                {templateExists === true && (
+                {/* Template status banner */}
+                {templateExists === true && !usedFallback && (
                     <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
                             <CheckCircle2 size={14} className="text-white" />
                         </div>
                         <div>
                             <p className="text-[13px] font-bold text-gray-900 leading-tight">Done!</p>
-                            <p className="text-[12px] text-gray-500 mt-0.5">Interview email template found — confirmation email will be sent upon scheduling.</p>
+                            <p className="text-[12px] text-gray-500 mt-0.5">
+                                {isImported ? 'Sourced interview template found' : 'Interview email template found'} — confirmation email will be sent upon scheduling.
+                            </p>
+                        </div>
+                    </div>
+                )}
+                {templateExists === true && usedFallback && (
+                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle size={14} className="text-white" />
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-bold text-gray-900 leading-tight">Using standard template</p>
+                            <p className="text-[12px] text-gray-500 mt-0.5">No "Interview – Sourced" template found — using the standard Interview template. <span className="font-semibold text-gray-700">Add one in Settings → Email Templates</span> for a personalised message to imported candidates.</p>
                         </div>
                     </div>
                 )}
@@ -757,8 +788,13 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             <AlertTriangle size={14} className="text-white" />
                         </div>
                         <div>
-                            <p className="text-[13px] font-bold text-gray-900 leading-tight">Heads up</p>
-                            <p className="text-[12px] text-gray-500 mt-0.5">No Interview email template — no email will be sent. Add one in <span className="font-semibold text-gray-700">Settings → Email Templates</span>.</p>
+                            <p className="text-[13px] font-bold text-gray-900 leading-tight">No template found</p>
+                            <p className="text-[12px] text-gray-500 mt-0.5">
+                                {isImported
+                                    ? 'No interview template found — no email will be sent. Add an "Interview – Sourced" or "Interview" template in Settings → Email Templates.'
+                                    : 'No Interview email template — no email will be sent. Add one in Settings → Email Templates.'
+                                }
+                            </p>
                         </div>
                     </div>
                 )}
