@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, AlertTriangle, Info, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -59,19 +59,17 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-const config: Record<ToastType, { border: string; iconBg: string; title: string; Icon: React.ElementType; stroke: number }> = {
-  success: { border: 'border-l-green-700', iconBg: 'bg-green-700', title: 'Done!',                Icon: Check,         stroke: 3   },
-  error:   { border: 'border-l-amber-600', iconBg: 'bg-amber-600', title: 'Something went wrong', Icon: AlertTriangle,  stroke: 2.5 },
-  info:    { border: 'border-l-blue-700',  iconBg: 'bg-blue-700',  title: 'Heads up',             Icon: Info,          stroke: 2.5 },
+const config: Record<ToastType, { border: string; icon: string; title: string }> = {
+  success: { border: 'border-l-green-600', icon: '/assets/images/toast-success.png', title: 'Done!'                },
+  error:   { border: 'border-l-red-500',   icon: '/assets/images/toast-error.png',   title: 'Something went wrong' },
+  info:    { border: 'border-l-amber-500', icon: '/assets/images/toast-warning.png', title: 'Heads up'            },
 };
 
 const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
-  const { border, iconBg, title, Icon: IconComp, stroke } = config[toast.type];
+  const { border, icon, title } = config[toast.type];
   return (
     <div className={`pointer-events-auto bg-white rounded-xl shadow-lg border border-gray-200 border-l-[5px] ${border} w-[420px] max-w-[calc(100vw-2.5rem)] px-5 py-4 flex items-start gap-4 animate-in slide-in-from-right-4 fade-in duration-200`}>
-      <div className={`w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg}`}>
-        <IconComp className="w-6 h-6 text-white" strokeWidth={stroke} />
-      </div>
+      <img src={icon} alt={toast.type} className="w-11 h-11 flex-shrink-0 object-contain" />
       <div className="flex-1 min-w-0 pt-0.5">
         <p className="text-[15px] font-bold text-gray-900 leading-tight">{title}</p>
         <p className="text-[13px] text-gray-500 leading-snug mt-1 line-clamp-3">{toast.message}</p>
