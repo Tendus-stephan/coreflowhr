@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, Integration, CandidateStage } from '../types';
-import { X, Search, Users, Clock, Video, Link as LinkIcon, ChevronDown, MapPin, ExternalLink } from 'lucide-react';
+import { X, Search, Users, Clock, Video, Link as LinkIcon, ChevronDown, MapPin, ExternalLink, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { CustomSelect } from './ui/CustomSelect';
 import { Avatar } from './ui/Avatar';
@@ -46,11 +46,19 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('30 min');
     const [isScheduling, setIsScheduling] = useState(false);
+    const [workflowEnabled, setWorkflowEnabled] = useState<boolean | null>(null);
     const actionInFlightRef = useRef(false);
 
-    // Load integrations when modal opens
+    // Load integrations + workflow status when modal opens
     useEffect(() => {
         if (isOpen) {
+            setWorkflowEnabled(null);
+            api.workflows.list().then(workflows => {
+                setWorkflowEnabled(workflows.some(
+                    (w: any) => w.triggerStage === CandidateStage.INTERVIEW && w.enabled
+                ));
+            }).catch(() => setWorkflowEnabled(false));
+
             const loadIntegrations = async () => {
                 try {
                     const allIntegrations = await api.settings.getIntegrations();
@@ -737,6 +745,20 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* Workflow status banner */}
+                {workflowEnabled === true && (
+                    <div className="mx-6 mb-2 flex items-center gap-2 text-[12px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                        <CheckCircle2 size={13} className="flex-shrink-0" />
+                        Interview workflow enabled — confirmation email will be sent to the candidate.
+                    </div>
+                )}
+                {workflowEnabled === false && (
+                    <div className="mx-6 mb-2 flex items-center gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <AlertTriangle size={13} className="flex-shrink-0" />
+                        No Interview workflow enabled — no email will be sent. Set one up in <span className="font-semibold">Settings → Email Workflows</span>.
+                    </div>
+                )}
 
                 <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
