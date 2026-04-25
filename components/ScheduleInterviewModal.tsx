@@ -375,6 +375,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             if (!selectedCandidate.email) {
                 emailFailReason = 'no_email';
             } else {
+                const workflows = await api.workflows.list();
+                const interviewWorkflow = workflows.find(
+                    (w: any) => w.triggerStage === CandidateStage.INTERVIEW && w.enabled
+                );
+
+                if (!interviewWorkflow) {
+                    emailFailReason = 'no_workflow';
+                } else {
                 const templates = await api.settings.getTemplates();
                 const interviewTemplate = templates.find(t => t.type === 'Interview');
 
@@ -444,6 +452,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         emailFailReason = 'send_failed';
                     }
                 }
+                } // end interviewWorkflow check
             }
 
             // Note: We do NOT move the candidate to Interview stage here
@@ -489,8 +498,10 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 toast.success(`Interview ${action} with ${selectedCandidate.name}.`);
                 if (emailFailReason === 'no_email') {
                     toast.info(`No confirmation email sent — ${selectedCandidate.name} has no email address on file.`);
+                } else if (emailFailReason === 'no_workflow') {
+                    toast.info('No confirmation email sent — enable an Interview workflow in Settings → Email Workflows.');
                 } else if (emailFailReason === 'no_template') {
-                    toast.info('No confirmation email sent — add an Interview workflow in Settings → Email Workflows to enable automatic emails.');
+                    toast.info('No confirmation email sent — your Interview workflow has no email template linked.');
                 } else if (emailFailReason === 'send_failed') {
                     toast.info('Interview saved but confirmation email failed to send.');
                 }
