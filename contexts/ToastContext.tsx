@@ -60,9 +60,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 };
 
 const config: Record<ToastType, { border: string; iconBg: string; title: string; Icon: React.ElementType; stroke: number }> = {
-  success: { border: 'border-l-green-500', iconBg: 'bg-green-500', title: 'Done!',                Icon: Check,         stroke: 3   },
-  error:   { border: 'border-l-amber-500', iconBg: 'bg-amber-500', title: 'Something went wrong', Icon: AlertTriangle,  stroke: 2.5 },
-  info:    { border: 'border-l-blue-500',  iconBg: 'bg-blue-500',  title: 'Heads up',             Icon: Info,          stroke: 2.5 },
+  success: { border: 'border-l-green-700', iconBg: 'bg-green-700', title: 'Done!',                Icon: Check,         stroke: 3   },
+  error:   { border: 'border-l-amber-600', iconBg: 'bg-amber-600', title: 'Something went wrong', Icon: AlertTriangle,  stroke: 2.5 },
+  info:    { border: 'border-l-blue-700',  iconBg: 'bg-blue-700',  title: 'Heads up',             Icon: Info,          stroke: 2.5 },
 };
 
 const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
