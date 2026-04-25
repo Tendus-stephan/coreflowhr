@@ -1056,15 +1056,20 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                       const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
                       const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                       return (
-                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
-                          <div className="flex items-center gap-2 text-green-800">
-                            <CheckCircle size={18} />
-                            <span className="text-sm font-medium">Interview scheduled on {dateStr} at {timeStr}{inv.jobTitle ? ` · ${inv.jobTitle}` : ''}</span>
+                        <div className="flex items-center justify-between bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                              <CheckCircle size={16} className="text-white" />
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-bold text-gray-900 leading-tight">Interview Scheduled</p>
+                              <p className="text-[12px] text-gray-500 mt-0.5">{dateStr} at {timeStr}{inv.jobTitle ? ` · ${inv.jobTitle}` : ''}</p>
+                            </div>
                           </div>
                           {!isViewer && (
-                          <Button variant="outline" size="sm" onClick={() => setIsScheduleOpen(true)}>
-                            Reschedule
-                          </Button>
+                            <Button variant="outline" size="sm" onClick={() => setIsScheduleOpen(true)}>
+                              Reschedule
+                            </Button>
                           )}
                         </div>
                       );
