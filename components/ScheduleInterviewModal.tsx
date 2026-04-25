@@ -414,7 +414,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         .replace(/{company_name}/g, companyName)
                         .replace(/{your_name}/g, userName)
                         .replace(/{interview_date}/g, new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
-                        .replace(/{interview_time}/g, new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }))
+                        .replace(/{interview_time}/g, `${new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} (${new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? 'Local'})`)
                         .replace(/{interview_duration}/g, duration)
                         .replace(/{interview_type}/g, interviewType)
                         .replace(/{interviewer_name}/g, user.name || 'Interviewer')
@@ -422,7 +422,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         .replace(/{address}/g, interviewData.address || '');
 
                     const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    const formattedTime = new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    const tzAbbr = new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? 'Local';
+                    const formattedTime = `${new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} (${tzAbbr})`;
                     let detailsSection = `\n\nInterview Details:\n`;
                     detailsSection += `- Date: ${formattedDate}\n`;
                     detailsSection += `- Time: ${formattedTime}\n`;
