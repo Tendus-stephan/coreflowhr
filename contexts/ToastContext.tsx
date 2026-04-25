@@ -59,38 +59,29 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-const borderColor: Record<ToastType, string> = {
-  success: 'border-l-green-500',
-  error: 'border-l-red-500',
-  info: 'border-l-blue-500',
-};
-
-const iconColor: Record<ToastType, string> = {
-  success: 'text-green-600',
-  error: 'text-red-600',
-  info: 'text-blue-600',
-};
-
-const Icon: Record<ToastType, React.ElementType> = {
-  success: CheckCircle,
-  error: XCircle,
-  info: Info,
+const config: Record<ToastType, { border: string; iconBg: string; title: string; Icon: React.ElementType }> = {
+  success: { border: 'border-l-green-500',  iconBg: 'bg-green-500',  title: 'Done!',                Icon: CheckCircle },
+  error:   { border: 'border-l-amber-500',  iconBg: 'bg-amber-500',  title: 'Something went wrong', Icon: XCircle     },
+  info:    { border: 'border-l-blue-500',   iconBg: 'bg-blue-500',   title: 'Heads up',             Icon: Info        },
 };
 
 const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
-  const IconComp = Icon[toast.type];
+  const { border, iconBg, title, Icon: IconComp } = config[toast.type];
   return (
-    <div
-      className={`pointer-events-auto bg-white text-gray-900 rounded-xl shadow-lg border border-gray-100 border-l-[3px] ${borderColor[toast.type]} min-w-[300px] max-w-[400px] px-4 py-3 flex items-start gap-3 animate-in slide-in-from-right-4 fade-in duration-200`}
-    >
-      <IconComp className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColor[toast.type]}`} />
-      <p className="text-sm flex-1 leading-snug text-gray-800">{toast.message}</p>
+    <div className={`pointer-events-auto bg-white rounded-2xl shadow-md border border-gray-100 border-l-4 ${border} min-w-[320px] max-w-[420px] px-4 py-3.5 flex items-start gap-3 animate-in slide-in-from-right-4 fade-in duration-200`}>
+      <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg}`}>
+        <IconComp className="w-4 h-4 text-white" />
+      </div>
+      <div className="flex-1 min-w-0 pt-0.5">
+        <p className="text-[13px] font-bold text-gray-900 leading-tight">{title}</p>
+        <p className="text-[12px] text-gray-500 leading-snug mt-0.5">{toast.message}</p>
+      </div>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 mt-0.5"
+        className="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0 mt-1"
         aria-label="Dismiss"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );
