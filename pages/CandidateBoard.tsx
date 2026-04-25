@@ -830,6 +830,19 @@ const CandidateBoard: React.FC = () => {
                 stage: pendingMove.toStage
             });
             await handleCandidateUpdate(updatedCandidate);
+
+            // Warn if moving to Interview with no enabled Interview workflow
+            if (pendingMove.toStage === CandidateStage.INTERVIEW) {
+                api.workflows.list().then(workflows => {
+                    const hasInterviewWorkflow = workflows.some(
+                        (w: any) => w.triggerStage === CandidateStage.INTERVIEW && w.enabled
+                    );
+                    if (!hasInterviewWorkflow) {
+                        toast.info('No Interview workflow is set up — add one in Settings → Email Workflows so candidates get an email when they reach this stage.');
+                    }
+                }).catch(() => {});
+            }
+
             setPendingMove(null);
         } catch (error: any) {
             toast.error(toUserError(error, 'Failed to move candidate. Please try again.'));

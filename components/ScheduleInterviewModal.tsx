@@ -490,7 +490,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 if (emailFailReason === 'no_email') {
                     toast.info(`No confirmation email sent — ${selectedCandidate.name} has no email address on file.`);
                 } else if (emailFailReason === 'no_template') {
-                    toast.info('No confirmation email sent — add an Interview template in Settings → Email Templates.');
+                    toast.info('No confirmation email sent — add an Interview workflow in Settings → Email Workflows to enable automatic emails.');
                 } else if (emailFailReason === 'send_failed') {
                     toast.info('Interview saved but confirmation email failed to send.');
                 }
