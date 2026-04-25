@@ -3322,7 +3322,12 @@ export const api = {
                 supabase.from('candidates').update(updateData).eq('id', candidateId)
             ).select().single();
 
-            if (error) throw error;
+            if (error) {
+                if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+                    throw new Error('Network error — check your connection and try again.');
+                }
+                throw error;
+            }
 
             // Log stage change activity
             if (updates.stage !== undefined && oldStage && oldStage !== updates.stage && candidateName) {
