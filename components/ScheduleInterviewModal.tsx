@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, Integration, CandidateStage } from '../types';
-import { X, Search, Users, Clock, Video, Link as LinkIcon, ChevronDown, MapPin, ExternalLink, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { X, Search, Users, Clock, Video, Link as LinkIcon, MapPin, ExternalLink } from 'lucide-react';
 import { Button } from './ui/Button';
 import { CustomSelect } from './ui/CustomSelect';
 import { Avatar } from './ui/Avatar';
@@ -508,17 +508,13 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
             // Show success toast then close
             const action = editingInterviewId ? 'rescheduled' : 'scheduled';
-            if (emailFailReason === null) {
-                toast.success(`Interview ${action} with ${selectedCandidate.name}. Confirmation email sent.`);
-            } else {
-                toast.success(`Interview ${action} with ${selectedCandidate.name}.`);
-                if (emailFailReason === 'no_email') {
-                    toast.info(`No confirmation email sent — ${selectedCandidate.name} has no email address on file.`);
-                } else if (emailFailReason === 'no_template') {
-                    toast.info('No confirmation email sent — add an Interview template in Settings → Email Templates.');
-                } else if (emailFailReason === 'send_failed') {
-                    toast.info('Interview saved but confirmation email failed to send.');
-                }
+            toast.success(`Interview ${action} with ${selectedCandidate.name}.`);
+            if (emailFailReason === 'no_email') {
+                toast.info(`No email on file for ${selectedCandidate.name}.`);
+            } else if (emailFailReason === 'no_template') {
+                toast.info('No interview template — add one in Settings.');
+            } else if (emailFailReason === 'send_failed') {
+                toast.error('Confirmation email failed to send.');
             }
             onClose();
             
@@ -759,43 +755,25 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
                 {/* Template status banner */}
                 {templateExists === true && !usedFallback && (
-                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                            <CheckCircle2 size={14} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-[13px] font-bold text-gray-900 leading-tight">Done!</p>
-                            <p className="text-[12px] text-gray-500 mt-0.5">
-                                {isImported ? 'Sourced interview template found' : 'Interview email template found'} — confirmation email will be sent upon scheduling.
-                            </p>
-                        </div>
+                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+                        <p className="text-[13px] text-gray-700 leading-snug">
+                            {isImported ? 'Sourced interview template ready — email will be sent.' : 'Interview template ready — email will be sent.'}
+                        </p>
                     </div>
                 )}
                 {templateExists === true && usedFallback && (
-                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                            <AlertTriangle size={14} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-[13px] font-bold text-gray-900 leading-tight">Using standard template</p>
-                            <p className="text-[12px] text-gray-500 mt-0.5">No "Interview – Sourced" template found — using the standard Interview template. <span className="font-semibold text-gray-700">Add one in Settings → Email Templates</span> for a personalised message to imported candidates.</p>
-                        </div>
+                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+                        <p className="text-[13px] text-gray-700 leading-snug">No sourced template — using standard Interview template. <span className="font-medium text-gray-900">Add one in Settings → Email Templates.</span></p>
                     </div>
                 )}
                 {templateExists === false && (
-                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                            <AlertTriangle size={14} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-[13px] font-bold text-gray-900 leading-tight">No template found</p>
-                            <p className="text-[12px] text-gray-500 mt-0.5">
-                                {isImported
-                                    ? 'No interview template found — no email will be sent. Add an "Interview – Sourced" or "Interview" template in Settings → Email Templates.'
-                                    : 'No Interview email template — no email will be sent. Add one in Settings → Email Templates.'
-                                }
-                            </p>
-                        </div>
+                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+                        <p className="text-[13px] text-gray-700 leading-snug">
+                            {isImported ? 'No interview template — add an "Interview – Sourced" template in Settings.' : 'No interview template — no email will be sent. Add one in Settings.'}
+                        </p>
                     </div>
                 )}
 
