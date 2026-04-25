@@ -775,6 +775,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             !selectedCandidate ||
                             !date ||
                             !time ||
+                            workflowEnabled !== true ||
                             (interviewType === 'Video Call' && integrations.length > 0 && (!selectedPlatform || !meetingLink)) ||
                             (interviewType === 'In Person' && !address)
                         }
