@@ -31,7 +31,10 @@ const Invite: React.FC = () => {
   // Persist token only when invite is usable and not wrong-account (so after email verification we can return to /invite).
   const isWrongAccount = !!(inviteEmail && user?.email && inviteEmail.trim().toLowerCase() !== (user.email || '').trim().toLowerCase());
   useEffect(() => {
-    if (token && status !== 'error' && status !== 'expired' && !isWrongAccount) {
+    // Only persist the token while the invite is still pending.
+    // Do NOT re-set it once accepting has started or succeeded — that causes a
+    // redirect loop where App.tsx reads the token and bounces the user back here.
+    if (token && status === 'idle' && !isWrongAccount) {
       try {
         localStorage.setItem('workspaceInviteToken', token);
       } catch {
