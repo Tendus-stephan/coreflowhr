@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
@@ -199,45 +200,26 @@ const Invite: React.FC = () => {
           </div>
         )}
         {status === 'error' && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
-            <p className="font-medium">Something went wrong</p>
-            <p className="mt-1 text-amber-700">{message}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-              {message.toLowerCase().includes('log in') ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleGoToAuth('/login')}
-                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
-                  >
-                    Log in
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleGoToHome}
-                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
-                  >
-                    Go to homepage
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => { acceptStartedRef.current = false; setStatus('idle'); setMessage(''); }}
-                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
-                  >
-                    Try again
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleGoToHome}
-                    className="text-sm font-medium text-amber-800 underline hover:no-underline"
-                  >
-                    Go to homepage
-                  </button>
-                </>
-              )}
+          <div className="mb-4 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={16} className="text-white" />
+            </div>
+            <div className="flex-1 pt-0.5">
+              <p className="text-[13px] font-bold text-gray-900 leading-tight">Something went wrong</p>
+              <p className="text-[12px] text-gray-500 mt-0.5">{message}</p>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {message.toLowerCase().includes('log in') ? (
+                  <>
+                    <button type="button" onClick={() => handleGoToAuth('/login')} className="text-[12px] font-medium text-gray-700 underline hover:no-underline">Log in</button>
+                    <button type="button" onClick={handleGoToHome} className="text-[12px] font-medium text-gray-700 underline hover:no-underline">Go to homepage</button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => { acceptStartedRef.current = false; setStatus('idle'); setMessage(''); }} className="text-[12px] font-medium text-gray-700 underline hover:no-underline">Try again</button>
+                    <button type="button" onClick={handleGoToHome} className="text-[12px] font-medium text-gray-700 underline hover:no-underline">Go to homepage</button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -247,16 +229,23 @@ const Invite: React.FC = () => {
           </div>
         )}
         {status === 'success' && (
-          <div className="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            {message}
+          <div className="mb-4 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <CheckCircle size={14} className="text-white" />
+            </div>
+            <p className="text-[12px] text-gray-700">{message}</p>
           </div>
         )}
 
         {showWrongAccount && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
-            <p className="font-semibold text-base">Wrong account</p>
-            <p className="mt-2 text-amber-700 text-base leading-relaxed">
-              This invitation was sent to <strong>{inviteEmail}</strong>. You're signed in as <strong>{user?.email}</strong>. To accept, use the invited email address.
+          <div className="mb-6 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={16} className="text-white" />
+            </div>
+            <div className="flex-1 pt-0.5">
+            <p className="text-[13px] font-bold text-gray-900 leading-tight">Wrong account</p>
+            <p className="text-[12px] text-gray-500 mt-0.5 leading-relaxed">
+              This invitation was sent to <strong className="text-gray-700">{inviteEmail}</strong>. You're signed in as <strong className="text-gray-700">{user?.email}</strong>. To accept, use the invited email address.
             </p>
             <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-3">
               <button
@@ -269,7 +258,7 @@ const Invite: React.FC = () => {
               <button
                 type="button"
                 onClick={() => signOut().then(() => { setInviteEmail(null); setStatus('idle'); setMessage(''); })}
-                className="inline-flex justify-center px-5 py-2.5 rounded-lg border border-amber-700 text-amber-800 text-sm font-medium hover:bg-amber-100"
+                className="inline-flex justify-center px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
               >
                 Log out
               </button>
@@ -280,6 +269,7 @@ const Invite: React.FC = () => {
               >
                 Sign up with {inviteEmail}
               </button>
+            </div>
             </div>
           </div>
         )}

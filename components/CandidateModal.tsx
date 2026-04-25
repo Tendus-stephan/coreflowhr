@@ -1006,12 +1006,17 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     )}
                     {/* Pool candidate banner — must assign to a job before scheduling/offering */}
                     {!jobLoading && isPoolCandidate && (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                            <div className="flex items-center gap-2 text-amber-800 mb-3">
-                                <AlertTriangle size={18} />
-                                <span className="text-sm font-medium">This candidate is in the pool. Assign them to a job to enable interviews and offers.</span>
+                        <div className="bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5">
+                            <div className="flex items-start gap-3 mb-3">
+                                <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle size={16} className="text-white" />
+                                </div>
+                                <div className="pt-0.5">
+                                    <p className="text-[13px] font-bold text-gray-900 leading-tight">Pool Candidate</p>
+                                    <p className="text-[12px] text-gray-500 mt-0.5">Assign to a job to enable interviews and offers.</p>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 pl-12">
                                 <CustomSelect
                                     inputStyle
                                     value={selectedAssignJobId}
@@ -1022,12 +1027,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                         ...availableJobs.map(j => ({ value: j.id, label: j.title })),
                                     ]}
                                 />
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={!selectedAssignJobId || isAssigningJob}
-                                    onClick={handleAssignToJob}
-                                >
+                                <Button size="sm" variant="outline" disabled={!selectedAssignJobId || isAssigningJob} onClick={handleAssignToJob}>
                                     {isAssigningJob ? 'Assigning...' : 'Assign'}
                                 </Button>
                             </div>
@@ -1546,11 +1546,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 <>
                                     {/* Registration invite — Waitlist candidates without a CV */}
                                     {candidate.stage === CandidateStage.NEW && !isPoolCandidate && !candidate.cvFileUrl && (
-                                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                                            <FileText size={16} className="text-amber-700 mt-0.5 flex-shrink-0" />
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-amber-800 mb-1">No CV on file</p>
-                                                <p className="text-xs text-amber-700 mb-3">Send this candidate a registration link so they can upload their CV. Once submitted they'll move to Screening automatically.</p>
+                                        <div className="bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                                                <FileText size={16} className="text-white" />
+                                            </div>
+                                            <div className="flex-1 pt-0.5">
+                                                <p className="text-[13px] font-bold text-gray-900 leading-tight">No CV on file</p>
+                                                <p className="text-[12px] text-gray-500 mt-0.5 mb-3">Send a registration link so they can upload their CV — they'll move to Screening automatically once submitted.</p>
                                                 <Button size="sm" variant="outline" onClick={handleDraftRegistrationEmail} disabled={regLinkLoading}>
                                                     {regLinkLoading ? 'Generating link…' : 'Draft CV Registration Email'}
                                                 </Button>
@@ -2080,9 +2082,12 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   </span>
                 )}
                 {currentEmailType === 'Hired' && (
-                  <span className="block mt-2 text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5 font-medium">
-                    This will automatically move the candidate to <strong>Hired</strong>.
-                  </span>
+                  <div className="mt-2 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle size={13} className="text-white" />
+                    </div>
+                    <p className="text-[12px] text-gray-600">This will automatically move the candidate to <strong className="text-gray-900">Hired</strong>.</p>
+                  </div>
                 )}
               </p>
               <div className="flex gap-3 justify-end">

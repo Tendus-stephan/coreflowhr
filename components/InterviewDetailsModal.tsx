@@ -233,15 +233,13 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
 
           {/* Calendar sync failed - retry */}
           {interview.calendarSyncStatus === 'failed' && !readOnly && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <AlertTriangle size={20} className="text-amber-600" />
-                <h3 className="font-semibold text-amber-900">Calendar sync failed</h3>
+            <div className="bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={16} className="text-white" />
               </div>
-              <p className="text-amber-800 text-sm ml-8 mb-2">
-                {interview.calendarSyncError || 'Could not sync to Google Calendar.'}
-              </p>
-              <div className="ml-8">
+              <div className="flex-1 pt-0.5">
+                <p className="text-[13px] font-bold text-gray-900 leading-tight">Calendar sync failed</p>
+                <p className="text-[12px] text-gray-500 mt-0.5 mb-3">{interview.calendarSyncError || 'Could not sync to Google Calendar.'}</p>
                 <Button
                   variant="outline"
                   size="sm"

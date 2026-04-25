@@ -741,15 +741,25 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
                 {/* Workflow status banner */}
                 {templateExists === true && (
-                    <div className="mx-6 mb-2 flex items-center gap-2 text-[12px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                        <CheckCircle2 size={13} className="flex-shrink-0" />
-                        Interview email template found — a confirmation email will be sent to the candidate upon scheduling.
+                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-green-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                            <CheckCircle2 size={14} className="text-white" />
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-bold text-gray-900 leading-tight">Done!</p>
+                            <p className="text-[12px] text-gray-500 mt-0.5">Interview email template found — confirmation email will be sent upon scheduling.</p>
+                        </div>
                     </div>
                 )}
                 {templateExists === false && (
-                    <div className="mx-6 mb-2 flex items-center gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        <AlertTriangle size={13} className="flex-shrink-0" />
-                        No Interview email template found — no email will be sent. Add one in <span className="font-semibold">Settings → Email Templates</span>.
+                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-4 border-l-amber-500 rounded-2xl shadow-sm px-4 py-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle size={14} className="text-white" />
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-bold text-gray-900 leading-tight">Heads up</p>
+                            <p className="text-[12px] text-gray-500 mt-0.5">No Interview email template — no email will be sent. Add one in <span className="font-semibold text-gray-700">Settings → Email Templates</span>.</p>
+                        </div>
                     </div>
                 )}
 
