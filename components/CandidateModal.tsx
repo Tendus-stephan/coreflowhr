@@ -20,6 +20,7 @@ import { useModal } from '../contexts/ModalContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { CustomSelect } from './ui/CustomSelect';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -1997,7 +1998,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             const data = await api.offers.list({ candidateId: candidate.id });
                                             setOffers(data);
                                         } catch (err: any) {
-                                            toast.error(err.message || 'Failed to send offer');
+                                            toast.error(toUserError(err, 'Failed to send offer. Please try again.'));
                                         } finally {
                                             setSendingOfferId(null);
                                         }

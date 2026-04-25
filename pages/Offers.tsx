@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { Plus, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { toUserError } from '../utils/edgeFunctionError';
 
 const Offers: React.FC = () => {
     const [offers, setOffers] = useState<Offer[]>([]);
@@ -139,7 +140,7 @@ const Offers: React.FC = () => {
             playNotificationSound();
             await loadOffers();
         } catch (err: any) {
-            toast.error(err.message || 'Failed to send offer');
+            toast.error(toUserError(err, 'Failed to send offer. Please try again.'));
         } finally {
             setSendingOfferId(null);
         }

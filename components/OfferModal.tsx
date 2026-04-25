@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { CustomSelect } from './ui/CustomSelect';
 import { X, Plus, Trash2, Send, Save, Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface OfferModalProps {
     offer?: Offer | null;
@@ -283,7 +284,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
             onClose();
         } catch (err: any) {
             console.error('Error sending offer:', err);
-            setError(err.message || 'Failed to send offer email');
+            setError(toUserError(err, 'Failed to send offer. Please try again.'));
         } finally {
             setSending(false);
             actionInFlightRef.current = false;
