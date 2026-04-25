@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle, XCircle, Info, X } from 'lucide-react';
+import { Check, AlertTriangle, Info, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -59,18 +59,18 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-const config: Record<ToastType, { border: string; iconBg: string; title: string; Icon: React.ElementType }> = {
-  success: { border: 'border-l-green-500',  iconBg: 'bg-green-500',  title: 'Done!',                Icon: CheckCircle },
-  error:   { border: 'border-l-amber-500',  iconBg: 'bg-amber-500',  title: 'Something went wrong', Icon: XCircle     },
-  info:    { border: 'border-l-blue-500',   iconBg: 'bg-blue-500',   title: 'Heads up',             Icon: Info        },
+const config: Record<ToastType, { border: string; iconBg: string; title: string; Icon: React.ElementType; stroke: number }> = {
+  success: { border: 'border-l-green-500', iconBg: 'bg-green-500', title: 'Done!',                Icon: Check,         stroke: 3   },
+  error:   { border: 'border-l-amber-500', iconBg: 'bg-amber-500', title: 'Something went wrong', Icon: AlertTriangle,  stroke: 2.5 },
+  info:    { border: 'border-l-blue-500',  iconBg: 'bg-blue-500',  title: 'Heads up',             Icon: Info,          stroke: 2.5 },
 };
 
 const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
-  const { border, iconBg, title, Icon: IconComp } = config[toast.type];
+  const { border, iconBg, title, Icon: IconComp, stroke } = config[toast.type];
   return (
-    <div className={`pointer-events-auto bg-white rounded-2xl shadow-md border border-gray-100 border-l-4 ${border} min-w-[320px] max-w-[420px] px-4 py-3.5 flex items-start gap-3 animate-in slide-in-from-right-4 fade-in duration-200`}>
-      <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg}`}>
-        <IconComp className="w-4 h-4 text-white" />
+    <div className={`pointer-events-auto bg-white rounded-2xl shadow-md border border-gray-100 border-l-4 ${border} min-w-[280px] max-w-[380px] px-3.5 py-3 flex items-start gap-3 animate-in slide-in-from-right-4 fade-in duration-200`}>
+      <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${iconBg}`}>
+        <IconComp className="w-5 h-5 text-white" strokeWidth={stroke} />
       </div>
       <div className="flex-1 min-w-0 pt-0.5">
         <p className="text-[13px] font-bold text-gray-900 leading-tight">{title}</p>
