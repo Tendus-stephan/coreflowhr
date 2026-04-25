@@ -2282,6 +2282,13 @@ export const api = {
                 console.error('[bulkImport] parse-cv invocation threw:', parseResult.reason);
             }
 
+            // Regex fallback: if AI parsing missed the email (or parse-cv failed entirely),
+            // scan the raw CV text for anything that looks like an email address.
+            if (!parsed.email) {
+                const emailMatch = cvText.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/);
+                if (emailMatch) parsed.email = emailMatch[0];
+            }
+
             const linkedinUrl: string | null = aiParsed?.portfolioUrls?.linkedin || null;
 
             // Only enforce the email/LinkedIn requirement when AI parsing actually succeeded.
