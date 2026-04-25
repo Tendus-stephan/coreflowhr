@@ -758,21 +758,21 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                         <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                         <p className="text-[13px] text-gray-700 leading-snug">
-                            {isImported ? 'Sourced interview template ready — email will be sent.' : 'Interview template ready — email will be sent.'}
+                            {isImported ? '"Interview – Sourced" template active.' : 'Interview template active.'}
                         </p>
                     </div>
                 )}
                 {templateExists === true && usedFallback && (
                     <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                         <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
-                        <p className="text-[13px] text-gray-700 leading-snug">No sourced template — using standard Interview template. <span className="font-medium text-gray-900">Add one in Settings → Email Templates.</span></p>
+                        <p className="text-[13px] text-gray-700 leading-snug">No sourced template — falling back to standard. <span className="font-medium text-gray-900">Add one in Settings.</span></p>
                     </div>
                 )}
                 {templateExists === false && (
                     <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                         <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                         <p className="text-[13px] text-gray-700 leading-snug">
-                            {isImported ? 'No interview template — add an "Interview – Sourced" template in Settings.' : 'No interview template — no email will be sent. Add one in Settings.'}
+                            {isImported ? 'No template — add "Interview – Sourced" in Settings.' : 'No interview template — add one in Settings.'}
                         </p>
                     </div>
                 )}
