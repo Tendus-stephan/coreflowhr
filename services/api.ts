@@ -3326,6 +3326,15 @@ export const api = {
                 if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
                     throw new Error('Network error — check your connection and try again.');
                 }
+                if (error.code === '23505' || (error as any).status === 409) {
+                    if (error.message?.includes('email')) {
+                        throw new Error('A candidate with that email already exists in this job.');
+                    }
+                    if (error.message?.includes('linkedin')) {
+                        throw new Error('A candidate with that LinkedIn URL already exists in this job.');
+                    }
+                    throw new Error('This update conflicts with an existing candidate — the value may already be in use.');
+                }
                 throw error;
             }
 
