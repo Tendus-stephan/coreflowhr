@@ -3327,9 +3327,6 @@ export const api = {
                     throw new Error('Network error — check your connection and try again.');
                 }
                 if (error.code === '23505' || (error as any).status === 409) {
-                    if (error.message?.includes('email')) {
-                        throw new Error('A candidate with that email already exists in this job.');
-                    }
                     if (error.message?.includes('linkedin')) {
                         throw new Error('A candidate with that LinkedIn URL already exists in this job.');
                     }
