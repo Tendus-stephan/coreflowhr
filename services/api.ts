@@ -2414,6 +2414,38 @@ export const api = {
 
             return { success: true, candidateId: candidate.id };
         },
+        /**
+         * Scan all workspace candidates with no email address and attempt to
+         * extract one from their stored resume_summary using a simple regex.
+         * Returns how many were updated.
+         */
+        fixMissingEmails: async (): Promise<{ fixed: number }> => {
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!workspaceId) throw new Error('Not authenticated');
+
+            const { data, error } = await supabase
+                .from('candidates')
+                .select('id, resume_summary')
+                .eq('workspace_id', workspaceId)
+                .is('email', null);
+
+            if (error || !data?.length) return { fixed: 0 };
+
+            const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
+            let fixed = 0;
+            for (const row of data) {
+                if (!row.resume_summary) continue;
+                const match = (row.resume_summary as string).match(emailRegex);
+                if (match) {
+                    const { error: upErr } = await supabase
+                        .from('candidates')
+                        .update({ email: match[0] })
+                        .eq('id', row.id);
+                    if (!upErr) fixed++;
+                }
+            }
+            return { fixed };
+        },
         /** Returns the id of the workspace's "Candidate Pool" placeholder job, creating it if needed. */
         getOrCreateCandidatePool: async (): Promise<string> => {
             const workspaceId = await getCurrentWorkspaceId();

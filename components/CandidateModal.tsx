@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
-import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply } from 'lucide-react';
+import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply, Pencil, Check } from 'lucide-react';
 import { Button } from './ui/Button';
 import { draftEmail, draftOutreachMessage } from '../services/aiService';
 import { api } from '../services/api';
@@ -71,6 +71,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [outreachDraft, setOutreachDraft] = useState<{ subject: string; content: string; registrationLink: string } | null>(null);
   const [outreachCopied, setOutreachCopied] = useState(false);
   const [loadingOutreach, setLoadingOutreach] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailEditValue, setEmailEditValue] = useState('');
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [job, setJob] = useState<Job | undefined>(undefined);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -399,6 +401,24 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         }
       } finally {
         setLoadingAI(false);
+      }
+  };
+
+  const handleSaveEmail = async (e?: React.FormEvent | React.FocusEvent) => {
+      e?.preventDefault();
+      const trimmed = emailEditValue.trim();
+      if (trimmed === (candidate.email || '')) { setEditingEmail(false); return; }
+      if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+          toast.error('Please enter a valid email address.');
+          return;
+      }
+      try {
+          await api.candidates.update(candidate.id, { email: trimmed || null } as any);
+          onUpdate({ ...candidate, email: trimmed || undefined });
+          setEditingEmail(false);
+          if (trimmed) toast.success('Email saved.');
+      } catch {
+          toast.error('Failed to save email.');
       }
   };
 
@@ -783,13 +803,47 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">{candidate.name}</h2>
                     <p className="text-gray-500 font-medium">{candidate.role}</p>
-                    {candidate.email && (
-                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                    {editingEmail ? (
+                        <form onSubmit={handleSaveEmail} className="flex items-center gap-1 mt-2">
+                            <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                            <input
+                                type="email"
+                                value={emailEditValue}
+                                onChange={(e) => setEmailEditValue(e.target.value)}
+                                autoFocus
+                                placeholder="email@example.com"
+                                className="text-sm border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:border-black w-48"
+                                onBlur={handleSaveEmail}
+                            />
+                            <button type="submit" className="text-green-600 hover:text-green-700 flex-shrink-0" onMouseDown={(e) => e.preventDefault()}>
+                                <Check size={14} />
+                            </button>
+                            <button type="button" className="text-gray-400 hover:text-gray-600 flex-shrink-0" onMouseDown={(e) => e.preventDefault()} onClick={() => setEditingEmail(false)}>
+                                <X size={14} />
+                            </button>
+                        </form>
+                    ) : candidate.email ? (
+                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-600 group">
                             <Mail size={14} className="text-gray-400" />
                             <a href={`mailto:${candidate.email}`} className="hover:text-gray-900 hover:underline">
                                 {candidate.email}
                             </a>
+                            <button
+                                onClick={() => { setEmailEditValue(candidate.email || ''); setEditingEmail(true); }}
+                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-opacity"
+                                title="Edit email"
+                            >
+                                <Pencil size={11} />
+                            </button>
                         </div>
+                    ) : (
+                        <button
+                            onClick={() => { setEmailEditValue(''); setEditingEmail(true); }}
+                            className="flex items-center gap-1 mt-2 text-xs text-gray-400 hover:text-gray-600"
+                        >
+                            <Plus size={12} />
+                            Add email
+                        </button>
                     )}
                     {candidate.location && (
                         <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">

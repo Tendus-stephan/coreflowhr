@@ -268,6 +268,7 @@ const CandidateBoard: React.FC = () => {
         } catch { return []; }
     });
     const [showImportHistory, setShowImportHistory] = useState(false);
+    const [fixingEmails, setFixingEmails] = useState(false);
     const importHistoryRef = useRef<HTMLDivElement | null>(null);
     const importHistoryPortalRef = useRef<HTMLDivElement | null>(null);
 
@@ -996,6 +997,33 @@ const CandidateBoard: React.FC = () => {
                                                         Clear all
                                                     </button>
                                                 )}
+                                            </div>
+                                            <div className="px-4 py-2 border-b border-gray-100">
+                                                <button
+                                                    disabled={fixingEmails}
+                                                    onClick={async () => {
+                                                        setFixingEmails(true);
+                                                        try {
+                                                            const { fixed } = await api.candidates.fixMissingEmails();
+                                                            if (fixed > 0) {
+                                                                toast.success(`Fixed ${fixed} candidate${fixed !== 1 ? 's' : ''} — email addresses recovered.`);
+                                                                api.candidates.list({ page: 1, pageSize: 1000 }).then(r => setCandidates(r.data || [])).catch(() => {});
+                                                            } else {
+                                                                toast.info('No missing emails could be recovered from CV text.');
+                                                            }
+                                                        } catch {
+                                                            toast.error('Failed to fix missing emails.');
+                                                        } finally {
+                                                            setFixingEmails(false);
+                                                        }
+                                                    }}
+                                                    className="w-full text-left text-[11px] text-gray-500 hover:text-gray-800 py-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                                >
+                                                    {fixingEmails
+                                                        ? <><Loader2 size={11} className="animate-spin" /> Fixing…</>
+                                                        : <><Mail size={11} /> Fix missing emails</>
+                                                    }
+                                                </button>
                                             </div>
                                             <div className="max-h-80 overflow-y-auto">
                                                 {importHistory.length === 0 ? (
