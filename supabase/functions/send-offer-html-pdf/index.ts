@@ -575,6 +575,7 @@ serve(async (req) => {
     }
     html = html.replace(/\{\{[^}]+\}\}/g, '');
 
+    console.log('Calling PDFShift, html length:', html.length);
     const pdfshiftRes = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
       method: 'POST',
       headers: {
@@ -586,7 +587,7 @@ serve(async (req) => {
 
     if (!pdfshiftRes.ok) {
       const errText = await pdfshiftRes.text();
-      console.error('PDFShift error', pdfshiftRes.status, errText);
+      console.error('PDFShift error', pdfshiftRes.status, errText.slice(0, 500));
       let errMsg = 'Failed to convert HTML to PDF.';
       try {
         const errJson = JSON.parse(errText);
@@ -615,6 +616,7 @@ serve(async (req) => {
     form.append('metadata[offer_id]', String(offerId));
     form.append('test_mode', '1');
 
+    console.log('PDFShift OK, pdf size bytes:', pdfBytes.length, '— calling Dropbox Sign');
     const apiKeyB64 = btoa(`${dropboxSignApiKey}:`);
     const dsRes = await fetch('https://api.hellosign.com/v3/signature_request/send', {
       method: 'POST',
@@ -624,7 +626,7 @@ serve(async (req) => {
 
     if (!dsRes.ok) {
       const errText = await dsRes.text();
-      console.error('Dropbox Sign API error', dsRes.status, errText);
+      console.error('Dropbox Sign API error', dsRes.status, errText.slice(0, 500));
       let errMsg = 'Failed to send signature request.';
       try {
         const errJson = JSON.parse(errText);

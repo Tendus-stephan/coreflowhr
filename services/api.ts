@@ -6694,9 +6694,12 @@ export const api = {
             });
             if (fnError) {
                 const ctx: any = (fnError as any).context;
-                const ctxMsg =
-                    (ctx && (ctx.error || ctx.message)) ||
-                    fnError.message;
+                let ctxMsg = fnError.message;
+                try {
+                    // context is a raw Response object — read the body to get the real error
+                    const body = ctx?.json ? await ctx.json() : ctx;
+                    ctxMsg = body?.error || body?.message || ctxMsg;
+                } catch { /* ignore parse failure */ }
                 throw new Error(ctxMsg || 'Failed to send offer for signature');
             }
             const err = (data as { error?: string; details?: string })?.error;
