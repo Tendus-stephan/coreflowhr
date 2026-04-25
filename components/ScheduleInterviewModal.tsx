@@ -46,18 +46,16 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const [time, setTime] = useState('');
     const [duration, setDuration] = useState('30 min');
     const [isScheduling, setIsScheduling] = useState(false);
-    const [workflowEnabled, setWorkflowEnabled] = useState<boolean | null>(null);
+    const [templateExists, setTemplateExists] = useState<boolean | null>(null);
     const actionInFlightRef = useRef(false);
 
-    // Load integrations + workflow status when modal opens
+    // Load integrations + interview template status when modal opens
     useEffect(() => {
         if (isOpen) {
-            setWorkflowEnabled(null);
-            api.workflows.list().then(workflows => {
-                setWorkflowEnabled(workflows.some(
-                    (w: any) => w.triggerStage === CandidateStage.INTERVIEW && w.enabled
-                ));
-            }).catch(() => setWorkflowEnabled(false));
+            setTemplateExists(null);
+            api.settings.getTemplates().then(templates => {
+                setTemplateExists(templates.some((t: any) => t.type === 'Interview'));
+            }).catch(() => setTemplateExists(false));
 
             const loadIntegrations = async () => {
                 try {
@@ -383,16 +381,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             if (!selectedCandidate.email) {
                 emailFailReason = 'no_email';
             } else {
-                const workflows = await api.workflows.list();
-                const interviewWorkflow = workflows.find(
-                    (w: any) => w.triggerStage === CandidateStage.INTERVIEW && w.enabled
-                );
-
-                if (!interviewWorkflow) {
-                    emailFailReason = 'no_workflow';
-                } else {
                 const templates = await api.settings.getTemplates();
-                const interviewTemplate = templates.find(t => t.type === 'Interview');
+                const interviewTemplate = templates.find((t: any) => t.type === 'Interview');
 
                 if (!interviewTemplate) {
                     emailFailReason = 'no_template';
@@ -461,7 +451,6 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         emailFailReason = 'send_failed';
                     }
                 }
-                } // end interviewWorkflow check
             }
 
             // Note: We do NOT move the candidate to Interview stage here
@@ -507,10 +496,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 toast.success(`Interview ${action} with ${selectedCandidate.name}.`);
                 if (emailFailReason === 'no_email') {
                     toast.info(`No confirmation email sent — ${selectedCandidate.name} has no email address on file.`);
-                } else if (emailFailReason === 'no_workflow') {
-                    toast.info('No confirmation email sent — enable an Interview workflow in Settings → Email Workflows.');
                 } else if (emailFailReason === 'no_template') {
-                    toast.info('No confirmation email sent — your Interview workflow has no email template linked.');
+                    toast.info('No confirmation email sent — add an Interview template in Settings → Email Templates.');
                 } else if (emailFailReason === 'send_failed') {
                     toast.info('Interview saved but confirmation email failed to send.');
                 }
@@ -753,16 +740,16 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 </div>
 
                 {/* Workflow status banner */}
-                {workflowEnabled === true && (
+                {templateExists === true && (
                     <div className="mx-6 mb-2 flex items-center gap-2 text-[12px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                         <CheckCircle2 size={13} className="flex-shrink-0" />
-                        Interview workflow enabled — confirmation email will be sent to the candidate.
+                        Interview email template found — a confirmation email will be sent to the candidate upon scheduling.
                     </div>
                 )}
-                {workflowEnabled === false && (
+                {templateExists === false && (
                     <div className="mx-6 mb-2 flex items-center gap-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         <AlertTriangle size={13} className="flex-shrink-0" />
-                        No Interview workflow enabled — no email will be sent. Set one up in <span className="font-semibold">Settings → Email Workflows</span>.
+                        No Interview email template found — no email will be sent. Add one in <span className="font-semibold">Settings → Email Templates</span>.
                     </div>
                 )}
 
@@ -775,7 +762,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             !selectedCandidate ||
                             !date ||
                             !time ||
-                            workflowEnabled !== true ||
+                            templateExists !== true ||
                             (interviewType === 'Video Call' && integrations.length > 0 && (!selectedPlatform || !meetingLink)) ||
                             (interviewType === 'In Person' && !address)
                         }

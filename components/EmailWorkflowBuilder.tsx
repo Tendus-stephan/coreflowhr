@@ -272,7 +272,7 @@ export const EmailWorkflowBuilder: React.FC<EmailWorkflowBuilderProps> = ({
                             }}
                             className="py-2.5 rounded-lg"
                             options={Object.values(CandidateStage)
-                                .filter(stage => stage !== CandidateStage.NEW)
+                                .filter(stage => stage !== CandidateStage.NEW && stage !== CandidateStage.INTERVIEW)
                                 .map(stage => ({ value: stage, label: stage }))}
                         />
                         <p className="text-xs text-gray-400 mt-1">Triggers when a candidate moves to this stage</p>
