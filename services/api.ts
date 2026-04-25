@@ -301,7 +301,8 @@ export const trackSession = async (): Promise<void> => {
         .eq('id', existingSessionByToken.id);
 
       if (updateError) {
-        if (updateError.code !== '409' && (updateError as any).status !== 409) {
+        if (!updateError.message?.includes('Failed to fetch') && !updateError.message?.includes('NetworkError') &&
+            updateError.code !== '409' && (updateError as any).status !== 409) {
           console.warn('Error updating session:', updateError);
         }
         return;
@@ -314,7 +315,10 @@ export const trackSession = async (): Promise<void> => {
 
       if (insertError) {
         // If insert fails (e.g., 409 conflict), try to update instead
-        if (insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('409')) {
+        if (insertError.message?.includes('Failed to fetch') || insertError.message?.includes('NetworkError')) {
+          // Network blocked (ad blocker, offline) — session tracking is non-critical
+          return;
+        } else if (insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('409')) {
           // Try updating by device fingerprint (clear is_current on others first to avoid 409)
           await supabase
             .from('user_sessions')
