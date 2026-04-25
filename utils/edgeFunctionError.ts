@@ -54,7 +54,9 @@ const TECHNICAL_PATTERNS: RegExp[] = [
   /column .+ does/i,
   /function .+ does/i,
   /invalid input syntax/i,
-  /violates (foreign key|unique|not-null|check)/i,
+  /violates (foreign key|unique|not-null|check|row-level security)/i,
+  /row-level security/i,
+  /new row violates/i,
   /duplicate key/i,
   /operator does not exist/i,
   // JavaScript internals

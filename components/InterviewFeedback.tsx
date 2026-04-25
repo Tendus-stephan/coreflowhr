@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { Button } from './ui/Button';
 import { CustomSelect } from './ui/CustomSelect';
 import { Star, Save, X } from 'lucide-react';
+import { toUserError } from '../utils/edgeFunctionError';
 
 interface InterviewFeedbackFormProps {
     interviewId: string;
@@ -79,7 +80,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
             onFeedbackSubmitted();
         } catch (err: any) {
             console.error('Error submitting feedback:', err);
-            setError(err.message || 'Failed to submit feedback');
+            setError(toUserError(err, 'Failed to submit feedback. Please try again.'));
         } finally {
             setLoading(false);
         }
