@@ -230,9 +230,7 @@ const OfferResponse: React.FC = () => {
                         </h2>
                         <p className="text-sm text-gray-500 max-w-xs">
                             {isAccepted
-                                ? (offer?.requireEsignature && offer?.status === 'awaiting_signature'
-                                    ? 'Your acceptance is recorded. Check your email for the signing link from Dropbox Sign.'
-                                    : 'Your acceptance is recorded. The recruiter will be in touch with next steps.')
+                                ? 'Your acceptance is recorded. Check your email for the signing link from Dropbox Sign to complete the process.'
                                 : isCounter
                                 ? 'Your counter offer has been sent. The recruiter will review and get back to you.'
                                 : 'Your response has been recorded. Thank you for your time.'}

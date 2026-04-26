@@ -6700,10 +6700,11 @@ export const api = {
             const tokenExpiresAt = new Date();
             tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 60);
 
-            // Persist token + flip status to awaiting_response
+            // Persist token + flip status to awaiting_response.
+            // Always mark require_esignature=true so DS is triggered on acceptance.
             const { error: updateError } = await supabase
                 .from('offers')
-                .update({ status: 'awaiting_response', sent_at: new Date().toISOString(), offer_token: offerToken, offer_token_expires_at: tokenExpiresAt.toISOString() })
+                .update({ status: 'awaiting_response', sent_at: new Date().toISOString(), offer_token: offerToken, offer_token_expires_at: tokenExpiresAt.toISOString(), require_esignature: true })
                 .eq('id', offerId);
             if (updateError) throw updateError;
 
@@ -7691,19 +7692,17 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 }
             }
 
-            // Phase 2: trigger Dropbox Sign only if the offer requires e-signature.
+            // Phase 2: trigger Dropbox Sign for e-signature on every acceptance.
             // Errors are non-fatal — acceptance is already recorded; recruiter can resend manually.
-            if (updated.require_esignature) {
-                try {
-                    const { data: sigData, error: sigError } = await supabase.functions.invoke('send-offer-html-pdf', {
-                        body: { offerId: updated.id, offer_token: token },
-                    });
-                    if (sigError || (sigData as { error?: string })?.error) {
-                        console.error('Dropbox Sign call failed (non-fatal):', sigError?.message || (sigData as { error?: string })?.error);
-                    }
-                } catch (dsError: any) {
-                    console.error('Dropbox Sign call threw (non-fatal):', dsError?.message);
+            try {
+                const { data: sigData, error: sigError } = await supabase.functions.invoke('send-offer-html-pdf', {
+                    body: { offerId: updated.id, offer_token: token },
+                });
+                if (sigError || (sigData as { error?: string })?.error) {
+                    console.error('Dropbox Sign call failed (non-fatal):', sigError?.message || (sigData as { error?: string })?.error);
                 }
+            } catch (dsError: any) {
+                console.error('Dropbox Sign call threw (non-fatal):', dsError?.message);
             }
 
             // Refetch to get the latest status (may now be awaiting_signature if DS was triggered)
