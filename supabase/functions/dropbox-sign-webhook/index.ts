@@ -112,8 +112,7 @@ serve(async (req) => {
       });
     }
 
-    // Update by offer id (metadata is set by us when sending). Don't require esignature_request_id match
-    // so we don't miss updates due to type/format differences in webhook payload.
+    // Update offer and return candidate_id + workspace_id for stage transition
     const { data: updated, error: updateError } = await supabase
       .from('offers')
       .update({
@@ -122,7 +121,7 @@ serve(async (req) => {
         responded_at: new Date().toISOString(),
       })
       .eq('id', String(offerId))
-      .select('id')
+      .select('id, candidate_id, workspace_id')
       .maybeSingle();
 
     if (updateError) {
@@ -138,6 +137,34 @@ serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Auto-move candidate to Hired when a Hired-stage email workflow is active
+    const candidateId = (updated as any).candidate_id;
+    const workspaceId = (updated as any).workspace_id;
+    if (candidateId && workspaceId) {
+      const { data: hiredWorkflow } = await supabase
+        .from('email_workflows')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('trigger_stage', 'Hired')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (hiredWorkflow) {
+        const { error: stageError } = await supabase
+          .from('candidates')
+          .update({ stage: 'Hired' })
+          .eq('id', candidateId)
+          .neq('stage', 'Hired');
+
+        if (stageError) {
+          console.error('Failed to move candidate to Hired', stageError);
+        } else {
+          console.log('Candidate', candidateId, 'moved to Hired after offer signed');
+        }
+      }
     }
 
     return new Response(JSON.stringify({ received: true, offerId, path: storagePath }), {
