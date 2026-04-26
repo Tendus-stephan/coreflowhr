@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Briefcase, Clock, Loader2, X, Edit2 } from 'lucide-react';
+import { Check, X, AlertCircle, Loader2, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 
 const OfferResponse: React.FC = () => {
@@ -21,7 +21,7 @@ const OfferResponse: React.FC = () => {
     const [companyName, setCompanyName] = useState<string>('');
     const [candidateName, setCandidateName] = useState<string>('');
     const [showCounterOffer, setShowCounterOffer] = useState(false);
-    
+
     // Counter offer form state
     const [counterSalary, setCounterSalary] = useState<string>('');
     const [counterCurrency, setCounterCurrency] = useState<string>('USD');
@@ -49,7 +49,6 @@ const OfferResponse: React.FC = () => {
 
                 setOffer(offerData);
 
-                // Load job details
                 if (offerData.jobId) {
                     const job = await api.jobs.get(offerData.jobId);
                     if (job) {
@@ -58,7 +57,6 @@ const OfferResponse: React.FC = () => {
                     }
                 }
 
-                // Get candidate name if available (query directly since this is a public page)
                 if (offerData.candidateId) {
                     try {
                         const { supabase } = await import('../services/supabase');
@@ -67,34 +65,21 @@ const OfferResponse: React.FC = () => {
                             .select('name')
                             .eq('id', offerData.candidateId)
                             .single();
-                        if (candidateData) {
-                            setCandidateName(candidateData.name);
-                        }
+                        if (candidateData) setCandidateName(candidateData.name);
                     } catch (err) {
                         console.error('Error fetching candidate:', err);
                     }
                 }
 
-                // Pre-fill counter offer with current offer values
-                if (offerData.salaryAmount) {
-                    setCounterSalary(offerData.salaryAmount.toString());
-                }
+                if (offerData.salaryAmount) setCounterSalary(offerData.salaryAmount.toString());
                 setCounterCurrency(offerData.salaryCurrency || 'USD');
                 setCounterPeriod(offerData.salaryPeriod || 'yearly');
-                if (offerData.startDate) {
-                    setCounterStartDate(offerData.startDate);
-                }
-                if (offerData.benefits) {
-                    setCounterBenefits(offerData.benefits);
-                }
+                if (offerData.startDate) setCounterStartDate(offerData.startDate);
+                if (offerData.benefits) setCounterBenefits(offerData.benefits);
 
-                // Check if already responded (only show success screen for accepted/declined)
-                // For negotiating status, show the offer details so user can see recruiter's response
                 if (offerData.status === 'accepted' || offerData.status === 'declined') {
                     setSuccess(offerData.status === 'accepted' ? 'accepted' : 'declined');
                 }
-                // Don't set success for 'negotiating' - let user see the updated offer
-
             } catch (err: any) {
                 setError(err.message || 'Failed to load offer');
             } finally {
@@ -107,10 +92,8 @@ const OfferResponse: React.FC = () => {
 
     const handleAccept = async () => {
         if (!token || !offer) return;
-
         setSubmitting(true);
         setError(null);
-
         try {
             const updatedOffer = await api.offers.acceptByToken(token, responseNote.trim() || undefined);
             setOffer(updatedOffer);
@@ -126,10 +109,8 @@ const OfferResponse: React.FC = () => {
 
     const handleDecline = async () => {
         if (!token || !offer) return;
-
         setSubmitting(true);
         setError(null);
-
         try {
             await api.offers.declineByToken(token, responseNote.trim() || undefined);
             setSuccess('declined');
@@ -144,30 +125,16 @@ const OfferResponse: React.FC = () => {
 
     const handleCounterOffer = async () => {
         if (!token || !offer) return;
-
         setSubmitting(true);
         setError(null);
-
         try {
             const counterOfferData: any = {};
-            
-            if (counterSalary) {
-                counterOfferData.salaryAmount = parseFloat(counterSalary);
-            }
+            if (counterSalary) counterOfferData.salaryAmount = parseFloat(counterSalary);
             counterOfferData.salaryCurrency = counterCurrency;
             counterOfferData.salaryPeriod = counterPeriod;
-            
-            if (counterStartDate) {
-                counterOfferData.startDate = counterStartDate;
-            }
-            
-            if (counterBenefits.length > 0) {
-                counterOfferData.benefits = counterBenefits;
-            }
-            
-            if (counterNote.trim()) {
-                counterOfferData.notes = counterNote.trim();
-            }
+            if (counterStartDate) counterOfferData.startDate = counterStartDate;
+            if (counterBenefits.length > 0) counterOfferData.benefits = counterBenefits;
+            if (counterNote.trim()) counterOfferData.notes = counterNote.trim();
 
             await api.offers.counterOfferByToken(token, counterOfferData);
             setSuccess('counter_offered');
@@ -195,80 +162,90 @@ const OfferResponse: React.FC = () => {
     const formatSalary = (amount?: number, currency?: string, period?: string) => {
         if (!amount) return 'To be discussed';
         const curr = currency === 'USD' ? '$' : currency || 'USD';
-        const per = period === 'yearly' ? 'per year' : period === 'monthly' ? 'per month' : 'per hour';
-        return `${curr}${amount.toLocaleString()} ${per}`;
+        const per = period === 'yearly' ? '/yr' : period === 'monthly' ? '/mo' : '/hr';
+        return `${curr}${amount.toLocaleString()}${per}`;
     };
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Not specified';
-        return format(new Date(dateString), 'MMMM d, yyyy');
+        return format(new Date(dateString), 'MMM d, yyyy');
     };
 
+    // ── Shell ────────────────────────────────────────────────────────────────
+    const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+        <div className="min-h-screen bg-gray-50">
+            {/* Top bar */}
+            <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center">
+                <img src="/assets/images/coreflow-logo.png" alt="CoreflowHR" className="h-7 w-auto" />
+            </div>
+            <div className="max-w-xl mx-auto px-4 py-10">
+                {children}
+            </div>
+            <p className="text-center text-xs text-gray-400 pb-8">Powered by CoreflowHR</p>
+        </div>
+    );
+
+    // ── Loading ──────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-8 h-8 text-gray-900 mx-auto mb-4 animate-spin" />
-                    <p className="text-sm text-gray-600">Loading offer details...</p>
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 flex flex-col items-center gap-3">
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                    <p className="text-sm text-gray-500">Loading your offer…</p>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Error (no offer) ─────────────────────────────────────────────────────
     if (error && !offer) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl border border-gray-100 p-8 max-w-md w-full text-center">
-                    <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
-                    <p className="text-gray-600 mb-6">{error}</p>
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col items-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                        <AlertCircle size={18} className="text-red-500" />
+                    </div>
+                    <h2 className="text-base font-semibold text-gray-900">Link not found</h2>
+                    <p className="text-sm text-gray-500 max-w-xs">{error}</p>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Success ──────────────────────────────────────────────────────────────
     if (success) {
+        const isAccepted = success === 'accepted';
+        const isCounter = success === 'counter_offered';
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl border border-gray-100 p-8 max-w-md w-full text-center">
-                    {success === 'accepted' ? (
-                        <>
-                            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Offer Accepted!</h2>
-                            <p className="text-gray-600 mb-6">
-                                {offer?.requireEsignature && offer?.status === 'awaiting_signature'
-                                    ? 'Congratulations! Your acceptance has been recorded. A formal offer letter has been sent to your email for signature — please check your inbox to complete the process.'
-                                    : 'Congratulations! Your acceptance has been recorded. The recruiter will be in touch with the next steps.'}
-                            </p>
-                        </>
-                    ) : success === 'counter_offered' ? (
-                        <>
-                            <CheckCircle className="w-16 h-16 text-gray-900 mx-auto mb-4" />
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Counter Offer Submitted</h2>
-                            <p className="text-gray-600 mb-6">
-                                Your counter offer has been submitted. The recruiter will review it and get back to you soon.
-                            </p>
-                        </>
-                    ) : (
-                        <>
-                            <XCircle className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Offer Declined</h2>
-                            <p className="text-gray-600 mb-6">
-                                Your response has been recorded. Thank you for your time and interest.
-                            </p>
-                        </>
-                    )}
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col items-center gap-3 text-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isAccepted ? 'bg-gray-900' : isCounter ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                        {isAccepted && <Check size={18} className="text-white" />}
+                        {isCounter && <Check size={18} className="text-white" />}
+                        {!isAccepted && !isCounter && <X size={18} className="text-gray-500" />}
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-900 mb-1">
+                            {isAccepted ? 'Offer Accepted' : isCounter ? 'Counter Offer Submitted' : 'Offer Declined'}
+                        </h2>
+                        <p className="text-sm text-gray-500 max-w-xs">
+                            {isAccepted
+                                ? (offer?.requireEsignature && offer?.status === 'awaiting_signature'
+                                    ? 'Your acceptance is recorded. Check your email for the signing link from Dropbox Sign.'
+                                    : 'Your acceptance is recorded. The recruiter will be in touch with next steps.')
+                                : isCounter
+                                ? 'Your counter offer has been sent. The recruiter will review and get back to you.'
+                                : 'Your response has been recorded. Thank you for your time.'}
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
     if (!offer) return null;
 
     const isExpired = offer.expiresAt && new Date(offer.expiresAt) < new Date();
-    // Only show the DS "check your email" screen when the candidate has ALREADY responded (respondedAt set)
-    // and DS was subsequently triggered. Without respondedAt the offer was sent directly to DS by the
-    // recruiter (old flow) and the candidate still needs to accept/decline/counter first.
     const signViaEmailOnly = offer.requireEsignature && offer.status === 'awaiting_signature' && !!offer.respondedAt;
     const awaitingEsignature = signViaEmailOnly;
     const canRespond = (
@@ -279,429 +256,295 @@ const OfferResponse: React.FC = () => {
         (offer.status === 'awaiting_signature' && !offer.respondedAt)
     ) && !awaitingEsignature;
 
+    // ── DS screen (candidate already accepted, signing email en route) ────────
     if (signViaEmailOnly) {
         return (
-            <div className="min-h-screen bg-gray-50 py-12 px-4">
-                <div className="max-w-4xl mx-auto">
-                    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                        <div className="bg-gray-900 text-white px-8 py-6">
-                            <h1 className="text-2xl font-bold">{companyName || 'Company'}</h1>
-                            <p className="text-gray-300 text-sm mt-1">Job Offer Letter</p>
-                        </div>
-                        <div className="px-8 py-10">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-blue-900">
-                                <CheckCircle className="w-10 h-10 inline-block mr-3 align-middle text-blue-600" />
-                                <div className="inline-block align-middle">
-                                    <p className="font-semibold text-lg mb-2">Your offer letter has been sent to your email</p>
-                                    <p className="text-blue-800">
-                                        Please check your inbox for an email from Dropbox Sign. Open the link in that email to view the official offer letter and sign it. You will receive a copy of the signed document once complete.
-                                    </p>
-                                    <p className="text-sm mt-3 text-blue-700">
-                                        If you don&apos;t see the email, check your spam folder or contact {companyName || 'the company'} to resend the signing link.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+            <Shell>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col items-center gap-3 text-center">
+                    <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center">
+                        <Mail size={16} className="text-white" />
                     </div>
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-900 mb-1">Check your email</h2>
+                        <p className="text-sm text-gray-500 max-w-xs">
+                            Your offer letter has been sent via Dropbox Sign. Open the email to review and sign the document. Check your spam folder if you don't see it.
+                        </p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Questions? Contact {companyName || 'the company'} directly.</p>
                 </div>
-            </div>
+            </Shell>
         );
     }
 
+    // ── Company initial avatar ────────────────────────────────────────────────
+    const companyInitial = (companyName || 'C')[0].toUpperCase();
+
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                {/* Letter-style offer document (only when not eSignature sign-via-email flow) */}
-                <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                    {/* Header with company name and date */}
-                    <div className="bg-gray-900 text-white px-8 py-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-2xl font-bold">{companyName || 'Company'}</h1>
-                                <p className="text-gray-300 text-sm mt-1">Job Offer Letter</p>
-                            </div>
-                            <div className="text-right text-gray-300 text-sm">
-                                <p>{format(new Date(), 'MMMM d, yyyy')}</p>
-                            </div>
-                        </div>
+        <Shell>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+                {/* ── Card header ── */}
+                <div className="px-6 pt-6 pb-5 border-b border-gray-100 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {companyInitial}
                     </div>
+                    <div className="min-w-0">
+                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide leading-none mb-0.5">Job Offer</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{companyName || 'Company'}</p>
+                    </div>
+                    {offer.expiresAt && (
+                        <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${isExpired ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                            {isExpired ? 'Expired' : `Expires ${formatDate(offer.expiresAt)}`}
+                        </span>
+                    )}
+                </div>
 
-                    {/* Letter content */}
-                    <div className="px-8 py-8">
-                        {/* Greeting */}
-                        <div className="mb-6">
-                            <p className="text-gray-900 text-lg mb-2">Dear {candidateName || 'Candidate'},</p>
-                        </div>
+                {/* ── Body ── */}
+                <div className="px-6 py-5 space-y-5">
 
-                        {/* Main letter text */}
-                        <div className="text-gray-700 leading-relaxed space-y-4 mb-8">
-                            <p>
-                                We are pleased to extend this offer of employment to you for the position of <strong>{offer.positionTitle}</strong> at {companyName || 'our company'}. We believe your skills and experience will be a valuable addition to our team.
-                            </p>
+                    {/* Greeting */}
+                    <p className="text-sm text-gray-700">
+                        Dear <span className="font-semibold text-gray-900">{candidateName || 'Candidate'}</span>,
+                    </p>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                        We're pleased to extend this offer for the position of{' '}
+                        <span className="font-semibold text-gray-900">{offer.positionTitle}</span>
+                        {companyName ? ` at ${companyName}` : ''}. Please review the details below.
+                    </p>
 
-                            {/* Offer Details */}
-                            <div className="bg-gray-50 rounded-lg p-6 my-6 space-y-4">
-                                <h3 className="font-bold text-gray-900 text-lg mb-4">Offer Details</h3>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Offer details grid */}
+                    <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-3">
                         <div>
-                                        <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                <Briefcase size={16} />
-                                <span className="font-medium text-sm">Position</span>
-                            </div>
-                                        <p className="text-gray-900 font-semibold">{offer.positionTitle}</p>
+                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">Position</p>
+                            <p className="text-sm font-semibold text-gray-900">{offer.positionTitle}</p>
                         </div>
-
                         <div>
-                                        <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                <DollarSign size={16} />
-                                <span className="font-medium text-sm">Salary</span>
-                            </div>
-                                        <p className="text-gray-900 font-semibold">{formatSalary(offer.salaryAmount, offer.salaryCurrency, offer.salaryPeriod)}</p>
+                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">Salary</p>
+                            <p className="text-sm font-semibold text-gray-900">{formatSalary(offer.salaryAmount, offer.salaryCurrency, offer.salaryPeriod)}</p>
                         </div>
-
                         {offer.startDate && (
                             <div>
-                                            <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                    <Calendar size={16} />
-                                    <span className="font-medium text-sm">Start Date</span>
-                                </div>
-                                            <p className="text-gray-900 font-semibold">{formatDate(offer.startDate)}</p>
+                                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">Start Date</p>
+                                <p className="text-sm font-semibold text-gray-900">{formatDate(offer.startDate)}</p>
                             </div>
                         )}
-
-                        {offer.expiresAt && (
+                        {jobTitle && jobTitle !== offer.positionTitle && (
                             <div>
-                                            <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                    <Clock size={16} />
-                                    <span className="font-medium text-sm">Offer Expires</span>
-                                </div>
-                                            <p className={`font-semibold ${isExpired ? 'text-red-600' : 'text-gray-900'}`}>
-                                    {formatDate(offer.expiresAt)}
-                                </p>
-                            </div>
-                        )}
-                                </div>
-
-                        {offer.benefits && offer.benefits.length > 0 && (
-                                    <div className="mt-4">
-                                        <p className="font-medium text-gray-700 mb-2">Benefits & Perks</p>
-                                <ul className="list-disc list-inside space-y-1 text-gray-700">
-                                    {offer.benefits.map((benefit, idx) => (
-                                        <li key={idx}>{benefit}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        {offer.notes && (
-                                    <div className="mt-4">
-                                <p className="font-medium text-gray-700 mb-2">Additional Information</p>
-                                <p className="text-gray-700 whitespace-pre-wrap">{offer.notes}</p>
+                                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">Role</p>
+                                <p className="text-sm font-semibold text-gray-900">{jobTitle}</p>
                             </div>
                         )}
                     </div>
 
-                            <p>
-                                Please review the terms of this offer. If you have any questions or would like to discuss any aspect of this offer, please don't hesitate to reach out.
-                            </p>
-                        </div>
-
-                        {/* Signature section */}
-                        <div className="mt-8 pt-6 border-t border-gray-200">
-                            <p className="text-gray-700 mb-2">Best regards,</p>
-                            <p className="text-gray-900 font-semibold">{companyName || 'The Hiring Team'}</p>
-                        </div>
-                    </div>
-
-                    {/* Error message */}
-                    {error && (
-                        <div className="mx-8 mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <AlertCircle size={16} className="flex-shrink-0" />
-                                <span className="flex-1">{error}</span>
+                    {/* Benefits */}
+                    {offer.benefits && offer.benefits.length > 0 && (
+                        <div>
+                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-2">Benefits & Perks</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {offer.benefits.map((b, i) => (
+                                    <span key={i} className="text-xs px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full">{b}</span>
+                                ))}
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setError(null)}
-                                className="mt-3 text-sm font-medium text-red-800 underline hover:no-underline"
-                            >
-                                Try again
-                            </button>
                         </div>
                     )}
 
-                    {isExpired && (
-                        <div className="mx-8 mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-                            <AlertCircle className="w-5 h-5 inline-block mr-2" />
-                            This offer has expired. Please contact the recruiter if you would still like to proceed.
+                    {/* Notes */}
+                    {offer.notes && (
+                        <div className="text-sm text-gray-600 leading-relaxed border-l-2 border-gray-200 pl-3">
+                            {offer.notes}
                         </div>
                     )}
 
-                    {awaitingEsignature && (
-                        <div className="mx-8 mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-                            <CheckCircle className="w-5 h-5 inline-block mr-2 align-middle" />
-                            A formal offer letter has been sent to your email for signature. Please check your inbox and complete the signature there. You will receive a copy of the signed document once it is complete.
-                        </div>
-                    )}
-
-                    {/* Negotiation History / Recruiter Response */}
+                    {/* Negotiation history */}
                     {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.length > 0 && (
-                        <div className="px-8 py-6 bg-orange-50 border-t border-orange-200">
-                            <h3 className="text-lg font-bold text-orange-900 mb-3">Negotiation Status</h3>
-                            <div className="space-y-3">
-                                {offer.negotiationHistory
-                                    .filter((item: any) => item.type === 'counter_offer_response' || item.type === 'counter_offer')
-                                    .slice(-3) // Show last 3 negotiation items
-                                    .map((item: any, index: number) => (
-                                        <div key={index} className="bg-white rounded-lg p-4 border border-orange-200">
-                                            <p className="text-xs text-orange-700 mb-2">
-                                                {format(new Date(item.timestamp), 'MMM d, yyyy h:mm a')}
-                                            </p>
-                                            {item.type === 'counter_offer_response' && item.updatedFields && (
-                                                <div className="space-y-2 text-sm text-gray-700">
-                                                    <p className="font-medium text-gray-900">Recruiter has proposed updated terms:</p>
-                                                    {item.updatedFields.salaryAmount && (
-                                                        <p>
-                                                            <span className="font-medium">Salary:</span> {item.updatedFields.salaryCurrency === 'USD' ? '$' : item.updatedFields.salaryCurrency}
-                                                            {item.updatedFields.salaryAmount.toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? 'per year' : item.updatedFields.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
-                                                        </p>
-                                                    )}
-                                                    {item.updatedFields.benefits && item.updatedFields.benefits.length > 0 && (
-                                                        <p>
-                                                            <span className="font-medium">Benefits:</span> {item.updatedFields.benefits.join(', ')}
-                                                        </p>
-                                                    )}
-                                                    {item.notes && (
-                                                        <p className="mt-2 italic text-gray-600">"{item.notes}"</p>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {item.type === 'counter_offer' && item.counterOffer && (
-                                                <div className="space-y-2 text-sm text-gray-700">
-                                                    <p className="font-medium text-gray-900">Your counter offer:</p>
-                                                    {item.counterOffer.salaryAmount && (
-                                                        <p>
-                                                            <span className="font-medium">Salary:</span> {item.counterOffer.salaryCurrency === 'USD' ? '$' : item.counterOffer.salaryCurrency}
-                                                            {item.counterOffer.salaryAmount.toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? 'per year' : item.counterOffer.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
-                                                        </p>
-                                                    )}
-                                                    {item.counterOffer.notes && (
-                                                        <p className="mt-2 italic text-gray-600">"{item.counterOffer.notes}"</p>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Action buttons */}
-                    {canRespond && !isExpired && (
-                        <div className="px-8 py-6 bg-gray-50 border-t border-gray-200">
-                            {!showCounterOffer ? (
-                        <>
-                                    <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Optional Message
-                                </label>
-                                <textarea
-                                    value={responseNote}
-                                    onChange={(e) => setResponseNote(e.target.value)}
-                                    placeholder="Add a message to your response (optional)..."
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none resize-none"
-                                            rows={3}
-                                />
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <Button
-                                    variant="black"
-                                    onClick={handleAccept}
-                                    disabled={submitting}
-                                    className="flex-1 text-sm sm:text-base font-semibold tracking-tight"
-                                >
-                                    {submitting ? 'Processing...' : 'Accept Offer'}
-                                </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setShowCounterOffer(true)}
-                                            disabled={submitting}
-                                            className="flex-1 text-sm sm:text-base font-semibold tracking-tight"
-                                        >
-                                            Counter Offer
-                                        </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleDecline}
-                                    disabled={submitting}
-                                    className="flex-1 text-sm sm:text-base font-semibold tracking-tight"
-                                >
-                                    {submitting ? 'Processing...' : 'Decline Offer'}
-                                </Button>
-                            </div>
-                        </>
-                            ) : (
-                                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-lg font-bold text-gray-900">Submit Counter Offer</h3>
-                                        <button
-                                            onClick={() => setShowCounterOffer(false)}
-                                            className="text-gray-400 hover:text-gray-900"
-                                        >
-                                            <X size={20} />
-                                        </button>
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Negotiation History</p>
+                            {offer.negotiationHistory
+                                .filter((item: any) => item.type === 'counter_offer_response' || item.type === 'counter_offer')
+                                .slice(-3)
+                                .map((item: any, index: number) => (
+                                    <div key={index} className="bg-gray-50 rounded-xl p-3 text-sm">
+                                        <p className="text-[10px] text-gray-400 mb-1">{format(new Date(item.timestamp), 'MMM d, yyyy · h:mm a')}</p>
+                                        {item.type === 'counter_offer_response' && item.updatedFields && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-gray-700">Recruiter updated terms:</p>
+                                                {item.updatedFields.salaryAmount && (
+                                                    <p className="text-xs text-gray-600">
+                                                        Salary: {item.updatedFields.salaryCurrency === 'USD' ? '$' : item.updatedFields.salaryCurrency}
+                                                        {item.updatedFields.salaryAmount.toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? '/yr' : item.updatedFields.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
+                                                    </p>
+                                                )}
+                                                {item.notes && <p className="text-xs text-gray-500 italic">"{item.notes}"</p>}
+                                            </div>
+                                        )}
+                                        {item.type === 'counter_offer' && item.counterOffer && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-gray-700">Your counter offer:</p>
+                                                {item.counterOffer.salaryAmount && (
+                                                    <p className="text-xs text-gray-600">
+                                                        Salary: {item.counterOffer.salaryCurrency === 'USD' ? '$' : item.counterOffer.salaryCurrency}
+                                                        {item.counterOffer.salaryAmount.toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? '/yr' : item.counterOffer.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
+                                                    </p>
+                                                )}
+                                                {item.counterOffer.notes && <p className="text-xs text-gray-500 italic">"{item.counterOffer.notes}"</p>}
+                                            </div>
+                                        )}
                                     </div>
-
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Salary Amount
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={counterSalary}
-                                                    onChange={(e) => setCounterSalary(e.target.value)}
-                                                    placeholder="Enter amount"
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Currency
-                                                </label>
-                                                <CustomSelect
-                                                    inputStyle
-                                                    value={counterCurrency}
-                                                    onChange={setCounterCurrency}
-                                                    className="px-3 py-2 rounded-lg"
-                                                    options={[
-                                                        { value: 'USD', label: 'USD ($)' },
-                                                        { value: 'EUR', label: 'EUR (€)' },
-                                                        { value: 'GBP', label: 'GBP (£)' },
-                                                    ]}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Period
-                                                </label>
-                                                <CustomSelect
-                                                    inputStyle
-                                                    value={counterPeriod}
-                                                    onChange={(val) => setCounterPeriod(val as 'hourly' | 'monthly' | 'yearly')}
-                                                    className="px-3 py-2 rounded-lg"
-                                                    options={[
-                                                        { value: 'yearly', label: 'Per Year' },
-                                                        { value: 'monthly', label: 'Per Month' },
-                                                        { value: 'hourly', label: 'Per Hour' },
-                                                    ]}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={counterStartDate}
-                                                onChange={(e) => setCounterStartDate(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Benefits & Perks
-                                            </label>
-                                            <div className="flex gap-2 mb-2">
-                                                <input
-                                                    type="text"
-                                                    value={newBenefit}
-                                                    onChange={(e) => setNewBenefit(e.target.value)}
-                                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addBenefit())}
-                                                    placeholder="Add a benefit"
-                                                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none"
-                                                />
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={addBenefit}
-                                                    size="sm"
-                                                >
-                                                    Add
-                                                </Button>
-                                            </div>
-                                            {counterBenefits.length > 0 && (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {counterBenefits.map((benefit, idx) => (
-                                                        <span
-                                                            key={idx}
-                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                                                        >
-                                                            {benefit}
-                                                            <button
-                                                                onClick={() => removeBenefit(idx)}
-                                                                className="text-gray-500 hover:text-gray-900"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Additional Notes
-                                            </label>
-                                            <textarea
-                                                value={counterNote}
-                                                onChange={(e) => setCounterNote(e.target.value)}
-                                                placeholder="Explain your counter offer or any additional requests..."
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-0 focus:border-gray-900 outline-none resize-none"
-                                                rows={4}
-                                            />
-                                        </div>
-
-                                        <div className="flex gap-3 pt-2">
-                                            <Button
-                                                variant="black"
-                                                onClick={handleCounterOffer}
-                                                disabled={submitting}
-                                                className="flex-1"
-                                            >
-                                                {submitting ? 'Submitting...' : 'Submit Counter Offer'}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setShowCounterOffer(false)}
-                                                disabled={submitting}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {!canRespond && (
-                        <div className="px-8 py-6 bg-gray-50 border-t border-gray-200 text-center">
-                            <p className="font-medium text-gray-700 mb-2">This offer has already been {offer.status}</p>
-                            {offer.response && (
-                                <p className="text-sm text-gray-500 mt-2">Your response: {offer.response}</p>
-                            )}
+                                ))}
                         </div>
                     )}
                 </div>
+
+                {/* ── Inline error ── */}
+                {error && (
+                    <div className="mx-6 mb-4 bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm text-red-700">
+                        <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <p>{error}</p>
+                            <button onClick={() => setError(null)} className="mt-1 text-xs font-medium text-red-600 underline underline-offset-2">Dismiss</button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Expired banner ── */}
+                {isExpired && (
+                    <div className="mx-6 mb-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+                        <AlertCircle size={15} className="flex-shrink-0" />
+                        This offer has expired. Contact the recruiter if you'd still like to proceed.
+                    </div>
+                )}
+
+                {/* ── Awaiting signature banner ── */}
+                {awaitingEsignature && (
+                    <div className="mx-6 mb-4 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800 flex items-center gap-2">
+                        <Mail size={15} className="flex-shrink-0" />
+                        A signing link has been sent to your email. Complete the signature there.
+                    </div>
+                )}
+
+                {/* ── Actions ── */}
+                {canRespond && !isExpired && (
+                    <div className="px-6 pb-6 border-t border-gray-100 pt-4 space-y-3">
+                        {!showCounterOffer ? (
+                            <>
+                                <textarea
+                                    value={responseNote}
+                                    onChange={(e) => setResponseNote(e.target.value)}
+                                    placeholder="Add an optional message…"
+                                    rows={2}
+                                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 resize-none text-gray-700 placeholder-gray-400"
+                                />
+                                <div className="flex gap-2">
+                                    <Button variant="black" onClick={handleAccept} disabled={submitting} className="flex-1 text-sm">
+                                        {submitting ? 'Processing…' : 'Accept Offer'}
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setShowCounterOffer(true)} disabled={submitting} className="flex-1 text-sm">
+                                        Counter
+                                    </Button>
+                                    <Button variant="outline" onClick={handleDecline} disabled={submitting} className="flex-1 text-sm">
+                                        {submitting ? '…' : 'Decline'}
+                                    </Button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-gray-900">Counter Offer</p>
+                                    <button onClick={() => setShowCounterOffer(false)} className="text-gray-400 hover:text-gray-700">
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <input
+                                        type="number"
+                                        value={counterSalary}
+                                        onChange={(e) => setCounterSalary(e.target.value)}
+                                        placeholder="Amount"
+                                        className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900"
+                                    />
+                                    <CustomSelect
+                                        inputStyle
+                                        value={counterCurrency}
+                                        onChange={setCounterCurrency}
+                                        className="py-2 rounded-xl text-sm"
+                                        options={[
+                                            { value: 'USD', label: 'USD' },
+                                            { value: 'EUR', label: 'EUR' },
+                                            { value: 'GBP', label: 'GBP' },
+                                        ]}
+                                    />
+                                    <CustomSelect
+                                        inputStyle
+                                        value={counterPeriod}
+                                        onChange={(val) => setCounterPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                        className="py-2 rounded-xl text-sm"
+                                        options={[
+                                            { value: 'yearly', label: '/yr' },
+                                            { value: 'monthly', label: '/mo' },
+                                            { value: 'hourly', label: '/hr' },
+                                        ]}
+                                    />
+                                </div>
+
+                                <input
+                                    type="date"
+                                    value={counterStartDate}
+                                    onChange={(e) => setCounterStartDate(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900"
+                                />
+
+                                <div>
+                                    <div className="flex gap-2 mb-2">
+                                        <input
+                                            type="text"
+                                            value={newBenefit}
+                                            onChange={(e) => setNewBenefit(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBenefit())}
+                                            placeholder="Add a benefit…"
+                                            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900"
+                                        />
+                                        <Button variant="outline" onClick={addBenefit} size="sm">Add</Button>
+                                    </div>
+                                    {counterBenefits.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {counterBenefits.map((b, idx) => (
+                                                <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
+                                                    {b}
+                                                    <button onClick={() => removeBenefit(idx)} className="text-gray-400 hover:text-gray-700"><X size={11} /></button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <textarea
+                                    value={counterNote}
+                                    onChange={(e) => setCounterNote(e.target.value)}
+                                    placeholder="Explain your counter offer…"
+                                    rows={3}
+                                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 resize-none"
+                                />
+
+                                <div className="flex gap-2">
+                                    <Button variant="black" onClick={handleCounterOffer} disabled={submitting} className="flex-1 text-sm">
+                                        {submitting ? 'Submitting…' : 'Submit Counter'}
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setShowCounterOffer(false)} disabled={submitting}>Cancel</Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ── Already responded ── */}
+                {!canRespond && !signViaEmailOnly && !isExpired && (
+                    <div className="px-6 pb-6 pt-4 border-t border-gray-100 text-center">
+                        <p className="text-sm text-gray-500">This offer has already been <span className="font-medium text-gray-700">{offer.status}</span>.</p>
+                    </div>
+                )}
             </div>
-        </div>
+        </Shell>
     );
 };
 
