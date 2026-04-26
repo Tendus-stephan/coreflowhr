@@ -458,6 +458,8 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 subject,
                                 content,
                                 fromName: 'Recruiter',
+                                candidateId: selectedCandidate.id,
+                                emailType: effectiveTemplate?.type === 'Interview - Sourced' ? 'Interview - Sourced' : 'Interview',
                             }
                         });
                         if (emailError) {

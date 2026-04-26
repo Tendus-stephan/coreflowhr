@@ -2856,6 +2856,7 @@ export const api = {
                                 subject: `We've received your application — ${job.title}`,
                                 content: `<p>Hi ${applicationData.name},</p><p>Thank you for applying for <strong>${job.title}</strong>${job.company ? ` at ${job.company}` : ''}.</p><p>We've received your CV and will be in touch if you're shortlisted for the next stage.</p><p>Best of luck!</p>`,
                                 emailType: 'ApplicationConfirmation',
+                                candidateId: existingCandidate.id,
                             }
                         });
                     } catch (emailErr) {
@@ -2979,6 +2980,7 @@ export const api = {
                                 subject: `We've received your application — ${job.title}`,
                                 content: `<p>Hi ${applicationData.name},</p><p>Thank you for applying for <strong>${job.title}</strong>${job.company ? ` at ${job.company}` : ''}.</p><p>We've received your CV and will be in touch if you're shortlisted for the next stage.</p><p>Best of luck!</p>`,
                                 emailType: 'ApplicationConfirmation',
+                                candidateId: newCandidate.id,
                             }
                         });
                     } catch (emailErr) {
