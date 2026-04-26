@@ -266,10 +266,18 @@ const OfferResponse: React.FC = () => {
     if (!offer) return null;
 
     const isExpired = offer.expiresAt && new Date(offer.expiresAt) < new Date();
-    const awaitingEsignature = offer.requireEsignature && offer.status === 'awaiting_signature';
-    const canRespond = (offer.status === 'sent' || offer.status === 'viewed' || offer.status === 'negotiating' || offer.status === 'awaiting_response') && !awaitingEsignature;
-    // Only show "check Dropbox Sign email" screen once the signing request has been triggered (after candidate accepts)
-    const signViaEmailOnly = offer.requireEsignature && offer.status === 'awaiting_signature';
+    // Only show the DS "check your email" screen when the candidate has ALREADY responded (respondedAt set)
+    // and DS was subsequently triggered. Without respondedAt the offer was sent directly to DS by the
+    // recruiter (old flow) and the candidate still needs to accept/decline/counter first.
+    const signViaEmailOnly = offer.requireEsignature && offer.status === 'awaiting_signature' && !!offer.respondedAt;
+    const awaitingEsignature = signViaEmailOnly;
+    const canRespond = (
+        offer.status === 'sent' ||
+        offer.status === 'viewed' ||
+        offer.status === 'negotiating' ||
+        offer.status === 'awaiting_response' ||
+        (offer.status === 'awaiting_signature' && !offer.respondedAt)
+    ) && !awaitingEsignature;
 
     if (signViaEmailOnly) {
         return (
