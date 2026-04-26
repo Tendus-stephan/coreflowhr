@@ -15,6 +15,7 @@ const OfferResponse: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<'accepted' | 'declined' | 'counter_offered' | null>(null);
+    const [signingInProgress, setSigningInProgress] = useState(false);
     const [responseNote, setResponseNote] = useState('');
     const [jobTitle, setJobTitle] = useState<string>('');
     const [companyName, setCompanyName] = useState<string>('');
@@ -111,7 +112,8 @@ const OfferResponse: React.FC = () => {
         setError(null);
 
         try {
-            await api.offers.acceptByToken(token, responseNote.trim() || undefined);
+            const updatedOffer = await api.offers.acceptByToken(token, responseNote.trim() || undefined);
+            setOffer(updatedOffer);
             setSuccess('accepted');
         } catch (err: any) {
             const msg = err?.message || '';
@@ -234,7 +236,9 @@ const OfferResponse: React.FC = () => {
                             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Offer Accepted!</h2>
                             <p className="text-gray-600 mb-6">
-                                Congratulations! Your acceptance has been recorded. The recruiter will be notified and will contact you with next steps.
+                                {offer?.requireEsignature && offer?.status === 'awaiting_signature'
+                                    ? 'Congratulations! Your acceptance has been recorded. A formal offer letter has been sent to your email for signature — please check your inbox to complete the process.'
+                                    : 'Congratulations! Your acceptance has been recorded. The recruiter will be in touch with the next steps.'}
                             </p>
                         </>
                     ) : success === 'counter_offered' ? (
@@ -263,9 +267,9 @@ const OfferResponse: React.FC = () => {
 
     const isExpired = offer.expiresAt && new Date(offer.expiresAt) < new Date();
     const awaitingEsignature = offer.requireEsignature && offer.status === 'awaiting_signature';
-    const canRespond = (offer.status === 'sent' || offer.status === 'viewed' || offer.status === 'negotiating') && !awaitingEsignature;
-    // When offer was sent for eSignature, candidate must sign via Dropbox Sign email link – don't show duplicate plain letter or Accept/Counter/Decline
-    const signViaEmailOnly = offer.requireEsignature && (offer.status === 'sent' || offer.status === 'awaiting_signature');
+    const canRespond = (offer.status === 'sent' || offer.status === 'viewed' || offer.status === 'negotiating' || offer.status === 'awaiting_response') && !awaitingEsignature;
+    // Only show "check Dropbox Sign email" screen once the signing request has been triggered (after candidate accepts)
+    const signViaEmailOnly = offer.requireEsignature && offer.status === 'awaiting_signature';
 
     if (signViaEmailOnly) {
         return (

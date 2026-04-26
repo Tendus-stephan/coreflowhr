@@ -435,14 +435,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const dropboxSignApiKey = Deno.env.get('DROPBOX_SIGN_API_KEY');
@@ -459,6 +451,32 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const offerId = body?.offerId ?? body?.offer_id;
+
+    // Accept either a recruiter JWT OR the offer's own token (used by the public OfferResponse page)
+    const authHeader = req.headers.get('Authorization');
+    const offerTokenParam: string | undefined = body?.offer_token;
+    if (!authHeader && !offerTokenParam) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // If authenticating via offer_token, validate it matches the requested offer
+    if (!authHeader && offerTokenParam) {
+      const supabaseCheck = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: tokenRow } = await supabaseCheck
+        .from('offers')
+        .select('id')
+        .eq('id', String(offerId))
+        .eq('offer_token', offerTokenParam)
+        .maybeSingle();
+      if (!tokenRow) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid offer token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
     if (!offerId) {
       return new Response(
         JSON.stringify({ error: 'Missing offerId' }),
@@ -650,18 +668,12 @@ serve(async (req) => {
       );
     }
 
-    const offerToken = crypto.randomUUID?.() ?? `t${Date.now()}`;
-    const tokenExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-
     const { error: updateError } = await supabase
       .from('offers')
       .update({
         status: 'awaiting_signature',
         require_esignature: true,
         esignature_request_id: requestId,
-        sent_at: new Date().toISOString(),
-        offer_token: offerToken,
-        offer_token_expires_at: tokenExpiresAt.toISOString(),
       })
       .eq('id', offerId);
 
