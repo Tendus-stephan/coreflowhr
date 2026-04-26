@@ -547,7 +547,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     </button>
                 </div>
                 
-                <div className="p-6 space-y-6 overflow-y-auto">
+                <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
                     <div className="space-y-2 relative">
                         <label className="text-sm font-bold text-gray-900">Candidate</label>
                         {selectedCandidate ? (
