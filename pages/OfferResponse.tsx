@@ -8,14 +8,12 @@ import { Check, X, AlertCircle, Loader2, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center">
-            <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain" style={{ width: '120px', height: '120px' }} />
-        </div>
-        <div className="max-w-xl mx-auto px-4 py-10">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
+        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
+        <div className="w-full max-w-xl">
             {children}
         </div>
-        <p className="text-center text-xs text-gray-400 pb-8">Powered by CoreflowHR</p>
+        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
     </div>
 );
 
