@@ -157,7 +157,7 @@ const OfferResponse: React.FC = () => {
         <div className="min-h-screen bg-gray-50">
             {/* Top bar */}
             <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center">
-                <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="h-10 w-auto" />
+                <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="h-14 w-auto" />
             </div>
             <div className="max-w-xl mx-auto px-4 py-10">
                 {children}
