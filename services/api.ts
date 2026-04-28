@@ -7551,49 +7551,45 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 updatedAt: data.updated_at
             };
         },
-        getByToken: async (token: string): Promise<Offer | null> => {
-            // No auth required - this is for candidates to view their offer
-            const { data, error } = await supabase
-                .from('offers')
-                .select('*')
-                .eq('offer_token', token)
-                .single();
+        getByToken: async (token: string): Promise<{ offer: Offer; jobTitle: string; companyName: string; candidateName: string } | null> => {
+            // Uses SECURITY DEFINER RPC — no auth required (candidate public page)
+            const { data, error } = await supabase.rpc('get_offer_by_token', { p_token: token });
 
-            if (error) {
-                if (error.code === 'PGRST116') {
-                    return null; // Not found
-                }
-                throw error;
-            }
-
-            // Check if token is expired
-            if (data.offer_token_expires_at && new Date(data.offer_token_expires_at) < new Date()) {
+            if (error) throw error;
+            if (!data) return null;
+            if ((data as any).error === 'expired') {
                 throw new Error('This offer link has expired. Please contact the recruiter.');
             }
 
+            const d = (data as any).offer;
             return {
-                id: data.id,
-                candidateId: data.candidate_id,
-                jobId: data.job_id,
-                userId: data.user_id,
-                positionTitle: data.position_title,
-                startDate: data.start_date || undefined,
-                salaryAmount: data.salary_amount ? parseFloat(data.salary_amount) : undefined,
-                salaryCurrency: data.salary_currency || 'USD',
-                salaryPeriod: data.salary_period || 'yearly',
-                benefits: data.benefits || undefined,
-                notes: data.notes || undefined,
-                status: data.status as Offer['status'],
-                sentAt: data.sent_at || undefined,
-                viewedAt: data.viewed_at || undefined,
-                respondedAt: data.responded_at || undefined,
-                expiresAt: data.expires_at || undefined,
-                response: data.response || undefined,
-                negotiationHistory: data.negotiation_history || undefined,
-                createdAt: data.created_at,
-                updatedAt: data.updated_at,
-                requireEsignature: data.require_esignature ?? undefined,
-                signedPdfPath: data.signed_pdf_path ?? undefined,
+                offer: {
+                    id: d.id,
+                    candidateId: d.candidate_id,
+                    jobId: d.job_id,
+                    userId: d.user_id,
+                    positionTitle: d.position_title,
+                    startDate: d.start_date || undefined,
+                    salaryAmount: d.salary_amount ? parseFloat(d.salary_amount) : undefined,
+                    salaryCurrency: d.salary_currency || 'USD',
+                    salaryPeriod: d.salary_period || 'yearly',
+                    benefits: d.benefits || undefined,
+                    notes: d.notes || undefined,
+                    status: d.status as Offer['status'],
+                    sentAt: d.sent_at || undefined,
+                    viewedAt: d.viewed_at || undefined,
+                    respondedAt: d.responded_at || undefined,
+                    expiresAt: d.expires_at || undefined,
+                    response: d.response || undefined,
+                    negotiationHistory: d.negotiation_history || undefined,
+                    createdAt: d.created_at,
+                    updatedAt: d.updated_at,
+                    requireEsignature: d.require_esignature ?? undefined,
+                    signedPdfPath: d.signed_pdf_path ?? undefined,
+                },
+                jobTitle: (data as any).job_title || '',
+                companyName: (data as any).company_name || '',
+                candidateName: (data as any).candidate_name || '',
             };
         },
         acceptByToken: async (token: string, response?: string): Promise<Offer> => {

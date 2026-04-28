@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
@@ -9,7 +9,6 @@ import { format } from 'date-fns';
 
 const OfferResponse: React.FC = () => {
     const { token } = useParams<{ token: string }>();
-    const navigate = useNavigate();
     const [offer, setOffer] = useState<Offer | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -40,36 +39,18 @@ const OfferResponse: React.FC = () => {
             }
 
             try {
-                const offerData = await api.offers.getByToken(token);
-                if (!offerData) {
+                const result = await api.offers.getByToken(token);
+                if (!result) {
                     setError('Invalid or expired offer link. Please contact the recruiter if you believe this is an error.');
                     setLoading(false);
                     return;
                 }
 
+                const { offer: offerData, jobTitle: jt, companyName: cn, candidateName: cand } = result;
                 setOffer(offerData);
-
-                if (offerData.jobId) {
-                    const job = await api.jobs.get(offerData.jobId);
-                    if (job) {
-                        setJobTitle(job.title);
-                        setCompanyName(job.company || 'Our Company');
-                    }
-                }
-
-                if (offerData.candidateId) {
-                    try {
-                        const { supabase } = await import('../services/supabase');
-                        const { data: candidateData } = await supabase
-                            .from('candidates')
-                            .select('name')
-                            .eq('id', offerData.candidateId)
-                            .single();
-                        if (candidateData) setCandidateName(candidateData.name);
-                    } catch (err) {
-                        console.error('Error fetching candidate:', err);
-                    }
-                }
+                setJobTitle(jt);
+                setCompanyName(cn || 'Our Company');
+                setCandidateName(cand);
 
                 if (offerData.salaryAmount) setCounterSalary(offerData.salaryAmount.toString());
                 setCounterCurrency(offerData.salaryCurrency || 'USD');
@@ -176,7 +157,7 @@ const OfferResponse: React.FC = () => {
         <div className="min-h-screen bg-gray-50">
             {/* Top bar */}
             <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center">
-                <img src="/assets/images/coreflow-logo.png" alt="CoreflowHR" className="h-7 w-auto" />
+                <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="h-10 w-auto" />
             </div>
             <div className="max-w-xl mx-auto px-4 py-10">
                 {children}
