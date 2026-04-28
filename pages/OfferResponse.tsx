@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center">
-            <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="h-14 w-auto" />
+            <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain" style={{ width: '120px', height: '120px' }} />
         </div>
         <div className="max-w-xl mx-auto px-4 py-10">
             {children}
