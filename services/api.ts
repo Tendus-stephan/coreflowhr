@@ -6528,7 +6528,7 @@ export const api = {
                     notes: offerData.notes || null,
                     status: 'draft',
                     expires_at: offerData.expiresAt || null,
-                    require_esignature: offerData.requireEsignature ?? null
+                    require_esignature: offerData.requireEsignature ?? true
                 })
                 .select()
                 .single();
