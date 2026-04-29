@@ -491,7 +491,7 @@ export interface Offer {
   salaryPeriod: 'hourly' | 'monthly' | 'yearly';
   benefits?: string[];
   notes?: string;
-  status: 'draft' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'declined' | 'expired' | 'awaiting_signature' | 'signed';
+  status: 'draft' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'declined' | 'expired' | 'awaiting_signature' | 'signed' | 'awaiting_response';
   sentAt?: string;
   viewedAt?: string;
   respondedAt?: string;

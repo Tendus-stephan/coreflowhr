@@ -196,11 +196,12 @@ const OfferResponse: React.FC = () => {
         return (
             <Shell>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col items-center gap-3 text-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isAccepted ? 'bg-gray-900' : isCounter ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                        {isAccepted && <Check size={18} className="text-white" />}
-                        {isCounter && <Check size={18} className="text-white" />}
-                        {!isAccepted && !isCounter && <X size={18} className="text-gray-500" />}
-                    </div>
+                    {isAccepted
+                        ? <img src="/assets/images/toast-success.png" alt="Success" className="w-12 h-12 object-contain" />
+                        : <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isCounter ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                            {isCounter ? <Check size={18} className="text-white" /> : <X size={18} className="text-gray-500" />}
+                          </div>
+                    }
                     <div>
                         <h2 className="text-base font-semibold text-gray-900 mb-1">
                             {isAccepted ? 'Offer Accepted' : isCounter ? 'Counter Offer Submitted' : 'Offer Declined'}
