@@ -315,10 +315,17 @@ serve(async (req) => {
     // It does NOT escape HTML - it preserves valid HTML like <a>, <p>, style attributes, etc.
     htmlContent = sanitizeHtml(htmlContent);
 
-    // All emails sent through this function (candidate comms, system emails) always use
-    // the CoreflowHR platform logo. The workspace company logo is reserved exclusively
-    // for signed offer letter PDFs (send-offer-with-esignature / generate-offer-pdf).
-    const logoUrl = Deno.env.get('LOGO_URL') || 'https://lpjyxpxkagctaibmqcoi.supabase.co/storage/v1/object/public/email-assets/logo.png';
+    // Pick logo by email type. Offer Declined → red error icon; Counter Offer → green success icon.
+    // All other emails use the default CoreflowHR logo.
+    const storageBase = 'https://lpjyxpxkagctaibmqcoi.supabase.co/storage/v1/object/public/email-assets';
+    let logoUrl: string;
+    if (emailType === 'Offer Declined') {
+      logoUrl = `${storageBase}/toast-error.png`;
+    } else if (emailType === 'Counter Offer Response') {
+      logoUrl = `${storageBase}/toast-success.png`;
+    } else {
+      logoUrl = Deno.env.get('LOGO_URL') || `${storageBase}/logo.png`;
+    }
     const companyName = 'CoreflowHR';
     const companyWebsite = Deno.env.get('COMPANY_WEBSITE') || 'https://coreflowhr.com';
     
