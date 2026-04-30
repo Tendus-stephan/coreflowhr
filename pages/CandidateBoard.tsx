@@ -849,7 +849,7 @@ const CandidateBoard: React.FC = () => {
         setIsMoving(true);
         try {
             if (candidate?.email && screeningDraft.subject && screeningDraft.body) {
-                await (api as any).supabaseClient?.functions.invoke('send-email', {
+                await supabase.functions.invoke('send-email', {
                     body: {
                         to: candidate.email,
                         subject: screeningDraft.subject,
@@ -858,7 +858,7 @@ const CandidateBoard: React.FC = () => {
                         candidateId: pendingMove.candidateId,
                         emailType: 'Screening',
                     }
-                }).catch(() => {});
+                });
             }
             const updatedCandidate = await api.candidates.update(pendingMove.candidateId, { stage: pendingMove.toStage });
             await handleCandidateUpdate(updatedCandidate);

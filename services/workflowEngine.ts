@@ -364,29 +364,9 @@ export async function executeWorkflow(
 
         console.log('[Workflow Engine] Email sent successfully:', emailResult);
 
-        // Create email log entry
-        const { data: emailLog, error: logError } = await supabase
-            .from('email_logs')
-            .insert({
-                user_id: userId,
-                candidate_id: candidateId,
-                to_email: candidate.email,
-                from_email: userId, // Using user_id as identifier
-                subject: subject,
-                content: content,
-                email_type: 'Custom',
-                status: 'sent',
-                sent_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (logError) {
-            console.error('Error creating email log:', logError);
-        }
-
+        // Email log is written by the send-email edge function (service role bypasses RLS).
         // Update execution log with success
-        await updateExecutionLog(executionId, 'sent', emailLog?.id);
+        await updateExecutionLog(executionId, 'sent', undefined);
     } catch (error: any) {
         console.error('Error executing workflow:', error);
         

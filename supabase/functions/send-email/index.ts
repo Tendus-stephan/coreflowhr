@@ -433,67 +433,71 @@ serve(async (req) => {
       // Log email to database if candidateId is provided
       if (candidateId) {
         try {
-          // Get user ID from authorization header
-          const authHeader = req.headers.get('authorization');
-          if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            // Create Supabase client with service role key for admin operations
-            const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-            const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-            const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-            
-            if (!supabaseServiceKey) {
-              console.warn('SUPABASE_SERVICE_ROLE_KEY not set, skipping email logging');
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+          if (!supabaseServiceKey) {
+            console.warn('SUPABASE_SERVICE_ROLE_KEY not set, skipping email logging');
+          } else {
+            // Extract user ID from JWT sub claim (avoids a round-trip to auth.getUser)
+            const authHeader = req.headers.get('authorization');
+            const token = authHeader?.replace('Bearer ', '') ?? '';
+            let userId: string | null = null;
+            try {
+              const parts = token.split('.');
+              if (parts.length === 3) {
+                const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(base64));
+                userId = payload.sub || null;
+              }
+            } catch {
+              // JWT decode failed — userId stays null
+            }
+
+            if (!userId) {
+              console.warn('[Email Send] Could not extract user ID from token, skipping email log', {
+                candidateId,
+                recipient: finalRecipient,
+              });
             } else {
+              const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
               const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-              // Get user ID from token
-              const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-              
-              if (userError) {
-                console.error('[Email Send] Error getting user from token', {
+              // Insert email log using service role (bypasses RLS)
+              const { error: logError } = await supabase
+                .from('email_logs')
+                .insert({
+                  candidate_id: candidateId,
+                  user_id: userId,
+                  to_email: forceToEmail || to,
+                  from_email: fromEmail,
+                  subject: subject,
+                  content: htmlContent,
+                  email_type: emailType || 'Custom',
+                  status: 'sent',
+                  direction: 'outbound',
+                  read: false,
+                  thread_id: threadId,
+                  reply_to_id: replyToId || null,
+                  message_id: messageIdStr,
+                  sent_at: new Date().toISOString()
+                });
+
+              if (logError) {
+                console.error('[Email Send] Error logging email to database', {
+                  candidateId,
                   recipient: finalRecipient,
-                  candidateId: candidateId || 'none',
-                  error: userError,
+                  error: logError,
                   timestamp: new Date().toISOString()
                 });
-              } else if (user) {
-                // Insert email log using service role (bypasses RLS)
-                const { error: logError } = await supabase
-                  .from('email_logs')
-                  .insert({
-                    candidate_id: candidateId,
-                    user_id: user.id,
-                    to_email: forceToEmail || to,
-                    from_email: fromEmail,
-                    subject: subject,
-                    content: htmlContent,
-                    email_type: emailType || 'Custom',
-                    status: 'sent',
-                    direction: 'outbound',
-                    read: false,
-                    thread_id: threadId,
-                    reply_to_id: replyToId || null,
-                    message_id: messageIdStr,
-                    sent_at: new Date().toISOString()
-                  });
-
-                if (logError) {
-                  console.error('[Email Send] Error logging email to database', {
-                    candidateId,
-                    recipient: finalRecipient,
-                    error: logError,
-                    timestamp: new Date().toISOString()
-                  });
-                  // Don't fail the request if logging fails
-                } else {
-                  console.log('[Email Send] Email logged successfully to database', {
-                    candidateId,
-                    recipient: finalRecipient,
-                    emailType: emailType || 'Custom',
-                    timestamp: new Date().toISOString()
-                  });
-                }
+                // Don't fail the request if logging fails
+              } else {
+                console.log('[Email Send] Email logged successfully to database', {
+                  candidateId,
+                  recipient: finalRecipient,
+                  emailType: emailType || 'Custom',
+                  timestamp: new Date().toISOString()
+                });
               }
             }
           }
