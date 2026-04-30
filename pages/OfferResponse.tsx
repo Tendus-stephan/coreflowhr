@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { Check, X, AlertCircle, Loader2, Mail } from 'lucide-react';
+import { X, AlertCircle, Loader2, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -198,9 +198,9 @@ const OfferResponse: React.FC = () => {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col items-center gap-3 text-center">
                     {isAccepted
                         ? <img src="/assets/images/toast-success.png" alt="Success" className="w-12 h-12 object-contain" />
-                        : <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isCounter ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                            {isCounter ? <Check size={18} className="text-white" /> : <X size={18} className="text-gray-500" />}
-                          </div>
+                        : isCounter
+                        ? <img src="/assets/images/toast-success.png" alt="Counter Offer" className="w-12 h-12 object-contain" />
+                        : <img src="/assets/images/toast-error.png" alt="Declined" className="w-12 h-12 object-contain" />
                     }
                     <div>
                         <h2 className="text-base font-semibold text-gray-900 mb-1">
