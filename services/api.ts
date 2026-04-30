@@ -7789,15 +7789,14 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 }
             }
 
-            // Create notification for the recruiter
+            // Create notification for the recruiter via token-scoped RPC (anon-safe)
             try {
-                const { createNotification } = await import('./notificationHelpers');
-                await createNotification(
-                    updated.user_id,
-                    'offer_declined',
-                    'Offer Declined',
-                    `${candidateName} has declined the offer for ${updated.position_title}.${response ? ` Response: ${response}` : ''}`
-                );
+                await supabase.rpc('notify_offer_recruiter_by_token', {
+                    p_offer_token: token,
+                    p_type: 'offer_declined',
+                    p_title: 'Offer Declined',
+                    p_desc: `${candidateName} has declined the offer for ${updated.position_title}.${response ? ` Response: ${response}` : ''}`
+                });
             } catch (notifError) {
                 console.error('Error creating notification:', notifError);
                 // Don't fail the offer decline if notification fails
@@ -7935,15 +7934,14 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 counterOfferDetails.push(`Benefits: ${counterOffer.benefits.join(', ')}`);
             }
 
-            // Create notification for the recruiter
+            // Create notification for the recruiter via token-scoped RPC (anon-safe)
             try {
-                const { createNotification } = await import('./notificationHelpers');
-                await createNotification(
-                    updated.user_id,
-                    'counter_offer_received',
-                    'Counter Offer Received',
-                    `${candidateName} has submitted a counter offer for ${updated.position_title}.${counterOfferDetails.length > 0 ? ` ${counterOfferDetails.join(' | ')}` : ''}${counterOffer.notes ? ` Notes: ${counterOffer.notes}` : ''}`
-                );
+                await supabase.rpc('notify_offer_recruiter_by_token', {
+                    p_offer_token: token,
+                    p_type: 'counter_offer_received',
+                    p_title: 'Counter Offer Received',
+                    p_desc: `${candidateName} has submitted a counter offer for ${updated.position_title}.${counterOfferDetails.length > 0 ? ` ${counterOfferDetails.join(' | ')}` : ''}${counterOffer.notes ? ` Notes: ${counterOffer.notes}` : ''}`
+                });
             } catch (notifError) {
                 console.error('Error creating notification:', notifError);
                 // Don't fail the counter offer if notification fails
