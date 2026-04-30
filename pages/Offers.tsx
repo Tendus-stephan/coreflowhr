@@ -12,6 +12,12 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { toUserError } from '../utils/edgeFunctionError';
 
+const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'accepted', 'declined', 'signed'];
+const isOfferExpired = (offer: Offer): boolean =>
+    !NON_EXPIRABLE_STATUSES.includes(offer.status) &&
+    !!offer.expiresAt &&
+    new Date(offer.expiresAt) < new Date();
+
 const Offers: React.FC = () => {
     const [offers, setOffers] = useState<Offer[]>([]);
     const [filteredOffers, setFilteredOffers] = useState<Offer[]>([]);
@@ -49,8 +55,10 @@ const Offers: React.FC = () => {
             filtered = filtered.filter(offer => offer.archived);
         } else if (statusFilter === 'all') {
             filtered = filtered.filter(offer => !offer.archived);
+        } else if (statusFilter === 'expired') {
+            filtered = filtered.filter(offer => !offer.archived && (offer.status === 'expired' || isOfferExpired(offer)));
         } else {
-            filtered = filtered.filter(offer => offer.status === statusFilter && !offer.archived);
+            filtered = filtered.filter(offer => offer.status === statusFilter && !offer.archived && !isOfferExpired(offer));
         }
 
             if (searchQuery.trim()) {
@@ -244,7 +252,7 @@ const Offers: React.FC = () => {
 
     if (loading) return <OffersSkeleton />;
 
-    const statusTabs: Array<{ value: Offer['status'] | 'all'; label: string }> = [
+    const statusTabs: Array<{ value: Offer['status'] | 'all' | 'expired'; label: string }> = [
         { value: 'all', label: 'All' },
         { value: 'draft', label: 'Draft' },
         { value: 'sent', label: 'Sent' },
@@ -252,6 +260,7 @@ const Offers: React.FC = () => {
         { value: 'negotiating', label: 'Negotiating' },
         { value: 'accepted', label: 'Accepted' },
         { value: 'declined', label: 'Declined' },
+        { value: 'expired', label: 'Expired' },
         { value: 'archived', label: 'Archived' },
     ];
 
@@ -262,7 +271,9 @@ const Offers: React.FC = () => {
                 t.value,
                 t.value === 'archived'
                     ? offers.filter(o => o.archived).length
-                    : offers.filter(o => o.status === t.value && !o.archived).length
+                    : t.value === 'expired'
+                    ? offers.filter(o => !o.archived && (o.status === 'expired' || isOfferExpired(o))).length
+                    : offers.filter(o => o.status === t.value && !o.archived && !isOfferExpired(o)).length
             ])
         )
     };

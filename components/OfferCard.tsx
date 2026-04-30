@@ -4,8 +4,16 @@ import { Button } from './ui/Button';
 import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare, Download } from 'lucide-react';
 import { format } from 'date-fns';
 
-const formatStatusLabel = (status: Offer['status'], archived?: boolean): string => {
+const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'accepted', 'declined', 'signed'];
+
+const isClientExpired = (offer: Offer): boolean =>
+    !NON_EXPIRABLE_STATUSES.includes(offer.status) &&
+    !!offer.expiresAt &&
+    new Date(offer.expiresAt) < new Date();
+
+const formatStatusLabel = (status: Offer['status'], archived?: boolean, expired?: boolean): string => {
     if (archived) return 'ARCHIVED';
+    if (expired) return 'EXPIRED';
     if (status === 'awaiting_signature') return 'Awaiting Signature';
     if (status === 'signed') return 'Signed';
     return status.toUpperCase();
@@ -48,8 +56,10 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     hideSalary = false,
     onDownloadSigned
 }) => {
+    const expired = isClientExpired(offer);
+
     const getStatusColor = (status: Offer['status']) => {
-        // All statuses use normal gray color
+        if (expired) return 'bg-red-100 text-red-700';
         return 'bg-gray-100 text-gray-700';
     };
 
@@ -77,7 +87,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-base font-bold text-gray-900">{offer.positionTitle}</h3>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusColor(offer.status)}`}>
-                            {formatStatusLabel(offer.status, offer.archived)}
+                            {formatStatusLabel(offer.status, offer.archived, expired)}
                         </span>
                         {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.some((item: any) => item.type === 'counter_offer') && (
                             <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700 flex items-center gap-1">
