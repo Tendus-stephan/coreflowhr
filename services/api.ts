@@ -4346,7 +4346,7 @@ export const api = {
                         .select('*')
                         .eq('user_id', userId)
                         .eq('type', 'Reschedule')
-                        .single();
+                        .maybeSingle();
 
                     // If no Reschedule template, try Interview template
                     const { data: interviewTemplate } = rescheduleTemplate ? { data: null } : await supabase
@@ -4354,7 +4354,7 @@ export const api = {
                         .select('*')
                         .eq('user_id', userId)
                         .eq('type', 'Interview')
-                        .single();
+                        .maybeSingle();
 
                     const template = rescheduleTemplate || interviewTemplate;
 
@@ -7007,7 +7007,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                         .select('*')
                         .eq('user_id', userId)
                         .eq('type', 'Offer Accepted')
-                        .single();
+                        .maybeSingle();
 
                     let template = templateData || {
                         subject: 'Counter Offer Accepted – {position_title} at {company_name}',
@@ -7166,7 +7166,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                         .select('*')
                         .eq('user_id', userId)
                         .eq('type', 'Offer Declined')
-                        .single();
+                        .maybeSingle();
 
                     let template = templateData || {
                         subject: 'Counter Offer Update – {position_title} at {company_name}',
@@ -7325,7 +7325,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                         .select('*')
                         .eq('user_id', userId)
                         .eq('type', 'Counter Offer Response')
-                        .single();
+                        .maybeSingle();
 
                     let template = templateData || {
                         subject: 'Updated Offer Terms – {position_title} at {company_name}',
