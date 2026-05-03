@@ -71,6 +71,11 @@ const OfferResponse: React.FC = () => {
                 if (offerData.status === 'accepted' || offerData.status === 'declined') {
                     setSuccess(offerData.status === 'accepted' ? 'accepted' : 'declined');
                 }
+
+                // Mark as viewed (fire-and-forget) if still in a pre-response state
+                if (offerData.status === 'awaiting_response' || offerData.status === 'sent') {
+                    api.offers.markViewedByToken(token).catch(() => {});
+                }
             } catch (err: any) {
                 setError(err.message || 'Failed to load offer');
             } finally {

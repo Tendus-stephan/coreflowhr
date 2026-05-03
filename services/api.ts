@@ -7592,6 +7592,10 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 candidateName: (data as any).candidate_name || '',
             };
         },
+        markViewedByToken: async (token: string): Promise<void> => {
+            // Fire-and-forget — no auth required (SECURITY DEFINER RPC)
+            await supabase.rpc('mark_offer_viewed', { p_token: token });
+        },
         acceptByToken: async (token: string, response?: string): Promise<Offer> => {
             const { data: result, error: rpcError } = await supabase
                 .rpc('accept_offer_atomic', {
