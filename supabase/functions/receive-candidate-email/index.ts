@@ -130,6 +130,43 @@ serve(async (req) => {
       dataKeys: data && typeof data === 'object' ? Object.keys(data).slice(0, 20) : [],
     });
 
+    // Handle open/click tracking events
+    if (eventType === 'email.opened' || eventType === 'email.clicked') {
+      const resendEmailId = emailId ?? data?.email_id;
+      if (!resendEmailId) {
+        console.warn('[receive-candidate-email] open/click event missing email_id');
+        return new Response(JSON.stringify({ received: true, reason: 'no_email_id' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      if (!supabaseServiceKey) {
+        console.error('[receive-candidate-email] Missing SUPABASE_SERVICE_ROLE_KEY');
+        return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const newStatus = eventType === 'email.clicked' ? 'clicked' : 'opened';
+      const { error: updateError } = await supabase
+        .from('email_logs')
+        .update({ status: newStatus })
+        .eq('resend_id', resendEmailId)
+        .in('status', eventType === 'email.clicked' ? ['sent', 'delivered', 'opened'] : ['sent', 'delivered']);
+      if (updateError) {
+        console.error('[receive-candidate-email] Failed to update status for', eventType, updateError.message);
+      } else {
+        console.log('[receive-candidate-email] Status updated to', newStatus, 'for resend_id', resendEmailId);
+      }
+      return new Response(JSON.stringify({ received: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (eventType !== 'email.received' && body?.type !== 'email.received') {
       return new Response(JSON.stringify({ received: true, reason: 'not_email_received' }), {
         status: 200,

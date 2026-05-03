@@ -479,6 +479,7 @@ serve(async (req) => {
                   thread_id: threadId,
                   reply_to_id: replyToId || null,
                   message_id: messageIdStr,
+                  resend_id: data.id || null,
                   sent_at: new Date().toISOString()
                 });
 
