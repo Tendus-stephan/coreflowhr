@@ -743,22 +743,20 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             <label className="text-sm font-bold text-gray-900">Address</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                <input 
-                                    type="text" 
-                                    placeholder="Enter interview address..." 
+                                <input
+                                    type="text"
+                                    placeholder="Enter interview address..."
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
+                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                 />
                             </div>
                         </div>
                     )}
-                </div>
 
-                <div className="px-6 pt-4 pb-0 border-t border-gray-100 bg-gray-50/50 flex flex-col gap-2">
-                    {/* Template status banner */}
+                    {/* Template status banner — sits below the last field in the scroll area */}
                     {templateExists === true && !usedFallback && (
-                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <div className="border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
                                 {isImported ? '"Interview – Sourced" template active.' : 'Interview template active.'}
@@ -766,13 +764,13 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         </div>
                     )}
                     {templateExists === true && usedFallback && (
-                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">No sourced template — falling back to standard. <span className="font-medium text-gray-900">Add one in Settings.</span></p>
                         </div>
                     )}
                     {templateExists === false && (
-                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
                                 {isImported ? 'No template — add "Interview – Sourced" in Settings.' : 'No interview template — add one in Settings.'}
@@ -781,7 +779,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     )}
                 </div>
 
-                <div className="px-6 py-4 bg-gray-50/50 flex justify-end gap-3 rounded-b-2xl">
+                <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button 
                         variant="black" 
