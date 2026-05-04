@@ -60,6 +60,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
 
     const getStatusColor = (status: Offer['status']) => {
         if (expired) return 'bg-red-100 text-red-700';
+        if (status === 'viewed') return 'bg-blue-50 text-blue-700';
         return 'bg-gray-100 text-gray-700';
     };
 
