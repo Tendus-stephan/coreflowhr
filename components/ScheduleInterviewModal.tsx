@@ -755,31 +755,33 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     )}
                 </div>
 
-                {/* Template status banner */}
-                {templateExists === true && !usedFallback && (
-                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                        <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
-                        <p className="text-[13px] text-gray-700 leading-snug">
-                            {isImported ? '"Interview – Sourced" template active.' : 'Interview template active.'}
-                        </p>
-                    </div>
-                )}
-                {templateExists === true && usedFallback && (
-                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                        <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
-                        <p className="text-[13px] text-gray-700 leading-snug">No sourced template — falling back to standard. <span className="font-medium text-gray-900">Add one in Settings.</span></p>
-                    </div>
-                )}
-                {templateExists === false && (
-                    <div className="mx-6 mb-2 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                        <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
-                        <p className="text-[13px] text-gray-700 leading-snug">
-                            {isImported ? 'No template — add "Interview – Sourced" in Settings.' : 'No interview template — add one in Settings.'}
-                        </p>
-                    </div>
-                )}
+                <div className="px-6 pt-4 pb-0 border-t border-gray-100 bg-gray-50/50 flex flex-col gap-2">
+                    {/* Template status banner */}
+                    {templateExists === true && !usedFallback && (
+                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                            <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+                            <p className="text-[13px] text-gray-700 leading-snug">
+                                {isImported ? '"Interview – Sourced" template active.' : 'Interview template active.'}
+                            </p>
+                        </div>
+                    )}
+                    {templateExists === true && usedFallback && (
+                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                            <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+                            <p className="text-[13px] text-gray-700 leading-snug">No sourced template — falling back to standard. <span className="font-medium text-gray-900">Add one in Settings.</span></p>
+                        </div>
+                    )}
+                    {templateExists === false && (
+                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                            <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
+                            <p className="text-[13px] text-gray-700 leading-snug">
+                                {isImported ? 'No template — add "Interview – Sourced" in Settings.' : 'No interview template — add one in Settings.'}
+                            </p>
+                        </div>
+                    )}
+                </div>
 
-                <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
+                <div className="px-6 py-4 bg-gray-50/50 flex justify-end gap-3 rounded-b-2xl">
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button 
                         variant="black" 
