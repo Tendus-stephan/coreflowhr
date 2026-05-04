@@ -402,43 +402,44 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             } else {
                 const interviewTemplate = effectiveTemplate ?? null;
 
-                if (!interviewTemplate) {
-                    emailFailReason = 'no_template';
-                } else {
-                    const userName = user.name || 'Recruiter';
-                    let subject = interviewTemplate.subject
+                const userName = user.name || 'Recruiter';
+                const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                const tzAbbr = new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? 'Local';
+                const formattedTime = `${new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} (${tzAbbr})`;
+                const formattedMeetingLink = interviewData.meetingLink
+                    ? `<a href="${interviewData.meetingLink}" style="color: #2563eb; text-decoration: underline;">${interviewData.meetingLink}</a>`
+                    : '';
+
+                let subject: string;
+                let content: string;
+
+                if (interviewTemplate) {
+                    subject = interviewTemplate.subject
                         .replace(/{job_title}/g, interviewData.jobTitle)
                         .replace(/{company_name}/g, companyName)
                         .replace(/{candidate_name}/g, selectedCandidate.name)
                         .replace(/{your_name}/g, userName);
 
-                    const formattedMeetingLink = interviewData.meetingLink
-                        ? `<a href="${interviewData.meetingLink}" style="color: #2563eb; text-decoration: underline;">${interviewData.meetingLink}</a>`
-                        : '';
-
-                    let content = interviewTemplate.content
+                    content = interviewTemplate.content
                         .replace(/{candidate_name}/g, selectedCandidate.name)
                         .replace(/{job_title}/g, interviewData.jobTitle)
                         .replace(/{company_name}/g, companyName)
                         .replace(/{your_name}/g, userName)
-                        .replace(/{interview_date}/g, new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
-                        .replace(/{interview_time}/g, `${new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} (${new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? 'Local'})`)
+                        .replace(/{interview_date}/g, formattedDate)
+                        .replace(/{interview_time}/g, formattedTime)
                         .replace(/{interview_duration}/g, duration)
                         .replace(/{interview_type}/g, interviewType)
                         .replace(/{interviewer_name}/g, user.name || 'Interviewer')
                         .replace(/{meeting_link}/g, formattedMeetingLink)
                         .replace(/{address}/g, interviewData.address || '');
 
-                    const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    const tzAbbr = new Intl.DateTimeFormat('en', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? 'Local';
-                    const formattedTime = `${new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} (${tzAbbr})`;
                     let detailsSection = `\n\nInterview Details:\n`;
                     detailsSection += `- Date: ${formattedDate}\n`;
                     detailsSection += `- Time: ${formattedTime}\n`;
                     detailsSection += `- Duration: ${duration}\n`;
                     detailsSection += `- Type: ${interviewType}\n`;
                     if (interviewType === 'Video Call' && interviewData.meetingLink) {
-                        detailsSection += `- Meeting Link: ${formattedMeetingLink}\n`;
+                        detailsSection += `- Meeting Link: ${interviewData.meetingLink}\n`;
                     }
                     if (interviewType === 'In Person' && interviewData.address) {
                         detailsSection += `- Address: ${interviewData.address}\n`;
@@ -450,26 +451,37 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     } else {
                         content += detailsSection;
                     }
+                } else {
+                    // No template configured — send a built-in default confirmation
+                    subject = `Interview Confirmation – ${interviewData.jobTitle} at ${companyName}`;
+                    content = `Hi ${selectedCandidate.name},\n\nWe're pleased to confirm your upcoming interview for the ${interviewData.jobTitle} position at ${companyName}.\n\nInterview Details:\n- Date: ${formattedDate}\n- Time: ${formattedTime}\n- Duration: ${duration}\n- Type: ${interviewType}`;
+                    if (interviewType === 'Video Call' && interviewData.meetingLink) {
+                        content += `\n- Meeting Link: ${interviewData.meetingLink}`;
+                    }
+                    if (interviewType === 'In Person' && interviewData.address) {
+                        content += `\n- Address: ${interviewData.address}`;
+                    }
+                    content += `\n- Interviewer: ${user.name || 'Recruiter'}\n\nIf you have any questions, please don't hesitate to reach out.\n\nBest regards,\n${userName}`;
+                }
 
-                    try {
-                        const { error: emailError } = await supabase.functions.invoke('send-email', {
-                            body: {
-                                to: selectedCandidate.email,
-                                subject,
-                                content,
-                                fromName: 'Recruiter',
-                                candidateId: selectedCandidate.id,
-                                emailType: effectiveTemplate?.type === 'Interview - Sourced' ? 'Interview - Sourced' : 'Interview',
-                            }
-                        });
-                        if (emailError) {
-                            console.error('Error sending interview email:', emailError);
-                            emailFailReason = 'send_failed';
+                try {
+                    const { error: emailError } = await supabase.functions.invoke('send-email', {
+                        body: {
+                            to: selectedCandidate.email,
+                            subject,
+                            content,
+                            fromName: userName,
+                            candidateId: selectedCandidate.id,
+                            emailType: interviewTemplate?.type === 'Interview - Sourced' ? 'Interview - Sourced' : 'Interview',
                         }
-                    } catch (emailErr) {
-                        console.error('Unexpected error sending interview email:', emailErr);
+                    });
+                    if (emailError) {
+                        console.error('Error sending interview email:', emailError);
                         emailFailReason = 'send_failed';
                     }
+                } catch (emailErr) {
+                    console.error('Unexpected error sending interview email:', emailErr);
+                    emailFailReason = 'send_failed';
                 }
             }
 
@@ -513,8 +525,6 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             toast.success(`Interview ${action} with ${selectedCandidate.name}.`);
             if (emailFailReason === 'no_email') {
                 toast.info(`No email on file for ${selectedCandidate.name}.`);
-            } else if (emailFailReason === 'no_template') {
-                toast.info('No interview template — add one in Settings.');
             } else if (emailFailReason === 'send_failed') {
                 toast.error('Confirmation email failed to send.');
             }
@@ -773,7 +783,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
-                                {isImported ? 'No template — add "Interview – Sourced" in Settings.' : 'No interview template — add one in Settings.'}
+                                {isImported ? 'No template — a default confirmation will be sent. Add "Interview – Sourced" in Settings to customise.' : 'No interview template — a default confirmation will be sent. Add one in Settings to customise.'}
                             </p>
                         </div>
                     )}

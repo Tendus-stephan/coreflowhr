@@ -4492,7 +4492,35 @@ export const api = {
                             console.log('[Reschedule] Notification email sent successfully to:', oldInterview.candidates.email);
                         }
                     } else {
-                        console.warn('[Reschedule] No Reschedule or Interview email template found. Email not sent.');
+                        // No template configured — send a built-in default reschedule confirmation
+                        const { data: profile } = await supabase.from('profiles').select('name').eq('id', userId).single();
+                        const userName = profile?.name || 'Recruiter';
+                        const candidateName = oldInterview.candidates?.name || 'Candidate';
+                        const newDateFormatted = new Date(newDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                        const [h, m] = newTime.split(':').map(Number);
+                        const timeDate = new Date(); timeDate.setHours(h, m);
+                        const newTimeFormatted = timeDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                        const durationText = newDurationMinutes ? (newDurationMinutes === 60 ? '1 hour' : `${newDurationMinutes} minutes`) : '30 minutes';
+                        let defaultContent = `Hi ${candidateName},\n\nYour interview for the ${jobTitle} position at ${companyName} has been rescheduled.\n\nNew Details:\n- Date: ${newDateFormatted}\n- Time: ${newTimeFormatted}\n- Duration: ${durationText}`;
+                        if (updatedInterview?.meeting_link) {
+                            defaultContent += `\n- Meeting Link: ${updatedInterview.meeting_link}`;
+                        }
+                        defaultContent += `\n\nIf you have any questions, please don't hesitate to reach out.\n\nBest regards,\n${userName}`;
+                        const { error: emailError } = await supabase.functions.invoke('send-email', {
+                            body: {
+                                to: oldInterview.candidates.email,
+                                subject: `Interview Rescheduled – ${jobTitle} at ${companyName}`,
+                                content: defaultContent,
+                                fromName: userName,
+                                candidateId: oldInterview.candidates.id,
+                                emailType: 'Reschedule',
+                            }
+                        });
+                        if (emailError) {
+                            console.error('[Reschedule] Error sending default notification email:', emailError);
+                        } else {
+                            console.log('[Reschedule] Default notification email sent to:', oldInterview.candidates.email);
+                        }
                     }
                 } catch (emailErr: any) {
                     console.error('[Reschedule] Error in email notification:', emailErr);
