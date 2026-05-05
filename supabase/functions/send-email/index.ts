@@ -213,7 +213,7 @@ serve(async (req) => {
       );
     }
 
-    const { to, subject, content, fromName, candidateId, emailType, threadId: requestedThreadId, replyToId } = await req.json();
+    const { to, subject, content, fromName, candidateId, userId: bodyUserId, emailType, threadId: requestedThreadId, replyToId } = await req.json();
     
     // Thread ID for threading replies: use provided, or reuse candidate's existing thread, or generate new
     let threadId: string = requestedThreadId && typeof requestedThreadId === 'string' ? requestedThreadId : crypto.randomUUID();
@@ -438,27 +438,19 @@ serve(async (req) => {
           if (!supabaseServiceKey) {
             console.warn('SUPABASE_SERVICE_ROLE_KEY not set, skipping email logging');
           } else {
-            // Extract user ID from JWT — use admin auth.getUser for reliability,
-            // fall back to manual base64 decode if that fails.
-            const authHeader = req.headers.get('authorization');
-            const token = authHeader?.replace('Bearer ', '') ?? '';
-            let userId: string | null = null;
-            if (token && token.split('.').length === 3) {
-              try {
-                const { createClient: _createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-                const adminAuth = _createClient(supabaseUrl, supabaseServiceKey);
-                const { data: { user: tokenUser } } = await adminAuth.auth.getUser(token);
-                userId = tokenUser?.id ?? null;
-              } catch {
-                // auth.getUser failed — try manual decode with padding
-              }
-              if (!userId) {
+            // Extract user ID: prefer explicit userId from request body (most reliable),
+            // fall back to JWT extraction if not provided.
+            let userId: string | null = bodyUserId && typeof bodyUserId === 'string' ? bodyUserId : null;
+            if (!userId) {
+              const authHeader = req.headers.get('authorization');
+              const token = authHeader?.replace('Bearer ', '') ?? '';
+              if (token && token.split('.').length === 3) {
                 try {
                   const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
                   const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
                   userId = JSON.parse(atob(padded))?.sub ?? null;
                 } catch {
-                  // both methods failed — userId stays null
+                  // JWT decode failed — userId stays null
                 }
               }
             }

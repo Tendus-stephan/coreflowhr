@@ -472,6 +472,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                             content,
                             fromName: userName,
                             candidateId: selectedCandidate.id,
+                            userId: user.id,
                             emailType: interviewTemplate?.type === 'Interview - Sourced' ? 'Interview - Sourced' : 'Interview',
                         }
                     });

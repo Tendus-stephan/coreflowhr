@@ -4493,6 +4493,7 @@ export const api = {
                                 content: content,
                                 fromName: 'Recruiter', // Always use "Recruiter" as sender name
                                 candidateId: oldInterview.candidates.id,
+                                userId,
                                 emailType: 'Reschedule'
                             }
                         });
@@ -4525,6 +4526,7 @@ export const api = {
                                 content: defaultContent,
                                 fromName: userName,
                                 candidateId: oldInterview.candidates.id,
+                                userId,
                                 emailType: 'Reschedule',
                             }
                         });
