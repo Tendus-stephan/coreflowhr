@@ -438,19 +438,29 @@ serve(async (req) => {
           if (!supabaseServiceKey) {
             console.warn('SUPABASE_SERVICE_ROLE_KEY not set, skipping email logging');
           } else {
-            // Extract user ID from JWT sub claim (avoids a round-trip to auth.getUser)
+            // Extract user ID from JWT — use admin auth.getUser for reliability,
+            // fall back to manual base64 decode if that fails.
             const authHeader = req.headers.get('authorization');
             const token = authHeader?.replace('Bearer ', '') ?? '';
             let userId: string | null = null;
-            try {
-              const parts = token.split('.');
-              if (parts.length === 3) {
-                const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(atob(base64));
-                userId = payload.sub || null;
+            if (token && token.split('.').length === 3) {
+              try {
+                const { createClient: _createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+                const adminAuth = _createClient(supabaseUrl, supabaseServiceKey);
+                const { data: { user: tokenUser } } = await adminAuth.auth.getUser(token);
+                userId = tokenUser?.id ?? null;
+              } catch {
+                // auth.getUser failed — try manual decode with padding
               }
-            } catch {
-              // JWT decode failed — userId stays null
+              if (!userId) {
+                try {
+                  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                  const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+                  userId = JSON.parse(atob(padded))?.sub ?? null;
+                } catch {
+                  // both methods failed — userId stays null
+                }
+              }
             }
 
             if (!userId) {

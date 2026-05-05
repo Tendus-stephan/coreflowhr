@@ -29,9 +29,21 @@ supabase.auth.onAuthStateChange(() => {
 const getUserId = async (): Promise<string | null> => {
   const now = Date.now();
   if (_userIdCache && now - _userIdCache.ts < AUTH_CACHE_TTL) return _userIdCache.value;
-  const { data: { user } } = await supabase.auth.getUser();
-  _userIdCache = { value: user?.id || null, ts: now };
-  return _userIdCache.value;
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (!error && user?.id) {
+    _userIdCache = { value: user.id, ts: now };
+    return user.id;
+  }
+  // Network error — fall back to locally-stored session (no network call needed)
+  if (error) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const fallbackId = session?.user?.id ?? null;
+    // Cache briefly (5 s) so we retry the network call soon
+    _userIdCache = { value: fallbackId, ts: now - AUTH_CACHE_TTL + 5_000 };
+    return fallbackId;
+  }
+  _userIdCache = { value: null, ts: now };
+  return null;
 };
 
 // Helper for RBAC: workspace-scoped role (Admin, Recruiter, HiringManager, Viewer).
