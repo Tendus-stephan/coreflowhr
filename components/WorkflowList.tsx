@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { EmailWorkflow } from '../types';
+import { EmailWorkflow, EmailTemplate } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
 import { Plus, Edit2, Trash2, Play, History, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
@@ -20,6 +20,7 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
     onCreate
 }) => {
     const [workflows, setWorkflows] = useState<EmailWorkflow[]>([]);
+    const [templates, setTemplates] = useState<EmailTemplate[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -37,7 +38,11 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
         try {
             setLoading(true);
             setError(null);
-            const data = await api.workflows.list();
+            const [data, templateList] = await Promise.all([
+                api.workflows.list(),
+                api.settings.getTemplates().catch(() => [] as EmailTemplate[]),
+            ]);
+            setTemplates(templateList);
             
             // Remove duplicate workflows (keep first one, delete rest)
             const seen = new Map<string, string>(); // stage+name -> workflow id
@@ -204,15 +209,10 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
                                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStageColor(workflow.triggerStage)}`}>
                                             {workflow.triggerStage}
                                         </span>
-                                        {!workflow.enabled && (
-                                            <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600">
-                                                Disabled
-                                            </span>
-                                        )}
                                     </div>
-                                    
+
                                     <div className="flex items-center gap-4 text-xs text-gray-500">
-                                        <span>Template: {workflow.emailTemplateId}</span>
+                                        <span>Template: {templates.find(t => t.id === workflow.emailTemplateId)?.name ?? workflow.emailTemplateId}</span>
                                         {workflow.minMatchScore && (
                                             <span>Min Score: {workflow.minMatchScore}%</span>
                                         )}
