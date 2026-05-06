@@ -63,18 +63,19 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
             }
 
             // Reload workflows after cleanup if duplicates were deleted
+            let finalData = data;
             if (duplicatesToDelete.length > 0) {
-                const cleanedData = await api.workflows.list();
-                setWorkflows(cleanedData);
+                finalData = await api.workflows.list();
+                setWorkflows(finalData);
             } else {
                 setWorkflows(data);
             }
-            
-            // Check workflow limit
-            const checkResult = await api.plan.canCreateWorkflow(data.length);
+
+            // Check workflow limit against final (deduped) count
+            const checkResult = await api.plan.canCreateWorkflow(finalData.length);
             setCanCreate(checkResult.allowed);
             setWorkflowLimitInfo({
-                current: data.length,
+                current: finalData.length,
                 max: checkResult.maxAllowed,
                 message: checkResult.message
             });
@@ -119,7 +120,11 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
         try {
             setDeletingId(workflow.id);
             await api.workflows.delete(workflow.id);
-            setWorkflows(workflows.filter(w => w.id !== workflow.id));
+            const remaining = workflows.filter(w => w.id !== workflow.id);
+            setWorkflows(remaining);
+            const checkResult = await api.plan.canCreateWorkflow(remaining.length);
+            setCanCreate(checkResult.allowed);
+            setWorkflowLimitInfo({ current: remaining.length, max: checkResult.maxAllowed, message: checkResult.message });
             toast.success(`Workflow "${workflow.name}" deleted.`);
         } catch (err: any) {
             console.error('Error deleting workflow:', err);
@@ -227,9 +232,9 @@ export const WorkflowList: React.FC<WorkflowListProps> = ({
                                         {togglingId === workflow.id ? (
                                             <Loader2 size={16} className="animate-spin" />
                                         ) : workflow.enabled ? (
-                                            <ToggleRight size={18} className="text-gray-600" />
+                                            <ToggleRight size={18} className="text-green-500" />
                                         ) : (
-                                            <ToggleLeft size={18} />
+                                            <ToggleLeft size={18} className="text-gray-400" />
                                         )}
                                     </button>
                                     <button

@@ -6059,10 +6059,14 @@ export const api = {
         canUseAiEmailGeneration: async (): Promise<boolean> => true,
 
         /**
-         * Workflows are unlimited on Professional.
+         * Max 4 workflows — one per pipeline stage (Screening, Rejected, Hired, Offer).
          */
-        canCreateWorkflow: async (_currentWorkflowCount: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
-            return { allowed: true, maxAllowed: Infinity };
+        canCreateWorkflow: async (currentWorkflowCount: number): Promise<{ allowed: boolean; maxAllowed: number; message?: string }> => {
+            const MAX = 4;
+            if (currentWorkflowCount >= MAX) {
+                return { allowed: false, maxAllowed: MAX, message: `You've reached the maximum of ${MAX} workflows (one per pipeline stage). Delete an existing workflow to create a new one.` };
+            }
+            return { allowed: true, maxAllowed: MAX };
         },
 
         /**
