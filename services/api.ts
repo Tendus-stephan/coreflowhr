@@ -4958,7 +4958,8 @@ export const api = {
                 date: interview.date,
                 time: interview.time,
                 type: interview.type,
-                interviewer: interview.interviewer || ''
+                interviewer: interview.interviewer || '',
+                status: interview.status
             }));
         },
         getCandidateFeedback: async (candidateId: string): Promise<InterviewFeedback[]> => {
