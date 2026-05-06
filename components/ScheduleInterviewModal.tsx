@@ -56,10 +56,10 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const effectiveTemplate: any | null | undefined = !templatesLoaded
         ? undefined
         : isImported
-            ? (interviewTemplates.find(t => t.type === 'Interview - Sourced') ?? interviewTemplates.find(t => t.type === 'Interview') ?? null)
+            ? (interviewTemplates.find(t => t.type === 'Interview - Sourced') ?? null)
             : (interviewTemplates.find(t => t.type === 'Interview') ?? null);
     const templateExists: boolean | null = effectiveTemplate === undefined ? null : effectiveTemplate !== null;
-    const usedFallback = isImported && effectiveTemplate?.type === 'Interview';
+    const usedFallback = false; // imported candidates no longer fall back to Interview template
 
     // Load integrations + interview templates when modal opens
     useEffect(() => {
@@ -453,8 +453,14 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     }
                 } else {
                     // No template configured — send a built-in default confirmation
-                    subject = `Interview Confirmation – ${interviewData.jobTitle} at ${companyName}`;
-                    content = `Hi ${selectedCandidate.name},\n\nWe're pleased to confirm your upcoming interview for the ${interviewData.jobTitle} position at ${companyName}.\n\nInterview Details:\n- Date: ${formattedDate}\n- Time: ${formattedTime}\n- Duration: ${duration}\n- Type: ${interviewType}`;
+                    // Use neutral sourced language for imported candidates, applied language for applicants
+                    if (isImported) {
+                        subject = `Interview Invitation – ${interviewData.jobTitle} at ${companyName}`;
+                        content = `Hi ${selectedCandidate.name},\n\nWe came across your profile and would love to have a conversation about the ${interviewData.jobTitle} opportunity at ${companyName}. We'd like to invite you to interview with us.\n\nInterview Details:\n- Date: ${formattedDate}\n- Time: ${formattedTime}\n- Duration: ${duration}\n- Type: ${interviewType}`;
+                    } else {
+                        subject = `Interview Confirmation – ${interviewData.jobTitle} at ${companyName}`;
+                        content = `Hi ${selectedCandidate.name},\n\nWe're pleased to confirm your upcoming interview for the ${interviewData.jobTitle} position at ${companyName}.\n\nInterview Details:\n- Date: ${formattedDate}\n- Time: ${formattedTime}\n- Duration: ${duration}\n- Type: ${interviewType}`;
+                    }
                     if (interviewType === 'Video Call' && interviewData.meetingLink) {
                         content += `\n- Meeting Link: ${interviewData.meetingLink}`;
                     }
