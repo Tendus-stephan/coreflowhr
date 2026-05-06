@@ -762,11 +762,11 @@ const TestWorkflowModal: React.FC<{
                 </div>
                 
                 <div className="p-6 space-y-4 overflow-y-auto">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <p className="text-sm text-blue-800">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <p className="text-sm text-gray-800">
                             <strong>Workflow:</strong> {workflow.name} ({workflow.triggerStage})
                         </p>
-                        <p className="text-xs text-blue-600 mt-1">
+                        <p className="text-xs text-gray-500 mt-1">
                             Fill in test values below. Empty fields will use default values. The test email will be sent to your email address.
                         </p>
                     </div>
