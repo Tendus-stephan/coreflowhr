@@ -75,6 +75,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailEditValue, setEmailEditValue] = useState('');
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isCancellingInterview, setIsCancellingInterview] = useState(false);
   const [job, setJob] = useState<Job | undefined>(undefined);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -779,6 +780,53 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       }
   };
 
+  const handleCancelInterview = async () => {
+      const interviewId = scheduledUpcoming[0]?.id;
+      if (!interviewId) return;
+
+      const ok = await confirm({
+          title: 'Cancel this interview?',
+          confirmLabel: 'Cancel Interview',
+          variant: 'destructive',
+      });
+      if (!ok) return;
+
+      setIsCancellingInterview(true);
+      try {
+          await api.interviews.cancel(interviewId);
+
+          // Send cancellation email to candidate (best-effort)
+          if (candidate.email) {
+              try {
+                  const user = await api.auth.me();
+                  const inv = scheduledUpcoming[0];
+                  const jobTitle = inv?.jobTitle || job?.title || 'the position';
+                  const companyName = job?.company || 'Our Company';
+                  await supabase.functions.invoke('send-email', {
+                      body: {
+                          to: candidate.email,
+                          subject: `Interview Cancelled – ${jobTitle} at ${companyName}`,
+                          content: `Hi ${candidate.name},\n\nWe regret to inform you that we need to cancel your scheduled interview for the ${jobTitle} position at ${companyName}.\n\nWe apologize for any inconvenience this may cause. If you have any questions or would like to reschedule, please don't hesitate to reach out.\n\nBest regards,\n${user.name || 'Recruiter'}`,
+                          fromName: user.name || 'Recruiter',
+                          candidateId: candidate.id,
+                          userId: user.id,
+                          emailType: 'Cancellation',
+                      },
+                  });
+              } catch (_) { /* email is best-effort */ }
+          }
+
+          // Refresh interview list
+          const list = await api.interviews.getCandidateInterviews(candidate.id);
+          setCandidateInterviews(list);
+          toast.success(`Interview cancelled.`);
+      } catch (e: any) {
+          toast.error(e.message || 'Failed to cancel interview.');
+      } finally {
+          setIsCancellingInterview(false);
+      }
+  };
+
   // Use real work experience from candidate data
   const experienceHistory = candidate.workExperience || [];
   const scheduledUpcoming = candidateInterviews.filter((i: { date: string; time?: string }) => {
@@ -1064,9 +1112,14 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             </div>
                           </div>
                           {!isViewer && (
-                            <Button variant="outline" size="sm" onClick={() => setIsScheduleOpen(true)}>
-                              Reschedule
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={handleCancelInterview} disabled={isCancellingInterview}>
+                                {isCancellingInterview ? 'Cancelling...' : 'Cancel'}
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setIsScheduleOpen(true)}>
+                                Reschedule
+                              </Button>
+                            </div>
                           )}
                         </div>
                       );
@@ -2025,23 +2078,34 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         <div className="p-4 border-t border-border bg-gray-50 flex justify-end items-center">
                         <div className="flex gap-3">
                 {!isViewer && (
-                <Button
-                                variant="outline"
-                                icon={<Calendar size={16} />}
-                                onClick={() => {
-                                  if (isPoolCandidate) {
-                                    toast.error('Assign this candidate to a job first before scheduling an interview.');
-                                    return;
-                                  }
-                                  if (candidate.stage !== CandidateStage.INTERVIEW) {
-                                    toast.info('Only candidates in the Interview stage can have interviews scheduled. Move this candidate to the Interview stage first.');
-                                    return;
-                                  }
-                                  setIsScheduleOpen(true);
-                                }}
-                              >
-                                {scheduledUpcoming.length > 0 ? 'Reschedule' : 'Schedule'}
-                              </Button>
+                  <>
+                    {scheduledUpcoming.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        onClick={handleCancelInterview}
+                        disabled={isCancellingInterview}
+                      >
+                        {isCancellingInterview ? 'Cancelling...' : 'Cancel Interview'}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      icon={<Calendar size={16} />}
+                      onClick={() => {
+                        if (isPoolCandidate) {
+                          toast.error('Assign this candidate to a job first before scheduling an interview.');
+                          return;
+                        }
+                        if (candidate.stage !== CandidateStage.INTERVIEW) {
+                          toast.info('Only candidates in the Interview stage can have interviews scheduled. Move this candidate to the Interview stage first.');
+                          return;
+                        }
+                        setIsScheduleOpen(true);
+                      }}
+                    >
+                      {scheduledUpcoming.length > 0 ? 'Reschedule' : 'Schedule'}
+                    </Button>
+                  </>
                 )}
                 <Button variant="primary" onClick={onClose}>{isViewer ? 'Close' : 'Save Changes'}</Button>
                              </div>
