@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Offer } from '../types';
 import { api } from '../services/api';
 import { OffersSkeleton } from '../components/ui/Skeleton';
@@ -19,6 +20,7 @@ const isOfferExpired = (offer: Offer): boolean =>
     new Date(offer.expiresAt) < new Date();
 
 const Offers: React.FC = () => {
+    const navigate = useNavigate();
     const [offers, setOffers] = useState<Offer[]>([]);
     const [filteredOffers, setFilteredOffers] = useState<Offer[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,7 +46,11 @@ const Offers: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        api.auth.me().then((me) => setUserRole(me?.role ?? '')).catch(() => {});
+        api.auth.me().then((me) => {
+            const role = me?.role ?? '';
+            setUserRole(role);
+            if (role === 'HiringManager') navigate('/dashboard', { replace: true });
+        }).catch(() => {});
     }, []);
 
     useEffect(() => {

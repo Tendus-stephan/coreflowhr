@@ -450,6 +450,7 @@ const CandidateBoard: React.FC = () => {
     }, []);
 
     const isViewer = userRole === 'Viewer';
+    const canDelete = !isViewer && userRole !== 'HiringManager';
 
     // Realtime: sync candidate changes made by other team members
     useEffect(() => {
@@ -1240,22 +1241,22 @@ const CandidateBoard: React.FC = () => {
                             const c = candidates.find(x => x.id === id);
                             if (c) setPendingAction({ type: 'reject', candidateId: id, candidateName: c.name });
                         }}
-                        onDeleteCandidate={isViewer ? undefined : (id) => {
+                        onDeleteCandidate={!canDelete ? undefined : (id) => {
                             const c = candidates.find(x => x.id === id);
                             if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name });
                         }}
                         fixingEmails={fixingEmails}
                     />
                     <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
-                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
+                        onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                     <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
-                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
+                        onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                     <PipelineColumn title="Offer" stage={CandidateStage.OFFER} candidates={getCandidatesByStage(CandidateStage.OFFER)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
-                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
+                        onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                     <PipelineColumn title="Hired" stage={CandidateStage.HIRED} candidates={getCandidatesByStage(CandidateStage.HIRED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
-                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
+                        onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                     <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
-                        onDeleteCandidate={isViewer ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
+                        onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                 </div>
             </div>
 
