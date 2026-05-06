@@ -829,7 +829,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   // Use real work experience from candidate data
   const experienceHistory = candidate.workExperience || [];
-  const scheduledUpcoming = candidateInterviews.filter((i: { date: string; time?: string }) => {
+  const scheduledUpcoming = candidateInterviews.filter((i: { date: string; time?: string; status?: string }) => {
+    if (i.status === 'Cancelled') return false;
     const t = (i.time || '00:00').slice(0, 5);
     return new Date(i.date + 'T' + t) > new Date();
   });
