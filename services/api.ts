@@ -120,7 +120,7 @@ const getViewerAssignedJobIds = async (): Promise<string[] | null> => {
 /**
  * Returns job IDs the current user is restricted to, or null if unrestricted (Admin/Recruiter see everything).
  * - Viewer:        job_assignments table
- * - HiringManager: jobs where hiring_manager_id = userId
+ * - HiringManager: union of hiring_manager_id jobs AND job_assignments (role may have changed from Viewer)
  * - Admin/Recruiter: null (no restriction)
  */
 const getRestrictedJobIds = async (): Promise<string[] | null> => {
@@ -135,15 +135,28 @@ const getRestrictedJobIds = async (): Promise<string[] | null> => {
     return getViewerAssignedJobIds();
   }
 
-  // HiringManager: jobs where hiring_manager_id = userId
+  // HiringManager: combine both sources so assignments survive role changes
   if (!workspaceId) return [];
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('hiring_manager_id', userId);
-  if (error || !data?.length) return [];
-  return data.map((j: { id: string }) => j.id);
+  const [hmResult, assignResult] = await Promise.all([
+    supabase.from('jobs').select('id').eq('workspace_id', workspaceId).eq('hiring_manager_id', userId),
+    supabase.from('job_assignments').select('job_id').eq('user_id', userId),
+  ]);
+
+  const hmIds = (hmResult.data || []).map((j: { id: string }) => j.id);
+
+  // Cross-check assigned job IDs against workspace to avoid leaking other workspaces
+  const rawAssignedIds = (assignResult.data || []).map((a: { job_id: string }) => a.job_id);
+  let assignedIds: string[] = [];
+  if (rawAssignedIds.length > 0) {
+    const { data: wsJobs } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .in('id', rawAssignedIds);
+    assignedIds = (wsJobs || []).map((j: { id: string }) => j.id);
+  }
+
+  return [...new Set([...hmIds, ...assignedIds])];
 };
 
 /** Job IDs the current user is allowed to see for reports (Admin/Recruiter: all workspace jobs; HM: jobs where hiring_manager_id = user; Viewer: assigned only). */
