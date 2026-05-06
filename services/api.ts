@@ -5360,19 +5360,26 @@ export const api = {
             if (!userId) throw new Error('Not authenticated');
             const workspaceId = await getCurrentWorkspaceId();
 
-            // Collect all user IDs in the workspace so templates created by any
-            // member are visible to everyone (e.g. admin creates Interview template,
-            // recruiter schedules the interview and expects the email to send).
-            let userIds: string[] = [userId];
+            // Only Admin-created templates count as workspace configuration.
+            // If admin hasn't set up a template, no other role should see it as configured.
+            let userIds: string[] = [];
             if (workspaceId) {
                 const { data: members } = await supabase
                     .from('workspace_members')
-                    .select('user_id')
+                    .select('user_id, role')
                     .eq('workspace_id', workspaceId);
                 if (members?.length) {
-                    userIds = [...new Set([userId, ...members.map((m: any) => m.user_id)])];
+                    userIds = [
+                        ...new Set(
+                            members
+                                .filter((m: any) => m.role === 'Admin')
+                                .map((m: any) => m.user_id)
+                        )
+                    ];
                 }
             }
+
+            if (!userIds.length) return [];
 
             const { data, error } = await supabase
                 .from('email_templates')
@@ -5382,12 +5389,9 @@ export const api = {
 
             if (error) throw error;
 
-            // Deduplicate by type — prefer the current user's own template when
-            // multiple workspace members have created one of the same type.
+            // Deduplicate by type — one template per type across all admins.
             const seen = new Set<string>();
-            const deduped = (data || []).sort((a, b) =>
-                a.user_id === userId ? -1 : b.user_id === userId ? 1 : 0
-            ).filter(t => {
+            const deduped = (data || []).filter(t => {
                 if (seen.has(t.type)) return false;
                 seen.add(t.type);
                 return true;
@@ -5522,6 +5526,28 @@ export const api = {
                     ? `#${slackChannelName}${slackTeamName ? ` · ${slackTeamName}` : ''}`
                     : undefined,
             };
+
+            // If the current user has no active Google integrations, fall back to the
+            // workspace admin's via a SECURITY DEFINER RPC (bypasses RLS).
+            const anyGoogleActive = googleIntegrations.some(i => i.active);
+            if (!anyGoogleActive && membership?.workspace_id) {
+                const { data: wsRows } = await supabase
+                    .rpc('get_workspace_admin_integrations', { p_workspace_id: membership.workspace_id });
+                if (wsRows?.length) {
+                    const wsByName = new Map((wsRows as any[]).map(r => [r.name, r]));
+                    for (let i = 0; i < googleIntegrations.length; i++) {
+                        const wsRow = wsByName.get(googleIntegrations[i].name);
+                        if (wsRow) {
+                            googleIntegrations[i] = {
+                                ...googleIntegrations[i],
+                                active: true,
+                                connectedDate: wsRow.connected_date,
+                                connectedEmail: wsRow.config?.google_email || undefined,
+                            };
+                        }
+                    }
+                }
+            }
 
             return [...googleIntegrations, slackIntegration];
         },

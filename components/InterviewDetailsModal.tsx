@@ -6,8 +6,6 @@ import { Button } from './ui/Button';
 import { api } from '../services/api';
 import { toUserError } from '../utils/edgeFunctionError';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirm } from '../contexts/ConfirmContext';
-
 interface InterviewDetailsModalProps {
   interview: Interview | null;
   isOpen: boolean;
@@ -28,15 +26,18 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
   readOnly = false
 }) => {
   const toast = useToast();
-  const confirm = useConfirm();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      setShowCancelPrompt(false);
+      setCancelReason('');
     }
     return () => {
       document.body.style.overflow = '';
@@ -45,18 +46,11 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
 
   if (!isOpen || !interview) return null;
 
-  const handleCancel = async () => {
-    const ok = await confirm({
-      title: 'Cancel this interview?',
-      description: 'This action cannot be undone.',
-      confirmLabel: 'Cancel Interview',
-      variant: 'destructive',
-    });
-    if (!ok) return;
-
+  const handleCancelConfirm = async () => {
+    if (!cancelReason.trim()) return;
     setLoading(true);
     try {
-      await api.interviews.cancel(interview.id, 'Cancelled by user');
+      await api.interviews.cancel(interview.id, cancelReason.trim());
       onDelete?.();
       onUpdate?.();
       onClose();
@@ -65,6 +59,8 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
       toast.error(toUserError(error, 'Failed to cancel the interview. Please try again.'));
     } finally {
       setLoading(false);
+      setShowCancelPrompt(false);
+      setCancelReason('');
     }
   };
 
@@ -272,25 +268,51 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50/50 rounded-b-2xl flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          {!readOnly && onEdit && (
-            <Button variant="black" onClick={() => onEdit(interview)}>
-              Edit
+        {showCancelPrompt ? (
+          <div className="p-6 border-t border-gray-200 bg-gray-50/50 rounded-b-2xl space-y-3">
+            <p className="text-sm font-semibold text-gray-900">Why are you cancelling this interview?</p>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-gray-400"
+              rows={3}
+              placeholder="Enter a reason..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowCancelPrompt(false); setCancelReason(''); }} disabled={loading}>
+                Go Back
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCancelConfirm}
+                disabled={loading || !cancelReason.trim()}
+              >
+                {loading ? 'Canceling...' : 'Confirm Cancel'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 border-t border-gray-200 bg-gray-50/50 rounded-b-2xl flex justify-end gap-3">
+            <Button variant="outline" onClick={onClose}>
+              Close
             </Button>
-          )}
-          {!readOnly && onDelete && (
-            <Button 
-              variant="outline" 
-              onClick={handleCancel}
-              disabled={loading}
-            >
-              {loading ? 'Canceling...' : 'Cancel Interview'}
-            </Button>
-          )}
-        </div>
+            {!readOnly && onEdit && (
+              <Button variant="black" onClick={() => onEdit(interview)}>
+                Edit
+              </Button>
+            )}
+            {!readOnly && onDelete && (
+              <Button
+                variant="outline"
+                onClick={() => setShowCancelPrompt(true)}
+                disabled={loading}
+              >
+                Cancel Interview
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>,
     document.body
