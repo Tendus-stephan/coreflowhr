@@ -1871,7 +1871,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-gray-900">Job Offers</h3>
-                        {!isViewer && (
+                        {!isViewer && userRole !== 'HiringManager' && (
                         <div className="flex gap-2">
                             <Button
                                 variant="black"
@@ -1953,7 +1953,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     ) : offers.length === 0 ? (
                         <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
                             <p className="text-sm text-gray-500 mb-4">No offers yet for this candidate</p>
-                            {!isViewer && (
+                            {!isViewer && userRole !== 'HiringManager' && (
                             <>
                             <p className="text-xs text-gray-400 mb-4">Create an offer or link a general offer</p>
                             <div className="flex gap-2 justify-center">
@@ -2036,7 +2036,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 <OfferCard
                                     key={offer.id}
                                     offer={offer}
-                                    readOnly={isViewer}
+                                    readOnly={isViewer || userRole === 'HiringManager'}
                                     hideSalary={userRole === 'HiringManager'}
                                     onEdit={(offer) => {
                                         setEditingOffer(offer);
