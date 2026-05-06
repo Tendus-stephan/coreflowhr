@@ -134,7 +134,10 @@ const Sidebar: React.FC = () => {
   }, []);
 
   const mainNav = userRole === 'Viewer'
-    ? [{ name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }]
+    ? [
+        { name: 'Dashboard',  path: '/dashboard',  icon: LayoutDashboard },
+        { name: 'Candidates', path: '/candidates',  icon: Users },
+      ]
     : [
         { name: 'Dashboard',  path: '/dashboard',  icon: LayoutDashboard },
         { name: 'Jobs',       path: '/jobs',        icon: Briefcase },
