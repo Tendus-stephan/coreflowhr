@@ -47,6 +47,24 @@ interface LogActivityParams {
     metadata?: Record<string, any>;
 }
 
+/** Lightweight workspace resolver — avoids circular dep with api.ts */
+const getWorkspaceId = async (userId: string): Promise<string | null> => {
+    try {
+        const { data } = await supabase
+            .from('workspace_members')
+            .select('workspace_id, role, workspaces!inner(created_by)')
+            .eq('user_id', userId)
+            .limit(10);
+        if (!data?.length) return null;
+        const owned = data.find((m: any) => m.workspaces?.created_by === userId);
+        if (owned) return owned.workspace_id;
+        const admin = data.find((m: any) => m.role === 'Admin');
+        return admin?.workspace_id ?? data[0].workspace_id;
+    } catch {
+        return null;
+    }
+};
+
 /**
  * Log an activity to the activity log
  */
@@ -57,16 +75,14 @@ export const logActivity = async (params: LogActivityParams): Promise<void> => {
 
         const userId = user.id;
 
-        // Get user name from profile
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', userId)
-            .maybeSingle();
+        // Get user name and workspace in parallel
+        const [profileResult, workspaceId] = await Promise.all([
+            supabase.from('profiles').select('name').eq('id', userId).maybeSingle(),
+            getWorkspaceId(userId),
+        ]);
 
-        const userName = profile?.name || user.email?.split('@')[0] || 'You';
+        const userName = profileResult.data?.name || user.email?.split('@')[0] || 'You';
 
-        // Format action text based on action type
         const actionText = formatActionText(params.action, params.target, params.targetTo);
 
         await supabase
@@ -76,7 +92,8 @@ export const logActivity = async (params: LogActivityParams): Promise<void> => {
                 user_name: userName,
                 action: actionText,
                 target: params.target,
-                target_to: params.targetTo || null
+                target_to: params.targetTo || null,
+                ...(workspaceId ? { workspace_id: workspaceId } : {}),
             });
     } catch (error) {
         // Don't fail the operation if logging fails
