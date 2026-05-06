@@ -810,7 +810,6 @@ const TestWorkflowModal: React.FC<{
                             </>
                         ) : (
                             <>
-                                <Zap size={16} />
                                 Send Test Email
                             </>
                         )}
