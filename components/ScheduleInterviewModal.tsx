@@ -48,6 +48,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const [isScheduling, setIsScheduling] = useState(false);
     const [interviewTemplates, setInterviewTemplates] = useState<any[]>([]);
     const [templatesLoaded, setTemplatesLoaded] = useState(false);
+    const [canManageTemplates, setCanManageTemplates] = useState(false);
     const actionInFlightRef = useRef(false);
 
     // Imported candidates get the sourced template; everyone else gets the applied template
@@ -66,10 +67,15 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         if (isOpen) {
             setTemplatesLoaded(false);
             setInterviewTemplates([]);
-            api.settings.getTemplates().then(templates => {
+            Promise.all([
+                api.settings.getTemplates(),
+                api.auth.me().catch(() => null),
+            ]).then(([templates, me]) => {
                 setInterviewTemplates(templates.filter((t: any) =>
                     t.type === 'Interview' || t.type === 'Interview - Sourced'
                 ));
+                const role = (me as any)?.role ?? '';
+                setCanManageTemplates(role === 'Admin' || role === 'Recruiter');
                 setTemplatesLoaded(true);
             }).catch(() => {
                 setInterviewTemplates([]);
@@ -783,14 +789,21 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     {templateExists === true && usedFallback && (
                         <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
-                            <p className="text-[13px] text-gray-700 leading-snug">No sourced template — falling back to standard. <span className="font-medium text-gray-900">Add one in Settings.</span></p>
+                            <p className="text-[13px] text-gray-700 leading-snug">
+                                No sourced template — falling back to standard.{' '}
+                                {canManageTemplates
+                                    ? <span className="font-medium text-gray-900">Add one in Settings.</span>
+                                    : <span className="font-medium text-gray-900">Ask your Admin to add one in Settings.</span>}
+                            </p>
                         </div>
                     )}
                     {templateExists === false && (
                         <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
-                                {isImported ? 'No template — a default confirmation will be sent. Add "Interview – Sourced" in Settings to customise.' : 'No interview template — a default confirmation will be sent. Add one in Settings to customise.'}
+                                {isImported
+                                    ? <>No template — a default confirmation will be sent.{' '}{canManageTemplates ? 'Add "Interview – Sourced" in Settings to customise.' : 'Ask your Admin to add one in Settings.'}</>
+                                    : <>No interview template — a default confirmation will be sent.{' '}{canManageTemplates ? 'Add one in Settings to customise.' : 'Ask your Admin to add one in Settings.'}</>}
                             </p>
                         </div>
                     )}
