@@ -117,6 +117,35 @@ const getViewerAssignedJobIds = async (): Promise<string[] | null> => {
   return (jobsInWorkspace || []).map((j: { id: string }) => j.id);
 };
 
+/**
+ * Returns job IDs the current user is restricted to, or null if unrestricted (Admin/Recruiter see everything).
+ * - Viewer:        job_assignments table
+ * - HiringManager: jobs where hiring_manager_id = userId
+ * - Admin/Recruiter: null (no restriction)
+ */
+const getRestrictedJobIds = async (): Promise<string[] | null> => {
+  const role = await getCurrentUserRole();
+  if (role === 'Admin' || role === 'Recruiter') return null;
+
+  const userId = await getUserId();
+  const workspaceId = await getCurrentWorkspaceId();
+  if (!userId) return [];
+
+  if (role === 'Viewer') {
+    return getViewerAssignedJobIds();
+  }
+
+  // HiringManager: jobs where hiring_manager_id = userId
+  if (!workspaceId) return [];
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('hiring_manager_id', userId);
+  if (error || !data?.length) return [];
+  return data.map((j: { id: string }) => j.id);
+};
+
 /** Job IDs the current user is allowed to see for reports (Admin/Recruiter: all workspace jobs; HM: jobs where hiring_manager_id = user; Viewer: assigned only). */
 const getReportAllowedJobIds = async (): Promise<string[]> => {
   const role = await getCurrentUserRole();
@@ -1278,9 +1307,19 @@ export const api = {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
-            // Scope to current workspace only so each user sees only their workspace's data (not other workspaces they're a member of).
+            // Scope to current workspace only
             const workspaceId = await getCurrentWorkspaceId();
-            const viewerJobIds = await getViewerAssignedJobIds();
+            const restrictedJobIds = await getRestrictedJobIds();
+
+            // Restricted roles with no assigned jobs → all zeros
+            if (restrictedJobIds !== null && restrictedJobIds.length === 0) {
+                return {
+                    activeJobs: 0, activeJobsTrend: '+0',
+                    totalCandidates: 0, candidatesTrend: '+0%',
+                    qualifiedCandidates: 0, qualifiedTrend: '+0%',
+                    avgTimeToFill: '0d', timeToFillTrend: '0d'
+                };
+            }
 
             let jobsQuery = supabase.from('jobs').select('id, status, created_at, posted_date, is_test, title');
             let candidatesQuery = supabase.from('candidates').select('id, name, stage, job_id, applied_date, created_at, updated_at, is_test');
@@ -1288,21 +1327,9 @@ export const api = {
                 jobsQuery = jobsQuery.eq('workspace_id', workspaceId);
                 candidatesQuery = candidatesQuery.eq('workspace_id', workspaceId);
             }
-            if (viewerJobIds !== null) {
-                if (viewerJobIds.length === 0) {
-                    return {
-                        activeJobs: 0,
-                        activeJobsTrend: '+0',
-                        totalCandidates: 0,
-                        candidatesTrend: '+0%',
-                        qualifiedCandidates: 0,
-                        qualifiedTrend: '+0%',
-                        avgTimeToFill: '0d',
-                        timeToFillTrend: '0d'
-                    };
-                }
-                jobsQuery = jobsQuery.in('id', viewerJobIds);
-                candidatesQuery = candidatesQuery.in('job_id', viewerJobIds);
+            if (restrictedJobIds !== null) {
+                jobsQuery = jobsQuery.in('id', restrictedJobIds);
+                candidatesQuery = candidatesQuery.in('job_id', restrictedJobIds);
             }
 
             let activityQuery = supabase.from('activity_log')
@@ -1588,27 +1615,19 @@ export const api = {
             const to = from + pageSize - 1;
 
             const workspaceId = await getCurrentWorkspaceId();
-            const viewerJobIds = await getViewerAssignedJobIds();
+            const restrictedJobIds = await getRestrictedJobIds();
 
-            // Viewers see only jobs they're assigned to (enforce in API so they never see unassigned jobs)
-            if (viewerJobIds !== null) {
-                if (viewerJobIds.length === 0) {
-                    return {
-                        data: [],
-                        total: 0,
-                        page,
-                        pageSize,
-                        totalPages: 0
-                    };
-                }
+            // Restricted roles (Viewer/HiringManager) with no assigned jobs see nothing
+            if (restrictedJobIds !== null && restrictedJobIds.length === 0) {
+                return { data: [], total: 0, page, pageSize, totalPages: 0 };
             }
 
-            // Scope to current workspace so user only sees jobs from the workspace they're operating in (not other workspaces they're a member of).
+            // Scope to current workspace
             let countQuery = supabase
                 .from('jobs')
                 .select('*', { count: 'exact', head: true });
             if (workspaceId) countQuery = countQuery.eq('workspace_id', workspaceId);
-            if (viewerJobIds !== null) countQuery = countQuery.in('id', viewerJobIds);
+            if (restrictedJobIds !== null) countQuery = countQuery.in('id', restrictedJobIds);
             if (filters?.excludeClosed === true) {
                 countQuery = countQuery.neq('status', 'Closed');
             }
@@ -1629,7 +1648,7 @@ export const api = {
                     candidates(count)
                 `);
             if (workspaceId) query = query.eq('workspace_id', workspaceId);
-            if (viewerJobIds !== null) query = query.in('id', viewerJobIds);
+            if (restrictedJobIds !== null) query = query.in('id', restrictedJobIds);
             
             // Exclude closed jobs if requested (default is to include all)
             if (filters?.excludeClosed === true) {
@@ -3029,31 +3048,37 @@ export const api = {
             if (!userId) throw new Error('Not authenticated');
 
             const workspaceId = await getCurrentWorkspaceId();
+            const restrictedJobIds = await getRestrictedJobIds();
 
-            // Scope by workspace when available so all workspace members see all candidates,
-            // regardless of which member originally imported them.
-            // Solo users (no workspace) fall back to user_id scope.
+            // Restricted roles (Viewer/HiringManager) with no assigned jobs see no candidates
+            if (restrictedJobIds !== null && restrictedJobIds.length === 0) {
+                return { data: [], total: 0, page: options?.page || 1, pageSize: options?.pageSize || 50, totalPages: 0 };
+            }
+
+            // Scope by workspace; solo users fall back to user_id scope.
             const scopeFilter = (q: any) =>
                 workspaceId ? q.eq('workspace_id', workspaceId) : q.eq('user_id', userId);
 
             const page = options?.page || 1;
-            const pageSize = options?.pageSize || 50; // Default 50 per page
+            const pageSize = options?.pageSize || 50;
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
 
-            // Get total count first (exclude soft-deleted)
-            const { count, error: countError } = await scopeFilter(
+            // Get total count (exclude soft-deleted + job restriction)
+            let countQ = scopeFilter(
                 supabase.from('candidates').select('*', { count: 'exact', head: true })
             ).is('deleted_at', null);
+            if (restrictedJobIds !== null) countQ = countQ.in('job_id', restrictedJobIds);
+            const { count, error: countError } = await countQ;
 
             if (countError) throw countError;
 
-            const { data, error } = await scopeFilter(
-                supabase.from('candidates').select('*')
-            )
+            let dataQ = scopeFilter(supabase.from('candidates').select('*'))
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false })
                 .range(from, to);
+            if (restrictedJobIds !== null) dataQ = dataQ.in('job_id', restrictedJobIds);
+            const { data, error } = await dataQ;
 
             if (error) throw error;
 
