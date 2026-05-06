@@ -6273,98 +6273,118 @@ export const api = {
                 updatedAt: data.updated_at
             };
         },
-        test: async (workflowId: string, candidateId: string, testPlaceholders?: Record<string, string>): Promise<void> => {
+        test: async (workflowId: string, _candidateId: string, testPlaceholders?: Record<string, string>): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
 
             // Get workflow (testing works even if workflow is disabled)
             const workflow = await api.workflows.get(workflowId);
-            
-            // Get user email
+
+            // Get user email + profile
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user || !user.email) {
-                throw new Error('User email not found');
-            }
+            if (!user || !user.email) throw new Error('User email not found');
 
-            // Get email template
-            const { data: template, error: templateError } = await supabase
-                .from('email_templates')
-                .select('*')
-                .eq('id', workflow.emailTemplateId)
-                .eq('user_id', userId)
-                .single();
-
-            if (templateError || !template) {
-                throw new Error(`Email template not found: ${templateError?.message}`);
-            }
-
-            // Get user profile for your_name placeholder (but always use "Recruiter" as sender)
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('name')
                 .eq('id', userId)
                 .single();
+            const userName = profile?.name || 'Recruiter';
 
-            const senderName = 'Recruiter'; // Always use "Recruiter" as sender name
+            // Workspace-aware template lookup: template may belong to any workspace member
+            const workspaceId = await getCurrentWorkspaceId();
+            let templateQuery = supabase
+                .from('email_templates')
+                .select('*')
+                .eq('id', workflow.emailTemplateId);
+            if (workspaceId) {
+                const { data: members } = await supabase
+                    .from('workspace_members')
+                    .select('user_id')
+                    .eq('workspace_id', workspaceId);
+                const allIds = [...new Set([userId, ...(members?.map((m: any) => m.user_id) || [])])];
+                templateQuery = (templateQuery as any).in('user_id', allIds);
+            } else {
+                templateQuery = (templateQuery as any).eq('user_id', userId);
+            }
+            const { data: template, error: templateError } = await templateQuery.single();
 
-            // Replace placeholders in template with test values (if provided) or defaults
-            // Default test placeholder values
-            const defaultTestPlaceholders: Record<string, string> = {
-                candidate_name: 'John Doe',
-                job_title: 'Software Engineer',
-                position_title: 'Software Engineer',
-                company_name: 'Our Company',
-                your_name: profile?.name || 'Recruiter',
-                interviewer_name: profile?.name || 'Interviewer',
-                interview_date: 'Monday, January 15, 2024',
+            if (templateError || !template) {
+                throw new Error(`Email template not found. Make sure the template still exists in Settings > Email Templates.`);
+            }
+
+            // Build merged placeholders (user-supplied > defaults)
+            const defaults: Record<string, string> = {
+                candidate_name: testPlaceholders?.candidate_name || 'Jane Smith',
+                job_title: testPlaceholders?.job_title || 'Software Engineer',
+                position_title: testPlaceholders?.position_title || 'Software Engineer',
+                company_name: testPlaceholders?.company_name || 'Your Company',
+                your_name: testPlaceholders?.your_name || userName,
+                interviewer_name: testPlaceholders?.interviewer_name || userName,
+                interview_date: 'Monday, 15 January 2024',
                 interview_time: '10:00 AM',
                 interview_duration: '1 hour',
                 interview_type: 'Video Call',
-                interview_details: 'Date: Monday, January 15, 2024\nTime: 10:00 AM\nDuration: 1 hour\nType: Video Call',
+                interview_details: 'Date: Monday, 15 January 2024\nTime: 10:00 AM\nDuration: 1 hour\nType: Video Call',
                 meeting_link: 'https://meet.google.com/xxx-yyyy-zzz',
                 address: '123 Main St, City, State 12345',
-                previous_interview_time: 'Monday, January 8, 2024 at 2:00 PM',
-                new_interview_time: 'Monday, January 15, 2024 at 10:00 AM',
-                old_interview_date: 'Monday, January 8, 2024',
+                previous_interview_time: 'Monday, 8 January 2024 at 2:00 PM',
+                new_interview_time: 'Monday, 15 January 2024 at 10:00 AM',
+                old_interview_date: 'Monday, 8 January 2024',
                 old_interview_time: '2:00 PM',
                 salary: '$100,000 per year',
-                salary_amount: '100000',
+                salary_amount: '100,000',
                 salary_currency: 'USD',
                 salary_period: 'per year',
-                start_date: 'February 1, 2024',
-                expires_at: 'January 31, 2024',
+                start_date: '1 February 2024',
+                expires_at: '31 January 2024',
                 benefits: 'Health insurance, 401k, Paid time off',
                 benefits_list: '• Health insurance\n• 401k\n• Paid time off',
                 notes: 'We are excited to have you join our team!',
                 offer_response_link: 'https://coreflowhr.com/offers/respond/test-token'
             };
+            const merged = { ...defaults, ...(testPlaceholders || {}) };
 
-            // Merge user-provided test placeholders with defaults (user values take precedence)
-            const mergedPlaceholders = { ...defaultTestPlaceholders, ...(testPlaceholders || {}) };
-
-            // Replace placeholders in subject and content
+            // Replace placeholders — same logic as workflowEngine
             let subject = template.subject;
             let content = template.content;
 
-            // Replace all placeholders in curly braces format {placeholder_name}
-            Object.keys(mergedPlaceholders).forEach(key => {
-                const placeholder = `{${key}}`;
-                const value = mergedPlaceholders[key];
-                subject = subject.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
-                content = content.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
+            Object.keys(merged).forEach(key => {
+                const re = new RegExp(`\\{${key}\\}`, 'g');
+                subject = subject.replace(re, merged[key]);
+                content = content.replace(re, merged[key]);
             });
 
-            // Add [TEST] prefix to subject
+            // Apply same post-processing as workflowEngine
+            content = content
+                .replace(/\[Your Name\]/g, userName)
+                .replace(/\[Your Title\]/g, '')
+                .replace(/\[Website\/Contact Info\]/g, '')
+                .replace(/Curricular Vitae/gi, 'CV')
+                .replace(/\\n/g, '\n')
+                .replace(/\\t/g, '\t');
+
+            // Inject CV upload section for Screening stage (same as real execution)
+            if (workflow.triggerStage === 'Screening') {
+                const testUploadBtn = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;"><tr><td style="background-color:#111827; border-radius:8px; padding:14px 28px;"><a href="https://coreflowhr.com/jobs/apply/test?token=test-token" style="color:#ffffff !important; text-decoration:none; font-weight:600; font-size:16px;">Upload your CV</a></td></tr></table>`;
+                const linkSection = `<br><br><hr style="border:none; border-top:1px solid #e5e7eb; margin:20px 0;"><p style="margin:0 0 12px 0; color:#374151; font-size:16px; line-height:1.5;">Please click the button below to upload your CV:</p>${testUploadBtn}`;
+                if (content.includes('{cv_upload_link}')) {
+                    content = content.replace(/\{cv_upload_link\}/g, testUploadBtn);
+                } else {
+                    content = content + linkSection;
+                }
+            }
+
             subject = `[TEST] ${subject}`;
 
-            // Send test email to user
             const { error: emailError } = await supabase.functions.invoke('send-email', {
                 body: {
                     to: user.email,
-                    subject: subject,
-                    content: content,
-                    fromName: senderName,
-                    candidateId: null, // No candidate for test
+                    subject,
+                    content,
+                    fromName: userName,
+                    candidateId: null,
+                    userId,
                     emailType: 'Custom'
                 }
             });
@@ -6372,12 +6392,6 @@ export const api = {
             if (emailError) {
                 throw new Error(`Failed to send test email: ${emailError.message}`);
             }
-
-            // Skip creating execution log for test workflows
-            // Test workflows don't have a real candidate_id, and we don't want to pollute
-            // the execution history with test runs. Test emails are sent directly to the user.
-            // If a valid candidateId is provided, we could log it, but for now we skip logging tests.
-            // Note: The candidateId parameter is currently unused but kept for future use
         },
         getExecutions: async (workflowId: string): Promise<WorkflowExecution[]> => {
             const userId = await getUserId();
