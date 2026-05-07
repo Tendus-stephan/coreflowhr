@@ -50,16 +50,20 @@ interface LogActivityParams {
 /** Lightweight workspace resolver — avoids circular dep with api.ts */
 const getWorkspaceId = async (userId: string): Promise<string | null> => {
     try {
-        const { data } = await supabase
+        const { data: rows } = await supabase
             .from('workspace_members')
-            .select('workspace_id, role, workspaces!inner(created_by)')
-            .eq('user_id', userId)
-            .limit(10);
-        if (!data?.length) return null;
-        const owned = data.find((m: any) => m.workspaces?.created_by === userId);
-        if (owned) return owned.workspace_id;
-        const admin = data.find((m: any) => m.role === 'Admin');
-        return admin?.workspace_id ?? data[0].workspace_id;
+            .select('workspace_id, role')
+            .eq('user_id', userId);
+        if (!rows?.length) return null;
+        const workspaceIds = rows.map((r: any) => r.workspace_id);
+        const { data: owned } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('created_by', userId)
+            .in('id', workspaceIds)
+            .limit(1);
+        const admin = rows.find((r: any) => r.role === 'Admin');
+        return owned?.[0]?.id ?? admin?.workspace_id ?? rows[0]?.workspace_id ?? null;
     } catch {
         return null;
     }

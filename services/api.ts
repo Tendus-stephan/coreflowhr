@@ -3007,6 +3007,22 @@ export const api = {
                         console.error('Error creating CV submitted notification:', notifError);
                     }
 
+                    // Log to activity feed (anon-safe via SECURITY DEFINER RPC)
+                    try {
+                        const { data: ownerProfile } = await supabase
+                            .from('profiles')
+                            .select('name')
+                            .eq('id', job.user_id)
+                            .single();
+                        await supabase.rpc('log_direct_application', {
+                            p_user_id: job.user_id,
+                            p_user_name: ownerProfile?.name || 'Recruiter',
+                            p_candidate: applicationData.name,
+                            p_job_title: job.title,
+                            p_workspace_id: job.workspace_id || null,
+                        });
+                    } catch { /* non-critical */ }
+
                     // Best-effort: notify recruiter of new application via email
                     try {
                         await supabase.functions.invoke('send-new-application-email', {
