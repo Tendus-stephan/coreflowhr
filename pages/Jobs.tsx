@@ -370,9 +370,9 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
             <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
 
                 {/* ── Header ── */}
-                <div className="flex items-start justify-between px-8 py-6 border-b border-gray-100">
+                <div className="flex items-start justify-between px-8 pt-7 pb-6 border-b border-gray-200">
                     <div className="min-w-0 flex-1 pr-6">
-                        <div className="flex items-center gap-3 mb-1">
+                        <div className="flex items-center gap-3 mb-2">
                             <h2 className="text-xl font-bold text-gray-900 truncate">{job.title}</h2>
                             <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                                 job.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-200' :
@@ -380,14 +380,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                           'bg-gray-100 text-gray-600 border border-gray-200'
                             }`}>{job.status}</span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
                             {job.company && <span>{job.company}</span>}
-                            {job.location && <><span className="text-gray-200">·</span><span>{job.location}</span></>}
-                            {job.type    && <><span className="text-gray-200">·</span><span>{job.type}</span></>}
-                            {job.postedDate && <><span className="text-gray-200">·</span><span>Posted {new Date(job.postedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
+                            {job.location && <><span className="text-gray-300">·</span><span>{job.location}</span></>}
+                            {job.type    && <><span className="text-gray-300">·</span><span>{job.type}</span></>}
+                            {job.postedDate && <><span className="text-gray-300">·</span><span>Posted {new Date(job.postedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
                         </div>
                     </div>
-                    <button onClick={onClose} className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                    <button onClick={onClose} className="shrink-0 self-start mt-0.5 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
                         <X size={18} />
                     </button>
                 </div>
