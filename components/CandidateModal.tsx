@@ -282,6 +282,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
           setOffers(data);
         } catch (err: any) {
           console.error('Error loading offers:', err);
+          toast.error('Failed to load offers.');
         } finally {
           setLoadingOffers(false);
         }
@@ -433,8 +434,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       try {
       const draft = await draftEmail(candidate, type);
       setEmailDraft(draft);
-      } catch (error) {
+      } catch (error: any) {
           console.error('Error generating email draft:', error);
+          toast.error(error?.message || 'Failed to generate email draft. Please try again.');
           setEmailDraft({
               subject: `${type} - ${candidate.role}`,
               content: "Error generating draft. Please try again."

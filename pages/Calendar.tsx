@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../services/api';
 import { Interview } from '../types';
+import { useToast } from '../contexts/ToastContext';
 import { CalendarSkeleton } from '../components/ui/Skeleton';
 import { ScheduleInterviewModal } from '../components/ScheduleInterviewModal';
 import {
@@ -34,6 +35,7 @@ const TypeIcon: React.FC<{ type: Interview['type']; size?: number }> = ({ type, 
 // ── Main Calendar ─────────────────────────────────────────────────────────────
 
 const Calendar: React.FC = () => {
+    const toast = useToast();
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
     const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -69,7 +71,12 @@ const Calendar: React.FC = () => {
     useEffect(() => {
         loadInterviews(currentMonth)
             .then(data => { setInterviews(data); setInitialLoading(false); })
-            .catch(() => setInitialLoading(false));
+            .catch((err: any) => {
+                setInitialLoading(false);
+                toast.error(err?.message?.includes('Failed to fetch') || !navigator.onLine
+                    ? 'No internet connection. Calendar could not load.'
+                    : 'Failed to load interviews. Please refresh.');
+            });
     }, [currentMonth]);
 
     // Calendar grid days (Mon-start, fills 5-6 weeks)
@@ -104,7 +111,9 @@ const Calendar: React.FC = () => {
 
     const afterSchedule = () => {
         setShowScheduleModal(false);
-        loadInterviews(currentMonth).then(setInterviews).catch(() => {});
+        loadInterviews(currentMonth).then(setInterviews).catch(() => {
+            toast.error('Could not refresh calendar. Please reload the page.');
+        });
     };
 
     if (initialLoading) return <CalendarSkeleton />;

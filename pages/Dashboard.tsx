@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useToast } from '../contexts/ToastContext';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Sector, Label,
@@ -714,6 +715,7 @@ const QuickActions = ({
 // --- Dashboard ---
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
@@ -911,8 +913,11 @@ const Dashboard: React.FC = () => {
               setInterviews(i);
               setCandidates(candidatesResult.data || []);
               setNotifications(n);
-          } catch (error) {
+          } catch (error: any) {
               console.error("Error loading dashboard", error);
+              toast.error(error?.message?.includes('Failed to fetch') || !navigator.onLine
+                ? 'No internet connection. Please check your network and refresh.'
+                : 'Failed to load dashboard. Please refresh the page.');
           } finally {
               setLoading(false);
               // Signal that dashboard loading is complete (for loader coordination)

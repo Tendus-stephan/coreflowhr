@@ -646,11 +646,11 @@ const Jobs: React.FC = () => {
             // Handle network errors gracefully
             if (error?.message?.includes('Failed to fetch') || error?.code === '') {
                 console.error('⚠️ Network error: Unable to connect to Supabase. Check your internet connection and Supabase configuration.');
-                // Set empty state instead of showing error (let user retry by refreshing)
+                toast.error('No internet connection. Please check your network and refresh.');
                 setJobs([]);
                 setNotifications([]);
             } else {
-                // Other errors - show empty state
+                toast.error('Failed to load jobs. Please refresh the page.');
                 setJobs([]);
                 setNotifications([]);
             }
