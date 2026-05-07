@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
-import { MapPin, Clock, DollarSign, Building2, Upload, FileText, X, CheckCircle, AlertCircle, ArrowRight, Briefcase } from 'lucide-react';
+import { MapPin, Clock, DollarSign, Building2, Upload, FileText, X, AlertCircle, ArrowRight, Briefcase } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 const JobApplication: React.FC = () => {
@@ -146,16 +146,13 @@ const JobApplication: React.FC = () => {
   // ── Error ─────────────────────────────────────────────────────────────────
   if (error && !job) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="text-center max-w-sm">
-          <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR"
-            style={{ width: '72px', height: '72px', display: 'block', margin: '0 auto 28px', objectFit: 'contain' }} />
-          <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <AlertCircle size={20} className="text-red-500" />
-          </div>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
+        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
+        <div className="w-full max-w-xl text-center">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Role unavailable</h2>
           <p className="text-sm text-gray-500">{error}</p>
         </div>
+        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
       </div>
     );
   }
@@ -163,19 +160,16 @@ const JobApplication: React.FC = () => {
   // ── Success ───────────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="text-center max-w-sm">
-          <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR"
-            style={{ width: '72px', height: '72px', display: 'block', margin: '0 auto 28px', objectFit: 'contain' }} />
-          <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <CheckCircle size={20} className="text-green-500" />
-          </div>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
+        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
+        <div className="w-full max-w-xl text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Application received</h2>
           <p className="text-sm text-gray-500 leading-relaxed">
             Thanks for applying for <strong className="text-gray-700">{job?.title}</strong>.
             We'll be in touch if you're shortlisted.
           </p>
         </div>
+        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
       </div>
     );
   }
