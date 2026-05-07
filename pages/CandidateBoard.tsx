@@ -1233,8 +1233,31 @@ const CandidateBoard: React.FC = () => {
                     flexDirection: 'column',
                     minHeight: 0,
                     height: '100%',
+                    position: 'relative',
                 }}
             >
+                {/* Board-level empty state — shown when no candidates exist at all */}
+                {!loading && candidates.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <div className="flex flex-col items-center gap-3 text-center pointer-events-auto">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                                <Users size={20} className="text-gray-300" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-gray-700">No candidates yet</p>
+                                <p className="text-xs text-gray-400 mt-0.5 max-w-xs">Import CVs or share a job link to start filling your pipeline.</p>
+                            </div>
+                            {!isViewer && (
+                                <button
+                                    onClick={() => setShowBulkUpload(true)}
+                                    className="text-xs font-medium text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors"
+                                >
+                                    Import CVs
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
                 <div className="flex gap-4 w-max snap-x snap-mandatory pb-6" style={{ height: '100%' }}>
                     <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
                         onRejectCandidate={isViewer ? undefined : (id) => {

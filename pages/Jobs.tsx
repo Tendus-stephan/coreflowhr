@@ -1043,15 +1043,33 @@ const Jobs: React.FC = () => {
               </div>
             </div>
           ))
+        ) : jobs.length === 0 ? (
+          /* True empty — no jobs at all */
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mb-3">
+              <Briefcase size={20} className="text-gray-300" />
+            </div>
+            <p className="text-sm font-semibold text-gray-700 mb-1">No jobs yet</p>
+            <p className="text-xs text-gray-400 mb-4 text-center max-w-xs">
+              Post your first job to start building your pipeline.
+            </p>
+            {canCreateJobs && (
+              <Link to="/jobs/new">
+                <button className="text-xs font-medium text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors">
+                  Post a Job
+                </button>
+              </Link>
+            )}
+          </div>
         ) : (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center py-20 border-dashed">
+          /* Filtered to zero */
+          <div className="flex flex-col items-center justify-center py-20">
             <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mb-3">
               <Search size={20} className="text-gray-300" />
             </div>
             <p className="text-sm font-semibold text-gray-700 mb-1">No jobs found</p>
             <p className="text-xs text-gray-400 mb-4 text-center max-w-xs">
-              Try adjusting your search or filters to find what you're looking for.
+              Try adjusting your search or filters.
             </p>
             <button
               onClick={() => { setSearchQuery(''); setActiveTab('All'); }}
