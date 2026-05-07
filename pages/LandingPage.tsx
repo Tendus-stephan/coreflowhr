@@ -333,16 +333,18 @@ const LandingPage: React.FC = () => {
           <div className={`${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'grid grid-cols-3 items-center bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : 'flex items-center justify-between'}`}>
 
             {/* Logo — cross-fade between full logo and favicon */}
-            <Link to="/" className={`relative flex-shrink-0 overflow-hidden block ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-10 w-10' : 'h-[140px] w-auto'}`}>
+            <Link to="/" className="relative flex-shrink-0 block">
+              {/* Full logo in normal flow — sets container dimensions */}
               <img
                 src="/assets/images/coreflow-logo.png"
                 alt="CoreflowHR"
-                className={`absolute top-0 left-0 h-[140px] w-auto object-contain ${canTransition ? 'transition-opacity duration-500' : ''} ${isScrolled ? 'opacity-0' : 'opacity-100'}`}
+                className={`block w-auto object-contain ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-10 opacity-0' : 'h-[140px] opacity-100'}`}
               />
+              {/* Favicon overlaid when scrolled */}
               <img
                 src="/assets/images/coreflow-favicon-logo.png"
                 alt=""
-                className={`absolute top-0 left-0 h-10 w-10 object-contain ${canTransition ? 'transition-opacity duration-500' : ''} ${isScrolled ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute top-1/2 left-0 -translate-y-1/2 h-10 w-auto object-contain ${canTransition ? 'transition-opacity duration-500' : ''} ${isScrolled ? 'opacity-100' : 'opacity-0'}`}
               />
             </Link>
 
