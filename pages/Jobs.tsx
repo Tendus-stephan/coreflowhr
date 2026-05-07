@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, CheckCircle, Edit, Loader2, Copy } from 'lucide-react';
+import { MapPin, Users, Clock, MoreVertical, Plus, Search, Filter, ChevronDown, Briefcase, X, Calendar, ChevronLeft, ChevronRight, Trash2, Archive, Settings, Shield, Mail, Bell, Edit, Loader2, Copy } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { JobsSkeleton } from '../components/ui/Skeleton';
@@ -585,7 +585,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                         className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <span>Copy application link</span>
-                                        {copyFeedback === 'link' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                        {copyFeedback === 'link' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
                                     </button>
 
                                     <button
@@ -596,7 +596,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                         className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <span>Copy for LinkedIn</span>
-                                        {copyFeedback === 'linkedin' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                        {copyFeedback === 'linkedin' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
                                     </button>
 
                                     <button
@@ -607,7 +607,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                         className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <span>Copy for Indeed</span>
-                                        {copyFeedback === 'indeed' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                        {copyFeedback === 'indeed' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
                                     </button>
 
                                     <button
@@ -618,7 +618,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                         className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <span>Copy for CV-Library</span>
-                                        {copyFeedback === 'cvlibrary' ? <CheckCircle size={16} className="text-green-500" /> : <Copy size={16} className="text-gray-400" />}
+                                        {copyFeedback === 'cvlibrary' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
                                     </button>
                                 </div>
                             </div>
