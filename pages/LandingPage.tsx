@@ -135,7 +135,8 @@ const LandingPage: React.FC = () => {
   const [isLapsedMember, setIsLapsedMember] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(() => window.scrollY > 20);
+  const [canTransition, setCanTransition] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [founding, setFounding] = useState<{ spotsLeft: number; available: boolean; loaded: boolean }>({
     spotsLeft: 20, available: true, loaded: false,
@@ -148,9 +149,14 @@ const LandingPage: React.FC = () => {
   };
 
   useEffect(() => {
+    // Enable CSS transitions only after first paint so reload never animates
+    const raf = requestAnimationFrame(() => setCanTransition(true));
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const scrollToSection = (id: string) => {
@@ -322,10 +328,10 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100 selection:text-gray-900">
       
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+      <nav className={`fixed top-0 left-0 right-0 z-50 bg-white ${canTransition ? 'transition-all duration-300' : ''}`}>
         {isScrolled ? (
           /* Scrolled: floating pill */
-          <div className="mx-4 sm:mx-8 mt-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-5 py-3">
+          <div className={`mx-4 sm:mx-8 mt-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-5 py-3 ${canTransition ? 'transition-all duration-300' : ''}`}>
             <div className="grid grid-cols-3 items-center">
               <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
                 <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -357,7 +363,7 @@ const LandingPage: React.FC = () => {
           </div>
         ) : (
           /* Not scrolled: flat with full logo */
-          <div className="bg-white container mx-auto px-6">
+          <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-3 items-center h-20 overflow-visible">
               <Link to="/" className="flex items-center flex-shrink-0">
                 <img
@@ -404,8 +410,10 @@ const LandingPage: React.FC = () => {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-[-0.04em] text-gray-900 leading-[0.95] mb-8 text-balance sm:px-12">
-            Post&ensp;jobs, attract applicants, and{' '}
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-[-0.04em] text-gray-900 leading-[1] mb-8 sm:px-12">
+            Post&ensp;jobs,<br />
+            attract applicants,<br />
+            and{' '}
             <span className="text-gray-400 italic underline underline-offset-8 decoration-gray-300">close hires</span>&ensp;faster<span className="opacity-30">.</span>
           </h1>
 
