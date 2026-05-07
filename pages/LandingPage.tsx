@@ -331,14 +331,14 @@ const LandingPage: React.FC = () => {
       <nav className={`fixed top-0 left-0 right-0 z-50 ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'py-4' : 'py-6'}`}>
         <div className="container mx-auto px-6">
           <div className={`flex items-center justify-between ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : ''}`}>
-            {/* Logo — always compact icon + wordmark */}
-            <Link to="/" className="flex items-center gap-3 flex-shrink-0">
-              <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden p-2 text-white flex-shrink-0">
-                <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-full h-full object-contain" />
-              </div>
-              <span className="font-extrabold text-2xl tracking-tighter text-gray-900 lowercase hidden sm:block">
-                coreflowhr<span className="text-primary">.</span>
-              </span>
+            {/* Logo */}
+            <Link to="/" className="flex items-center flex-shrink-0">
+              <img
+                src="/assets/images/coreflow-logo.png"
+                alt="CoreflowHR"
+                className="h-10 w-auto object-contain"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             </Link>
 
             <div className="hidden md:flex items-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
@@ -367,7 +367,7 @@ const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-36 pb-24 md:pt-52 md:pb-40 overflow-hidden hero-gradient">
+      <section className="relative pt-24 pb-20 md:pt-40 md:pb-32 overflow-hidden hero-gradient">
         <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
         <div className="container mx-auto px-6 relative z-10 text-center">
 
@@ -379,7 +379,7 @@ const LandingPage: React.FC = () => {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-[-0.04em] text-gray-900 leading-[1] mb-8 sm:px-12">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.05] mb-8 text-balance sm:px-12">
             Post&ensp;jobs,<br />
             attract applicants,<br />
             and{' '}
@@ -675,7 +675,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
              <FadeIn>
                <div className="text-center mb-8 sm:mb-10 md:mb-12">
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 tracking-tight px-4">Why Agencies Choose CoreflowHR</h2>
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-3 sm:mb-4 tracking-tight px-4">Why Agencies Choose CoreflowHR</h2>
                </div>
              </FadeIn>
              
@@ -709,7 +709,7 @@ const LandingPage: React.FC = () => {
                      <FadeIn key={i} delay={i * 100}>
                        <div className="bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300 border-t-[3px] border-black h-full">
                            <div className="p-6 flex-1">
-                               <h3 className="text-lg font-bold text-gray-900 mb-3">{item.title}</h3>
+                               <h3 className="text-lg font-extrabold text-gray-900 mb-3 tracking-tight">{item.title}</h3>
                                <p className="text-sm text-gray-500 leading-relaxed mb-6">{item.desc}</p>
                                
                                <div className="space-y-2">
@@ -743,7 +743,7 @@ const LandingPage: React.FC = () => {
       <section id="features" className="py-16 sm:py-24 md:py-32 max-w-7xl mx-auto px-4 sm:px-6">
         <FadeIn>
           <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16 md:mb-20">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 tracking-tight px-4">Everything you need <br/><span className="text-gray-400">to hire the best.</span></h2>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 tracking-tight px-4">Everything you need <br/><span className="text-gray-400">to hire the best.</span></h2>
           </div>
         </FadeIn>
 
@@ -755,7 +755,7 @@ const LandingPage: React.FC = () => {
                   <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                       <BrainCircuit size={24} />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">AI-Powered CV Scoring</h3>
+                  <h3 className="text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">AI-Powered CV Scoring</h3>
                   <p className="text-gray-500 text-lg max-w-lg leading-relaxed">
                     Every inbound CV is automatically parsed and scored against your job's required skills — 0 to 100. Surface your best-fit applicants instantly without manual screening.
                   </p>
@@ -779,7 +779,7 @@ const LandingPage: React.FC = () => {
                       <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                           <ScanLine size={24} />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">Resume Parsing</h3>
+                      <h3 className="text-xl font-extrabold text-gray-900 mb-2 tracking-tight">Resume Parsing</h3>
                       <p className="text-gray-500 text-sm leading-relaxed">Extract skills, experience, and education from PDF resumes automatically.</p>
                    </div>
                    <div className="mt-8 border-t border-gray-100 pt-4 flex gap-2">
@@ -795,7 +795,7 @@ const LandingPage: React.FC = () => {
                    <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                       <Calendar size={24} />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Smart Scheduling</h3>
+                  <h3 className="text-xl font-extrabold text-gray-900 mb-2 tracking-tight">Smart Scheduling</h3>
                   <p className="text-gray-500 text-sm leading-relaxed">Syncs with Google Calendar to auto-generate Meet links and avoid double bookings.</p>
                  </FadeIn>
             </div>
@@ -807,7 +807,7 @@ const LandingPage: React.FC = () => {
                        <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                           <LayoutTemplate size={24} />
                       </div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-3">Visual Pipeline Management</h3>
+                      <h3 className="text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">Visual Pipeline Management</h3>
                       <p className="text-gray-500 text-lg leading-relaxed">
                         Drag-and-drop Kanban board from Waitlist to Hired. Move candidates through stages and email workflows fire automatically at every step.
                       </p>
@@ -838,7 +838,7 @@ const LandingPage: React.FC = () => {
                        <div className="w-12 h-12 bg-white/10 rounded-xl border border-white/10 flex items-center justify-center mb-6 text-white">
                           <BarChart3 size={24} />
                       </div>
-                      <h3 className="text-2xl font-bold text-white mb-3">Dashboard Analytics</h3>
+                      <h3 className="text-2xl font-extrabold text-white mb-3 tracking-tight">Dashboard Analytics</h3>
                       <p className="text-gray-400 text-lg leading-relaxed max-w-xl">
                         Track active jobs, pipeline health, time-to-hire, and offer acceptance rate — all from a single dashboard designed to keep your team moving.
                       </p>
@@ -886,7 +886,7 @@ const LandingPage: React.FC = () => {
       <section id="integrations" className="py-32 max-w-7xl mx-auto px-6 bg-gray-50/50 border-y border-gray-200">
           <FadeIn>
             <div className="text-center mb-20">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">Seamless Integrations</h2>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">Seamless Integrations</h2>
               <p className="text-gray-500 max-w-xl mx-auto">CoreflowHR plays nicely with the tools you already use.</p>
             </div>
           </FadeIn>
@@ -910,7 +910,7 @@ const LandingPage: React.FC = () => {
                             <span className="shrink-0 px-2.5 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-medium">Coming soon</span>
                           )}
                         </div>
-                        <h3 className="font-bold text-lg text-gray-900 mb-2">{tool.name}</h3>
+                        <h3 className="font-extrabold text-lg text-gray-900 mb-2 tracking-tight">{tool.name}</h3>
                         <p className="text-sm text-gray-500 leading-relaxed">{tool.desc}</p>
                     </div>
                   </FadeIn>
@@ -925,7 +925,7 @@ const LandingPage: React.FC = () => {
               <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-0.5 sm:py-1 rounded-full border border-gray-200 bg-white shadow-sm text-xs font-medium text-gray-600 mb-4 sm:mb-6">
                  <span className="text-gray-400">★</span> Simple, Transparent Pricing
               </div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 tracking-tighter px-4">One plan.<br/>Everything included.</h2>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 tracking-tight px-4">One plan.<br/>Everything included.</h2>
               <p className="text-gray-500 text-sm sm:text-base max-w-xl mx-auto px-4">
                 14-day money-back guarantee — no questions asked.
               </p>
@@ -950,7 +950,7 @@ const LandingPage: React.FC = () => {
               )}
 
               <div className="mb-6 sm:mb-8 pt-6 sm:pt-0">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">CoreflowHR Professional</h3>
+                <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">CoreflowHR Professional</h3>
                 <div className="flex items-baseline gap-2 mb-1">
                   {founding.available ? (
                     <>
@@ -1026,7 +1026,7 @@ const LandingPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-12 lg:gap-24">
             {/* Left Header */}
             <div className="lg:col-span-1">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 tracking-tighter leading-[0.9] mb-4 sm:mb-6">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 tracking-tight leading-tight mb-4 sm:mb-6">
                     Frequently <br/> asked <br/> questions
                 </h2>
             </div>
