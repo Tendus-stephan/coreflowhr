@@ -328,15 +328,7 @@ const LandingPage: React.FC = () => {
                 width: 'auto',
                 maxWidth: '400px'
               }}
-              onError={(e) => {
-                console.error('❌ Logo image FAILED to load');
-                const img = e.target as HTMLImageElement;
-                img.style.border = '3px solid red';
-                img.style.backgroundColor = '#fee';
-              }}
-              onLoad={() => {
-                console.log('✅ Logo image LOADED successfully');
-              }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           </Link>
           

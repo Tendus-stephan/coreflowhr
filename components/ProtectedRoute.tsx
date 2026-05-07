@@ -44,7 +44,36 @@ const ProtectedRoute: React.FC = () => {
     let cancelled = false;
     setChecksComplete(false); // Reset while re-checking
 
+    // Helper: detect network/connection errors in Supabase responses.
+    // Supabase doesn't throw on network failure — it returns { data: null, error }.
+    // Without this check, offline queries return null data → access=false →
+    // user gets redirected to the pricing page while still authenticated.
+    const isNetworkErr = (e: any) => {
+      if (!e) return false;
+      const m = (e?.message || '').toLowerCase();
+      return (
+        m.includes('failed to fetch') ||
+        m.includes('networkerror') ||
+        m.includes('network request failed') ||
+        !navigator.onLine
+      );
+    };
+
+    const failOpen = () => {
+      if (cancelled) return;
+      setCanEnter(true);
+      setIsPastDue(false);
+      setIsLapsedMember(false);
+      setIsNonAdminMember(false);
+      setOnboardingCompleted(true);
+      setChecksComplete(true);
+    };
+
     const runChecks = async () => {
+      // Bail immediately if the browser reports no connectivity — no point
+      // hammering Supabase with requests that will all fail.
+      if (!navigator.onLine) { failOpen(); return; }
+
       try {
         const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
         const isOnboardingPage = location.pathname === '/onboarding';
@@ -71,6 +100,14 @@ const ProtectedRoute: React.FC = () => {
 
         if (cancelled) return;
 
+        // If either critical query came back with a network error, fail open.
+        // This prevents the offline→pricing-redirect bug where null data causes
+        // access=false even for paying authenticated users.
+        if (isNetworkErr(membershipsRes.error) || isNetworkErr(settingsRes.error)) {
+          failOpen();
+          return;
+        }
+
         const memberships = membershipsRes.data || [];
         const belongsToWorkspace = !membershipsRes.error && memberships.length > 0;
         const isMemberNonAdmin = memberships.some((m: any) => nonAdminRoles.includes(m.role));
@@ -93,7 +130,8 @@ const ProtectedRoute: React.FC = () => {
           // from the invited user's session would silently return no rows → access = false.
           const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean) as string[];
           for (const wsId of workspaceIds) {
-            const { data: hasActiveSub } = await supabase.rpc('workspace_has_active_subscription', { ws_id: wsId });
+            const { data: hasActiveSub, error: rpcErr } = await supabase.rpc('workspace_has_active_subscription', { ws_id: wsId });
+            if (isNetworkErr(rpcErr)) { access = true; break; } // fail open on network error
             if (hasActiveSub === true) { access = true; break; }
           }
         } else if (belongsToWorkspace) {

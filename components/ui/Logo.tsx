@@ -34,25 +34,17 @@ export const Logo: React.FC<LogoProps> = ({
   // If showText is false, only show the image (no text, no flex container)
   if (!showText) {
     return (
-      <img 
+      <img
         src={logoPath}
-        alt="CoreFlow Logo" 
+        alt="CoreFlow Logo"
         className={className}
-        style={{ 
+        style={{
           width: sizePixels[size],
           height: sizePixels[size],
           display: 'block',
           objectFit: 'contain'
         }}
-        onError={(e) => {
-          console.error('Logo failed to load from:', logoPath);
-          const img = e.target as HTMLImageElement;
-          img.style.border = '2px solid red';
-          img.style.backgroundColor = '#fee';
-        }}
-        onLoad={() => {
-          console.log('Logo loaded successfully');
-        }}
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
       />
     );
   }
@@ -60,24 +52,16 @@ export const Logo: React.FC<LogoProps> = ({
   // If showText is true, show image + text
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <img 
+      <img
         src={logoPath}
-        alt="CoreFlow Logo" 
-        style={{ 
+        alt="CoreFlow Logo"
+        style={{
           width: sizePixels[size],
           height: sizePixels[size],
           display: 'block',
           objectFit: 'contain'
         }}
-        onError={(e) => {
-          console.error('Logo failed to load from:', logoPath);
-          const img = e.target as HTMLImageElement;
-          img.style.border = '2px solid red';
-          img.style.backgroundColor = '#fee';
-        }}
-        onLoad={() => {
-          console.log('Logo loaded successfully');
-        }}
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
       />
       <span className={`${textSizeMap[size]} font-bold ${textColor} tracking-tight`}>
         CoreFlow
