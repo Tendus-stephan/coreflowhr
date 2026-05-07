@@ -366,261 +366,209 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                 />
             )}
             {createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-6 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
-            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-gray-200 flex flex-col max-h-[95vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
 
-                {/* Modal Header / Top Bar */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-900">Manage Job</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
-                        <X size={20} />
+                {/* ── Header ── */}
+                <div className="flex items-start justify-between px-8 py-6 border-b border-gray-100">
+                    <div className="min-w-0 flex-1 pr-6">
+                        <div className="flex items-center gap-3 mb-1">
+                            <h2 className="text-xl font-bold text-gray-900 truncate">{job.title}</h2>
+                            <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                job.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                job.status === 'Draft'  ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                          'bg-gray-100 text-gray-600 border border-gray-200'
+                            }`}>{job.status}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
+                            {job.company && <span>{job.company}</span>}
+                            {job.location && <><span className="text-gray-200">·</span><span>{job.location}</span></>}
+                            {job.type    && <><span className="text-gray-200">·</span><span>{job.type}</span></>}
+                            {job.postedDate && <><span className="text-gray-200">·</span><span>Posted {new Date(job.postedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                        <X size={18} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto bg-gray-50/50 space-y-6">
+                {/* ── Body ── */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="p-8 space-y-8">
 
-                    {/* Job Header Card & Assigned Members */}
-                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start gap-6">
-                        <div className="flex gap-6 flex-1">
-                            <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
-                                <Briefcase size={28} />
-                            </div>
-                            <div className="min-w-0">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h2>
-                                <p className="text-base text-gray-500 font-medium">{job.company || 'Company'}</p>
-                                <div className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-                                    <span className="text-gray-400 font-medium">Type</span>
-                                    <span className="text-gray-900 font-medium">{job.type}</span>
-                                    <span className="text-gray-400 font-medium">Location</span>
-                                    <span className="text-gray-900 font-medium">{job.location || 'Not specified'}</span>
-                                    <span className="text-gray-400 font-medium">Posted</span>
-                                    <span className="text-gray-900 font-medium">{new Date(job.postedDate).toLocaleDateString()}</span>
-                                    <span className="text-gray-400 font-medium self-center">Status</span>
-                                    <span className="text-gray-900 font-medium">
-                                        <span className="bg-gray-100 text-gray-700 text-sm font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
-                                            {job.status}
-                                        </span>
-                                    </span>
+                        {/* Pipeline stats row */}
+                        <div className="grid grid-cols-5 gap-3">
+                            {stages.map((stage) => (
+                                <div key={stage.name} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-4 text-center">
+                                    <p className="text-2xl font-bold text-gray-900 tracking-tight">{stage.count}</p>
+                                    <p className="text-xs text-gray-400 font-medium mt-1">{stage.name}</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div className="w-full md:w-72 md:min-w-[280px] bg-white/60 rounded-xl p-5 border border-gray-200">
-                            <div className="flex items-center justify-between mb-4">
-                                <p className="text-sm font-bold text-gray-900 uppercase tracking-wide">Assigned members</p>
-                                {!canManageAssignments && (
-                                    <span className="text-xs text-gray-400 font-medium">Admin/Recruiter manage</span>
-                                )}
-                            </div>
-                            {loadingAssignments ? (
-                                <p className="text-sm text-gray-500">Loading assignments…</p>
-                            ) : workspaceMembers.length === 0 ? (
-                                <p className="text-sm text-gray-500">No other members in this workspace yet.</p>
-                            ) : (
-                                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                                    {workspaceMembers.map((m) => {
-                                        const checked = assignedUserIds.includes(m.userId);
-                                        return (
-                                            <label
-                                                key={m.userId}
-                                                className={`flex items-center justify-between gap-3 text-sm rounded-lg px-3 py-2 ${
-                                                    checked ? 'bg-gray-100' : 'hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black shrink-0"
-                                                        checked={checked}
-                                                        disabled={!canManageAssignments || savingAssignments || m.isCurrentUser}
-                                                        onChange={() => toggleAssignment(m.userId)}
-                                                    />
-                                                    <span className="text-gray-900 font-medium truncate">
-                                                        {m.name}
-                                                        {m.isCurrentUser && ' (You)'}
-                                                    </span>
-                                                </div>
-                                                <span className="text-xs text-gray-500 font-semibold uppercase shrink-0">
-                                                    {m.role}
-                                                </span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Pipeline Overview */}
-                    <div className="bg-white border border-gray-100 rounded-xl p-5">
-                        <h3 className="text-base font-bold text-gray-900 mb-5">Pipeline Overview</h3>
-                        <div className="flex items-center justify-between relative px-3">
-                            {stages.map((stage, index) => (
-                                <React.Fragment key={stage.name}>
-                                    {/* Step */}
-                                    <div className="flex flex-col items-center z-10 relative">
-                                        <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-4">
-                                            <span className="text-xl font-bold text-gray-900">{stage.count}</span>
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-600">{stage.name}</span>
-                                    </div>
-
-                                    {/* Connector Line */}
-                                    {index < stages.length - 1 && (
-                                        <div className="flex-1 h-1 bg-gray-100 mx-4 -mt-8 rounded-full"></div>
-                                    )}
-                                </React.Fragment>
                             ))}
                         </div>
-                    </div>
 
-                    {/* Description & Candidates Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Left Col: Description & Skills */}
-                        <div className="lg:col-span-2 space-y-5">
-                            <div className="bg-white border border-gray-100 rounded-xl p-5">
-                                <h3 className="text-base font-bold text-gray-900 mb-4">Job Description</h3>
-                                <div className="prose prose-base max-w-none text-gray-600 leading-relaxed">
-                                    {job.description}
-                                </div>
-                            </div>
-                            
-                            {job.skills && job.skills.length > 0 && (
-                                <div className="bg-white border border-gray-100 rounded-xl p-5">
-                                    <h3 className="text-base font-bold text-gray-900 mb-4">Required Skills</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {job.skills.map(skill => (
-                                            <span key={skill} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
-                                                {skill}
-                                            </span>
-                                        ))}
+                        {/* Main two-column grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+
+                            {/* ── Left column (wider): description, skills, share ── */}
+                            <div className="lg:col-span-3 space-y-6">
+
+                                {/* Description */}
+                                {job.description && (
+                                    <div>
+                                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">About the role</p>
+                                        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{job.description}</p>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
 
-                        {/* Right Col: Candidates — list only for non-Viewer; Viewer sees aggregate count only */}
-                        <div className="lg:col-span-1 min-h-0 flex flex-col">
-                            <div className="bg-white border border-gray-100 rounded-xl p-5 h-full flex flex-col min-h-[280px]">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-base font-bold text-gray-900">Candidates</h3>
-                                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold">{jobCandidates.length}</span>
-                                </div>
-                                
-                                {currentUserRole === 'Viewer' ? (
-                                    <div className="py-6 text-center flex-1">
-                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <Users size={20} className="text-gray-400"/>
+                                {/* Skills */}
+                                {job.skills && job.skills.length > 0 && (
+                                    <div>
+                                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Required skills</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {job.skills.map(skill => (
+                                                <span key={skill} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 font-medium">
+                                                    {skill}
+                                                </span>
+                                            ))}
                                         </div>
-                                        <p className="text-sm text-gray-500">Aggregate view only. You can see counts, not individual candidate details.</p>
                                     </div>
-                                ) : loadingCandidates ? (
-                                    <div className="py-12 text-center flex-1">
-                                        <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
-                                        <p className="text-sm text-gray-500">Loading candidates...</p>
-                                    </div>
-                                ) : currentCandidates.length > 0 ? (
-                                    <div className="divide-y divide-gray-100 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 min-h-0">
-                                        {currentCandidates.map(c => (
-                                            <div 
-                                                key={c.id} 
-                                                onClick={() => {
-                                                    onClose(); // Close the job management modal
-                                                    navigate(`/candidates?candidateId=${c.id}`); // Navigate to candidate page with ID
-                                                }}
-                                                className="py-4 flex items-center gap-4 hover:bg-gray-50 rounded-lg px-3 transition-colors cursor-pointer"
+                                )}
+
+                                {/* Share this role */}
+                                <div>
+                                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Share this role</p>
+                                    <div className="space-y-2">
+                                        {[
+                                            { label: 'Copy application link', key: 'link', text: getApplicationUrl(job) },
+                                            { label: 'Copy for LinkedIn', key: 'linkedin', text: `🚀 We're hiring a ${job.title}${job.location ? ` in ${job.location}` : ''}!\n\n${job.description ? job.description.slice(0, 200) + (job.description.length > 200 ? '...' : '') : ''}\n\n📩 Apply here: ${getApplicationUrl(job)}\n\n#hiring #jobs #${(job.title || '').replace(/\s+/g, '')}` },
+                                            { label: 'Copy for Indeed',    key: 'indeed',   text: `${job.title}${job.location ? ` — ${job.location}` : ''}\n${job.type || 'Full-time'}${job.salaryRange ? ` | ${job.salaryRange}` : ''}\n\n${job.description ? job.description.slice(0, 300) : ''}\n\nApply: ${getApplicationUrl(job)}` },
+                                            { label: 'Copy for CV-Library', key: 'cvlibrary', text: `Position: ${job.title}\nLocation: ${job.location || 'Remote'}\nType: ${job.type || 'Permanent'}\nSalary: ${job.salaryRange || 'Competitive'}\n\n${job.description ? job.description.slice(0, 400) : ''}\n\nTo apply visit: ${getApplicationUrl(job)}` },
+                                        ].map(({ label, key, text }) => (
+                                            <button
+                                                key={key}
+                                                onClick={() => copyText(text, key)}
+                                                className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
                                             >
-                                                <Avatar name={c.name} className="w-11 h-11 border border-gray-200 shrink-0" />
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-base font-bold text-gray-900 truncate">{c.name}</p>
-                                                    <p className="text-sm text-gray-500">{c.stage}</p>
-                                                </div>
-                                                <ChevronDown size={18} className="text-gray-300 shrink-0" />
-                                            </div>
+                                                <span>{label}</span>
+                                                {copyFeedback === key
+                                                    ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" />
+                                                    : <Copy size={14} className="text-gray-400" />}
+                                            </button>
                                         ))}
                                     </div>
-                                ) : (
-                                    <div className="py-12 text-center flex-1">
-                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <Users size={20} className="text-gray-400"/>
-                                        </div>
-                                        <p className="text-sm text-gray-500">No candidates yet.</p>
-                                    </div>
-                                )}
-                                
-                                {/* Pagination for Candidates (non-Viewer only) */}
-                                {currentUserRole !== 'Viewer' && totalPages > 1 && (
-                                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                                        <button 
-                                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                                            disabled={page === 1}
-                                            className="p-1 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                                        >
-                                            <ChevronLeft size={16} />
-                                        </button>
-                                        <span className="text-xs text-gray-500 font-medium">Page {page} of {totalPages}</span>
-                                        <button 
-                                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                            disabled={page === totalPages}
-                                            className="p-1 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                                        >
-                                            <ChevronRight size={16} />
-                                        </button>
-                                    </div>
-                                )}
-                                
-                                {currentUserRole !== 'Viewer' && (
-                                    <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                                        <Link to="/candidates" className="text-sm font-medium text-gray-900 hover:underline">View Kanban Board</Link>
-                                    </div>
-                                )}
+                                </div>
                             </div>
 
-                            {/* Share this role */}
-                            <div className="bg-white border border-gray-100 rounded-xl p-8 mt-0">
-                                <h3 className="text-xl font-bold text-gray-900 mb-5">Share this role</h3>
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={() => copyText(getApplicationUrl(job), 'link')}
-                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <span>Copy application link</span>
-                                        {copyFeedback === 'link' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
-                                    </button>
+                            {/* ── Right column (narrower): candidates + team ── */}
+                            <div className="lg:col-span-2 space-y-6">
 
-                                    <button
-                                        onClick={() => copyText(
-                                            `🚀 We're hiring a ${job.title}${job.location ? ` in ${job.location}` : ''}!\n\n${job.description ? job.description.slice(0, 200) + (job.description.length > 200 ? '...' : '') : ''}\n\n📩 Apply here: ${getApplicationUrl(job)}\n\n#hiring #jobs #${(job.title || '').replace(/\s+/g, '')}`,
-                                            'linkedin'
-                                        )}
-                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <span>Copy for LinkedIn</span>
-                                        {copyFeedback === 'linkedin' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
-                                    </button>
+                                {/* Candidates */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Candidates</p>
+                                        <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{jobCandidates.length}</span>
+                                    </div>
 
-                                    <button
-                                        onClick={() => copyText(
-                                            `${job.title}${job.location ? ` — ${job.location}` : ''}\n${job.type || 'Full-time'}${job.salaryRange ? ` | ${job.salaryRange}` : ''}\n\n${job.description ? job.description.slice(0, 300) : ''}\n\nApply: ${getApplicationUrl(job)}`,
-                                            'indeed'
+                                    <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                        {currentUserRole === 'Viewer' ? (
+                                            <div className="py-8 text-center px-4">
+                                                <Users size={20} className="text-gray-300 mx-auto mb-2" />
+                                                <p className="text-xs text-gray-400">Counts only — no individual details</p>
+                                            </div>
+                                        ) : loadingCandidates ? (
+                                            <div className="py-8 text-center">
+                                                <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                                            </div>
+                                        ) : currentCandidates.length > 0 ? (
+                                            <div className="divide-y divide-gray-100">
+                                                {currentCandidates.map(c => (
+                                                    <div
+                                                        key={c.id}
+                                                        onClick={() => { onClose(); navigate(`/candidates?candidateId=${c.id}`); }}
+                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                                                    >
+                                                        <Avatar name={c.name} className="w-8 h-8 shrink-0 text-xs" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
+                                                            <p className="text-xs text-gray-400">{c.stage}</p>
+                                                        </div>
+                                                        <ChevronDown size={14} className="text-gray-300 shrink-0 -rotate-90" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="py-8 text-center px-4">
+                                                <Users size={20} className="text-gray-300 mx-auto mb-2" />
+                                                <p className="text-xs text-gray-400">No candidates yet</p>
+                                            </div>
                                         )}
-                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <span>Copy for Indeed</span>
-                                        {copyFeedback === 'indeed' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
-                                    </button>
 
-                                    <button
-                                        onClick={() => copyText(
-                                            `Position: ${job.title}\nLocation: ${job.location || 'Remote'}\nType: ${job.type || 'Permanent'}\nSalary: ${job.salaryRange || 'Competitive'}\n\n${job.description ? job.description.slice(0, 400) : ''}\n\nTo apply visit: ${getApplicationUrl(job)}`,
-                                            'cvlibrary'
+                                        {currentUserRole !== 'Viewer' && totalPages > 1 && (
+                                            <div className="px-4 py-3 border-t border-gray-100 flex justify-between items-center bg-gray-50/60">
+                                                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                                                    className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">
+                                                    <ChevronLeft size={14} />
+                                                </button>
+                                                <span className="text-xs text-gray-400">{page} / {totalPages}</span>
+                                                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                                                    className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">
+                                                    <ChevronRight size={14} />
+                                                </button>
+                                            </div>
                                         )}
-                                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <span>Copy for CV-Library</span>
-                                        {copyFeedback === 'cvlibrary' ? <img src="/assets/images/toast-success.png" alt="Copied" className="w-4 h-4" /> : <Copy size={16} className="text-gray-400" />}
-                                    </button>
+                                    </div>
+
+                                    {currentUserRole !== 'Viewer' && (
+                                        <Link to="/candidates" className="block text-center text-xs font-medium text-gray-400 hover:text-gray-700 mt-2 transition-colors">
+                                            View Kanban Board →
+                                        </Link>
+                                    )}
                                 </div>
+
+                                {/* Team assignments */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Team</p>
+                                        {!canManageAssignments && (
+                                            <span className="text-[10px] text-gray-300 font-medium">Admin / Recruiter only</span>
+                                        )}
+                                    </div>
+                                    <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                        {loadingAssignments ? (
+                                            <div className="py-6 text-center">
+                                                <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                                            </div>
+                                        ) : workspaceMembers.length === 0 ? (
+                                            <div className="py-6 text-center px-4">
+                                                <p className="text-xs text-gray-400">No other members yet</p>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-gray-100 max-h-52 overflow-y-auto">
+                                                {workspaceMembers.map((m) => {
+                                                    const checked = assignedUserIds.includes(m.userId);
+                                                    return (
+                                                        <label key={m.userId}
+                                                            className={`flex items-center gap-3 px-4 py-3 transition-colors ${canManageAssignments && !m.isCurrentUser ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${checked ? 'bg-gray-50/80' : ''}`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black shrink-0"
+                                                                checked={checked}
+                                                                disabled={!canManageAssignments || savingAssignments || m.isCurrentUser}
+                                                                onChange={() => toggleAssignment(m.userId)}
+                                                            />
+                                                            <span className="text-sm font-medium text-gray-800 truncate flex-1">
+                                                                {m.name}{m.isCurrentUser && <span className="text-gray-400 font-normal"> (you)</span>}
+                                                            </span>
+                                                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">{m.role}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>
