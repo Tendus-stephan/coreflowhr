@@ -221,7 +221,9 @@ const AuthRedirect: React.FC = () => {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 font-sans">
         <div className="w-full max-w-md text-center space-y-4">
-          <img src="/assets/images/coreflow-logo.png" alt="Coreflow" className="h-8 mx-auto mb-2" />
+          <div className="flex justify-center mb-2">
+            <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreFlow" className="object-contain" style={{ width: '120px', height: '120px' }} />
+          </div>
           <h2 className="text-2xl font-bold text-gray-900">Payment received!</h2>
           <p className="text-sm text-gray-600">
             We're confirming your subscription with our payment provider.
@@ -246,7 +248,9 @@ const AuthRedirect: React.FC = () => {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center py-12 px-4 font-sans">
         <div className="w-full max-w-md text-center space-y-4">
-          <img src="/assets/images/coreflow-logo.png" alt="Coreflow" className="h-8 mx-auto mb-2" />
+          <div className="flex justify-center mb-2">
+            <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreFlow" className="object-contain" style={{ width: '120px', height: '120px' }} />
+          </div>
           <h2 className="text-2xl font-bold text-gray-900">Just a moment…</h2>
           <p className="text-sm text-gray-600">
             We're having trouble reaching our servers. Your account is safe.
