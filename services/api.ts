@@ -2614,13 +2614,13 @@ export const api = {
                     throw new Error('Job not found or is no longer accepting applications');
                 }
 
-                // Check for duplicate candidate by email
-                const { data: existingCandidate } = await supabase
-                    .from('candidates')
-                    .select('id, name, applied_date')
-                    .eq('job_id', jobId)
-                    .eq('email', normalizedEmail)
-                    .maybeSingle();
+                // Check for duplicate candidate by email.
+                // Uses a SECURITY DEFINER RPC so the anon client can bypass
+                // workspace-scoped RLS (direct SELECT is blocked for unauthenticated users).
+                const { data: dupRows, error: dupError } = await supabase
+                    .rpc('find_existing_application', { p_job_id: jobId, p_email: normalizedEmail });
+                if (dupError) console.warn('[apply] duplicate check rpc error:', dupError.message);
+                const existingCandidate = dupRows?.[0] ?? null;
 
                 // Upload CV to storage
                 const fileExt = applicationData.cvFile.name.split('.').pop();
