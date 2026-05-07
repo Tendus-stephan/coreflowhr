@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Users, Calendar,
-  Settings, LogOut, User as UserIcon, FileText, Building2, BarChart2,
+  Settings, LogOut, User as UserIcon, FileText, Building2,
 } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 import { useAuth } from '../contexts/AuthContext';
@@ -146,9 +146,6 @@ const Sidebar: React.FC = () => {
         { name: 'Calendar',   path: '/calendar',    icon: Calendar },
         ...(!profileLoaded || userRole !== 'HiringManager'
           ? [{ name: 'Offers', path: '/offers', icon: FileText }]
-          : []),
-        ...(profileLoaded && (userRole === 'Admin' || userRole === 'Recruiter')
-          ? [{ name: 'Reports', path: '/reports', icon: BarChart2 }]
           : []),
       ];
 

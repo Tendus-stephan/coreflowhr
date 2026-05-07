@@ -7,7 +7,7 @@ import { PageLoader } from './ui/PageLoader';
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   Viewer: ['/dashboard', '/candidates', '/settings'],
   HiringManager: ['/dashboard', '/candidates', '/jobs', '/calendar', '/clients', '/settings'],
-  Recruiter: ['/dashboard', '/candidates', '/jobs', '/calendar', '/clients', '/offers', '/reports', '/settings'],
+  Recruiter: ['/dashboard', '/candidates', '/jobs', '/calendar', '/clients', '/offers', '/settings'],
   Admin: ['*'],
 };
 

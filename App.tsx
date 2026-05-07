@@ -32,7 +32,6 @@ import Onboarding from './pages/Onboarding';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Clients from './pages/Clients';
-import Reports from './pages/Reports';
 import ChangeEmail from './pages/ChangeEmail';
 import Invite from './pages/Invite';
 import AuthRedirect from './pages/AuthRedirect';
@@ -358,7 +357,6 @@ const AppRoutes: React.FC = () => {
           <Route path="/calendar"      element={<Calendar />} />
           <Route path="/offers"        element={<Offers />} />
           <Route path="/clients"       element={<Clients />} />
-          <Route path="/reports"       element={<Reports />} />
         </Route>
         <Route path="/change-email" element={<ChangeEmail />} />
 <Route
