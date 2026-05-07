@@ -330,25 +330,30 @@ const LandingPage: React.FC = () => {
       {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'py-3' : 'py-1'}`}>
         <div className="container mx-auto px-6">
-          <div className={`flex items-center justify-between ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : ''}`}>
-            {/* Logo */}
-            <Link to="/" className="flex items-center flex-shrink-0">
+          <div className={`${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'grid grid-cols-3 items-center bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : 'flex items-center justify-between'}`}>
+
+            {/* Logo — cross-fade between full logo and favicon */}
+            <Link to="/" className={`relative flex-shrink-0 overflow-hidden block ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-10 w-10' : 'h-[140px] w-auto'}`}>
               <img
-                src={isScrolled ? '/assets/images/coreflow-favicon-logo.png' : '/assets/images/coreflow-logo.png'}
+                src="/assets/images/coreflow-logo.png"
                 alt="CoreflowHR"
-                className={`w-auto object-contain ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-10' : 'h-[140px]'}`}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                className={`absolute top-0 left-0 h-[140px] w-auto object-contain ${canTransition ? 'transition-opacity duration-500' : ''} ${isScrolled ? 'opacity-0' : 'opacity-100'}`}
+              />
+              <img
+                src="/assets/images/coreflow-favicon-logo.png"
+                alt=""
+                className={`absolute top-0 left-0 h-10 w-10 object-contain ${canTransition ? 'transition-opacity duration-500' : ''} ${isScrolled ? 'opacity-100' : 'opacity-0'}`}
               />
             </Link>
 
-            <div className="hidden md:flex items-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+            <div className="hidden md:flex items-center justify-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
               <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
               <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
               <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
               <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
             </div>
 
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center justify-end gap-4">
               {loading ? (
                 <div className="w-24" />
               ) : user && session ? (
