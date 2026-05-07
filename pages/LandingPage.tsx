@@ -323,25 +323,25 @@ const LandingPage: React.FC = () => {
       {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300 ${isScrolled ? 'py-4 border-b border-gray-100' : 'py-6'}`}>
         <div className="container mx-auto px-6">
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-3 items-center">
             {/* Logo */}
-            <Link to="/" className="cursor-pointer flex items-center gap-3 flex-shrink-0">
+            <Link to="/" className="cursor-pointer flex items-center flex-shrink-0">
               <img
                 src="/assets/images/coreflow-logo.png"
                 alt="CoreflowHR"
-                className="object-contain h-7 w-auto"
+                className="object-contain h-10 sm:h-12 w-auto"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             </Link>
 
-            <div className="hidden lg:flex items-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+            <div className="hidden lg:flex items-center justify-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
               <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
               <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
               <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
               <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-end gap-4">
               {loading ? (
                 <div className="w-24" />
               ) : user && session ? (
@@ -369,60 +369,38 @@ const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 md:pt-40 pb-12 sm:pb-16 md:pb-20 px-4 sm:px-6 max-w-7xl mx-auto text-center relative overflow-hidden bg-white">
+      <section className="pt-16 sm:pt-20 md:pt-28 pb-12 sm:pb-16 md:pb-20 px-4 sm:px-6 max-w-7xl mx-auto text-center relative overflow-hidden bg-white">
 
         <FadeIn>
-          {/* Custom Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-gray-200 bg-white shadow-sm text-xs sm:text-sm font-medium text-gray-600 mb-16 cursor-default hover:border-gray-300 transition-colors">
-            <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-red-500 animate-pulse"></span>
-            We are live
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-16 shadow-sm cursor-default">
+            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+            Reliable Hiring Engineering
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-[-0.03em] leading-[0.95] mb-8 max-w-4xl mx-auto px-4">
-            Post jobs, attract applicants, and <span className="text-primary italic underline underline-offset-8 decoration-primary/20">close hires</span> faster<span className="opacity-30">.</span>
+          <h1 className="text-6xl sm:text-7xl md:text-[6rem] font-black tracking-[-0.04em] text-gray-900 leading-[0.95] mb-10 text-balance sm:px-12">
+            Post&ensp;jobs, attract applicants, and{' '}
+            <span className="text-gray-400 italic underline underline-offset-8 decoration-gray-300">close hires</span>&ensp;faster<span className="opacity-30">.</span>
           </h1>
 
-          <p className="text-base text-gray-500 max-w-xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-light px-4">
-            CoreflowHR gives your team one place to post jobs, manage your hiring pipeline, AI-score inbound applicants, and send offers — one tool, $149/month.
+          <p className="text-base text-gray-500 mb-12 leading-relaxed font-medium max-w-xl mx-auto px-4">
+            CoreflowHR gives your team one place to post jobs, manage your hiring pipeline, AI-score inbound applicants, and send offers —{' '}
+            <span className="text-gray-900 font-bold">one tool, $149/month.</span>
           </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 md:mb-24 px-4">
-            {user && session ? (
-              <Button
-                variant="black"
-                size="xl"
-                className="h-12 sm:h-14 px-6 sm:px-8 rounded-full text-sm sm:text-base shadow-xl shadow-gray-900/10 hover:shadow-gray-900/20 transition-all w-full sm:w-auto"
-                onClick={() => {
-                  // Logged-in users: go to /dashboard — ProtectedRoute routes them correctly
-                  // from there (lapsed → /workspace-lapsed, past_due → /settings, etc.)
-                  // Only stay on the pricing section if ProtectedRoute already sent them here
-                  const hasPricingParam = new URLSearchParams(window.location.search).has('pricing');
-                  if (hasPricingParam) {
-                    scrollToSection('pricing');
-                  } else {
-                    navigate('/dashboard');
-                  }
-                }}
-              >
-                Start Hiring Now
-              </Button>
-            ) : (
-              <Link to="/signup" className="w-full sm:w-auto">
-                <Button variant="black" size="xl" className="h-12 sm:h-14 px-6 sm:px-8 rounded-full text-sm sm:text-base shadow-xl shadow-gray-900/10 hover:shadow-gray-900/20 transition-all w-full sm:w-auto">
-                  Start Hiring Now
-                </Button>
-              </Link>
-            )}
-            <Button 
-              variant="outline" 
-              size="xl" 
-              className="h-12 sm:h-14 px-6 sm:px-8 rounded-full text-sm sm:text-base bg-white hover:bg-gray-50 border-gray-200 w-full sm:w-auto" 
-              icon={<Calendar size={16} />}
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-0">
+            <button
+              className="bg-gray-900 text-white px-10 py-4 rounded-xl text-[11px] font-extrabold uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all shadow-xl"
               onClick={() => setShowDemoModal(true)}
             >
               Book a Demo
-            </Button>
+            </button>
+            <Link to="/signup">
+              <button className="px-10 py-4 rounded-xl text-[11px] font-extrabold uppercase tracking-widest border border-gray-200 text-gray-900 hover:border-gray-400 active:scale-95 transition-all">
+                Get Started &rarr;
+              </button>
+            </Link>
           </div>
         </FadeIn>
 
