@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { checkAppAccess } from '../services/appAccess';
 import { PageLoader } from './ui/PageLoader';
 
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
@@ -44,21 +45,6 @@ const ProtectedRoute: React.FC = () => {
     let cancelled = false;
     setChecksComplete(false); // Reset while re-checking
 
-    // Helper: detect network/connection errors in Supabase responses.
-    // Supabase doesn't throw on network failure — it returns { data: null, error }.
-    // Without this check, offline queries return null data → access=false →
-    // user gets redirected to the pricing page while still authenticated.
-    const isNetworkErr = (e: any) => {
-      if (!e) return false;
-      const m = (e?.message || '').toLowerCase();
-      return (
-        m.includes('failed to fetch') ||
-        m.includes('networkerror') ||
-        m.includes('network request failed') ||
-        !navigator.onLine
-      );
-    };
-
     const failOpen = () => {
       if (cancelled) return;
       setCanEnter(true);
@@ -70,25 +56,13 @@ const ProtectedRoute: React.FC = () => {
     };
 
     const runChecks = async () => {
-      // Bail immediately if the browser reports no connectivity — no point
-      // hammering Supabase with requests that will all fail.
-      if (!navigator.onLine) { failOpen(); return; }
+      const isOnboardingPage = location.pathname === '/onboarding';
 
       try {
-        const nonAdminRoles = ['Recruiter', 'HiringManager', 'Viewer'];
-        const isOnboardingPage = location.pathname === '/onboarding';
-
-        // Fire all DB queries in parallel
-        const [membershipsRes, settingsRes, profileRes] = await Promise.all([
-          supabase
-            .from('workspace_members')
-            .select('role, workspace_id')
-            .eq('user_id', user.id),
-          supabase
-            .from('user_settings')
-            .select('subscription_status, subscription_stripe_id, billing_plan_name')
-            .eq('user_id', user.id)
-            .maybeSingle(),
+        // checkAppAccess handles: network bail, parallel DB queries, RPC calls,
+        // fail-open on network errors — single source of truth for access logic.
+        const [accessResult, profileRes] = await Promise.all([
+          checkAppAccess(user.id),
           isOnboardingPage
             ? Promise.resolve({ data: { onboarding_completed: true }, error: null })
             : supabase
@@ -100,115 +74,28 @@ const ProtectedRoute: React.FC = () => {
 
         if (cancelled) return;
 
-        // If either critical query came back with a network error, fail open.
-        // This prevents the offline→pricing-redirect bug where null data causes
-        // access=false even for paying authenticated users.
-        if (isNetworkErr(membershipsRes.error) || isNetworkErr(settingsRes.error)) {
-          failOpen();
-          return;
-        }
+        const { canEnter, isPastDue, isLapsedMember, userRole, isNonAdminMember } = accessResult;
 
-        const memberships = membershipsRes.data || [];
-        const belongsToWorkspace = !membershipsRes.error && memberships.length > 0;
-        const isMemberNonAdmin = memberships.some((m: any) => nonAdminRoles.includes(m.role));
-
-        // Resolve role — prefer Admin if present in any membership, then fall through
-        // to the first recognised non-admin role. Avoids non-deterministic memberships[0].
-        const roleHierarchy = ['Admin', 'Recruiter', 'HiringManager', 'Viewer'];
-        const allRoles = memberships.map((m: any) => m.role).filter(Boolean) as string[];
-        const role = roleHierarchy.find(r => allRoles.includes(r)) ?? (memberships.length > 0 ? 'Admin' : 'Admin');
-        setUserRole(role);
-        setIsNonAdminMember(isMemberNonAdmin);
-
-        // ── Subscription / access check ──────────────────────────────────────
-        let access = false;
-
-        if (isMemberNonAdmin) {
-          // Non-admin members access through the workspace — verify workspace has an active
-          // subscription via a SECURITY DEFINER RPC. Direct user_settings queries are blocked
-          // by RLS (users can only read their own row), so querying the admin's subscription
-          // from the invited user's session would silently return no rows → access = false.
-          const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean) as string[];
-          for (const wsId of workspaceIds) {
-            const { data: hasActiveSub, error: rpcErr } = await supabase.rpc('workspace_has_active_subscription', { ws_id: wsId });
-            if (isNetworkErr(rpcErr)) { access = true; break; } // fail open on network error
-            if (hasActiveSub === true) { access = true; break; }
-          }
-        } else if (belongsToWorkspace) {
-          // Workspace admin — check free-access flag first
-          const workspaceIds = memberships.map((m: any) => m.workspace_id).filter(Boolean);
-          if (workspaceIds.length > 0) {
-            const { data: workspaces } = await supabase
-              .from('workspaces')
-              .select('id, is_free_access, free_access_expires_at')
-              .in('id', workspaceIds);
-
-            const hasFreeAccess = (workspaces || []).some((ws: any) => {
-              if (!ws.is_free_access) return false;
-              if (!ws.free_access_expires_at) return true;
-              return new Date(ws.free_access_expires_at) > new Date();
-            });
-
-            if (hasFreeAccess) {
-              access = true;
-            }
-          }
-
-          if (!access) {
-            // Fall through to own subscription
-            const settings = settingsRes.data;
-            if (settings) {
-              const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-              access = hasActiveSubscription(settings);
-            }
-          }
-        } else {
-          // No workspace — check own Stripe subscription
-          const settings = settingsRes.data;
-          if (settings) {
-            const { hasActiveSubscription } = await import('../services/subscriptionAccess');
-            access = hasActiveSubscription(settings);
-          }
-        }
+        setUserRole(userRole);
+        setIsNonAdminMember(isNonAdminMember);
+        setCanEnter(canEnter);
+        setIsPastDue(isPastDue);
+        setIsLapsedMember(isLapsedMember);
 
         // ── Onboarding check ────────────────────────────────────────────────
         let onboardingDone: boolean;
-
-        if (isOnboardingPage) {
-          onboardingDone = true; // Always allow the onboarding page itself
-        } else if (isMemberNonAdmin) {
-          onboardingDone = true; // Invited non-admin members skip onboarding
+        if (isOnboardingPage || isNonAdminMember) {
+          onboardingDone = true; // onboarding page itself + invited members always skip
         } else {
           onboardingDone = (profileRes as any).data?.onboarding_completed === true;
         }
 
-        if (cancelled) return;
-
-        // Detect past_due so we can route to /settings instead of /?pricing=true
-        const pastDue = !access && !isMemberNonAdmin &&
-          settingsRes.data?.subscription_status?.toLowerCase() === 'past_due';
-
-        // Non-admin member of a workspace whose subscription lapsed — they can't self-subscribe
-        const lapsedMember = !access && isMemberNonAdmin;
-
-        setCanEnter(access);
-        setIsPastDue(pastDue);
-        setIsLapsedMember(lapsedMember);
-        setOnboardingCompleted(onboardingDone);
+        if (!cancelled) setOnboardingCompleted(onboardingDone);
       } catch (err) {
         console.error('[ProtectedRoute] access check failed:', err);
-        if (!cancelled) {
-          // Fail open so a transient DB error doesn't lock users out
-          setCanEnter(true);
-          setIsPastDue(false);
-          setIsLapsedMember(false);
-          setIsNonAdminMember(false);
-          setOnboardingCompleted(true);
-        }
+        if (!cancelled) failOpen();
       } finally {
-        if (!cancelled) {
-          setChecksComplete(true);
-        }
+        if (!cancelled) setChecksComplete(true);
       }
     };
 
