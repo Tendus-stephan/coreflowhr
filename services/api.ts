@@ -2605,7 +2605,7 @@ export const api = {
                 // First, get the job to find the user_id, title, location, description
                 const { data: job, error: jobError } = await supabase
                     .from('jobs')
-                    .select('user_id, title, skills, location, description, company')
+                    .select('user_id, title, skills, location, description, company, workspace_id')
                     .eq('id', jobId)
                     .eq('status', 'Active')
                     .single();
@@ -2828,12 +2828,14 @@ export const api = {
                     
                     const isAiSourced = candidateDetails?.source === 'ai_sourced';
                     const currentStage = candidateDetails?.stage;
-                    const shouldMoveToScreening = isAiSourced && currentStage !== 'Screening';
-                    
+                    const isRejected = currentStage === 'Rejected';
+                    const shouldMoveToScreening = (isAiSourced || isRejected) && currentStage !== 'Screening';
+
                     // Update existing candidate
                     // CV is already uploaded to final path (cvFilePath and cvFileUrl are set above)
                     const updateData: any = {
                             name: applicationData.name, // Always use form name, never CV-extracted name
+                            workspace_id: job.workspace_id || null,
                             phone: parsedData.phone || applicationData.phone || null,
                             cover_letter: applicationData.coverLetter || null,
                             cv_file_url: cvFileUrl,
@@ -2869,10 +2871,13 @@ export const api = {
                         throw updateError;
                     }
 
-                    // Notify job owner that a CV was submitted (apply is public so recruiter is job.user_id)
+                    // Notify job owner — use distinct message for re-applications after rejection
                     try {
                         const { notifyJobEvent } = await import('./notificationHelpers');
-                        await notifyJobEvent(job.user_id, 'new_application', job.title, `${applicationData.name} submitted their CV.`);
+                        const notifMsg = isRejected
+                            ? `${applicationData.name} re-applied after being rejected.`
+                            : `${applicationData.name} submitted an updated CV.`;
+                        await notifyJobEvent(job.user_id, 'new_application', job.title, notifMsg);
                     } catch (notifError) {
                         console.error('Error creating CV submitted notification:', notifError);
                     }
@@ -2936,6 +2941,7 @@ export const api = {
                         .from('candidates')
                         .insert({
                             user_id: job.user_id,
+                            workspace_id: job.workspace_id || null,
                             job_id: jobId,
                             name: applicationData.name, // Always use form name, never CV-extracted name
                             email: normalizedEmail,
