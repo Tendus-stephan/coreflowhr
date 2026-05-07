@@ -321,54 +321,49 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100 selection:text-gray-900">
       
       {/* Navbar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300 ${isScrolled ? 'border-b border-gray-100' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          {/* Logo - Full Logo with Symbol and Text */}
-          <Link to="/" className="cursor-pointer flex items-center flex-shrink-0">
-            <img 
-              src="/assets/images/coreflow-logo.png" 
-              alt="CoreflowHR"
-              className="object-contain"
-              style={{ 
-                display: 'block',
-                height: window.innerWidth < 640 ? '80px' : '150px',
-                width: 'auto',
-                maxWidth: '400px'
-              }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          </Link>
-          
-          <div className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-medium text-gray-500">
-            <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
-            <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why CoreflowHR</button>
-            <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
-            <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
-          </div>
+      <nav className={`fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300 ${isScrolled ? 'py-4 border-b border-gray-100' : 'py-6'}`}>
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <Link to="/" className="cursor-pointer flex items-center gap-3 flex-shrink-0">
+              <img
+                src="/assets/images/coreflow-logo.png"
+                alt="CoreflowHR"
+                className="object-contain h-7 w-auto"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </Link>
 
-          <div className="flex items-center gap-4">
-            {loading ? (
-              <div className="w-24" />
-            ) : user && session ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="font-semibold rounded-full px-6"
-                onClick={handleLogout}
-                icon={<LogOut size={14} />}
-              >
-                Logout
-              </Button>
-            ) : (
-              <>
-                <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">
-                  Sign in
-                </Link>
-                <Link to="/signup">
-                  <Button variant="black" size="sm" className="font-semibold rounded-full px-6">Get Started</Button>
-                </Link>
-              </>
-            )}
+            <div className="hidden lg:flex items-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+              <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
+              <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
+              <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
+              <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {loading ? (
+                <div className="w-24" />
+              ) : user && session ? (
+                <button
+                  onClick={handleLogout}
+                  className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity"
+                >
+                  Log Out
+                </button>
+              ) : (
+                <>
+                  <Link to="/login" className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity hidden sm:block">
+                    Log In
+                  </Link>
+                  <Link to="/signup">
+                    <button className="bg-gray-900 text-white px-7 py-3 rounded-xl text-[10px] font-extrabold uppercase tracking-widest shadow-xl hover:shadow-primary/20 active:scale-95 transition-all">
+                      Get Started
+                    </button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -384,7 +379,7 @@ const LandingPage: React.FC = () => {
           </div>
 
           {/* Headline */}
-          <h1 className="text-[8rem] md:text-[10rem] font-black tracking-[-0.04em] leading-[0.95] mb-8 max-w-5xl mx-auto px-4">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-[-0.03em] leading-[0.95] mb-8 max-w-4xl mx-auto px-4">
             Post jobs, attract applicants, and <span className="text-primary italic underline underline-offset-8 decoration-primary/20">close hires</span> faster<span className="opacity-30">.</span>
           </h1>
 
