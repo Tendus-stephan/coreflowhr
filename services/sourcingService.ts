@@ -87,10 +87,15 @@ export async function sourceCandidatesForJob(
       }
     }
 
-    // Require active subscription unless design partner
-    const subStatus = ((workspace.subscription_status as string) || '').toLowerCase();
-    if (!isFreeAccess && subStatus !== 'active') {
-      return { sourcing_job_id: null, candidates_found: 0, candidates_created: 0, maxed_out: false, error: 'No active subscription' };
+    // Require active subscription unless design partner.
+    // Use the workspace_has_active_subscription RPC — workspaces don't have a
+    // subscription_status column, only user_settings does. The RPC checks the
+    // workspace admin's subscription (and free_access) in one query.
+    if (!isFreeAccess) {
+      const { data: hasActiveSub } = await (supabase as any).rpc('workspace_has_active_subscription', { ws_id: workspaceId });
+      if (!hasActiveSub) {
+        return { sourcing_job_id: null, candidates_found: 0, candidates_created: 0, maxed_out: false, error: 'No active subscription' };
+      }
     }
 
     // C. Determine cap & offset
@@ -293,7 +298,7 @@ async function fetchWorkspace(supabase: ServiceSupabase, workspaceId: string): P
   };
 
   const { data, error } = await client
-    .select('id, subscription_status, is_free_access, free_access_expires_at')
+    .select('id, is_free_access, free_access_expires_at')
     .eq('id', workspaceId)
     .maybeSingle();
 
