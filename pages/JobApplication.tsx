@@ -15,6 +15,7 @@ const JobApplication: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -30,6 +31,12 @@ const JobApplication: React.FC = () => {
     coverLetter: '',
     linkedinUrl: '',
   });
+
+  // Check localStorage on mount so re-visiting the same link shows "already applied"
+  useEffect(() => {
+    const key = `applied_${jobId || `${workspaceSlug}_${jobSlug}`}`;
+    if (localStorage.getItem(key) === 'true') setAlreadyApplied(true);
+  }, [jobId, workspaceSlug, jobSlug]);
 
   useEffect(() => {
     const load = async () => {
@@ -125,7 +132,11 @@ const JobApplication: React.FC = () => {
         coverLetter: formData.coverLetter || undefined,
         cvFile, linkedinProfileUrl: formData.linkedinUrl || undefined,
       });
-      if (result.success) setSuccess(true);
+      if (result.success) {
+        const key = `applied_${resolvedJobId || jobId || `${workspaceSlug}_${jobSlug}`}`;
+        localStorage.setItem(key, 'true');
+        setSuccess(true);
+      }
       else setError(result.message || 'Failed to submit application');
     } catch (err: any) {
       setError(err.message || 'Failed to submit. Please try again.');
@@ -151,6 +162,23 @@ const JobApplication: React.FC = () => {
         <div className="w-full max-w-xl text-center">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Role unavailable</h2>
           <p className="text-sm text-gray-500">{error}</p>
+        </div>
+        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
+      </div>
+    );
+  }
+
+  // ── Already applied (same device re-visit) ────────────────────────────────
+  if (alreadyApplied && !success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
+        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
+        <div className="w-full max-w-xl text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">You've already applied</h2>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            Your application for <strong className="text-gray-700">{job?.title || 'this role'}</strong> has already been submitted.
+            We'll be in touch if you're shortlisted.
+          </p>
         </div>
         <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
       </div>
