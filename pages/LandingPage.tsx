@@ -328,79 +328,48 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100 selection:text-gray-900">
       
       {/* Navbar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 bg-white ${canTransition ? 'transition-all duration-300' : ''}`}>
-        {isScrolled ? (
-          /* Scrolled: floating pill */
-          <div className={`mx-4 sm:mx-8 mt-3 bg-white rounded-2xl shadow-xl border border-gray-100 px-5 py-3 ${canTransition ? 'transition-all duration-300' : ''}`}>
-            <div className="grid grid-cols-3 items-center">
-              <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-                <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-                  <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-6 h-6 object-contain" />
-                </div>
-                <span className="font-extrabold text-lg tracking-tighter text-gray-900 lowercase hidden sm:block">
-                  coreflowhr<span className="text-primary">.</span>
-                </span>
-              </Link>
-              <div className="hidden lg:flex items-center justify-center gap-8 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
-                <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
-                <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
-                <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
-                <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
+      <nav className={`fixed top-0 left-0 right-0 z-50 ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'py-4' : 'py-6'}`}>
+        <div className="container mx-auto px-6">
+          <div className={`flex items-center justify-between ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : ''}`}>
+            {/* Logo — always compact icon + wordmark */}
+            <Link to="/" className="flex items-center gap-3 flex-shrink-0">
+              <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden p-2 text-white flex-shrink-0">
+                <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-full h-full object-contain" />
               </div>
-              <div className="flex items-center justify-end gap-4">
-                {user && session ? (
-                  <button onClick={handleLogout} className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity">Log Out</button>
-                ) : (
-                  <>
-                    <Link to="/login" className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity hidden sm:block">Log In</Link>
-                    <button onClick={() => setShowDemoModal(true)} className="bg-gray-900 text-white px-6 py-2.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest shadow-lg hover:bg-gray-800 active:scale-95 transition-all">
-                      Book a Demo
-                    </button>
-                  </>
-                )}
-              </div>
+              <span className="font-extrabold text-2xl tracking-tighter text-gray-900 lowercase hidden sm:block">
+                coreflowhr<span className="text-primary">.</span>
+              </span>
+            </Link>
+
+            <div className="hidden md:flex items-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+              <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
+              <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
+              <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
+              <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
+            </div>
+
+            <div className="hidden md:flex items-center gap-4">
+              {loading ? (
+                <div className="w-24" />
+              ) : user && session ? (
+                <button onClick={handleLogout} className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity">Log Out</button>
+              ) : (
+                <>
+                  <Link to="/login" className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity">Log In</Link>
+                  <button onClick={() => setShowDemoModal(true)} className="bg-gray-900 text-white px-7 py-3 rounded-xl text-[10px] font-extrabold uppercase tracking-widest shadow-xl hover:shadow-primary/20 active:scale-95 transition-all">
+                    Book a Demo
+                  </button>
+                </>
+              )}
             </div>
           </div>
-        ) : (
-          /* Not scrolled: flat with full logo */
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-3 items-center h-20 overflow-visible">
-              <Link to="/" className="flex items-center flex-shrink-0">
-                <img
-                  src="/assets/images/coreflow-logo.png"
-                  alt="CoreflowHR"
-                  className="object-contain w-auto"
-                  style={{ height: '140px' }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              </Link>
-              <div className="hidden lg:flex items-center justify-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
-                <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
-                <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
-                <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
-                <button onClick={() => scrollToSection('faq')} className="hover:text-gray-900 transition-colors">FAQ</button>
-              </div>
-              <div className="flex items-center justify-end gap-4">
-                {loading ? (
-                  <div className="w-24" />
-                ) : user && session ? (
-                  <button onClick={handleLogout} className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity">Log Out</button>
-                ) : (
-                  <>
-                    <Link to="/login" className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest hover:opacity-70 transition-opacity hidden sm:block">Log In</Link>
-                    <button onClick={() => setShowDemoModal(true)} className="bg-gray-900 text-white px-7 py-3 rounded-xl text-[10px] font-extrabold uppercase tracking-widest shadow-xl hover:bg-gray-800 active:scale-95 transition-all">
-                      Book a Demo
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-16 sm:pt-20 md:pt-28 pb-12 sm:pb-16 md:pb-20 px-4 sm:px-6 max-w-7xl mx-auto text-center relative overflow-hidden bg-white">
+      <section className="relative pt-36 pb-24 md:pt-52 md:pb-40 overflow-hidden hero-gradient">
+        <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10 text-center">
 
         <FadeIn>
           {/* Badge */}
@@ -423,24 +392,29 @@ const LandingPage: React.FC = () => {
           </p>
 
           {/* Sign-up input */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-full shadow-md max-w-lg mx-auto overflow-hidden pl-5 pr-1.5 py-1.5">
-            <Search size={15} className="text-gray-400 flex-shrink-0 mr-3" />
-            <input
-              type="email"
-              placeholder="Enter your work email to start..."
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/signup${emailInput ? `?email=${encodeURIComponent(emailInput)}` : ''}`); }}
-              className="flex-1 text-sm text-gray-600 placeholder-gray-400 bg-transparent outline-none min-w-0 py-1"
-            />
-            <button
-              onClick={() => navigate(`/signup${emailInput ? `?email=${encodeURIComponent(emailInput)}` : ''}`)}
-              className="bg-gray-900 text-white px-5 py-2.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex-shrink-0 whitespace-nowrap"
-            >
-              Get Started Free
-            </button>
+          <div className="max-w-2xl mx-auto mb-20">
+            <div className="p-2 bg-white border border-gray-200 rounded-2xl flex flex-col sm:flex-row items-stretch gap-2 shadow-xl relative">
+              <div className="flex-1 flex items-center px-6 gap-3 min-h-[60px]">
+                <Search className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                <input
+                  type="email"
+                  placeholder="Enter your work email to start..."
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/signup${emailInput ? `?email=${encodeURIComponent(emailInput)}` : ''}`); }}
+                  className="w-full bg-transparent border-none outline-none focus:ring-0 text-gray-900 font-medium placeholder:text-gray-400 text-sm"
+                />
+              </div>
+              <button
+                onClick={() => navigate(`/signup${emailInput ? `?email=${encodeURIComponent(emailInput)}` : ''}`)}
+                className="bg-gray-900 text-white px-8 py-4 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all"
+              >
+                Get Started Free
+              </button>
+            </div>
           </div>
         </FadeIn>
+        </div>
 
         {/* Dashboard Preview */}
         <FadeIn delay={200} className="mt-32">

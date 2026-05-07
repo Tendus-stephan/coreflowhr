@@ -143,6 +143,17 @@ input[type="radio"]:focus {
 .badge-amber    { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 .badge-red      { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
 
+/* ─── Landing page utilities ─────────────────────────────────────────────── */
+.hero-gradient {
+  background: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.05) 0%, transparent 50%);
+}
+.bg-grid {
+  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+}
+
 /* ─── Table rows ─────────────────────────────────────────────────────────── */
 .table-row-hover:hover {
   background-color: #f9fafb;
