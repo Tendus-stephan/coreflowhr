@@ -370,38 +370,37 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
             <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
 
                 {/* ── Header ── */}
-                <div className="flex items-start justify-between px-8 pt-7 pb-6 border-b border-gray-200">
+                <div className="flex items-start justify-between px-8 pt-7 pb-6 bg-white">
                     <div className="min-w-0 flex-1 pr-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <h2 className="text-xl font-bold text-gray-900 truncate">{job.title}</h2>
-                            <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                job.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                job.status === 'Draft'  ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                                          'bg-gray-100 text-gray-600 border border-gray-200'
-                            }`}>{job.status}</span>
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                            <h2 className="text-2xl font-bold text-gray-900 truncate">{job.title}</h2>
+                            <span className={`shrink-0 w-2.5 h-2.5 rounded-full mt-0.5 ${
+                                job.status === 'Active' ? 'bg-green-500' :
+                                job.status === 'Draft'  ? 'bg-amber-400' : 'bg-gray-400'
+                            }`} />
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-400">
                             {job.company && <span>{job.company}</span>}
-                            {job.location && <><span className="text-gray-300">·</span><span>{job.location}</span></>}
-                            {job.type    && <><span className="text-gray-300">·</span><span>{job.type}</span></>}
-                            {job.postedDate && <><span className="text-gray-300">·</span><span>Posted {new Date(job.postedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
+                            {job.location && <><span>·</span><span>{job.location}</span></>}
+                            {job.type    && <><span>·</span><span>{job.type}</span></>}
+                            {job.postedDate && <><span>·</span><span>Posted {new Date(job.postedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
                         </div>
                     </div>
-                    <button onClick={onClose} className="shrink-0 self-start mt-0.5 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                    <button onClick={onClose} className="shrink-0 self-start text-gray-400 hover:text-gray-700 transition-colors leading-none mt-1">
                         <X size={18} />
                     </button>
                 </div>
 
                 {/* ── Body ── */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="p-8 space-y-8">
+                <div className="flex-1 overflow-y-auto bg-gray-50">
+                    <div className="px-8 pt-6 pb-8 space-y-7">
 
                         {/* Pipeline stats row */}
                         <div className="grid grid-cols-5 gap-3">
                             {stages.map((stage) => (
-                                <div key={stage.name} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-4 text-center">
+                                <div key={stage.name} className="bg-white border border-gray-200 rounded-xl px-4 py-5 text-center">
                                     <p className="text-2xl font-bold text-gray-900 tracking-tight">{stage.count}</p>
-                                    <p className="text-xs text-gray-400 font-medium mt-1">{stage.name}</p>
+                                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-1.5">{stage.name}</p>
                                 </div>
                             ))}
                         </div>
@@ -409,24 +408,22 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                         {/* Main two-column grid */}
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
 
-                            {/* ── Left column (wider): description, skills, share ── */}
+                            {/* ── Left column: description, skills, share ── */}
                             <div className="lg:col-span-3 space-y-6">
 
-                                {/* Description */}
                                 {job.description && (
                                     <div>
                                         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">About the role</p>
-                                        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{job.description}</p>
+                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{job.description}</p>
                                     </div>
                                 )}
 
-                                {/* Skills */}
                                 {job.skills && job.skills.length > 0 && (
                                     <div>
                                         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Required skills</p>
                                         <div className="flex flex-wrap gap-2">
                                             {job.skills.map(skill => (
-                                                <span key={skill} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 font-medium">
+                                                <span key={skill} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700">
                                                     {skill}
                                                 </span>
                                             ))}
@@ -434,7 +431,6 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                     </div>
                                 )}
 
-                                {/* Share this role */}
                                 <div>
                                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Share this role</p>
                                     <div className="space-y-2">
@@ -447,7 +443,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                             <button
                                                 key={key}
                                                 onClick={() => copyText(text, key)}
-                                                className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                                className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors"
                                             >
                                                 <span>{label}</span>
                                                 {copyFeedback === key
@@ -459,24 +455,24 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                 </div>
                             </div>
 
-                            {/* ── Right column (narrower): candidates + team ── */}
+                            {/* ── Right column: candidates + team ── */}
                             <div className="lg:col-span-2 space-y-6">
 
                                 {/* Candidates */}
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
                                         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Candidates</p>
-                                        <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{jobCandidates.length}</span>
+                                        <span className="text-xs font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">{jobCandidates.length}</span>
                                     </div>
 
-                                    <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                                         {currentUserRole === 'Viewer' ? (
-                                            <div className="py-8 text-center px-4">
-                                                <Users size={20} className="text-gray-300 mx-auto mb-2" />
-                                                <p className="text-xs text-gray-400">Counts only — no individual details</p>
+                                            <div className="py-10 text-center px-4">
+                                                <Users size={22} className="text-gray-300 mx-auto mb-2" />
+                                                <p className="text-sm text-gray-400">Counts only — no individual details</p>
                                             </div>
                                         ) : loadingCandidates ? (
-                                            <div className="py-8 text-center">
+                                            <div className="py-10 text-center">
                                                 <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
                                             </div>
                                         ) : currentCandidates.length > 0 ? (
@@ -497,14 +493,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="py-8 text-center px-4">
-                                                <Users size={20} className="text-gray-300 mx-auto mb-2" />
-                                                <p className="text-xs text-gray-400">No candidates yet</p>
+                                            <div className="py-10 text-center px-4">
+                                                <Users size={22} className="text-gray-300 mx-auto mb-2" />
+                                                <p className="text-sm text-gray-400">No candidates yet</p>
                                             </div>
                                         )}
 
                                         {currentUserRole !== 'Viewer' && totalPages > 1 && (
-                                            <div className="px-4 py-3 border-t border-gray-100 flex justify-between items-center bg-gray-50/60">
+                                            <div className="px-4 py-3 border-t border-gray-100 flex justify-between items-center">
                                                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                                                     className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors">
                                                     <ChevronLeft size={14} />
@@ -519,7 +515,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                     </div>
 
                                     {currentUserRole !== 'Viewer' && (
-                                        <Link to="/candidates" className="block text-center text-xs font-medium text-gray-400 hover:text-gray-700 mt-2 transition-colors">
+                                        <Link to="/candidates" className="block text-center text-sm font-medium text-gray-500 hover:text-gray-900 mt-3 transition-colors">
                                             View Kanban Board →
                                         </Link>
                                     )}
@@ -533,14 +529,14 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                             <span className="text-[10px] text-gray-300 font-medium">Admin / Recruiter only</span>
                                         )}
                                     </div>
-                                    <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                                         {loadingAssignments ? (
                                             <div className="py-6 text-center">
                                                 <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
                                             </div>
                                         ) : workspaceMembers.length === 0 ? (
                                             <div className="py-6 text-center px-4">
-                                                <p className="text-xs text-gray-400">No other members yet</p>
+                                                <p className="text-sm text-gray-400">No other members yet</p>
                                             </div>
                                         ) : (
                                             <div className="divide-y divide-gray-100 max-h-52 overflow-y-auto">
@@ -548,7 +544,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                     const checked = assignedUserIds.includes(m.userId);
                                                     return (
                                                         <label key={m.userId}
-                                                            className={`flex items-center gap-3 px-4 py-3 transition-colors ${canManageAssignments && !m.isCurrentUser ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${checked ? 'bg-gray-50/80' : ''}`}
+                                                            className={`flex items-center gap-3 px-4 py-3 transition-colors ${canManageAssignments && !m.isCurrentUser ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${checked ? 'bg-gray-50' : ''}`}
                                                         >
                                                             <input
                                                                 type="checkbox"
@@ -557,7 +553,8 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                                 disabled={!canManageAssignments || savingAssignments || m.isCurrentUser}
                                                                 onChange={() => toggleAssignment(m.userId)}
                                                             />
-                                                            <span className="text-sm font-medium text-gray-800 truncate flex-1">
+                                                            <Avatar name={m.name} className="w-8 h-8 shrink-0 text-xs" />
+                                                            <span className="text-sm font-medium text-gray-900 truncate flex-1">
                                                                 {m.name}{m.isCurrentUser && <span className="text-gray-400 font-normal"> (you)</span>}
                                                             </span>
                                                             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">{m.role}</span>
