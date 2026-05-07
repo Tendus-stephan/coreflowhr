@@ -336,7 +336,7 @@ const LandingPage: React.FC = () => {
               <img
                 src="/assets/images/coreflow-logo.png"
                 alt="CoreflowHR"
-                className={`w-auto object-contain ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-14' : 'h-[140px]'}`}
+                className={`w-auto object-contain ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-20' : 'h-[140px]'}`}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             </Link>
