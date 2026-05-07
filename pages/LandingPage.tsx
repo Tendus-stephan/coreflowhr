@@ -135,6 +135,7 @@ const LandingPage: React.FC = () => {
   const [isLapsedMember, setIsLapsedMember] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [founding, setFounding] = useState<{ spotsLeft: number; available: boolean; loaded: boolean }>({
     spotsLeft: 20, available: true, loaded: false,
   });
@@ -144,6 +145,12 @@ const LandingPage: React.FC = () => {
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
   };
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -314,7 +321,7 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100 selection:text-gray-900">
       
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200 transition-all duration-300">
+      <nav className={`fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300 ${isScrolled ? 'border-b border-gray-100' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           {/* Logo - Full Logo with Symbol and Text */}
           <Link to="/" className="cursor-pointer flex items-center flex-shrink-0">
@@ -367,24 +374,21 @@ const LandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 md:pt-40 pb-12 sm:pb-16 md:pb-20 px-4 sm:px-6 max-w-7xl mx-auto text-center relative overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full sm:w-[1000px] h-[400px] sm:h-[600px] bg-[radial-gradient(circle,rgba(240,240,240,1)0%,rgba(255,255,255,0)70%)] -z-10 pointer-events-none"></div>
+      <section className="pt-24 sm:pt-32 md:pt-40 pb-12 sm:pb-16 md:pb-20 px-4 sm:px-6 max-w-7xl mx-auto text-center relative overflow-hidden bg-white">
 
         <FadeIn>
           {/* Custom Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-gray-200 bg-white shadow-sm text-xs sm:text-sm font-medium text-gray-600 mb-6 sm:mb-8 cursor-default hover:border-gray-300 transition-colors">
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-gray-200 bg-white shadow-sm text-xs sm:text-sm font-medium text-gray-600 mb-16 cursor-default hover:border-gray-300 transition-colors">
             <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-red-500 animate-pulse"></span>
             We are live
           </div>
-          
-          {/* High Contrast Typography */}
-          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-4 sm:mb-6 md:mb-8 leading-[1.1] max-w-5xl mx-auto px-4">
-            <span className="text-gray-900">Post jobs, attract applicants,</span> <br />
-            <span className="text-gray-400">and close hires faster.</span>
+
+          {/* Headline */}
+          <h1 className="text-[8rem] md:text-[10rem] font-black tracking-[-0.04em] leading-[0.95] mb-8 max-w-5xl mx-auto px-4">
+            Post jobs, attract applicants, and <span className="text-primary italic underline underline-offset-8 decoration-primary/20">close hires</span> faster<span className="opacity-30">.</span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-light px-4">
+          <p className="text-base text-gray-500 max-w-xl mx-auto mb-8 sm:mb-10 md:mb-12 leading-relaxed font-light px-4">
             CoreflowHR gives your team one place to post jobs, manage your hiring pipeline, AI-score inbound applicants, and send offers — one tool, $149/month.
           </p>
           
@@ -428,8 +432,8 @@ const LandingPage: React.FC = () => {
         </FadeIn>
 
         {/* Dashboard Preview */}
-        <FadeIn delay={200}>
-          <div className="relative rounded-t-2xl sm:rounded-t-3xl border-x border-t border-gray-200 bg-white shadow-2xl shadow-gray-200/50 mx-auto max-w-6xl overflow-hidden px-2 sm:px-0">
+        <FadeIn delay={200} className="mt-32">
+          <div className="relative rounded-t-2xl sm:rounded-t-3xl border-x border-t border-gray-200 bg-white shadow-2xl shadow-gray-200/50 mx-auto max-w-5xl overflow-hidden px-2 sm:px-0">
             {/* Browser Chrome */}
             <div className="h-8 sm:h-10 border-b border-gray-100 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-2 bg-gray-50/50">
               <div className="flex gap-1 sm:gap-1.5">
