@@ -328,7 +328,7 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-100 selection:text-gray-900">
       
       {/* Navbar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'py-3' : 'py-1 bg-white'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'py-3' : 'py-1'}`}>
         <div className="container mx-auto px-6">
           <div className={`flex items-center justify-between ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : ''}`}>
             {/* Logo */}
@@ -336,7 +336,7 @@ const LandingPage: React.FC = () => {
               <img
                 src="/assets/images/coreflow-logo.png"
                 alt="CoreflowHR"
-                className={`w-auto object-contain ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-11' : 'h-[140px]'}`}
+                className={`w-auto object-contain ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'h-14' : 'h-[140px]'}`}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             </Link>
