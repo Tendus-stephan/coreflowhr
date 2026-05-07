@@ -89,6 +89,7 @@ describe('New Account Flow — resolvePostLoginDestination', () => {
   // Expected: /?pricing=true
   // ------------------------------------------------------------------
   it('routes new account (no subscription) to /?pricing=true', async () => {
+    mockRpc.mockResolvedValue({ data: false, error: null }); // workspace has no active sub
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
         return buildFinalChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE_ID }], error: null });
@@ -120,6 +121,7 @@ describe('New Account Flow — resolvePostLoginDestination', () => {
   // Expected: /onboarding
   // ------------------------------------------------------------------
   it('routes paid account (active sub, onboarding not done) to /onboarding', async () => {
+    mockRpc.mockResolvedValue({ data: true, error: null }); // workspace admin has active sub
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
         return buildFinalChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE_ID }], error: null });
@@ -150,6 +152,7 @@ describe('New Account Flow — resolvePostLoginDestination', () => {
   // Expected: /dashboard
   // ------------------------------------------------------------------
   it('routes paid + onboarded account to /dashboard', async () => {
+    mockRpc.mockResolvedValue({ data: true, error: null }); // workspace admin has active sub
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
         return buildFinalChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE_ID }], error: null });
@@ -234,6 +237,7 @@ describe('New Account Flow — resolvePostLoginDestination', () => {
   // This prevents the user from creating a second subscription on top of a broken one
   // ------------------------------------------------------------------
   it('routes past_due subscription to /settings, not pricing', async () => {
+    mockRpc.mockResolvedValue({ data: false, error: null }); // workspace has no active sub (past_due)
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
         return buildFinalChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE_ID }], error: null });
@@ -291,6 +295,7 @@ describe('New Account Flow — resolvePostLoginDestination', () => {
   // Scenario 8 — Cancelled subscription → /?pricing=true
   // ------------------------------------------------------------------
   it('routes canceled subscription back to pricing', async () => {
+    mockRpc.mockResolvedValue({ data: false, error: null }); // workspace has no active sub (canceled)
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members') {
         return buildFinalChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE_ID }], error: null });
@@ -314,6 +319,91 @@ describe('New Account Flow — resolvePostLoginDestination', () => {
     const dest = await resolvePostLoginDestination(USER_ID);
 
     expect(dest).toBe('/?pricing=true');
+  });
+});
+
+describe('New Account Flow — mixed-role subscription bug fixes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  // Bug fix: Admin of ws-A + Recruiter of ws-B, both lapsed → should go to pricing,
+  // NOT /workspace-lapsed (they can self-subscribe as the Admin of ws-A).
+  it('Admin+Recruiter user with both workspaces lapsed goes to pricing, not workspace-lapsed', async () => {
+    mockRpc.mockResolvedValue({ data: false, error: null }); // both workspaces lapsed
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'workspace_members') {
+        return buildFinalChain({
+          data: [
+            { role: 'Admin', workspace_id: 'ws-a' },
+            { role: 'Recruiter', workspace_id: 'ws-b' },
+          ],
+          error: null,
+        });
+      }
+      if (table === 'user_settings') {
+        return buildFinalChain({ data: { subscription_status: null, subscription_stripe_id: null, billing_plan_name: 'Free' }, error: null });
+      }
+      return buildFinalChain({ data: null, error: null });
+    });
+
+    const localStorageMock = { getItem: vi.fn().mockReturnValue(null), removeItem: vi.fn() };
+    Object.defineProperty(global, 'localStorage', { value: localStorageMock, writable: true });
+
+    const { resolvePostLoginDestination } = await import('../utils/postLoginRoute');
+    const dest = await resolvePostLoginDestination(USER_ID);
+
+    // Must NOT be /workspace-lapsed — they are an Admin and can self-subscribe
+    expect(dest).toBe('/?pricing=true');
+  });
+
+  // Pure non-admin member with lapsed workspace → should go to /workspace-lapsed
+  it('non-admin member with lapsed workspace goes to /workspace-lapsed', async () => {
+    mockRpc.mockResolvedValue({ data: false, error: null }); // workspace lapsed
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'workspace_members') {
+        return buildFinalChain({ data: [{ role: 'Recruiter', workspace_id: 'ws-a' }], error: null });
+      }
+      if (table === 'user_settings') {
+        return buildFinalChain({ data: { subscription_status: null, subscription_stripe_id: null, billing_plan_name: 'Free' }, error: null });
+      }
+      return buildFinalChain({ data: null, error: null });
+    });
+
+    const localStorageMock = { getItem: vi.fn().mockReturnValue(null), removeItem: vi.fn() };
+    Object.defineProperty(global, 'localStorage', { value: localStorageMock, writable: true });
+
+    const { resolvePostLoginDestination } = await import('../utils/postLoginRoute');
+    const dest = await resolvePostLoginDestination(USER_ID);
+
+    expect(dest).toBe('/workspace-lapsed');
+  });
+
+  // Non-network RPC error → fail open (canEnter: true) instead of blocking the user
+  it('non-network RPC error fails open and routes to onboarding for active user', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'function does not exist' } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'workspace_members') {
+        return buildFinalChain({ data: [{ role: 'Admin', workspace_id: 'ws-a' }], error: null });
+      }
+      if (table === 'user_settings') {
+        return buildFinalChain({ data: { subscription_status: 'active' }, error: null });
+      }
+      if (table === 'profiles') {
+        return buildFinalChain({ data: { onboarding_completed: true }, error: null });
+      }
+      return buildFinalChain({ data: null, error: null });
+    });
+
+    const localStorageMock = { getItem: vi.fn().mockReturnValue(null), removeItem: vi.fn() };
+    Object.defineProperty(global, 'localStorage', { value: localStorageMock, writable: true });
+
+    const { resolvePostLoginDestination } = await import('../utils/postLoginRoute');
+    const dest = await resolvePostLoginDestination(USER_ID);
+
+    // Fail-open: user gets through to dashboard rather than being blocked
+    expect(dest).toBe('/dashboard');
   });
 });
 

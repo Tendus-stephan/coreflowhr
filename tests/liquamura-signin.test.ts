@@ -16,11 +16,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Supabase mock ──────────────────────────────────────────────────────────────
 const mockFrom = vi.fn();
+const mockRpc  = vi.fn();
 vi.mock('../services/supabase', () => ({
   supabase: {
     auth: { getUser: vi.fn(), getSession: vi.fn() },
     from: (table: string) => mockFrom(table),
-    rpc: vi.fn(),
+    rpc: (name: string, args: any) => mockRpc(name, args),
   },
 }));
 
@@ -59,6 +60,7 @@ describe('liquamura002@gmail.com — post-login routing', () => {
 
   // ── Scenario: active sub + onboarding not done → /onboarding ──────────────
   it('routes liquamura002 (active sub, onboarding=false) to /onboarding', async () => {
+    mockRpc.mockResolvedValue({ data: true, error: null }); // workspace admin has active sub
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members')
         return buildChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE }], error: null });
@@ -78,6 +80,7 @@ describe('liquamura002@gmail.com — post-login routing', () => {
 
   // ── Scenario: after onboarding completes → /dashboard ─────────────────────
   it('routes liquamura002 after completing onboarding to /dashboard', async () => {
+    mockRpc.mockResolvedValue({ data: true, error: null }); // workspace admin has active sub
     mockFrom.mockImplementation((table: string) => {
       if (table === 'workspace_members')
         return buildChain({ data: [{ role: 'Admin', workspace_id: WORKSPACE }], error: null });

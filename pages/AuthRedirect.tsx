@@ -232,10 +232,7 @@ const AuthRedirect: React.FC = () => {
           <Button
             variant="black"
             className="w-full justify-center"
-            onClick={() => {
-              sessionStorage.setItem('showDashboardLoader', 'true');
-              navigate('/dashboard', { replace: true });
-            }}
+            onClick={() => navigate('/auth/redirect?payment=success', { replace: true })}
           >
             Continue to Dashboard
           </Button>

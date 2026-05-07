@@ -28,6 +28,7 @@ vi.mock('../services/supabase', () => ({
     auth: {
       getUser: () => mockGetUser(),
       getSession: () => mockGetUser().then((r: any) => ({ data: { session: r?.data?.user ? { user: r.data.user } : null }, error: null })),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
     },
     from: (table: string) => mockFrom(table),
     rpc: (name: string, args: any) => mockRpc(name, args),

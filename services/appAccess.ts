@@ -101,13 +101,17 @@ export async function checkAppAccess(userId: string): Promise<AppAccessResult> {
         { ws_id: wsId }
       );
       if (isNetworkErr(rpcErr)) return networkErrorResult(memberships);
+      if (rpcErr) return networkErrorResult(memberships); // non-network DB error → fail open
       if (hasActiveSub === true) {
         return { canEnter: true, reason: 'workspace', isPastDue: false, isLapsedMember: false, userRole, isNonAdminMember, memberships };
       }
     }
     // Every workspace's subscription has lapsed.
     // Non-admin members can't self-subscribe — show workspace-lapsed page.
-    if (isNonAdminMember) {
+    // Only applies when the user has NO admin role in any workspace; if they
+    // are also an Admin elsewhere they should be able to self-subscribe.
+    const hasAnyAdminRole = memberships.some(m => m.role === 'Admin');
+    if (isNonAdminMember && !hasAnyAdminRole) {
       return { canEnter: false, reason: 'none', isPastDue: false, isLapsedMember: true, userRole, isNonAdminMember, memberships };
     }
     // Workspace admin with no active workspace subscription → fall through to own subscription.
