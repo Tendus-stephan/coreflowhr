@@ -28,8 +28,8 @@ AS $$
     VALUES (
         p_user_id,
         p_user_name,
-        'received application for',
-        p_candidate || ' → ' || p_job_title,
+        'received application from "' || p_candidate || '" for "' || p_job_title || '"',
+        p_candidate,
         p_workspace_id
     );
 $$;

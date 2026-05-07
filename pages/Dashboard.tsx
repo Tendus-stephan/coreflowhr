@@ -13,7 +13,7 @@ import {
     Users, Briefcase, CheckCircle, Clock, Activity, TrendingUp, TrendingDown, Filter,
     ChevronRight, MoreHorizontal, Plus, Calendar, Download, ChevronDown,
     BarChart2, Search, X, Video, Link as LinkIcon, CheckSquare, Square, Bell,
-    FileText, File, ArrowRight, Zap,
+    FileText, File, ArrowRight, Zap, Mail, UserPlus, Archive, Pencil,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { CustomSelect } from '../components/ui/CustomSelect';
@@ -77,6 +77,115 @@ const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month
         </div>
     </div>
 );
+
+// --- Activity feed helpers ---
+const getActivityMeta = (action: string): { icon: React.ElementType; bg: string; color: string } => {
+    const a = action.toLowerCase();
+    if (a.includes('created job') || a.includes('cloned job') || a.includes('published job'))
+        return { icon: Briefcase, bg: 'bg-green-50', color: 'text-green-600' };
+    if (a.includes('closed job') || a.includes('deleted job') || a.includes('unpublished job'))
+        return { icon: Archive, bg: 'bg-red-50', color: 'text-red-500' };
+    if (a.includes('moved candidate'))
+        return { icon: ArrowRight, bg: 'bg-blue-50', color: 'text-blue-600' };
+    if (a.includes('added candidate') || a.includes('received application'))
+        return { icon: UserPlus, bg: 'bg-blue-50', color: 'text-blue-600' };
+    if (a.includes('email') || a.includes('sent'))
+        return { icon: Mail, bg: 'bg-purple-50', color: 'text-purple-600' };
+    if (a.includes('workflow') || a.includes('automation'))
+        return { icon: Zap, bg: 'bg-orange-50', color: 'text-orange-500' };
+    if (a.includes('note'))
+        return { icon: FileText, bg: 'bg-yellow-50', color: 'text-yellow-600' };
+    if (a.includes('edited') || a.includes('updated') || a.includes('scored'))
+        return { icon: Pencil, bg: 'bg-gray-100', color: 'text-gray-500' };
+    return { icon: Activity, bg: 'bg-gray-100', color: 'text-gray-400' };
+};
+
+/** Renders action text with quoted segments (subject/target) bolded in dark color. */
+const renderActionText = (action: string): React.ReactNode[] => {
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    const regex = /"([^"]+)"/g;
+    let match;
+    while ((match = regex.exec(action)) !== null) {
+        if (match.index > lastIndex) {
+            parts.push(<span key={`t-${lastIndex}`} className="text-gray-500 font-normal">{action.slice(lastIndex, match.index)}</span>);
+        }
+        parts.push(<span key={`b-${match.index}`} className="font-semibold text-gray-900">{match[1]}</span>);
+        lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < action.length) {
+        parts.push(<span key={`t-${lastIndex}`} className="text-gray-500 font-normal">{action.slice(lastIndex)}</span>);
+    }
+    return parts;
+};
+
+// --- Activity Feed Modal ---
+const ActivityFeedModal = ({ isOpen, onClose, items }: { isOpen: boolean; onClose: () => void; items: ActivityItem[] }) => {
+    useEffect(() => {
+        if (isOpen) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 flex flex-col max-h-[80vh] overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <h2 className="text-base font-bold text-gray-900">Activity Feed</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                        <X size={18} />
+                    </button>
+                </div>
+                {/* Timeline */}
+                <div className="flex-1 overflow-y-auto px-6 py-5">
+                    {items.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-8">No recent activity.</p>
+                    ) : (
+                        <div className="relative">
+                            {/* Vertical line */}
+                            <div className="absolute left-4 top-2 bottom-2 w-px bg-gray-100" />
+                            <div className="space-y-5">
+                                {items.map((item) => {
+                                    const meta = getActivityMeta(item.action);
+                                    const Icon = meta.icon;
+                                    return (
+                                        <div key={item.id} className="relative flex gap-4">
+                                            {/* Icon on the line */}
+                                            <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${meta.bg}`}>
+                                                <Icon size={13} className={meta.color} />
+                                            </div>
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0 pt-1.5">
+                                                <p className="text-sm leading-snug">
+                                                    <span className="font-semibold text-gray-900">{item.user}</span>
+                                                    {' '}
+                                                    {renderActionText(item.action)}
+                                                    <span className="text-xs text-gray-400 ml-1.5">· {item.time}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="text-sm font-medium text-gray-700 border border-gray-200 px-4 py-1.5 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
 
 // --- Generic List Modal (for Jobs, Interviews, Activity) ---
 const GenericListModal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children?: React.ReactNode }) => {
@@ -989,21 +1098,7 @@ const Dashboard: React.FC = () => {
           </div>
       </GenericListModal>
 
-      <GenericListModal isOpen={isAllActivityOpen} onClose={() => setIsAllActivityOpen(false)} title="Activity Feed">
-          <div className="divide-y divide-gray-100">
-              {activityFeed.length > 0 ? activityFeed.map((item) => (
-                  <div key={item.id} className="p-4 flex gap-3 hover:bg-gray-50">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                          <Bell size={14} />
-                      </div>
-                      <div>
-                          <p className="text-sm text-gray-900"><span className="font-bold">{item.user}</span> {item.action} <span className="font-medium">{item.target}</span></p>
-                          <p className="text-xs text-gray-400 mt-1">{item.time}</p>
-                      </div>
-                  </div>
-              )) : <div className="p-6 text-center text-gray-500">No recent activity.</div>}
-          </div>
-      </GenericListModal>
+      <ActivityFeedModal isOpen={isAllActivityOpen} onClose={() => setIsAllActivityOpen(false)} items={activityFeed} />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1142,10 +1237,33 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-6  flex flex-col">
                 <div className="flex items-center justify-between mb-6"><h3 className="font-bold text-gray-900 text-lg">Activity Feed</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
-                <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100 flex-1 overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
-                    {activityFeed.length > 0 ? activityFeed.slice(0, 4).map((item) => (
-                        <div key={item.id} className="relative pl-8"><div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-white border-2 border-gray-200 z-10"></div><p className="text-xs text-gray-900 leading-relaxed"><span className="font-bold">{item.user}</span> {item.action} <span className="font-medium border-b border-gray-300">{item.target}</span></p><p className="text-[10px] text-gray-400 mt-0.5">{item.time}</p></div>
-                    )) : <p className="text-gray-500 text-sm italic pl-8">No activity yet.</p>}
+                <div className="relative flex-1 overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
+                    {activityFeed.length > 0 ? (
+                        <div className="relative">
+                            <div className="absolute left-4 top-1 bottom-1 w-px bg-gray-100" />
+                            <div className="space-y-4">
+                                {activityFeed.slice(0, 4).map((item) => {
+                                    const meta = getActivityMeta(item.action);
+                                    const Icon = meta.icon;
+                                    return (
+                                        <div key={item.id} className="relative flex gap-3">
+                                            <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${meta.bg}`}>
+                                                <Icon size={12} className={meta.color} />
+                                            </div>
+                                            <div className="flex-1 min-w-0 pt-1.5">
+                                                <p className="text-xs leading-snug">
+                                                    <span className="font-semibold text-gray-900">{item.user}</span>
+                                                    {' '}
+                                                    {renderActionText(item.action)}
+                                                    <span className="text-[10px] text-gray-400 ml-1">· {item.time}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : <p className="text-gray-400 text-xs pl-8 pt-2">No activity yet.</p>}
                 </div>
                 {activityFeed.length > 4 && (
                     <div className="mt-4 pt-4 border-t border-gray-50 text-center">

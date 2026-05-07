@@ -1568,14 +1568,25 @@ export const api = {
             const { data, error } = await query;
             if (error) throw error;
 
-            return (data || []).map(item => ({
+            // Dedup: drop entries where same user+action appears within a 1-minute window
+            const seen = new Map<string, number>();
+            const deduped = (data || []).filter(item => {
+                const key = `${item.user_name}|${item.action}`;
+                const ts = new Date(item.created_at).getTime();
+                const last = seen.get(key);
+                if (last !== undefined && Math.abs(last - ts) < 60_000) return false;
+                seen.set(key, ts);
+                return true;
+            });
+
+            return deduped.map(item => ({
                 id: parseInt(String(item.id).replace(/-/g, '').substring(0, 10), 16) || Date.now(),
                 user: item.user_name,
                 action: item.action,
                 target: item.target,
                 to: item.target_to,
                 time: formatTimeAgo(item.created_at),
-                createdAt: item.created_at // Add raw timestamp for flow graph
+                createdAt: item.created_at
             }));
         }
     },
