@@ -858,6 +858,9 @@ const Settings: React.FC = () => {
     const [companyDescInput, setCompanyDescInput] = useState('');
     const [isSavingDesc, setIsSavingDesc] = useState(false);
     const [companyDescMsg, setCompanyDescMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [slugInput, setSlugInput] = useState('');
+    const [isSavingSlug, setIsSavingSlug] = useState(false);
+    const [slugMsg, setSlugMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [profileWorkspaceName, setProfileWorkspaceName] = useState<string>('');
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [teamPage, setTeamPage] = useState(0);
@@ -1759,7 +1762,9 @@ const Settings: React.FC = () => {
                             .single();
                         if (!cancelled) {
                             setCompanyDescInput((ws as any)?.company_description || '');
-                            setWorkspaceInfo(prev => prev ? { ...prev, slug: (ws as any)?.slug || '' } : null);
+                            const loadedSlug = (ws as any)?.slug || '';
+                            setSlugInput(loadedSlug);
+                            setWorkspaceInfo(prev => prev ? { ...prev, slug: loadedSlug } : null);
                         }
                     } catch {
                         // non-fatal
@@ -2114,31 +2119,95 @@ const Settings: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Careers page URL */}
+                                {/* Careers page slug + URL */}
                                 {workspaceInfo && (
                                     <div>
-                                        <label className="text-xs font-medium text-gray-700 block mb-1">Your careers page</label>
-                                        <div className="flex items-center gap-2">
+                                        <label className="text-xs font-medium text-gray-700 block mb-1">Careers page URL</label>
+                                        <p className="text-xs text-gray-400 mb-2">
+                                            This is the public link to your careers page. Share it with candidates.
+                                        </p>
+                                        {/* Slug editor */}
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                            <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+                                                {window.location.origin}/careers/
+                                            </span>
                                             <input
-                                                readOnly
-                                                value={`${typeof window !== 'undefined' ? window.location.origin : 'https://www.coreflowhr.com'}/careers/${encodeURIComponent((workspaceInfo as any).slug || workspaceInfo.workspaceId)}`}
-                                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 outline-none select-all"
+                                                type="text"
+                                                value={slugInput}
+                                                onChange={e => {
+                                                    // Auto-sanitise as they type
+                                                    const val = e.target.value
+                                                        .toLowerCase()
+                                                        .replace(/[^a-z0-9-]/g, '-')
+                                                        .replace(/-+/g, '-')
+                                                        .replace(/^-/, '');
+                                                    setSlugInput(val);
+                                                    setSlugMsg(null);
+                                                }}
+                                                disabled={!teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                                placeholder="your-company"
+                                                className="flex-1 min-w-0 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-black disabled:opacity-50 disabled:bg-gray-50"
                                             />
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    const url = `${window.location.origin}/careers/${encodeURIComponent((workspaceInfo as any).slug || workspaceInfo.workspaceId)}`;
-                                                    navigator.clipboard.writeText(url).then(() => {
-                                                        setCompanyDescMsg({ type: 'success', text: 'Careers page URL copied!' });
-                                                        setTimeout(() => setCompanyDescMsg(null), 2500);
-                                                    });
+                                                disabled={isSavingSlug || !slugInput.trim() || slugInput === workspaceInfo.slug || !teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                                onClick={async () => {
+                                                    const newSlug = slugInput.trim().replace(/-+$/, '');
+                                                    if (!newSlug) return;
+                                                    setIsSavingSlug(true);
+                                                    setSlugMsg(null);
+                                                    try {
+                                                        await api.workspaces.updateWorkspace({ slug: newSlug });
+                                                        setWorkspaceInfo(prev => prev ? { ...prev, slug: newSlug } : null);
+                                                        setSlugMsg({ type: 'success', text: 'Saved' });
+                                                    } catch (err: any) {
+                                                        setSlugMsg({ type: 'error', text: err.message || 'Failed to save slug' });
+                                                    } finally {
+                                                        setIsSavingSlug(false);
+                                                    }
                                                 }}
-                                                className="px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                                                className="px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                                             >
-                                                <Copy size={12} />
-                                                Copy URL
+                                                {isSavingSlug ? 'Saving…' : 'Save'}
                                             </button>
                                         </div>
+                                        {slugMsg && (
+                                            <p className={`text-xs mb-2 ${slugMsg.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                {slugMsg.text}
+                                            </p>
+                                        )}
+                                        {/* Full URL + copy */}
+                                        {workspaceInfo.slug && (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    readOnly
+                                                    value={`${window.location.origin}/careers/${workspaceInfo.slug}`}
+                                                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500 outline-none select-all"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(`${window.location.origin}/careers/${workspaceInfo.slug}`).then(() => {
+                                                            setSlugMsg({ type: 'success', text: 'Copied!' });
+                                                            setTimeout(() => setSlugMsg(null), 2000);
+                                                        });
+                                                    }}
+                                                    className="px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                                                >
+                                                    <Copy size={12} />
+                                                    Copy
+                                                </button>
+                                                <a
+                                                    href={`/careers/${workspaceInfo.slug}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                                                >
+                                                    <ExternalLink size={12} />
+                                                    Open
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

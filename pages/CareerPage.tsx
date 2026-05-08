@@ -125,19 +125,16 @@ const CareerPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Sub-header: name + description on white */}
-            <div className="border-b border-gray-100 bg-white">
-                <div className="max-w-3xl mx-auto px-6 py-6 text-center">
-                    {workspace.company_logo_url && (
-                        <h1 className="text-xl font-bold text-gray-900 mb-1">{workspace.name}</h1>
-                    )}
-                    {workspace.company_description && (
+            {/* Sub-header: description on white (only if there's content) */}
+            {(workspace.company_description) && (
+                <div className="border-b border-gray-100 bg-white">
+                    <div className="max-w-3xl mx-auto px-6 py-5 text-center">
                         <p className="text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
                             {workspace.company_description}
                         </p>
-                    )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Jobs */}
             <div className="max-w-3xl mx-auto px-6 py-10">

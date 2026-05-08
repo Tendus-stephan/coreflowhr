@@ -5852,7 +5852,7 @@ export const api = {
         /**
          * Update current workspace (e.g. company_logo_url). Caller must be Admin or Recruiter.
          */
-        updateWorkspace: async (updates: { companyLogoUrl?: string | null; name?: string; companyDescription?: string | null }): Promise<void> => {
+        updateWorkspace: async (updates: { companyLogoUrl?: string | null; name?: string; companyDescription?: string | null; slug?: string }): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
             const workspaceId = await getCurrentWorkspaceId();
@@ -5861,6 +5861,7 @@ export const api = {
             if (updates.companyLogoUrl !== undefined) payload.company_logo_url = updates.companyLogoUrl;
             if (updates.name !== undefined) payload.name = updates.name;
             if (updates.companyDescription !== undefined) payload.company_description = updates.companyDescription;
+            if (updates.slug !== undefined) payload.slug = updates.slug;
             const { error } = await supabase
                 .from('workspaces')
                 .update(payload)
