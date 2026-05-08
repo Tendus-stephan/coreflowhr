@@ -175,8 +175,8 @@ const CareerPage: React.FC = () => {
                     </svg>
                 </div>
 
-                {/* Logo + name — no white card, plain layout */}
-                <div className="mx-auto px-6" style={{ maxWidth: MAX_W }}>
+                {/* Logo + name — relative so it paints above the banner's fade overlay */}
+                <div className="mx-auto px-6 relative" style={{ maxWidth: MAX_W }}>
                     <div className="flex items-center gap-4 -mt-10 pb-6">
 
                         {/* Logo: white rounded bg, shadow, overlaps banner */}
@@ -211,11 +211,11 @@ const CareerPage: React.FC = () => {
 
                         {/* Name + description — plain text, no card/box */}
                         <div className="min-w-0">
-                            <h1 className="text-xl font-bold text-gray-900 leading-tight">
+                            <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>
                                 {workspace.name}
                             </h1>
                             {workspace.company_description && (
-                                <p className="text-sm text-gray-500 mt-0.5 leading-snug line-clamp-2">
+                                <p className="text-gray-500 mt-0.5 leading-snug line-clamp-2" style={{ fontSize: '13px' }}>
                                     {workspace.company_description}
                                 </p>
                             )}
