@@ -36,6 +36,8 @@ import ChangeEmail from './pages/ChangeEmail';
 import Invite from './pages/Invite';
 import AuthRedirect from './pages/AuthRedirect';
 import WorkspaceLapsed from './pages/WorkspaceLapsed';
+import CareerPage from './pages/CareerPage';
+import OfferApproval from './pages/OfferApproval';
 
 // Shows the PageLoader for one paint frame then hands off to the real page.
 // This ensures every route change shows the spinner before the page data loads.
@@ -134,6 +136,8 @@ const Layout = () => {
   ].some(path => location.pathname === path ||
     location.pathname.startsWith('/jobs/apply') ||
     location.pathname.startsWith('/offers/respond') ||
+    location.pathname.startsWith('/offers/approve') ||
+    location.pathname.startsWith('/careers/') ||
     location.pathname.startsWith('/candidates/register') ||
     location.pathname.startsWith('/invite'));
 
@@ -371,9 +375,17 @@ const AppRoutes: React.FC = () => {
           path="/candidates/register/:candidateId" 
           element={<CandidateRegister />}
         />
-        <Route 
-          path="/offers/respond/:token" 
+        <Route
+          path="/offers/respond/:token"
           element={<OfferResponse />}
+        />
+        <Route
+          path="/offers/approve/:token"
+          element={<OfferApproval />}
+        />
+        <Route
+          path="/careers/:workspaceSlug"
+          element={<CareerPage />}
         />
         <Route path="/auth/redirect" element={<AuthRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -491,7 +491,7 @@ export interface Offer {
   salaryPeriod: 'hourly' | 'monthly' | 'yearly';
   benefits?: string[];
   notes?: string;
-  status: 'draft' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'declined' | 'expired' | 'awaiting_signature' | 'signed' | 'awaiting_response';
+  status: 'draft' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'declined' | 'expired' | 'awaiting_signature' | 'signed' | 'awaiting_response' | 'pending_approval';
   sentAt?: string;
   viewedAt?: string;
   respondedAt?: string;
@@ -509,6 +509,26 @@ export interface Offer {
   referenceNumber?: string | null;
   /** Display name of the workspace member who created this offer. */
   creatorName?: string;
+  /** Whether this offer requires internal approval before being sent. */
+  requiresApproval?: boolean;
+  /** Overall approval status across all approvers. */
+  approvalStatus?: 'pending' | 'approved' | 'rejected' | null;
+  /** Note left by a rejecting approver. */
+  approvalNote?: string | null;
+}
+
+export interface OfferApprovalRequest {
+  id: string;
+  offerId: string;
+  workspaceId: string;
+  approverUserId: string;
+  approverName?: string;
+  approvalToken: string;
+  approvalTokenExpiresAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
 }
 
 export interface OfferTemplate {

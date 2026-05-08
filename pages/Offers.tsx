@@ -13,7 +13,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { toUserError } from '../utils/edgeFunctionError';
 
-const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'accepted', 'declined', 'signed'];
+const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'pending_approval', 'accepted', 'declined', 'signed'];
 const isOfferExpired = (offer: Offer): boolean =>
     !NON_EXPIRABLE_STATUSES.includes(offer.status) &&
     !!offer.expiresAt &&
@@ -258,9 +258,10 @@ const Offers: React.FC = () => {
 
     if (loading) return <OffersSkeleton />;
 
-    const statusTabs: Array<{ value: Offer['status'] | 'all' | 'expired'; label: string }> = [
+    const statusTabs: Array<{ value: Offer['status'] | 'all' | 'expired' | 'archived'; label: string }> = [
         { value: 'all', label: 'All' },
         { value: 'draft', label: 'Draft' },
+        { value: 'pending_approval', label: 'Pending Approval' },
         { value: 'sent', label: 'Sent' },
         { value: 'awaiting_signature', label: 'Awaiting Sign.' },
         { value: 'negotiating', label: 'Negotiating' },

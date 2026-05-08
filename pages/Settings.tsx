@@ -847,7 +847,7 @@ const Settings: React.FC = () => {
 
     // Team / workspace state
     const [teamMembers, setTeamMembers] = useState<{ userId: string; name: string; avatar?: string | null; role: User['role']; isCurrentUser: boolean }[]>([]);
-    const [workspaceInfo, setWorkspaceInfo] = useState<{ workspaceId: string; name: string; companyLogoUrl?: string } | null>(null);
+    const [workspaceInfo, setWorkspaceInfo] = useState<{ workspaceId: string; name: string; companyLogoUrl?: string; slug?: string } | null>(null);
     const [isLoadingTeam, setIsLoadingTeam] = useState(false);
     const [teamError, setTeamError] = useState<string | null>(null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -855,6 +855,9 @@ const Settings: React.FC = () => {
     const [workspaceNameInput, setWorkspaceNameInput] = useState('');
     const [isSavingWorkspaceName, setIsSavingWorkspaceName] = useState(false);
     const [workspaceNameMsg, setWorkspaceNameMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [companyDescInput, setCompanyDescInput] = useState('');
+    const [isSavingDesc, setIsSavingDesc] = useState(false);
+    const [companyDescMsg, setCompanyDescMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [profileWorkspaceName, setProfileWorkspaceName] = useState<string>('');
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [teamPage, setTeamPage] = useState(0);
@@ -1742,11 +1745,25 @@ const Settings: React.FC = () => {
         setIsLoadingTeam(true);
         setTeamError(null);
         api.workspaces.getWorkspaceWithMembers()
-            .then((workspace) => {
+            .then(async (workspace) => {
                 if (!cancelled) {
                     setTeamMembers(workspace.members);
                     setWorkspaceInfo({ workspaceId: workspace.workspaceId, name: workspace.name, companyLogoUrl: workspace.companyLogoUrl });
                     setWorkspaceNameInput(workspace.name || '');
+                    // Fetch company_description + slug separately (not in getWorkspaceWithMembers)
+                    try {
+                        const { data: ws } = await supabase
+                            .from('workspaces')
+                            .select('company_description, slug')
+                            .eq('id', workspace.workspaceId)
+                            .single();
+                        if (!cancelled) {
+                            setCompanyDescInput((ws as any)?.company_description || '');
+                            setWorkspaceInfo(prev => prev ? { ...prev, slug: (ws as any)?.slug || '' } : null);
+                        }
+                    } catch {
+                        // non-fatal
+                    }
                 }
             })
             .catch((err: any) => {
@@ -2050,6 +2067,80 @@ const Settings: React.FC = () => {
                                         <p className="text-xs text-gray-400 mt-1">Only Admins can change the workspace name.</p>
                                     )}
                                 </div>
+
+                                {/* Company description */}
+                                <div>
+                                    <label className="text-xs font-medium text-gray-700 block mb-1">Company description</label>
+                                    <p className="text-xs text-gray-400 mb-2">Shown on your public careers page. Max 300 characters.</p>
+                                    <textarea
+                                        value={companyDescInput}
+                                        onChange={(e) => {
+                                            if (e.target.value.length <= 300) {
+                                                setCompanyDescInput(e.target.value);
+                                                setCompanyDescMsg(null);
+                                            }
+                                        }}
+                                        placeholder="e.g. We build tools that help recruiters move faster and hire smarter."
+                                        rows={3}
+                                        disabled={!teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-black disabled:opacity-50 disabled:bg-gray-50 resize-none"
+                                    />
+                                    <div className="flex items-center justify-between mt-1.5">
+                                        <span className="text-xs text-gray-400">{companyDescInput.length}/300</span>
+                                        <button
+                                            type="button"
+                                            disabled={isSavingDesc || !teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                            onClick={async () => {
+                                                setIsSavingDesc(true);
+                                                setCompanyDescMsg(null);
+                                                try {
+                                                    await api.workspaces.updateWorkspace({ companyDescription: companyDescInput.trim() || null });
+                                                    setCompanyDescMsg({ type: 'success', text: 'Description saved' });
+                                                } catch (err: any) {
+                                                    setCompanyDescMsg({ type: 'error', text: err.message || 'Failed to save' });
+                                                } finally {
+                                                    setIsSavingDesc(false);
+                                                }
+                                            }}
+                                            className="px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {isSavingDesc ? 'Saving…' : 'Save'}
+                                        </button>
+                                    </div>
+                                    {companyDescMsg && (
+                                        <p className={`text-xs mt-1 ${companyDescMsg.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                            {companyDescMsg.text}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Careers page URL */}
+                                {workspaceInfo && (
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-700 block mb-1">Your careers page</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                readOnly
+                                                value={`${typeof window !== 'undefined' ? window.location.origin : 'https://www.coreflowhr.com'}/careers/${encodeURIComponent((workspaceInfo as any).slug || workspaceInfo.workspaceId)}`}
+                                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 outline-none select-all"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const url = `${window.location.origin}/careers/${encodeURIComponent((workspaceInfo as any).slug || workspaceInfo.workspaceId)}`;
+                                                    navigator.clipboard.writeText(url).then(() => {
+                                                        setCompanyDescMsg({ type: 'success', text: 'Careers page URL copied!' });
+                                                        setTimeout(() => setCompanyDescMsg(null), 2500);
+                                                    });
+                                                }}
+                                                className="px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                                            >
+                                                <Copy size={12} />
+                                                Copy URL
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <p className="text-xs text-gray-500">Logo appears in the header of offer letters. PNG, JPG, or SVG. Max 2MB. Transparent background recommended.</p>
                                 <div className="flex flex-wrap items-start gap-6">

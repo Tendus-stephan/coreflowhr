@@ -1,4 +1,4 @@
-import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferTemplate, Client, UserRole } from "../types";
+import { User, DashboardStats, Job, Candidate, Interview, ActivityItem, BillingPlan, Invoice, RecruitmentSettings, EmailTemplate, Integration, CandidateStage, Note, InterviewFeedback, EmailLog, EmailWorkflow, WorkflowExecution, Offer, OfferApprovalRequest, OfferTemplate, Client, UserRole } from "../types";
 export type { Client };
 import { supabase } from "./supabase";
 import { getSourcingCap } from "./planLimits";
@@ -5852,7 +5852,7 @@ export const api = {
         /**
          * Update current workspace (e.g. company_logo_url). Caller must be Admin or Recruiter.
          */
-        updateWorkspace: async (updates: { companyLogoUrl?: string | null; name?: string }): Promise<void> => {
+        updateWorkspace: async (updates: { companyLogoUrl?: string | null; name?: string; companyDescription?: string | null }): Promise<void> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
             const workspaceId = await getCurrentWorkspaceId();
@@ -5860,6 +5860,7 @@ export const api = {
             const payload: Record<string, unknown> = {};
             if (updates.companyLogoUrl !== undefined) payload.company_logo_url = updates.companyLogoUrl;
             if (updates.name !== undefined) payload.name = updates.name;
+            if (updates.companyDescription !== undefined) payload.company_description = updates.companyDescription;
             const { error } = await supabase
                 .from('workspaces')
                 .update(payload)
@@ -6594,6 +6595,9 @@ export const api = {
                 signedPdfPath: offer.signed_pdf_path ?? undefined,
                 referenceNumber: offer.reference_number ?? undefined,
                 creatorName: nameById[offer.user_id] || undefined,
+                requiresApproval: offer.requires_approval ?? false,
+                approvalStatus: offer.approval_status ?? null,
+                approvalNote: offer.approval_note ?? null,
             }));
         },
         get: async (offerId: string): Promise<Offer> => {
@@ -6633,6 +6637,9 @@ export const api = {
                 requireEsignature: data.require_esignature ?? undefined,
                 signedPdfPath: data.signed_pdf_path ?? undefined,
                 referenceNumber: data.reference_number ?? undefined,
+                requiresApproval: data.requires_approval ?? false,
+                approvalStatus: data.approval_status ?? null,
+                approvalNote: data.approval_note ?? null,
             };
         },
         getSignedPdfUrl: async (offerId: string): Promise<string | null> => {
@@ -6832,6 +6839,9 @@ export const api = {
                 requireEsignature: data.require_esignature ?? undefined,
                 signedPdfPath: data.signed_pdf_path ?? undefined,
                 referenceNumber: data.reference_number ?? undefined,
+                requiresApproval: data.requires_approval ?? false,
+                approvalStatus: data.approval_status ?? null,
+                approvalNote: data.approval_note ?? null,
             };
         },
         send: async (offerId: string, _options?: { requireEsignature?: boolean }): Promise<Offer> => {
@@ -8149,7 +8159,227 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 createdAt: updated.created_at,
                 updatedAt: updated.updated_at
             };
-        }
+        },
+
+        /**
+         * Submit an offer for internal approval.
+         * Creates one approval request row per approver, updates offer to pending_approval.
+         */
+        submitForApproval: async (offerId: string, approverUserIds: string[]): Promise<Offer> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            if (!approverUserIds.length) throw new Error('At least one approver is required');
+
+            const offer = await api.offers.get(offerId);
+            if (!offer.candidateId) throw new Error('Cannot submit a general offer for approval. Please link it to a candidate first.');
+
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!workspaceId) throw new Error('Workspace not found');
+
+            // Fetch approver profiles
+            const { data: profiles, error: profilesErr } = await supabase
+                .from('profiles')
+                .select('id, name, email')
+                .in('id', approverUserIds);
+            if (profilesErr) throw profilesErr;
+
+            // Build approval request rows
+            const now = new Date();
+            const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+            const rows = approverUserIds.map(approverId => {
+                const tokenBytes = new Uint8Array(32);
+                crypto.getRandomValues(tokenBytes);
+                const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                return {
+                    offer_id: offerId,
+                    workspace_id: workspaceId,
+                    approver_user_id: approverId,
+                    approval_token: token,
+                    approval_token_expires_at: expiresAt.toISOString(),
+                    status: 'pending',
+                };
+            });
+
+            const { data: insertedRows, error: insertErr } = await supabase
+                .from('offer_approval_requests')
+                .insert(rows)
+                .select();
+            if (insertErr) throw insertErr;
+
+            // Update offer to pending_approval
+            const { data: updatedOffer, error: updateErr } = await supabase
+                .from('offers')
+                .update({
+                    status: 'pending_approval',
+                    requires_approval: true,
+                    approval_status: 'pending',
+                })
+                .eq('id', offerId)
+                .select()
+                .single();
+            if (updateErr) throw updateErr;
+
+            // Send approval emails to each approver
+            const frontendUrl = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+                ? window.location.origin : 'https://www.coreflowhr.com';
+
+            // Fetch candidate + job for email content
+            const { data: candidate } = await supabase
+                .from('candidates').select('name, email').eq('id', offer.candidateId!).single();
+            const { data: job } = await supabase
+                .from('jobs').select('title, company').eq('id', offer.jobId).single();
+            const companyName = (job as any)?.company || 'Our Company';
+
+            const salaryStr = offer.salaryAmount
+                ? `${offer.salaryCurrency} ${offer.salaryAmount.toLocaleString()} per ${offer.salaryPeriod}`
+                : 'Not specified';
+
+            for (const row of (insertedRows || [])) {
+                const approverProfile = (profiles || []).find((p: any) => p.id === row.approver_user_id);
+                if (!approverProfile?.email) continue;
+
+                const approveUrl = `${frontendUrl}/offers/approve/${row.approval_token}`;
+                const emailContent = `
+<p>Hi ${approverProfile.name || 'there'},</p>
+<p>You've been asked to review and approve a job offer before it's sent to the candidate.</p>
+<table style="border-collapse:collapse;width:100%;margin:16px 0;font-size:14px">
+  <tr><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;width:140px">Candidate</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${(candidate as any)?.name || 'Unknown'}</td></tr>
+  <tr><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600">Position</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${offer.positionTitle}</td></tr>
+  <tr><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600">Salary</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${salaryStr}</td></tr>
+  <tr><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600">Start Date</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${offer.startDate || 'Not specified'}</td></tr>
+  ${offer.notes ? `<tr><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600">Notes</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${offer.notes}</td></tr>` : ''}
+</table>
+<p style="margin:24px 0">
+  <a href="${approveUrl}" style="display:inline-block;padding:12px 24px;background:#111827;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">Review &amp; Respond</a>
+</p>
+<p style="font-size:12px;color:#6b7280">This link expires in 7 days. If you did not expect this, please contact your administrator.</p>`;
+
+                try {
+                    await supabase.functions.invoke('send-email', {
+                        body: {
+                            to: approverProfile.email,
+                            subject: `Offer approval requested — ${offer.positionTitle} at ${companyName}`,
+                            content: emailContent,
+                            fromName: companyName,
+                        },
+                    });
+                } catch (emailErr) {
+                    console.error('Failed to send approval email (non-fatal):', emailErr);
+                }
+            }
+
+            return {
+                id: updatedOffer.id,
+                candidateId: updatedOffer.candidate_id,
+                jobId: updatedOffer.job_id,
+                userId: updatedOffer.user_id,
+                positionTitle: updatedOffer.position_title,
+                startDate: updatedOffer.start_date || undefined,
+                salaryAmount: updatedOffer.salary_amount ? parseFloat(updatedOffer.salary_amount) : undefined,
+                salaryCurrency: updatedOffer.salary_currency || 'USD',
+                salaryPeriod: updatedOffer.salary_period || 'yearly',
+                benefits: updatedOffer.benefits || undefined,
+                notes: updatedOffer.notes || undefined,
+                status: updatedOffer.status as Offer['status'],
+                sentAt: updatedOffer.sent_at || undefined,
+                viewedAt: updatedOffer.viewed_at || undefined,
+                respondedAt: updatedOffer.responded_at || undefined,
+                expiresAt: updatedOffer.expires_at || undefined,
+                createdAt: updatedOffer.created_at,
+                updatedAt: updatedOffer.updated_at,
+                archived: updatedOffer.archived ?? false,
+                requiresApproval: updatedOffer.requires_approval ?? true,
+                approvalStatus: updatedOffer.approval_status ?? 'pending',
+                approvalNote: updatedOffer.approval_note ?? null,
+            };
+        },
+
+        /**
+         * Fetch an approval request + offer details by token (public, no auth).
+         */
+        getApprovalByToken: async (token: string): Promise<{
+            request: OfferApprovalRequest;
+            offer: Offer;
+            candidateName: string | null;
+            jobTitle: string | null;
+            companyName: string | null;
+        } | null> => {
+            const { data, error } = await supabase.rpc('get_offer_approval_by_token', { p_token: token });
+            if (error) throw error;
+            if (!data) return null;
+
+            const d = data as any;
+            const req = d.request;
+            const ofr = d.offer;
+
+            return {
+                request: {
+                    id: req.id,
+                    offerId: req.offer_id,
+                    workspaceId: req.workspace_id,
+                    approverUserId: req.approver_user_id,
+                    approvalToken: req.approval_token,
+                    approvalTokenExpiresAt: req.approval_token_expires_at,
+                    status: req.status,
+                    note: req.note ?? null,
+                    respondedAt: req.responded_at ?? null,
+                    createdAt: req.created_at,
+                },
+                offer: {
+                    id: ofr.id,
+                    candidateId: null,
+                    jobId: '',
+                    userId: '',
+                    positionTitle: ofr.position_title,
+                    startDate: ofr.start_date || undefined,
+                    salaryAmount: ofr.salary_amount ? parseFloat(ofr.salary_amount) : undefined,
+                    salaryCurrency: ofr.salary_currency || 'USD',
+                    salaryPeriod: ofr.salary_period || 'yearly',
+                    benefits: ofr.benefits || undefined,
+                    notes: ofr.notes || undefined,
+                    status: ofr.status as Offer['status'],
+                    expiresAt: ofr.expires_at || undefined,
+                    createdAt: '',
+                    updatedAt: '',
+                    approvalStatus: ofr.approval_status ?? null,
+                },
+                candidateName: d.candidate_name ?? null,
+                jobTitle: d.job_title ?? null,
+                companyName: d.company_name ?? null,
+            };
+        },
+
+        /**
+         * Respond to an approval request (approve or reject).
+         * If all approvers have responded and approved, auto-sends the offer.
+         */
+        respondToApproval: async (
+            token: string,
+            decision: 'approved' | 'rejected',
+            note?: string
+        ): Promise<{ decision: string; offerSent: boolean }> => {
+            const { data, error } = await supabase.rpc('respond_to_offer_approval', {
+                p_token: token,
+                p_decision: decision,
+                p_note: note ?? null,
+            });
+            if (error) throw error;
+
+            const result = data as any;
+            let offerSent = false;
+
+            // If all approved, auto-send the offer
+            if (result.all_resolved && result.outcome === 'approved') {
+                try {
+                    await api.offers.send(result.offer_id);
+                    offerSent = true;
+                } catch (sendErr) {
+                    console.error('Auto-send after approval failed (non-fatal):', sendErr);
+                }
+            }
+
+            return { decision, offerSent };
+        },
     },
     clients: {
         list: async (): Promise<Client[]> => {

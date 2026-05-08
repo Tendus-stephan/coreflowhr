@@ -3,7 +3,7 @@ import { Offer, Candidate, Job } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
 import { CustomSelect } from './ui/CustomSelect';
-import { X, Plus, Trash2, Send, Save, Loader2, AlertCircle } from 'lucide-react';
+import { X, Plus, Trash2, Send, Save, Loader2, AlertCircle, UserCheck, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toUserError } from '../utils/edgeFunctionError';
 
@@ -41,6 +41,12 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const actionInFlightRef = useRef(false);
+
+    // Approval state
+    const [requiresApproval, setRequiresApproval] = useState(false);
+    const [selectedApprovers, setSelectedApprovers] = useState<string[]>([]);
+    const [workspaceMembers, setWorkspaceMembers] = useState<{ userId: string; name: string }[]>([]);
+    const [submittingApproval, setSubmittingApproval] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -91,6 +97,13 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                 setExpiresAt(defaultExpiration.toISOString().split('T')[0]);
             }
             setError(null);
+            // Reset approval state on open
+            setRequiresApproval(offer?.requiresApproval ?? false);
+            setSelectedApprovers([]);
+            // Load workspace members for approver picker
+            api.workspaces.getWorkspaceWithMembers()
+                .then(ws => setWorkspaceMembers(ws.members))
+                .catch(() => {});
         }
     }, [isOpen, offer, candidate]);
 
@@ -287,6 +300,39 @@ export const OfferModal: React.FC<OfferModalProps> = ({
             setError(toUserError(err, 'Failed to send offer. Please try again.'));
         } finally {
             setSending(false);
+            actionInFlightRef.current = false;
+        }
+    };
+
+    const handleSubmitForApproval = async () => {
+        if (actionInFlightRef.current) return;
+        actionInFlightRef.current = true;
+        if (selectedApprovers.length === 0) {
+            setError('Please select at least one approver.');
+            actionInFlightRef.current = false;
+            return;
+        }
+        setSubmittingApproval(true);
+        setError(null);
+        try {
+            // Save draft first if new offer
+            let offerId = offer?.id;
+            if (!offerId) {
+                await handleSave();
+                const candidateToUse = candidate || candidates.find(c => c.id === selectedCandidateId);
+                const saved = candidateToUse
+                    ? await api.offers.list({ candidateId: candidateToUse.id })
+                    : await api.offers.list({ generalOnly: true });
+                offerId = saved[0]?.id;
+                if (!offerId) { setError('Failed to save offer before submitting for approval.'); return; }
+            }
+            await api.offers.submitForApproval(offerId, selectedApprovers);
+            onSave();
+            onClose();
+        } catch (err: any) {
+            setError(toUserError(err, 'Failed to submit for approval.'));
+        } finally {
+            setSubmittingApproval(false);
             actionInFlightRef.current = false;
         }
     };
@@ -579,6 +625,64 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                         </p>
                     </div>
 
+                    {/* Approval — shown for draft offers (new or editing) */}
+                    {(!offer || offer.status === 'draft') && (
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                            <label className="flex items-center gap-3 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={requiresApproval}
+                                    onChange={e => { setRequiresApproval(e.target.checked); if (!e.target.checked) setSelectedApprovers([]); }}
+                                    className="w-4 h-4 rounded border-gray-300 text-gray-900 cursor-pointer"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Requires approval before sending</span>
+                            </label>
+                            {requiresApproval && (
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-2">Select approvers from your workspace:</p>
+                                    <div className="space-y-1 max-h-36 overflow-y-auto">
+                                        {workspaceMembers.map(m => (
+                                            <label key={m.userId} className="flex items-center gap-2 cursor-pointer py-1">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedApprovers.includes(m.userId)}
+                                                    onChange={e => {
+                                                        setSelectedApprovers(prev =>
+                                                            e.target.checked ? [...prev, m.userId] : prev.filter(id => id !== m.userId)
+                                                        );
+                                                    }}
+                                                    className="w-3.5 h-3.5 rounded border-gray-300 text-gray-900 cursor-pointer"
+                                                />
+                                                <span className="text-sm text-gray-700">{m.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    {selectedApprovers.length > 0 && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            {selectedApprovers.length} approver{selectedApprovers.length > 1 ? 's' : ''} selected
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Pending approval — read-only status */}
+                    {offer?.status === 'pending_approval' && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+                            <Clock size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-amber-900">Pending Approval</p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                    This offer is awaiting approval. Once all approvers respond, it will be sent automatically.
+                                </p>
+                                {offer.approvalNote && (
+                                    <p className="text-xs text-red-700 mt-2 font-medium">Rejected: "{offer.approvalNote}"</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Expiration Date */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -602,28 +706,48 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                         <Button
                             variant="outline"
                             onClick={onClose}
-                            disabled={saving || sending}
+                            disabled={saving || sending || submittingApproval}
                         >
                             Cancel
                         </Button>
-                        {offer && offer.status === 'draft' && (
+                        {offer && offer.status === 'draft' && !requiresApproval && (
                             <Button
                                 variant="black"
                                 onClick={handleSendOffer}
-                                disabled={saving || sending}
+                                disabled={saving || sending || submittingApproval}
                                 icon={sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
                             >
                                 {sending ? 'Sending...' : 'Save & Send Offer'}
                             </Button>
                         )}
-                        {(!offer || offer.status === 'draft') && (
+                        {(!offer || offer.status === 'draft') && requiresApproval && (
+                            <Button
+                                variant="black"
+                                onClick={handleSubmitForApproval}
+                                disabled={saving || sending || submittingApproval || selectedApprovers.length === 0}
+                                icon={submittingApproval ? <Loader2 className="animate-spin" size={16} /> : <UserCheck size={16} />}
+                            >
+                                {submittingApproval ? 'Submitting...' : 'Submit for Approval'}
+                            </Button>
+                        )}
+                        {(!offer || offer.status === 'draft') && !requiresApproval && (
                             <Button
                                 variant="black"
                                 onClick={handleSave}
-                                disabled={saving || sending}
+                                disabled={saving || sending || submittingApproval}
                                 icon={<Save size={16} />}
                             >
                                 {saving ? 'Saving...' : offer ? 'Update Offer' : 'Save as Draft'}
+                            </Button>
+                        )}
+                        {(!offer || offer.status === 'draft') && requiresApproval && (
+                            <Button
+                                variant="outline"
+                                onClick={handleSave}
+                                disabled={saving || sending || submittingApproval}
+                                icon={<Save size={16} />}
+                            >
+                                {saving ? 'Saving...' : 'Save as Draft'}
                             </Button>
                         )}
                     </div>

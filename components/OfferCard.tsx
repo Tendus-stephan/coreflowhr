@@ -4,7 +4,7 @@ import { Button } from './ui/Button';
 import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare, Download } from 'lucide-react';
 import { format } from 'date-fns';
 
-const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'accepted', 'declined', 'signed'];
+const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'pending_approval', 'accepted', 'declined', 'signed'];
 
 const isClientExpired = (offer: Offer): boolean =>
     !NON_EXPIRABLE_STATUSES.includes(offer.status) &&
@@ -16,6 +16,7 @@ const formatStatusLabel = (status: Offer['status'], archived?: boolean, expired?
     if (expired) return 'EXPIRED';
     if (status === 'awaiting_signature') return 'Awaiting Signature';
     if (status === 'signed') return 'Signed';
+    if (status === 'pending_approval') return 'Pending Approval';
     return status.toUpperCase();
 };
 
@@ -61,6 +62,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     const getStatusColor = (status: Offer['status']) => {
         if (expired) return 'bg-red-100 text-red-700';
         if (status === 'viewed') return 'bg-blue-50 text-blue-700';
+        if (status === 'pending_approval') return 'bg-amber-100 text-amber-700';
         return 'bg-gray-100 text-gray-700';
     };
 
