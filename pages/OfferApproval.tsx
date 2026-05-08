@@ -17,20 +17,36 @@ interface ApprovalData {
     candidateName: string | null;
     jobTitle: string | null;
     companyName: string | null;
+    companyLogoUrl: string | null;
 }
 
-const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-        <img
-            src="/assets/images/coreflow-favicon-logo.png"
-            alt="CoreflowHR"
-            className="object-contain mb-6"
-            style={{ width: '80px', height: '80px' }}
-        />
-        <div className="w-full max-w-xl">
+const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; companyLogoUrl?: string | null }> = ({ children, companyName, companyLogoUrl }) => (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start px-4">
+        {/* Brand header — matches offer letter */}
+        <div className="w-full mb-6" style={{ background: '#1e3a5f' }}>
+            <div className="max-w-xl mx-auto px-6 py-5 flex items-center justify-center">
+                {companyLogoUrl ? (
+                    <img
+                        src={companyLogoUrl}
+                        alt={companyName || 'Company'}
+                        className="max-h-[48px] max-w-[200px] object-contain"
+                    />
+                ) : companyName ? (
+                    <span className="text-white text-lg font-bold">{companyName}</span>
+                ) : (
+                    <img
+                        src="/assets/images/coreflow-favicon-logo.png"
+                        alt="CoreflowHR"
+                        className="object-contain"
+                        style={{ width: '44px', height: '44px' }}
+                    />
+                )}
+            </div>
+        </div>
+        <div className="w-full max-w-xl pb-10">
             {children}
         </div>
-        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
+        <p className="text-center text-xs text-gray-400 pb-8">Powered by CoreflowHR</p>
     </div>
 );
 
@@ -43,6 +59,8 @@ const OfferApproval: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<{ decision: 'approved' | 'rejected'; offerSent: boolean } | null>(null);
+    const [brandName, setBrandName] = useState<string | null>(null);
+    const [brandLogo, setBrandLogo] = useState<string | null>(null);
 
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
@@ -64,6 +82,8 @@ const OfferApproval: React.FC = () => {
                     return;
                 }
                 setData(result as ApprovalData);
+                setBrandName(result.companyName);
+                setBrandLogo(result.companyLogoUrl);
                 // If pre-filled with reject decision, show the rejection form immediately
                 if (prefillDecision === 'reject' && result.request.status === 'pending') {
                     setShowRejectForm(true);
@@ -96,7 +116,7 @@ const OfferApproval: React.FC = () => {
 
     if (loading) {
         return (
-            <Shell>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
                 <div className="flex justify-center py-12">
                     <Loader2 size={28} className="animate-spin text-gray-400" />
                 </div>
@@ -106,7 +126,7 @@ const OfferApproval: React.FC = () => {
 
     if (error) {
         return (
-            <Shell>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     <AlertCircle size={32} className="text-red-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Unable to load request</h2>
@@ -125,7 +145,7 @@ const OfferApproval: React.FC = () => {
     // Already responded
     if (alreadyResponded) {
         return (
-            <Shell>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {request.status === 'approved' ? (
                         <>
@@ -148,7 +168,7 @@ const OfferApproval: React.FC = () => {
     // Expired
     if (isExpired) {
         return (
-            <Shell>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     <Clock size={36} className="text-amber-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Link expired</h2>
@@ -161,7 +181,7 @@ const OfferApproval: React.FC = () => {
     // Success state
     if (success) {
         return (
-            <Shell>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {success.decision === 'approved' ? (
                         <>
@@ -189,7 +209,7 @@ const OfferApproval: React.FC = () => {
 
     // Main review UI
     return (
-        <Shell>
+        <Shell companyName={brandName} companyLogoUrl={brandLogo}>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-gray-100">

@@ -108,25 +108,31 @@ const CareerPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white font-sans">
-            {/* Header */}
-            <div className="border-b border-gray-100 bg-white">
-                <div className="max-w-3xl mx-auto px-6 py-10 flex flex-col items-center text-center">
+            {/* Header — dark brand banner matching the offer letter header */}
+            <div style={{ background: '#1e3a5f' }}>
+                <div className="max-w-3xl mx-auto px-6 py-8 flex flex-col items-center text-center">
                     {workspace.company_logo_url ? (
                         <img
                             src={workspace.company_logo_url}
                             alt={workspace.name}
-                            className="h-14 max-w-[200px] object-contain mb-5"
+                            className="max-h-[56px] max-w-[220px] object-contain"
                         />
                     ) : (
-                        <div className="w-14 h-14 rounded-xl bg-gray-900 flex items-center justify-center mb-5">
-                            <span className="text-white text-xl font-bold">
-                                {workspace.name.charAt(0).toUpperCase()}
-                            </span>
-                        </div>
+                        <span className="text-white text-2xl font-bold tracking-tight">
+                            {workspace.name}
+                        </span>
                     )}
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">{workspace.name}</h1>
+                </div>
+            </div>
+
+            {/* Sub-header: name + description on white */}
+            <div className="border-b border-gray-100 bg-white">
+                <div className="max-w-3xl mx-auto px-6 py-6 text-center">
+                    {workspace.company_logo_url && (
+                        <h1 className="text-xl font-bold text-gray-900 mb-1">{workspace.name}</h1>
+                    )}
                     {workspace.company_description && (
-                        <p className="text-sm text-gray-500 max-w-xl leading-relaxed">
+                        <p className="text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
                             {workspace.company_description}
                         </p>
                     )}

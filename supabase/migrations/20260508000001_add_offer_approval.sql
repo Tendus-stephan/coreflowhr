@@ -43,6 +43,7 @@ declare
   v_offer record;
   v_candidate record;
   v_job record;
+  v_logo text;
 begin
   select * into v_req
   from offer_approval_requests
@@ -65,6 +66,10 @@ begin
   select title, company into v_job
   from jobs
   where id = v_offer.job_id;
+
+  select company_logo_url into v_logo
+  from workspaces
+  where id = v_req.workspace_id;
 
   return json_build_object(
     'request', json_build_object(
@@ -92,9 +97,10 @@ begin
       'approval_status', v_offer.approval_status,
       'expires_at',      v_offer.expires_at
     ),
-    'candidate_name', coalesce(v_candidate.name, null),
-    'job_title',      coalesce(v_job.title, null),
-    'company_name',   coalesce(v_job.company, null)
+    'candidate_name',    coalesce(v_candidate.name, null),
+    'job_title',         coalesce(v_job.title, null),
+    'company_name',      coalesce(v_job.company, null),
+    'company_logo_url',  v_logo
   );
 end;
 $$;
