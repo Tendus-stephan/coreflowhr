@@ -8178,12 +8178,20 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             const workspaceId = await getCurrentWorkspaceId();
             if (!workspaceId) throw new Error('Workspace not found');
 
-            // Fetch approver profiles
+            // Fetch approver names from profiles (email not stored there)
             const { data: profiles, error: profilesErr } = await supabase
                 .from('profiles')
-                .select('id, name, email')
+                .select('id, name')
                 .in('id', approverUserIds);
             if (profilesErr) throw profilesErr;
+
+            // Fetch approver emails from auth.users via SECURITY DEFINER RPC
+            const { data: emailRows } = await supabase
+                .rpc('get_user_emails_by_ids', { p_user_ids: approverUserIds });
+            const emailById: Record<string, string> = {};
+            for (const row of (emailRows || [])) {
+                if (row.id && row.email) emailById[row.id] = row.email;
+            }
 
             // Build approval request rows
             const now = new Date();
@@ -8238,7 +8246,8 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
 
             for (const row of (insertedRows || [])) {
                 const approverProfile = (profiles || []).find((p: any) => p.id === row.approver_user_id);
-                if (!approverProfile?.email) continue;
+                const approverEmail = emailById[row.approver_user_id];
+                if (!approverEmail) continue;
 
                 const approveUrl = `${frontendUrl}/offers/approve/${row.approval_token}`;
                 const emailContent = `
@@ -8259,7 +8268,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 try {
                     await supabase.functions.invoke('send-email', {
                         body: {
-                            to: approverProfile.email,
+                            to: approverEmail,
                             subject: `Offer approval requested — ${offer.positionTitle} at ${companyName}`,
                             content: emailContent,
                             fromName: companyName,
