@@ -20,16 +20,15 @@ interface JobListing {
     slug?: string | null;
 }
 
-// Soft, non-outlined type badge colours
-const typeBadge: Record<string, string> = {
-    'Full-time':  'bg-emerald-50 text-emerald-700',
-    'Part-time':  'bg-sky-50     text-sky-700',
-    'Contract':   'bg-amber-50   text-amber-700',
-    'Internship': 'bg-violet-50  text-violet-700',
-    'Remote':     'bg-gray-100   text-gray-600',
+// Soft muted badge fills — no borders, no bright colors
+const typeBadge: Record<string, { bg: string; text: string }> = {
+    'Full-time':  { bg: '#dcfce7', text: '#166534' },
+    'Part-time':  { bg: '#dbeafe', text: '#1e40af' },
+    'Contract':   { bg: '#fef3c7', text: '#92400e' },
+    'Internship': { bg: '#ede9fe', text: '#5b21b6' },
+    'Remote':     { bg: '#f3f4f6', text: '#374151' },
 };
 
-// Deterministic gradient from first char — used when no cover image
 const coverGradients = [
     'linear-gradient(135deg,#1e3a5f 0%,#2d6a9f 100%)',
     'linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%)',
@@ -37,14 +36,12 @@ const coverGradients = [
     'linear-gradient(135deg,#141e30 0%,#243b55 100%)',
     'linear-gradient(135deg,#0d1117 0%,#1b2a41 100%)',
 ];
-function pickGradient(name: string) {
-    const idx = name.charCodeAt(0) % coverGradients.length;
-    return coverGradients[idx];
-}
+const pickGradient = (name: string) => coverGradients[name.charCodeAt(0) % coverGradients.length];
 
-// Strip "General" / null — only real departments get shown
-const realDept = (d?: string | null) =>
-    d && d.toLowerCase() !== 'general' ? d : null;
+// Strip null / "General" — only real departments shown
+const realDept = (d?: string | null) => (d && d.toLowerCase() !== 'general' ? d : null);
+
+const MAX_W = '780px';
 
 const CareerPage: React.FC = () => {
     const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
@@ -55,7 +52,7 @@ const CareerPage: React.FC = () => {
     const [query, setQuery]         = useState('');
     const [activeFilter, setActiveFilter] = useState('All');
 
-    // ── Data fetch (unchanged) ─────────────────────────────────────────────
+    // ── Data fetch (no logic changes) ─────────────────────────────────────
     useEffect(() => {
         if (!workspaceSlug) { setError('Invalid careers page link.'); setLoading(false); return; }
 
@@ -89,23 +86,17 @@ const CareerPage: React.FC = () => {
         load();
     }, [workspaceSlug]);
 
-    // ── Filter pills: unique real departments + unique types ───────────────
     const filterPills = useMemo(() => {
         const depts = [...new Set(jobs.map(j => realDept(j.department)).filter(Boolean))] as string[];
         const types = [...new Set(jobs.map(j => j.type).filter(Boolean))] as string[];
         return ['All', ...depts, ...types];
     }, [jobs]);
 
-    // ── Filtered list ──────────────────────────────────────────────────────
     const filtered = useMemo(() => {
         let list = jobs;
-
         if (activeFilter !== 'All') {
-            list = list.filter(j =>
-                realDept(j.department) === activeFilter || j.type === activeFilter
-            );
+            list = list.filter(j => realDept(j.department) === activeFilter || j.type === activeFilter);
         }
-
         if (query.trim()) {
             const q = query.toLowerCase();
             list = list.filter(j =>
@@ -114,14 +105,13 @@ const CareerPage: React.FC = () => {
                 (realDept(j.department) || '').toLowerCase().includes(q)
             );
         }
-
         return list;
     }, [jobs, activeFilter, query]);
 
     // ── Loading ────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-700 rounded-full animate-spin" />
             </div>
         );
@@ -130,7 +120,7 @@ const CareerPage: React.FC = () => {
     // ── Error ──────────────────────────────────────────────────────────────
     if (error || !workspace) {
         return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 text-center">
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 text-center">
                 <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
                     <Building2 size={22} className="text-gray-400" />
                 </div>
@@ -145,44 +135,69 @@ const CareerPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
 
-            {/* ── 1. COMPANY HEADER ──────────────────────────────────────────── */}
+            {/* ── 1. COMPANY HEADER ──────────────────────────────────────── */}
             <div className="relative">
-                {/* Cover banner */}
+
+                {/* Cover banner with curved + faded bottom edge */}
                 <div
-                    className="w-full h-44 sm:h-52"
-                    style={{ background: gradient }}
-                />
+                    className="relative w-full overflow-hidden"
+                    style={{ height: '200px', background: gradient }}
+                >
+                    {/* Soft curve + fade into page bg */}
+                    <div
+                        className="absolute inset-x-0 bottom-0"
+                        style={{
+                            height: '80px',
+                            background: 'linear-gradient(to bottom, transparent 0%, #f9fafb 100%)',
+                            borderRadius: '0 0 0 0',
+                        }}
+                    />
+                    {/* Subtle SVG curve mask at very bottom */}
+                    <svg
+                        viewBox="0 0 1440 40"
+                        className="absolute bottom-0 left-0 w-full"
+                        preserveAspectRatio="none"
+                        style={{ height: '40px' }}
+                    >
+                        <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#f9fafb" />
+                    </svg>
+                </div>
 
-                {/* Logo + info row — overlaps banner */}
-                <div className="max-w-3xl mx-auto px-6">
-                    <div className="relative -mt-10 flex items-end gap-5 pb-5 border-b border-gray-200 bg-white px-6 pt-0 rounded-b-2xl shadow-sm">
+                {/* Logo + name — no white card, plain layout */}
+                <div className="mx-auto px-6" style={{ maxWidth: MAX_W }}>
+                    <div className="flex items-end gap-4 -mt-10 pb-6">
 
-                        {/* Logo bubble */}
+                        {/* Logo: white rounded bg, shadow, overlaps banner */}
                         <div
-                            className="flex-shrink-0 w-20 h-20 rounded-2xl border-4 border-white shadow-md -mt-10 flex items-center justify-center bg-white overflow-hidden"
-                            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}
+                            className="flex-shrink-0 rounded-2xl bg-white flex items-center justify-center overflow-hidden"
+                            style={{
+                                width: 80,
+                                height: 80,
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
+                                border: '3px solid #fff',
+                            }}
                         >
                             {workspace.company_logo_url ? (
                                 <img
                                     src={workspace.company_logo_url}
                                     alt={workspace.name}
-                                    className="w-full h-full object-contain p-1.5"
+                                    className="w-full h-full object-contain p-2"
                                 />
                             ) : (
                                 <div
-                                    className="w-full h-full flex items-center justify-center rounded-xl"
+                                    className="w-full h-full flex items-center justify-center"
                                     style={{ background: gradient }}
                                 >
-                                    <span className="text-white text-2xl font-extrabold">
+                                    <span className="text-white text-2xl font-extrabold select-none">
                                         {workspace.name.charAt(0).toUpperCase()}
                                     </span>
                                 </div>
                             )}
                         </div>
 
-                        {/* Name + description */}
-                        <div className="flex-1 min-w-0 pt-2 pb-1">
-                            <h1 className="text-xl font-bold text-gray-900 leading-tight truncate">
+                        {/* Name + description — plain text, no card/box */}
+                        <div className="pb-1 min-w-0">
+                            <h1 className="text-xl font-bold text-gray-900 leading-tight">
                                 {workspace.name}
                             </h1>
                             {workspace.company_description && (
@@ -195,11 +210,9 @@ const CareerPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* ── 2. HEADING BLOCK ───────────────────────────────────────────── */}
-            <div className="max-w-3xl mx-auto px-6 pt-9 pb-2">
-                <h2 className="text-2xl font-semibold text-gray-900 leading-tight">
-                    Open positions
-                </h2>
+            {/* ── 2. HEADING BLOCK ───────────────────────────────────────── */}
+            <div className="mx-auto px-6 pb-5" style={{ maxWidth: MAX_W }}>
+                <h2 className="text-2xl font-semibold text-gray-900">Open positions</h2>
                 <p className="text-sm text-gray-400 mt-0.5">
                     {jobs.length > 0
                         ? `${jobs.length} open role${jobs.length !== 1 ? 's' : ''}`
@@ -207,10 +220,10 @@ const CareerPage: React.FC = () => {
                 </p>
             </div>
 
-            {/* ── 3. SEARCH + FILTERS ────────────────────────────────────────── */}
-            <div className="max-w-3xl mx-auto px-6 pt-5 pb-4 space-y-3">
-                {/* Search */}
-                <div className="relative">
+            {/* ── 3. SEARCH + FILTERS (grouped, 8px gap) ─────────────────── */}
+            <div className="mx-auto px-6 pb-5" style={{ maxWidth: MAX_W }}>
+                {/* Search — 44px, visible border */}
+                <div className="relative" style={{ marginBottom: '8px' }}>
                     <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input
                         type="text"
@@ -218,18 +231,19 @@ const CareerPage: React.FC = () => {
                         value={query}
                         onChange={e => setQuery(e.target.value)}
                         style={{ height: '44px' }}
-                        className="w-full pl-10 pr-4 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200 transition-all"
+                        className="w-full pl-10 pr-4 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-100 transition-all"
                     />
                 </div>
 
-                {/* Filter pills — only render if more than just "All" */}
+                {/* Filter pills — standardized height, 8px below search */}
                 {filterPills.length > 1 && (
                     <div className="flex items-center gap-2 flex-wrap">
                         {filterPills.map(pill => (
                             <button
                                 key={pill}
                                 onClick={() => setActiveFilter(pill)}
-                                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                style={{ height: '34px', paddingLeft: '14px', paddingRight: '14px' }}
+                                className={`rounded-full text-xs font-medium transition-all whitespace-nowrap ${
                                     activeFilter === pill
                                         ? 'bg-gray-900 text-white shadow-sm'
                                         : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-800'
@@ -242,8 +256,8 @@ const CareerPage: React.FC = () => {
                 )}
             </div>
 
-            {/* ── 4. JOB LIST ────────────────────────────────────────────────── */}
-            <div className="max-w-3xl mx-auto px-6 pb-16">
+            {/* ── 4. JOB LIST ────────────────────────────────────────────── */}
+            <div className="mx-auto px-6 pb-16" style={{ maxWidth: MAX_W }}>
                 {filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-200">
                         <p className="text-sm font-medium text-gray-700 mb-1">
@@ -254,26 +268,32 @@ const CareerPage: React.FC = () => {
                         </p>
                     </div>
                 ) : (
-                    <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
+                    <div className="rounded-2xl bg-white overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
                         {filtered.map((job, i) => {
-                            const applyHref = job.slug
-                                ? `/jobs/apply/${workspaceSlug}/${job.slug}`
-                                : `/jobs/apply/${job.id}`;
-                            const dept      = realDept(job.department);
-                            const badge     = job.type ? (typeBadge[job.type] ?? 'bg-gray-100 text-gray-600') : null;
+                            const applyHref  = job.slug ? `/jobs/apply/${workspaceSlug}/${job.slug}` : `/jobs/apply/${job.id}`;
+                            const dept       = realDept(job.department);
+                            const badge      = job.type ? (typeBadge[job.type] ?? { bg: '#f3f4f6', text: '#374151' }) : null;
+                            const isLast     = i === filtered.length - 1;
 
                             return (
                                 <Link
                                     key={job.id}
                                     to={applyHref}
-                                    className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group"
+                                    className="flex items-center gap-4 px-5 group transition-colors"
+                                    style={{
+                                        paddingTop: '22px',
+                                        paddingBottom: '22px',
+                                        borderBottom: isLast ? 'none' : '0.5px solid #f0f0f0',
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#fafafa')}
+                                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                                 >
-                                    {/* Left: title + meta */}
+                                    {/* Title + meta */}
                                     <div className="flex-1 min-w-0">
                                         <p className="text-base font-medium text-gray-900 leading-snug group-hover:text-gray-700 transition-colors">
                                             {job.title}
                                         </p>
-                                        <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                             {job.location && (
                                                 <span className="flex items-center gap-1 text-[13px] text-gray-400">
                                                     <MapPin size={11} className="flex-shrink-0" />
@@ -281,22 +301,24 @@ const CareerPage: React.FC = () => {
                                                 </span>
                                             )}
                                             {badge && job.type && (
-                                                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${badge}`}>
+                                                <span
+                                                    className="text-xs font-medium px-2.5 py-1 rounded-full"
+                                                    style={{ background: badge.bg, color: badge.text }}
+                                                >
                                                     {job.type}
                                                 </span>
                                             )}
                                             {dept && (
-                                                <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
                                                     {dept}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* Right: View role */}
-                                    <span className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-gray-700 transition-colors whitespace-nowrap">
-                                        View role
-                                        <ChevronRight size={14} />
+                                    {/* View role */}
+                                    <span className="flex-shrink-0 flex items-center gap-0.5 text-xs font-medium text-gray-400 group-hover:text-gray-700 transition-colors whitespace-nowrap">
+                                        View role <ChevronRight size={14} />
                                     </span>
                                 </Link>
                             );
@@ -305,18 +327,18 @@ const CareerPage: React.FC = () => {
                 )}
             </div>
 
-            {/* ── 5. FOOTER BADGE ────────────────────────────────────────────── */}
-            <div className="flex justify-center pb-10">
+            {/* ── 5. FOOTER BADGE ────────────────────────────────────────── */}
+            <div className="flex justify-center pb-12">
                 <a
                     href="https://www.coreflowhr.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white text-xs text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all shadow-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
                 >
                     <img
                         src="/assets/images/coreflow-favicon-logo.png"
-                        alt="CoreflowHR"
-                        className="w-4 h-4 object-contain"
+                        alt=""
+                        className="w-4 h-4 object-contain opacity-70"
                     />
                     Powered by CoreflowHR
                 </a>
