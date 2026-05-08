@@ -632,7 +632,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                     type="checkbox"
                                     checked={requiresApproval}
                                     onChange={e => { setRequiresApproval(e.target.checked); if (!e.target.checked) setSelectedApprovers([]); }}
-                                    className="w-4 h-4 cursor-pointer "
+                                    className="w-4 h-4 cursor-pointer focus:outline-none focus:ring-0"
                                 />
                                 <span className="text-sm font-medium text-gray-700">Requires approval before sending</span>
                             </label>
@@ -650,7 +650,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                                             e.target.checked ? [...prev, m.userId] : prev.filter(id => id !== m.userId)
                                                         );
                                                     }}
-                                                    className="w-3.5 h-3.5 cursor-pointer "
+                                                    className="w-3.5 h-3.5 cursor-pointer focus:outline-none focus:ring-0"
                                                 />
                                                 <span className="text-sm text-gray-700">{m.name}</span>
                                             </label>
