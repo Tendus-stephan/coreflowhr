@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { MapPin, Briefcase, Clock, ArrowRight, Building2 } from 'lucide-react';
+import { MapPin, Search, Plus, Building2 } from 'lucide-react';
 
 interface WorkspaceInfo {
     id: string;
@@ -20,19 +20,25 @@ interface JobListing {
     slug?: string | null;
 }
 
+const typeStyle: Record<string, string> = {
+    'Full-time':  'border-emerald-400 text-emerald-700 bg-emerald-50',
+    'Part-time':  'border-blue-300   text-blue-700   bg-blue-50',
+    'Contract':   'border-orange-300 text-orange-700 bg-orange-50',
+    'Internship': 'border-purple-300 text-purple-700 bg-purple-50',
+    'Remote':     'border-teal-300   text-teal-700   bg-teal-50',
+};
+
 const CareerPage: React.FC = () => {
     const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
     const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
-    const [jobs, setJobs] = useState<JobListing[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [jobs, setJobs]           = useState<JobListing[]>([]);
+    const [loading, setLoading]     = useState(true);
+    const [error, setError]         = useState<string | null>(null);
+    const [query, setQuery]         = useState('');
+    const [hoveredId, setHoveredId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!workspaceSlug) {
-            setError('Invalid careers page link.');
-            setLoading(false);
-            return;
-        }
+        if (!workspaceSlug) { setError('Invalid careers page link.'); setLoading(false); return; }
 
         const load = async () => {
             try {
@@ -42,12 +48,7 @@ const CareerPage: React.FC = () => {
                     .eq('slug', workspaceSlug)
                     .single();
 
-                if (wsErr || !ws) {
-                    setError('This careers page could not be found.');
-                    setLoading(false);
-                    return;
-                }
-
+                if (wsErr || !ws) { setError('This careers page could not be found.'); setLoading(false); return; }
                 setWorkspace(ws as WorkspaceInfo);
 
                 const { data: jobsData } = await supabase
@@ -59,7 +60,7 @@ const CareerPage: React.FC = () => {
                     .order('created_at', { ascending: false });
 
                 setJobs((jobsData || []) as JobListing[]);
-            } catch (err: any) {
+            } catch {
                 setError('Something went wrong loading this page.');
             } finally {
                 setLoading(false);
@@ -69,27 +70,20 @@ const CareerPage: React.FC = () => {
         load();
     }, [workspaceSlug]);
 
-    // Group jobs by department
-    const grouped: Record<string, JobListing[]> = {};
-    for (const job of jobs) {
-        const dept = job.department || 'General';
-        if (!grouped[dept]) grouped[dept] = [];
-        grouped[dept].push(job);
-    }
-    const departments = Object.keys(grouped).sort();
-
-    const typeColors: Record<string, string> = {
-        'Full-time': 'bg-green-50 text-green-700',
-        'Part-time': 'bg-blue-50 text-blue-700',
-        'Contract': 'bg-orange-50 text-orange-700',
-        'Internship': 'bg-purple-50 text-purple-700',
-        'Remote': 'bg-teal-50 text-teal-700',
-    };
+    const filtered = jobs.filter(j => {
+        if (!query.trim()) return true;
+        const q = query.toLowerCase();
+        return (
+            j.title.toLowerCase().includes(q) ||
+            (j.location || '').toLowerCase().includes(q) ||
+            (j.department || '').toLowerCase().includes(q)
+        );
+    });
 
     if (loading) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
             </div>
         );
     }
@@ -100,97 +94,129 @@ const CareerPage: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
                     <Building2 size={22} className="text-gray-400" />
                 </div>
-                <p className="text-base font-semibold text-gray-900 mb-2">Page not found</p>
-                <p className="text-sm text-gray-500">{error || 'This careers page does not exist.'}</p>
+                <p className="text-base font-semibold text-gray-900 mb-1">Page not found</p>
+                <p className="text-sm text-gray-400">{error || 'This careers page does not exist.'}</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-white font-sans">
-            {/* Header — dark brand banner matching the offer letter header */}
-            <div style={{ background: '#1e3a5f' }}>
-                <div className="max-w-3xl mx-auto px-6 py-8 flex flex-col items-center text-center">
+        <div className="min-h-screen font-sans" style={{ background: '#f5f5f3' }}>
+
+            {/* ── Top bar: logo / company name ─────────────────────────── */}
+            <div className="bg-white border-b border-gray-100">
+                <div className="max-w-2xl mx-auto px-6 py-5 flex items-center gap-3">
                     {workspace.company_logo_url ? (
                         <img
                             src={workspace.company_logo_url}
                             alt={workspace.name}
-                            className="max-h-[56px] max-w-[220px] object-contain"
+                            className="h-9 max-w-[160px] object-contain"
                         />
                     ) : (
-                        <span className="text-white text-2xl font-bold tracking-tight">
-                            {workspace.name}
-                        </span>
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold" style={{ background: '#1e3a5f' }}>
+                            {workspace.name.charAt(0).toUpperCase()}
+                        </div>
                     )}
+                    <span className="text-sm font-semibold text-gray-800">{workspace.name}</span>
                 </div>
             </div>
 
-            {/* Sub-header: description on white (only if there's content) */}
-            {(workspace.company_description) && (
-                <div className="border-b border-gray-100 bg-white">
-                    <div className="max-w-3xl mx-auto px-6 py-5 text-center">
-                        <p className="text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
-                            {workspace.company_description}
+            {/* ── Main content ──────────────────────────────────────────── */}
+            <div className="max-w-2xl mx-auto px-6 py-12">
+
+                {/* Heading */}
+                <h1 className="text-3xl font-extrabold tracking-tight mb-1" style={{ color: '#0d1f3c' }}>
+                    OPEN POSITIONS
+                </h1>
+                {workspace.company_description ? (
+                    <p className="text-sm text-gray-500 mb-7 leading-relaxed max-w-lg">
+                        {workspace.company_description}
+                    </p>
+                ) : (
+                    <p className="text-sm text-gray-400 mb-7">
+                        Explore our current openings and find your next role.
+                    </p>
+                )}
+
+                {/* Search */}
+                <div className="relative mb-6">
+                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <input
+                        type="text"
+                        placeholder="Search roles or locations…"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition-colors shadow-sm"
+                    />
+                </div>
+
+                {/* Job list */}
+                {filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
+                        <p className="text-sm font-semibold text-gray-700 mb-1">
+                            {jobs.length === 0 ? 'No open positions right now' : 'No roles match your search'}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                            {jobs.length === 0 ? 'Check back soon for new opportunities.' : 'Try different keywords.'}
                         </p>
                     </div>
-                </div>
-            )}
-
-            {/* Jobs */}
-            <div className="max-w-3xl mx-auto px-6 py-10">
-                <h2 className="text-lg font-semibold text-gray-900 mb-6">Open Positions</h2>
-
-                {jobs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center bg-gray-50 rounded-xl border border-gray-100">
-                        <Briefcase size={28} className="text-gray-300 mb-3" />
-                        <p className="text-sm font-medium text-gray-700 mb-1">No open positions right now</p>
-                        <p className="text-xs text-gray-400">Check back soon for new opportunities.</p>
-                    </div>
                 ) : (
-                    <div className="space-y-8">
-                        {departments.map(dept => (
-                            <div key={dept}>
-                                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                                    {dept}
-                                </h3>
-                                <div className="space-y-2">
-                                    {grouped[dept].map(job => {
-                                        const applyHref = job.slug
-                                            ? `/jobs/apply/${workspaceSlug}/${job.slug}`
-                                            : `/jobs/apply/${job.id}`;
+                    <div className="space-y-2">
+                        {filtered.map(job => {
+                            const applyHref = job.slug
+                                ? `/jobs/apply/${workspaceSlug}/${job.slug}`
+                                : `/jobs/apply/${job.id}`;
+                            const isHovered = hoveredId === job.id;
+                            const tStyle = job.type ? (typeStyle[job.type] || 'border-gray-300 text-gray-600 bg-white') : null;
 
-                                        return (
-                                            <Link
-                                                key={job.id}
-                                                to={applyHref}
-                                                className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all group"
-                                            >
-                                                <div className="flex flex-col gap-1.5">
-                                                    <span className="text-sm font-semibold text-gray-900 group-hover:text-gray-700">
-                                                        {job.title}
-                                                    </span>
-                                                    <div className="flex items-center gap-3 flex-wrap">
-                                                        {job.location && (
-                                                            <span className="flex items-center gap-1 text-xs text-gray-500">
-                                                                <MapPin size={11} />
-                                                                {job.location}
-                                                            </span>
-                                                        )}
-                                                        {job.type && (
-                                                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[job.type] || 'bg-gray-100 text-gray-600'}`}>
-                                                                <Clock size={10} />
-                                                                {job.type}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <ArrowRight size={16} className="text-gray-400 group-hover:text-gray-700 flex-shrink-0 ml-4 transition-colors" />
-                                            </Link>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
+                            return (
+                                <Link
+                                    key={job.id}
+                                    to={applyHref}
+                                    onMouseEnter={() => setHoveredId(job.id)}
+                                    onMouseLeave={() => setHoveredId(null)}
+                                    className="flex items-center gap-4 px-5 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-300 hover:shadow-md transition-all group"
+                                >
+                                    {/* Title + meta */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                            <span className="text-sm font-bold tracking-wide uppercase" style={{ color: '#0d1f3c' }}>
+                                                {job.title}
+                                            </span>
+                                            {job.department && (
+                                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 text-gray-500">
+                                                    {job.department}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            {job.location && (
+                                                <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                                    <MapPin size={10} />
+                                                    {job.location}
+                                                </span>
+                                            )}
+                                            {tStyle && job.type && (
+                                                <span className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${tStyle}`}>
+                                                    {job.type}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Apply button */}
+                                    <div
+                                        className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-150"
+                                        style={{
+                                            borderColor: isHovered ? '#0d1f3c' : '#d1d5db',
+                                            background:  isHovered ? '#0d1f3c' : 'transparent',
+                                        }}
+                                    >
+                                        <Plus size={15} style={{ color: isHovered ? '#fff' : '#9ca3af' }} />
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </div>
