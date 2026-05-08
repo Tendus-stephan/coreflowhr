@@ -153,13 +153,13 @@ const CareerPage: React.FC = () => {
                 {/* Cover banner with curved + faded bottom edge */}
                 <div
                     className="relative w-full overflow-hidden"
-                    style={{ height: '200px', background: gradient }}
+                    style={{ height: '130px', background: gradient }}
                 >
                     {/* Soft curve + fade into page bg */}
                     <div
                         className="absolute inset-x-0 bottom-0"
                         style={{
-                            height: '80px',
+                            height: '50px',
                             background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)',
                             borderRadius: '0 0 0 0',
                         }}
@@ -177,14 +177,14 @@ const CareerPage: React.FC = () => {
 
                 {/* Logo + name — relative so it paints above the banner's fade overlay */}
                 <div className="mx-auto px-6 relative" style={{ maxWidth: MAX_W }}>
-                    <div className="flex items-center gap-4 -mt-10 pb-6">
+                    <div className="flex items-center gap-4 -mt-8 pb-5">
 
                         {/* Logo: white rounded bg, shadow, overlaps banner */}
                         <div
                             className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
                             style={{
-                                width: 80,
-                                height: 80,
+                                width: 64,
+                                height: 64,
                                 borderRadius: '10px',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
                                 border: '0.5px solid #e5e7eb',
@@ -202,7 +202,7 @@ const CareerPage: React.FC = () => {
                                     className="w-full h-full flex items-center justify-center"
                                     style={{ background: gradient }}
                                 >
-                                    <span className="text-white text-2xl font-extrabold select-none">
+                                    <span className="text-white text-xl font-extrabold select-none">
                                         {workspace.name.charAt(0).toUpperCase()}
                                     </span>
                                 </div>
