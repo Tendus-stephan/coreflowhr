@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { MapPin, Search, Plus, Building2 } from 'lucide-react';
+import { MapPin, Search, ChevronRight, Building2 } from 'lucide-react';
 
 interface WorkspaceInfo {
     id: string;
@@ -20,13 +20,31 @@ interface JobListing {
     slug?: string | null;
 }
 
-const typeStyle: Record<string, string> = {
-    'Full-time':  'border-emerald-400 text-emerald-700 bg-emerald-50',
-    'Part-time':  'border-blue-300   text-blue-700   bg-blue-50',
-    'Contract':   'border-orange-300 text-orange-700 bg-orange-50',
-    'Internship': 'border-purple-300 text-purple-700 bg-purple-50',
-    'Remote':     'border-teal-300   text-teal-700   bg-teal-50',
+// Soft, non-outlined type badge colours
+const typeBadge: Record<string, string> = {
+    'Full-time':  'bg-emerald-50 text-emerald-700',
+    'Part-time':  'bg-sky-50     text-sky-700',
+    'Contract':   'bg-amber-50   text-amber-700',
+    'Internship': 'bg-violet-50  text-violet-700',
+    'Remote':     'bg-gray-100   text-gray-600',
 };
+
+// Deterministic gradient from first char — used when no cover image
+const coverGradients = [
+    'linear-gradient(135deg,#1e3a5f 0%,#2d6a9f 100%)',
+    'linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%)',
+    'linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%)',
+    'linear-gradient(135deg,#141e30 0%,#243b55 100%)',
+    'linear-gradient(135deg,#0d1117 0%,#1b2a41 100%)',
+];
+function pickGradient(name: string) {
+    const idx = name.charCodeAt(0) % coverGradients.length;
+    return coverGradients[idx];
+}
+
+// Strip "General" / null — only real departments get shown
+const realDept = (d?: string | null) =>
+    d && d.toLowerCase() !== 'general' ? d : null;
 
 const CareerPage: React.FC = () => {
     const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
@@ -35,8 +53,9 @@ const CareerPage: React.FC = () => {
     const [loading, setLoading]     = useState(true);
     const [error, setError]         = useState<string | null>(null);
     const [query, setQuery]         = useState('');
-    const [hoveredId, setHoveredId] = useState<string | null>(null);
+    const [activeFilter, setActiveFilter] = useState('All');
 
+    // ── Data fetch (unchanged) ─────────────────────────────────────────────
     useEffect(() => {
         if (!workspaceSlug) { setError('Invalid careers page link.'); setLoading(false); return; }
 
@@ -70,24 +89,45 @@ const CareerPage: React.FC = () => {
         load();
     }, [workspaceSlug]);
 
-    const filtered = jobs.filter(j => {
-        if (!query.trim()) return true;
-        const q = query.toLowerCase();
-        return (
-            j.title.toLowerCase().includes(q) ||
-            (j.location || '').toLowerCase().includes(q) ||
-            (j.department || '').toLowerCase().includes(q)
-        );
-    });
+    // ── Filter pills: unique real departments + unique types ───────────────
+    const filterPills = useMemo(() => {
+        const depts = [...new Set(jobs.map(j => realDept(j.department)).filter(Boolean))] as string[];
+        const types = [...new Set(jobs.map(j => j.type).filter(Boolean))] as string[];
+        return ['All', ...depts, ...types];
+    }, [jobs]);
 
+    // ── Filtered list ──────────────────────────────────────────────────────
+    const filtered = useMemo(() => {
+        let list = jobs;
+
+        if (activeFilter !== 'All') {
+            list = list.filter(j =>
+                realDept(j.department) === activeFilter || j.type === activeFilter
+            );
+        }
+
+        if (query.trim()) {
+            const q = query.toLowerCase();
+            list = list.filter(j =>
+                j.title.toLowerCase().includes(q) ||
+                (j.location || '').toLowerCase().includes(q) ||
+                (realDept(j.department) || '').toLowerCase().includes(q)
+            );
+        }
+
+        return list;
+    }, [jobs, activeFilter, query]);
+
+    // ── Loading ────────────────────────────────────────────────────────────
     if (loading) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-700 rounded-full animate-spin" />
             </div>
         );
     }
 
+    // ── Error ──────────────────────────────────────────────────────────────
     if (error || !workspace) {
         return (
             <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 text-center">
@@ -100,120 +140,164 @@ const CareerPage: React.FC = () => {
         );
     }
 
-    return (
-        <div className="min-h-screen font-sans" style={{ background: '#f5f5f3' }}>
+    const gradient = pickGradient(workspace.name);
 
-            {/* ── Top bar: logo / company name ─────────────────────────── */}
-            <div className="bg-white border-b border-gray-100">
-                <div className="max-w-2xl mx-auto px-6 py-5 flex items-center gap-3">
-                    {workspace.company_logo_url ? (
-                        <img
-                            src={workspace.company_logo_url}
-                            alt={workspace.name}
-                            className="h-9 max-w-[160px] object-contain"
-                        />
-                    ) : (
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold" style={{ background: '#1e3a5f' }}>
-                            {workspace.name.charAt(0).toUpperCase()}
+    return (
+        <div className="min-h-screen bg-gray-50 font-sans">
+
+            {/* ── 1. COMPANY HEADER ──────────────────────────────────────────── */}
+            <div className="relative">
+                {/* Cover banner */}
+                <div
+                    className="w-full h-44 sm:h-52"
+                    style={{ background: gradient }}
+                />
+
+                {/* Logo + info row — overlaps banner */}
+                <div className="max-w-3xl mx-auto px-6">
+                    <div className="relative -mt-10 flex items-end gap-5 pb-5 border-b border-gray-200 bg-white px-6 pt-0 rounded-b-2xl shadow-sm">
+
+                        {/* Logo bubble */}
+                        <div
+                            className="flex-shrink-0 w-20 h-20 rounded-2xl border-4 border-white shadow-md -mt-10 flex items-center justify-center bg-white overflow-hidden"
+                            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}
+                        >
+                            {workspace.company_logo_url ? (
+                                <img
+                                    src={workspace.company_logo_url}
+                                    alt={workspace.name}
+                                    className="w-full h-full object-contain p-1.5"
+                                />
+                            ) : (
+                                <div
+                                    className="w-full h-full flex items-center justify-center rounded-xl"
+                                    style={{ background: gradient }}
+                                >
+                                    <span className="text-white text-2xl font-extrabold">
+                                        {workspace.name.charAt(0).toUpperCase()}
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                    )}
-                    <span className="text-sm font-semibold text-gray-800">{workspace.name}</span>
+
+                        {/* Name + description */}
+                        <div className="flex-1 min-w-0 pt-2 pb-1">
+                            <h1 className="text-xl font-bold text-gray-900 leading-tight truncate">
+                                {workspace.name}
+                            </h1>
+                            {workspace.company_description && (
+                                <p className="text-sm text-gray-500 mt-0.5 leading-snug line-clamp-2">
+                                    {workspace.company_description}
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* ── Main content ──────────────────────────────────────────── */}
-            <div className="max-w-2xl mx-auto px-6 py-12">
+            {/* ── 2. HEADING BLOCK ───────────────────────────────────────────── */}
+            <div className="max-w-3xl mx-auto px-6 pt-9 pb-2">
+                <h2 className="text-2xl font-semibold text-gray-900 leading-tight">
+                    Open positions
+                </h2>
+                <p className="text-sm text-gray-400 mt-0.5">
+                    {jobs.length > 0
+                        ? `${jobs.length} open role${jobs.length !== 1 ? 's' : ''}`
+                        : 'No open roles right now'}
+                </p>
+            </div>
 
-                {/* Heading */}
-                <h1 className="text-3xl font-extrabold tracking-tight mb-1" style={{ color: '#0d1f3c' }}>
-                    OPEN POSITIONS
-                </h1>
-                {workspace.company_description ? (
-                    <p className="text-sm text-gray-500 mb-7 leading-relaxed max-w-lg">
-                        {workspace.company_description}
-                    </p>
-                ) : (
-                    <p className="text-sm text-gray-400 mb-7">
-                        Explore our current openings and find your next role.
-                    </p>
-                )}
-
+            {/* ── 3. SEARCH + FILTERS ────────────────────────────────────────── */}
+            <div className="max-w-3xl mx-auto px-6 pt-5 pb-4 space-y-3">
                 {/* Search */}
-                <div className="relative mb-6">
-                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <div className="relative">
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input
                         type="text"
                         placeholder="Search roles or locations…"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400 transition-colors shadow-sm"
+                        style={{ height: '44px' }}
+                        className="w-full pl-10 pr-4 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200 transition-all"
                     />
                 </div>
 
-                {/* Job list */}
+                {/* Filter pills — only render if more than just "All" */}
+                {filterPills.length > 1 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {filterPills.map(pill => (
+                            <button
+                                key={pill}
+                                onClick={() => setActiveFilter(pill)}
+                                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                    activeFilter === pill
+                                        ? 'bg-gray-900 text-white shadow-sm'
+                                        : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-800'
+                                }`}
+                            >
+                                {pill}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* ── 4. JOB LIST ────────────────────────────────────────────────── */}
+            <div className="max-w-3xl mx-auto px-6 pb-16">
                 {filtered.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
-                        <p className="text-sm font-semibold text-gray-700 mb-1">
-                            {jobs.length === 0 ? 'No open positions right now' : 'No roles match your search'}
+                    <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-200">
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                            {jobs.length === 0 ? 'No open positions right now' : 'No roles match your filters'}
                         </p>
                         <p className="text-xs text-gray-400">
-                            {jobs.length === 0 ? 'Check back soon for new opportunities.' : 'Try different keywords.'}
+                            {jobs.length === 0 ? 'Check back soon.' : 'Try clearing your search or filters.'}
                         </p>
                     </div>
                 ) : (
-                    <div className="space-y-2">
-                        {filtered.map(job => {
+                    <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
+                        {filtered.map((job, i) => {
                             const applyHref = job.slug
                                 ? `/jobs/apply/${workspaceSlug}/${job.slug}`
                                 : `/jobs/apply/${job.id}`;
-                            const isHovered = hoveredId === job.id;
-                            const tStyle = job.type ? (typeStyle[job.type] || 'border-gray-300 text-gray-600 bg-white') : null;
+                            const dept      = realDept(job.department);
+                            const badge     = job.type ? (typeBadge[job.type] ?? 'bg-gray-100 text-gray-600') : null;
 
                             return (
                                 <Link
                                     key={job.id}
                                     to={applyHref}
-                                    onMouseEnter={() => setHoveredId(job.id)}
-                                    onMouseLeave={() => setHoveredId(null)}
-                                    className="flex items-center gap-4 px-5 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-300 hover:shadow-md transition-all group"
+                                    className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors group"
                                 >
-                                    {/* Title + meta */}
+                                    {/* Left: title + meta */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                            <span className="text-sm font-bold tracking-wide uppercase" style={{ color: '#0d1f3c' }}>
-                                                {job.title}
-                                            </span>
-                                            {job.department && (
-                                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 text-gray-500">
-                                                    {job.department}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 flex-wrap">
+                                        <p className="text-base font-medium text-gray-900 leading-snug group-hover:text-gray-700 transition-colors">
+                                            {job.title}
+                                        </p>
+                                        <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
                                             {job.location && (
-                                                <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                                                    <MapPin size={10} />
+                                                <span className="flex items-center gap-1 text-[13px] text-gray-400">
+                                                    <MapPin size={11} className="flex-shrink-0" />
                                                     {job.location}
                                                 </span>
                                             )}
-                                            {tStyle && job.type && (
-                                                <span className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${tStyle}`}>
+                                            {badge && job.type && (
+                                                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${badge}`}>
                                                     {job.type}
+                                                </span>
+                                            )}
+                                            {dept && (
+                                                <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                                    {dept}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* Apply button */}
-                                    <div
-                                        className="flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-150"
-                                        style={{
-                                            borderColor: isHovered ? '#0d1f3c' : '#d1d5db',
-                                            background:  isHovered ? '#0d1f3c' : 'transparent',
-                                        }}
-                                    >
-                                        <Plus size={15} style={{ color: isHovered ? '#fff' : '#9ca3af' }} />
-                                    </div>
+                                    {/* Right: View role */}
+                                    <span className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-gray-700 transition-colors whitespace-nowrap">
+                                        View role
+                                        <ChevronRight size={14} />
+                                    </span>
                                 </Link>
                             );
                         })}
@@ -221,7 +305,23 @@ const CareerPage: React.FC = () => {
                 )}
             </div>
 
-            <p className="text-center text-xs text-gray-400 pb-10">Powered by CoreflowHR</p>
+            {/* ── 5. FOOTER BADGE ────────────────────────────────────────────── */}
+            <div className="flex justify-center pb-10">
+                <a
+                    href="https://www.coreflowhr.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white text-xs text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all shadow-sm"
+                >
+                    <img
+                        src="/assets/images/coreflow-favicon-logo.png"
+                        alt="CoreflowHR"
+                        className="w-4 h-4 object-contain"
+                    />
+                    Powered by CoreflowHR
+                </a>
+            </div>
+
         </div>
     );
 };
