@@ -316,7 +316,7 @@ const CareerPage: React.FC = () => {
                                             )}
                                             {badge && job.type && (
                                                 <span
-                                                    style={{ background: badge.bg, color: badge.text, border: 'none', fontSize: '10px', padding: '1px 5px', borderRadius: '3px', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase' }}
+                                                    style={{ background: badge.bg, color: badge.text, border: 'none', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}
                                                 >
                                                     {job.type}
                                                 </span>
