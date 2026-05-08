@@ -22,14 +22,6 @@ interface JobListing {
     slug?: string | null;
 }
 
-// Soft muted badge fills — no borders, no bright colors
-const typeBadge: Record<string, { bg: string; text: string }> = {
-    'Full-time':  { bg: '#dcfce7', text: '#166534' },
-    'Part-time':  { bg: '#dbeafe', text: '#1e40af' },
-    'Contract':   { bg: '#fef3c7', text: '#92400e' },
-    'Internship': { bg: '#ede9fe', text: '#5b21b6' },
-    'Remote':     { bg: '#f3f4f6', text: '#374151' },
-};
 
 const DEFAULT_BANNER = '#1e3a5f';
 const buildGradient = (color: string) =>
@@ -285,8 +277,6 @@ const CareerPage: React.FC = () => {
                     <div className="rounded-2xl bg-white overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
                         {filtered.map((job, i) => {
                             const applyHref  = job.slug ? `/jobs/apply/${workspaceSlug}/${job.slug}` : `/jobs/apply/${job.id}`;
-                            const dept       = realDept(job.department);
-                            const badge      = job.type ? (typeBadge[job.type] ?? { bg: '#f3f4f6', text: '#374151' }) : null;
                             const isLast     = i === filtered.length - 1;
 
                             return (
@@ -304,27 +294,21 @@ const CareerPage: React.FC = () => {
                                 >
                                     {/* Title + meta */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-base font-medium text-gray-900 leading-snug group-hover:text-gray-700 transition-colors">
+                                        <p className="text-sm font-medium text-gray-900 leading-snug group-hover:text-gray-700 transition-colors" style={{ fontWeight: 500 }}>
                                             {job.title}
                                         </p>
-                                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                        <div className="flex items-center gap-1 mt-1.5">
                                             {job.location && (
                                                 <span className="flex items-center gap-1 text-[13px] text-gray-400">
                                                     <MapPin size={11} className="flex-shrink-0" />
                                                     {job.location}
                                                 </span>
                                             )}
-                                            {badge && job.type && (
-                                                <span
-                                                    style={{ background: badge.bg, color: badge.text, border: 'none', fontSize: '12px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
-                                                >
-                                                    {job.type}
-                                                </span>
+                                            {job.location && job.type && (
+                                                <span className="text-[13px] text-gray-400">·</span>
                                             )}
-                                            {dept && (
-                                                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500" style={{ border: 'none' }}>
-                                                    {dept}
-                                                </span>
+                                            {job.type && (
+                                                <span className="text-[13px] text-gray-400">{job.type}</span>
                                             )}
                                         </div>
                                     </div>
