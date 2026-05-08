@@ -13,6 +13,7 @@ import { CustomSelect } from '../components/ui/CustomSelect';
 import { Avatar } from '../components/ui/Avatar';
 import { api, Session } from '../services/api';
 import { User, BillingPlan, EmailTemplate, Integration, Invoice, EmailWorkflow } from '../types';
+import { darkenHex } from '../utils/colorUtils';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { createCheckoutSession, createPortalSession, PLANS } from '../services/stripe';
@@ -852,6 +853,7 @@ const Settings: React.FC = () => {
     const [teamError, setTeamError] = useState<string | null>(null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+    const [logoPreviewErr, setLogoPreviewErr] = useState(false);
     const [workspaceNameInput, setWorkspaceNameInput] = useState('');
     const [isSavingWorkspaceName, setIsSavingWorkspaceName] = useState(false);
     const [workspaceNameMsg, setWorkspaceNameMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -861,6 +863,11 @@ const Settings: React.FC = () => {
     const [slugInput, setSlugInput] = useState('');
     const [isSavingSlug, setIsSavingSlug] = useState(false);
     const [slugMsg, setSlugMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [bannerColorInput, setBannerColorInput] = useState('#1e3a5f');
+    const [bannerColorPreview, setBannerColorPreview] = useState('#1e3a5f');
+    const [isSavingBannerColor, setIsSavingBannerColor] = useState(false);
+    const [bannerColorMsg, setBannerColorMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const bannerColorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [profileWorkspaceName, setProfileWorkspaceName] = useState<string>('');
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [teamPage, setTeamPage] = useState(0);
@@ -1757,7 +1764,7 @@ const Settings: React.FC = () => {
                     try {
                         const { data: ws } = await supabase
                             .from('workspaces')
-                            .select('company_description, slug')
+                            .select('company_description, slug, banner_color')
                             .eq('id', workspace.workspaceId)
                             .single();
                         if (!cancelled) {
@@ -1765,6 +1772,9 @@ const Settings: React.FC = () => {
                             const loadedSlug = (ws as any)?.slug || '';
                             setSlugInput(loadedSlug);
                             setWorkspaceInfo(prev => prev ? { ...prev, slug: loadedSlug } : null);
+                            const loadedColor = (ws as any)?.banner_color || '#1e3a5f';
+                            setBannerColorInput(loadedColor);
+                            setBannerColorPreview(loadedColor);
                         }
                     } catch {
                         // non-fatal
@@ -2211,6 +2221,60 @@ const Settings: React.FC = () => {
                                     </div>
                                 )}
 
+                                {/* Banner color */}
+                                <div>
+                                    <label className="text-xs font-medium text-gray-700 block mb-1">Banner color</label>
+                                    <p className="text-xs text-gray-400 mb-2">Background color for the header on your public careers page.</p>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <input
+                                            type="color"
+                                            value={bannerColorInput}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setBannerColorInput(val);
+                                                setBannerColorMsg(null);
+                                                if (bannerColorDebounceRef.current) clearTimeout(bannerColorDebounceRef.current);
+                                                bannerColorDebounceRef.current = setTimeout(() => setBannerColorPreview(val), 200);
+                                            }}
+                                            disabled={!teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                            className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed p-0.5"
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={isSavingBannerColor || !teamMembers.find(m => m.isCurrentUser && m.role === 'Admin')}
+                                            onClick={async () => {
+                                                setIsSavingBannerColor(true);
+                                                setBannerColorMsg(null);
+                                                try {
+                                                    await api.workspaces.updateWorkspace({ bannerColor: bannerColorInput });
+                                                    setBannerColorPreview(bannerColorInput);
+                                                    setBannerColorMsg({ type: 'success', text: 'Banner color saved' });
+                                                } catch (err: any) {
+                                                    setBannerColorMsg({ type: 'error', text: err.message || 'Failed to save' });
+                                                } finally {
+                                                    setIsSavingBannerColor(false);
+                                                }
+                                            }}
+                                            className="px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {isSavingBannerColor ? 'Saving…' : 'Save'}
+                                        </button>
+                                        {bannerColorMsg && (
+                                            <p className={`text-xs ${bannerColorMsg.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                {bannerColorMsg.text}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {/* Live preview strip */}
+                                    <div
+                                        className="mt-3 rounded-lg overflow-hidden"
+                                        style={{
+                                            height: '48px',
+                                            background: `linear-gradient(135deg, ${bannerColorPreview} 0%, ${darkenHex(bannerColorPreview, 38)} 100%)`,
+                                        }}
+                                    />
+                                </div>
+
                                 <p className="text-xs text-gray-500">Logo appears in the header of offer letters. PNG, JPG, or SVG. Max 2MB. Transparent background recommended.</p>
                                 <div className="flex flex-wrap items-start gap-6">
                                     <div className="flex flex-col gap-2">
@@ -2237,6 +2301,7 @@ const Settings: React.FC = () => {
                                                 try {
                                                     const { publicUrl } = await api.workspaces.uploadCompanyLogo(workspaceInfo.workspaceId, file);
                                                     await api.workspaces.updateWorkspace({ companyLogoUrl: publicUrl });
+                                                    setLogoPreviewErr(false);
                                                     setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: publicUrl } : null);
                                                 } catch (err: any) {
                                                     setLogoUploadError(err?.message || 'Upload failed');
@@ -2263,6 +2328,7 @@ const Settings: React.FC = () => {
                                                     if (!workspaceInfo) return;
                                                     try {
                                                         await api.workspaces.updateWorkspace({ companyLogoUrl: null });
+                                                        setLogoPreviewErr(false);
                                                         setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: undefined } : null);
                                                     } catch (err: any) {
                                                         setLogoUploadError(err?.message || 'Failed to remove logo');
@@ -2276,8 +2342,8 @@ const Settings: React.FC = () => {
                                     </div>
                                     {/* Preview as in offer header */}
                                     <div className="rounded-lg bg-[#1e3a5f] px-4 py-3 flex items-center min-h-[50px] max-w-[220px]">
-                                        {workspaceInfo?.companyLogoUrl ? (
-                                            <img src={workspaceInfo.companyLogoUrl} alt="Company logo" className="max-h-[50px] max-w-[180px] object-contain" />
+                                        {workspaceInfo?.companyLogoUrl && !logoPreviewErr ? (
+                                            <img src={workspaceInfo.companyLogoUrl} alt="Company logo" className="max-h-[50px] max-w-[180px] object-contain" onError={() => setLogoPreviewErr(true)} />
                                         ) : (
                                             <span className="text-white text-sm font-medium">{workspaceInfo?.name || 'Company name'}</span>
                                         )}

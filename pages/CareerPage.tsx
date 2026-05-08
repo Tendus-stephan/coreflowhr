@@ -2,12 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { MapPin, Search, ChevronRight, Building2 } from 'lucide-react';
+import { darkenHex } from '../utils/colorUtils';
 
 interface WorkspaceInfo {
     id: string;
     name: string;
     company_logo_url?: string | null;
     company_description?: string | null;
+    banner_color?: string | null;
     slug: string;
 }
 
@@ -29,14 +31,9 @@ const typeBadge: Record<string, { bg: string; text: string }> = {
     'Remote':     { bg: '#f3f4f6', text: '#374151' },
 };
 
-const coverGradients = [
-    'linear-gradient(135deg,#1e3a5f 0%,#2d6a9f 100%)',
-    'linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%)',
-    'linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%)',
-    'linear-gradient(135deg,#141e30 0%,#243b55 100%)',
-    'linear-gradient(135deg,#0d1117 0%,#1b2a41 100%)',
-];
-const pickGradient = (name: string) => coverGradients[name.charCodeAt(0) % coverGradients.length];
+const DEFAULT_BANNER = '#1e3a5f';
+const buildGradient = (color: string) =>
+    `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 38)} 100%)`;
 
 // Strip null / "General" — only real departments shown
 const realDept = (d?: string | null) => (d && d.toLowerCase() !== 'general' ? d : null);
@@ -51,6 +48,7 @@ const CareerPage: React.FC = () => {
     const [error, setError]         = useState<string | null>(null);
     const [query, setQuery]         = useState('');
     const [activeFilter, setActiveFilter] = useState('All');
+    const [logoErr, setLogoErr]     = useState(false);
 
     // ── Data fetch (no logic changes) ─────────────────────────────────────
     useEffect(() => {
@@ -60,12 +58,26 @@ const CareerPage: React.FC = () => {
             try {
                 const { data: ws, error: wsErr } = await supabase
                     .from('workspaces')
-                    .select('id, name, company_logo_url, company_description, slug')
+                    .select('id, name, company_logo_url, slug')
                     .eq('slug', workspaceSlug)
                     .single();
 
                 if (wsErr || !ws) { setError('This careers page could not be found.'); setLoading(false); return; }
-                setWorkspace(ws as WorkspaceInfo);
+
+                // Fetch optional columns separately — non-fatal if migrations not yet applied
+                let desc: string | null = null;
+                let bannerColor: string | null = null;
+                try {
+                    const { data: extra } = await supabase
+                        .from('workspaces')
+                        .select('company_description, banner_color')
+                        .eq('id', ws.id)
+                        .single();
+                    desc        = (extra as any)?.company_description ?? null;
+                    bannerColor = (extra as any)?.banner_color ?? null;
+                } catch { /* non-fatal */ }
+
+                setWorkspace({ ...(ws as WorkspaceInfo), company_description: desc, banner_color: bannerColor });
 
                 const { data: jobsData } = await supabase
                     .from('jobs')
@@ -130,7 +142,7 @@ const CareerPage: React.FC = () => {
         );
     }
 
-    const gradient = pickGradient(workspace.name);
+    const gradient = buildGradient(workspace.banner_color || DEFAULT_BANNER);
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
@@ -177,11 +189,12 @@ const CareerPage: React.FC = () => {
                                 border: '3px solid #fff',
                             }}
                         >
-                            {workspace.company_logo_url ? (
+                            {workspace.company_logo_url && !logoErr ? (
                                 <img
                                     src={workspace.company_logo_url}
                                     alt={workspace.name}
                                     className="w-full h-full object-contain p-2"
+                                    onError={() => setLogoErr(true)}
                                 />
                             ) : (
                                 <div
