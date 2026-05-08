@@ -145,7 +145,7 @@ const CareerPage: React.FC = () => {
     const gradient = buildGradient(workspace.banner_color || DEFAULT_BANNER);
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans">
+        <div className="min-h-screen bg-white font-sans">
 
             {/* ── 1. COMPANY HEADER ──────────────────────────────────────── */}
             <div className="relative">
@@ -160,7 +160,7 @@ const CareerPage: React.FC = () => {
                         className="absolute inset-x-0 bottom-0"
                         style={{
                             height: '80px',
-                            background: 'linear-gradient(to bottom, transparent 0%, #f9fafb 100%)',
+                            background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)',
                             borderRadius: '0 0 0 0',
                         }}
                     />
@@ -171,22 +171,23 @@ const CareerPage: React.FC = () => {
                         preserveAspectRatio="none"
                         style={{ height: '40px' }}
                     >
-                        <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#f9fafb" />
+                        <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
                     </svg>
                 </div>
 
                 {/* Logo + name — no white card, plain layout */}
                 <div className="mx-auto px-6" style={{ maxWidth: MAX_W }}>
-                    <div className="flex items-end gap-4 -mt-10 pb-6">
+                    <div className="flex items-center gap-4 -mt-10 pb-6">
 
                         {/* Logo: white rounded bg, shadow, overlaps banner */}
                         <div
-                            className="flex-shrink-0 rounded-2xl bg-white flex items-center justify-center overflow-hidden"
+                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
                             style={{
                                 width: 80,
                                 height: 80,
+                                borderRadius: '10px',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
-                                border: '3px solid #fff',
+                                border: '0.5px solid #e5e7eb',
                             }}
                         >
                             {workspace.company_logo_url && !logoErr ? (
@@ -209,7 +210,7 @@ const CareerPage: React.FC = () => {
                         </div>
 
                         {/* Name + description — plain text, no card/box */}
-                        <div className="pb-1 min-w-0">
+                        <div className="min-w-0">
                             <h1 className="text-xl font-bold text-gray-900 leading-tight">
                                 {workspace.name}
                             </h1>
@@ -294,8 +295,8 @@ const CareerPage: React.FC = () => {
                                     to={applyHref}
                                     className="flex items-center gap-4 px-5 group transition-colors"
                                     style={{
-                                        paddingTop: '22px',
-                                        paddingBottom: '22px',
+                                        paddingTop: '16px',
+                                        paddingBottom: '16px',
                                         borderBottom: isLast ? 'none' : '0.5px solid #f0f0f0',
                                     }}
                                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#fafafa')}
@@ -315,14 +316,13 @@ const CareerPage: React.FC = () => {
                                             )}
                                             {badge && job.type && (
                                                 <span
-                                                    className="text-xs font-medium px-2.5 py-1 rounded-full"
-                                                    style={{ background: badge.bg, color: badge.text }}
+                                                    style={{ background: badge.bg, color: badge.text, border: 'none', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, letterSpacing: '0.3px' }}
                                                 >
                                                     {job.type}
                                                 </span>
                                             )}
                                             {dept && (
-                                                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
+                                                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500" style={{ border: 'none' }}>
                                                     {dept}
                                                 </span>
                                             )}
