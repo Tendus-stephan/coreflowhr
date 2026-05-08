@@ -3,7 +3,7 @@ import { Offer, Candidate, Job } from '../types';
 import { api } from '../services/api';
 import { Button } from './ui/Button';
 import { CustomSelect } from './ui/CustomSelect';
-import { X, Plus, Trash2, Send, Save, Loader2, AlertCircle, UserCheck, Clock } from 'lucide-react';
+import { X, Trash2, AlertCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toUserError } from '../utils/edgeFunctionError';
 
@@ -583,7 +583,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 variant="outline"
                                 size="sm"
                                 onClick={handleAddBenefit}
-                                icon={<Plus size={16} />}
                             >
                                 Add
                             </Button>
@@ -715,7 +714,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 variant="black"
                                 onClick={handleSendOffer}
                                 disabled={saving || sending || submittingApproval}
-                                icon={sending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
                             >
                                 {sending ? 'Sending...' : 'Save & Send Offer'}
                             </Button>
@@ -725,7 +723,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 variant="black"
                                 onClick={handleSubmitForApproval}
                                 disabled={saving || sending || submittingApproval || selectedApprovers.length === 0}
-                                icon={submittingApproval ? <Loader2 className="animate-spin" size={16} /> : <UserCheck size={16} />}
                             >
                                 {submittingApproval ? 'Submitting...' : 'Submit for Approval'}
                             </Button>
@@ -735,7 +732,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 variant="black"
                                 onClick={handleSave}
                                 disabled={saving || sending || submittingApproval}
-                                icon={<Save size={16} />}
                             >
                                 {saving ? 'Saving...' : offer ? 'Update Offer' : 'Save as Draft'}
                             </Button>
@@ -745,7 +741,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 variant="outline"
                                 onClick={handleSave}
                                 disabled={saving || sending || submittingApproval}
-                                icon={<Save size={16} />}
                             >
                                 {saving ? 'Saving...' : 'Save as Draft'}
                             </Button>
