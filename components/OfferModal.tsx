@@ -112,8 +112,11 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     // once per open — equivalent to a mount-only effect.
     useEffect(() => {
         setRequiresApproval(offer?.requiresApproval ?? false);
-        // Pre-populate approvers from DB if available (e.g. re-opening after rejection)
-        setSelectedApprovers(offer?.approvers?.map(a => a.userId) ?? []);
+        // Restore approvers: prefer submitted approval requests, fall back to draft IDs
+        const restored = offer?.approvers?.map(a => a.userId)
+            ?? offer?.draftApproverIds
+            ?? [];
+        setSelectedApprovers(restored);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -239,20 +242,22 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     notes: notes.trim() || undefined,
                     expiresAt: expiresAt,
                     requiresApproval: requiresApproval,
+                    draftApproverIds: requiresApproval && selectedApprovers.length > 0 ? selectedApprovers : null,
                 });
             } else {
                 await api.offers.create({
-                    candidateId: candidateToUse?.id || null, // null for general offers
+                    candidateId: candidateToUse?.id || null,
                     jobId: jobId,
                     positionTitle: positionTitle.trim(),
-                    startDate: startDate, // Required
-                    salaryAmount: salaryAmount, // Required
-                    salaryCurrency: salaryCurrency, // Required
-                    salaryPeriod: salaryPeriod, // Required
-                    benefits: benefits, // Required (at least one)
-                    notes: notes.trim() || undefined, // Optional
-                    expiresAt: expiresAt, // Required
+                    startDate: startDate,
+                    salaryAmount: salaryAmount,
+                    salaryCurrency: salaryCurrency,
+                    salaryPeriod: salaryPeriod,
+                    benefits: benefits,
+                    notes: notes.trim() || undefined,
+                    expiresAt: expiresAt,
                     requiresApproval: requiresApproval,
+                    draftApproverIds: requiresApproval && selectedApprovers.length > 0 ? selectedApprovers : undefined,
                 });
             }
 

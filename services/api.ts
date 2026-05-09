@@ -6620,6 +6620,7 @@ export const api = {
                 requiresApproval: offer.requires_approval ?? false,
                 approvalStatus: offer.approval_status ?? null,
                 approvalNote: offer.approval_note ?? null,
+                draftApproverIds: offer.draft_approver_ids ?? null,
                 approvers: approvalsByOfferId[offer.id] || undefined,
             }));
         },
@@ -6679,6 +6680,7 @@ export const api = {
                 requiresApproval: data.requires_approval ?? false,
                 approvalStatus: data.approval_status ?? null,
                 approvalNote: data.approval_note ?? null,
+                draftApproverIds: data.draft_approver_ids ?? null,
                 approvers,
             };
         },
@@ -6706,6 +6708,7 @@ export const api = {
             expiresAt?: string;
             requireEsignature?: boolean;
             requiresApproval?: boolean;
+            draftApproverIds?: string[];
         }): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -6735,7 +6738,8 @@ export const api = {
                     status: 'draft',
                     expires_at: offerData.expiresAt || null,
                     require_esignature: offerData.requireEsignature ?? true,
-                    requires_approval: offerData.requiresApproval ?? false
+                    requires_approval: offerData.requiresApproval ?? false,
+                    draft_approver_ids: offerData.draftApproverIds?.length ? offerData.draftApproverIds : null
                 })
                 .select()
                 .single();
@@ -6829,6 +6833,7 @@ export const api = {
             archived?: boolean;
             requireEsignature?: boolean;
             requiresApproval?: boolean;
+            draftApproverIds?: string[] | null;
         }>): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -6846,6 +6851,7 @@ export const api = {
             if (updates.archived !== undefined) updateData.archived = updates.archived;
             if (updates.requireEsignature !== undefined) updateData.require_esignature = updates.requireEsignature;
             if (updates.requiresApproval !== undefined) updateData.requires_approval = updates.requiresApproval;
+            if (updates.draftApproverIds !== undefined) updateData.draft_approver_ids = updates.draftApproverIds?.length ? updates.draftApproverIds : null;
 
             // RLS UPDATE policy already enforces access (user_id = auth.uid() or workspace admin/recruiter).
             // No extra app-level filter needed — avoids null workspace_id mismatches on older offers.

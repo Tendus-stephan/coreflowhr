@@ -516,6 +516,8 @@ export interface Offer {
   approvalStatus?: 'pending' | 'approved' | 'rejected' | null;
   /** Note left by a rejecting approver. */
   approvalNote?: string | null;
+  /** Approver user IDs saved on the draft before submitForApproval is called. */
+  draftApproverIds?: string[] | null;
   /** Individual approvers and their response status. */
   approvers?: Array<{ userId: string; name: string; status: 'pending' | 'approved' | 'rejected' }>;
 }
