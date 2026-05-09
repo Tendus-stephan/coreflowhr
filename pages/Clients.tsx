@@ -34,6 +34,9 @@ const Clients: React.FC = () => {
   const [clientLogoErr, setClientLogoErr] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  // Staged logo (selected but not yet uploaded)
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [pendingLogoPreview, setPendingLogoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -72,11 +75,18 @@ const Clients: React.FC = () => {
     }
   };
 
+  const clearPendingLogo = () => {
+    if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
+    setPendingLogoFile(null);
+    setPendingLogoPreview(null);
+  };
+
   const handleCreate = () => {
     setEditingClient(null);
     setClientLogoUrl(null);
     setClientLogoErr(false);
     setLogoUploadError(null);
+    clearPendingLogo();
     setFormData({ name: '', contactEmail: '', contactPhone: '', address: '', notes: '' });
     setShowCreateModal(true);
   };
@@ -87,6 +97,7 @@ const Clients: React.FC = () => {
     setClientLogoUrl(client.logoUrl || null);
     setClientLogoErr(false);
     setLogoUploadError(null);
+    clearPendingLogo();
     setFormData({
       name: client.name,
       contactEmail: client.contactEmail || '',
@@ -97,22 +108,15 @@ const Clients: React.FC = () => {
     setShowCreateModal(true);
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingClient) return;
     setLogoUploadError(null);
-    setIsUploadingLogo(true);
-    try {
-      const { publicUrl } = await api.clients.uploadLogo(editingClient.id, file);
-      setClientLogoUrl(publicUrl);
-      setClientLogoErr(false);
-      setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, logoUrl: publicUrl } : c));
-    } catch (err: any) {
-      setLogoUploadError(err?.message || 'Upload failed');
-    } finally {
-      setIsUploadingLogo(false);
-      e.target.value = '';
-    }
+    setClientLogoErr(false);
+    if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview);
+    setPendingLogoFile(file);
+    setPendingLogoPreview(URL.createObjectURL(file));
+    e.target.value = '';
   };
 
   const handleDelete = async (id: string) => {
@@ -141,6 +145,22 @@ const Clients: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (editingClient) {
+        // Upload staged logo first, if any
+        if (pendingLogoFile) {
+          setIsUploadingLogo(true);
+          try {
+            const { publicUrl } = await api.clients.uploadLogo(editingClient.id, pendingLogoFile);
+            setClientLogoUrl(publicUrl);
+            setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, logoUrl: publicUrl } : c));
+            clearPendingLogo();
+          } catch (err: any) {
+            setLogoUploadError(err?.message || 'Logo upload failed');
+            setIsSubmitting(false);
+            setIsUploadingLogo(false);
+            return;
+          }
+          setIsUploadingLogo(false);
+        }
         await api.clients.update(editingClient.id, formData);
       } else {
         await api.clients.create(formData);
@@ -149,6 +169,7 @@ const Clients: React.FC = () => {
       await loadClients();
     } catch (error: any) {
       console.error('Failed to save client:', error);
+      toast.error(error.message || 'Failed to save client');
     } finally {
       setIsSubmitting(false);
     }
@@ -357,7 +378,7 @@ const Clients: React.FC = () => {
                 {editingClient ? 'Edit Client' : 'New Client'}
               </h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => { clearPendingLogo(); setShowCreateModal(false); }}
                 className="text-gray-400 hover:text-gray-900 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
               >
                 <X size={18} />
@@ -390,10 +411,10 @@ const Clients: React.FC = () => {
               >
                 {isUploadingLogo ? (
                   <Loader2 size={20} className="animate-spin text-gray-400" />
-                ) : clientLogoUrl && !clientLogoErr ? (
+                ) : (pendingLogoPreview || clientLogoUrl) && !clientLogoErr ? (
                   <>
                     <img
-                      src={clientLogoUrl}
+                      src={pendingLogoPreview || clientLogoUrl!}
                       alt=""
                       className="w-full h-full object-contain p-1.5"
                       onError={() => setClientLogoErr(true)}
@@ -495,7 +516,7 @@ const Clients: React.FC = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => { clearPendingLogo(); setShowCreateModal(false); }}
                   className="flex-1"
                   size="sm"
                 >
