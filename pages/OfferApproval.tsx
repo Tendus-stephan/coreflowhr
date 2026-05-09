@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
-import { CheckCircle, XCircle, AlertCircle, Loader2, Clock, MinusCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Clock, MinusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { darkenHex } from '../utils/colorUtils';
 
@@ -234,9 +234,9 @@ const OfferApproval: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <XCircle size={36} className="text-red-400 mx-auto mb-4" />
-                            <h2 className="text-lg font-bold text-gray-900 mb-2">Already rejected</h2>
-                            <p className="text-sm text-gray-500">You have already rejected this offer.</p>
+                            <MinusCircle size={20} className="text-gray-400 mx-auto mb-4" />
+                            <h2 className="text-lg font-bold text-gray-900 mb-2">Already declined</h2>
+                            <p className="text-sm text-gray-500">You have already declined this offer.</p>
                         </>
                     )}
                 </div>
