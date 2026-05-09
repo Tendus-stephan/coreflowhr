@@ -1,7 +1,7 @@
 import React from 'react';
 import { Offer } from '../types';
 import { Button } from './ui/Button';
-import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare, Download } from 'lucide-react';
+import { Edit2, Send, AlertCircle, CheckCircle, XCircle, MessageSquare, Download, ShieldCheck, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
 const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'pending_approval', 'accepted', 'declined', 'signed'];
@@ -115,6 +115,41 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     )}
                     {offer.creatorName && (
                         <p className="text-xs text-gray-400 mt-1">by {offer.creatorName}</p>
+                    )}
+                    {offer.requiresApproval && (
+                        <div className="mt-2">
+                            {offer.approvers && offer.approvers.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5 items-center">
+                                    <ShieldCheck size={13} className="text-amber-500 flex-shrink-0" />
+                                    {offer.approvers.map((a, i) => (
+                                        <span
+                                            key={i}
+                                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                a.status === 'approved'
+                                                    ? 'bg-green-50 text-green-700'
+                                                    : a.status === 'rejected'
+                                                    ? 'bg-red-50 text-red-700'
+                                                    : 'bg-amber-50 text-amber-700'
+                                            }`}
+                                        >
+                                            {a.status === 'approved' ? (
+                                                <CheckCircle size={10} />
+                                            ) : a.status === 'rejected' ? (
+                                                <XCircle size={10} />
+                                            ) : (
+                                                <Clock size={10} />
+                                            )}
+                                            {a.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                                    <ShieldCheck size={13} />
+                                    Requires approval before sending
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
                 {offer.status === 'draft' && !readOnly && (

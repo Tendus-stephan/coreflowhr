@@ -6571,6 +6571,26 @@ export const api = {
                 }
             }
 
+            // Batch-fetch approval requests for offers that require approval
+            const approvalOfferIds = rows.filter((o: any) => o.requires_approval).map((o: any) => o.id);
+            const approvalsByOfferId: Record<string, Array<{ name: string; status: 'pending' | 'approved' | 'rejected' }>> = {};
+            if (approvalOfferIds.length > 0) {
+                const { data: approvalRows } = await supabase
+                    .from('offer_approval_requests')
+                    .select('offer_id, approver_user_id, status')
+                    .in('offer_id', approvalOfferIds);
+                if (approvalRows?.length) {
+                    const approverIds = [...new Set((approvalRows as any[]).map((r: any) => r.approver_user_id))];
+                    const { data: approverNames } = await supabase.rpc('get_display_names_for_users', { p_user_ids: approverIds });
+                    const approverNameById: Record<string, string> = {};
+                    if (approverNames && typeof approverNames === 'object') Object.assign(approverNameById, approverNames);
+                    for (const row of approvalRows as any[]) {
+                        if (!approvalsByOfferId[row.offer_id]) approvalsByOfferId[row.offer_id] = [];
+                        approvalsByOfferId[row.offer_id].push({ name: approverNameById[row.approver_user_id] || 'Unknown', status: row.status });
+                    }
+                }
+            }
+
             return rows.map((offer: any) => ({
                 id: offer.id,
                 candidateId: offer.candidate_id,
@@ -6600,6 +6620,7 @@ export const api = {
                 requiresApproval: offer.requires_approval ?? false,
                 approvalStatus: offer.approval_status ?? null,
                 approvalNote: offer.approval_note ?? null,
+                approvers: approvalsByOfferId[offer.id] || undefined,
             }));
         },
         get: async (offerId: string): Promise<Offer> => {
@@ -6613,6 +6634,22 @@ export const api = {
             const { data, error } = await q.single();
 
             if (error) throw error;
+
+            // Fetch approvers if this offer requires approval
+            let approvers: Array<{ name: string; status: 'pending' | 'approved' | 'rejected' }> | undefined;
+            if (data.requires_approval) {
+                const { data: approvalRows } = await supabase
+                    .from('offer_approval_requests')
+                    .select('approver_user_id, status')
+                    .eq('offer_id', offerId);
+                if (approvalRows?.length) {
+                    const approverIds = (approvalRows as any[]).map((r: any) => r.approver_user_id);
+                    const { data: approverNames } = await supabase.rpc('get_display_names_for_users', { p_user_ids: approverIds });
+                    const approverNameById: Record<string, string> = {};
+                    if (approverNames && typeof approverNames === 'object') Object.assign(approverNameById, approverNames);
+                    approvers = (approvalRows as any[]).map((r: any) => ({ name: approverNameById[r.approver_user_id] || 'Unknown', status: r.status }));
+                }
+            }
 
             return {
                 id: data.id,
@@ -6642,6 +6679,7 @@ export const api = {
                 requiresApproval: data.requires_approval ?? false,
                 approvalStatus: data.approval_status ?? null,
                 approvalNote: data.approval_note ?? null,
+                approvers,
             };
         },
         getSignedPdfUrl: async (offerId: string): Promise<string | null> => {

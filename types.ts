@@ -516,6 +516,8 @@ export interface Offer {
   approvalStatus?: 'pending' | 'approved' | 'rejected' | null;
   /** Note left by a rejecting approver. */
   approvalNote?: string | null;
+  /** Individual approvers and their response status. */
+  approvers?: Array<{ name: string; status: 'pending' | 'approved' | 'rejected' }>;
 }
 
 export interface OfferApprovalRequest {
