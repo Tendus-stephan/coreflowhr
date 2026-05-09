@@ -159,7 +159,7 @@ const OfferResponse: React.FC = () => {
         if (!amount) return 'To be discussed';
         const curr = currency === 'USD' ? '$' : currency || 'USD';
         const per = period === 'yearly' ? '/yr' : period === 'monthly' ? '/mo' : '/hr';
-        return `${curr}${amount.toLocaleString()}${per}`;
+        return `${curr}${Math.round(amount).toLocaleString()}${per}`;
     };
 
     const formatDate = (dateString?: string) => {
@@ -352,7 +352,7 @@ const OfferResponse: React.FC = () => {
                                                 {item.updatedFields.salaryAmount && (
                                                     <p className="text-xs text-gray-600">
                                                         Salary: {item.updatedFields.salaryCurrency === 'USD' ? '$' : item.updatedFields.salaryCurrency}
-                                                        {item.updatedFields.salaryAmount.toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? '/yr' : item.updatedFields.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
+                                                        {Math.round(item.updatedFields.salaryAmount).toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? '/yr' : item.updatedFields.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
                                                     </p>
                                                 )}
                                                 {item.notes && <p className="text-xs text-gray-500 italic">"{item.notes}"</p>}
@@ -364,7 +364,7 @@ const OfferResponse: React.FC = () => {
                                                 {item.counterOffer.salaryAmount && (
                                                     <p className="text-xs text-gray-600">
                                                         Salary: {item.counterOffer.salaryCurrency === 'USD' ? '$' : item.counterOffer.salaryCurrency}
-                                                        {item.counterOffer.salaryAmount.toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? '/yr' : item.counterOffer.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
+                                                        {Math.round(item.counterOffer.salaryAmount).toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? '/yr' : item.counterOffer.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
                                                     </p>
                                                 )}
                                                 {item.counterOffer.notes && <p className="text-xs text-gray-500 italic">"{item.counterOffer.notes}"</p>}

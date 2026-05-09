@@ -190,7 +190,7 @@ const OfferApproval: React.FC = () => {
         if (!offer.salaryAmount) return 'Not specified';
         const sym = offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency === 'EUR' ? '€' : offer.salaryCurrency === 'GBP' ? '£' : offer.salaryCurrency + ' ';
         const period = offer.salaryPeriod === 'yearly' ? 'per year' : offer.salaryPeriod === 'monthly' ? 'per month' : 'per hour';
-        return `${sym}${offer.salaryAmount.toLocaleString()} ${period}`;
+        return `${sym}${Math.round(offer.salaryAmount).toLocaleString()} ${period}`;
     };
 
     if (loading) {

@@ -138,7 +138,7 @@ function formatSalary(offer: Offer) {
     if (!offer.salaryAmount) return '—';
     const sym = offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency === 'EUR' ? '€' : offer.salaryCurrency === 'GBP' ? '£' : offer.salaryCurrency;
     const period = offer.salaryPeriod === 'yearly' ? '/yr' : offer.salaryPeriod === 'monthly' ? '/mo' : '/hr';
-    return `${sym}${offer.salaryAmount.toLocaleString()}${period}`;
+    return `${sym}${Math.round(offer.salaryAmount).toLocaleString()}${period}`;
 }
 
 // ── Pagination helper ─────────────────────────────────────────────────────────

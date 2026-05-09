@@ -432,7 +432,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                                     <p>
                                                         <span className="font-medium">Salary:</span>{' '}
                                                         {co.salaryCurrency === 'USD' ? '$' : co.salaryCurrency}
-                                                        {co.salaryAmount.toLocaleString()}{' '}
+                                                        {Math.round(co.salaryAmount).toLocaleString()}{' '}
                                                         {co.salaryPeriod === 'yearly' ? 'per year' : co.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
                                                     </p>
                                                 )}

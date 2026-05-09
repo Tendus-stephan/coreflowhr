@@ -73,7 +73,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
         if (!offer.salaryAmount) return 'Not specified';
         const currency = offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency;
         const period = offer.salaryPeriod === 'yearly' ? 'per year' : offer.salaryPeriod === 'monthly' ? 'per month' : 'per hour';
-        return `${currency}${offer.salaryAmount.toLocaleString()} ${period}`;
+        return `${currency}${Math.round(offer.salaryAmount).toLocaleString()} ${period}`;
     };
 
     const formatDate = (dateString?: string) => {
@@ -119,25 +119,36 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     {offer.referenceNumber && (
                         <p className="text-xs text-gray-400 mt-1">{offer.referenceNumber}</p>
                     )}
-                    {offer.creatorName && (
-                        <p className="text-xs text-gray-400 mt-1">by {offer.creatorName}</p>
-                    )}
-                    {/* Approver chips — shown when submitted for approval */}
-                    {offer.requiresApproval && offer.approvers && offer.approvers.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 items-center mt-2">
-                            {offer.approvers.map((a) => (
-                                <span
-                                    key={a.userId}
-                                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                                        a.status === 'approved' ? 'bg-green-50 text-green-700'
-                                        : a.status === 'rejected' ? 'bg-red-50 text-red-700'
-                                        : 'bg-amber-50 text-amber-700'
-                                    }`}
-                                >
-                                    {a.status === 'approved' ? <CheckCircle size={10} /> : a.status === 'rejected' ? <XCircle size={10} /> : <Clock size={10} />}
-                                    {a.name}
-                                </span>
-                            ))}
+                    {/* Creator + approver avatars on one line */}
+                    {(offer.creatorName || (offer.requiresApproval && offer.approvers && offer.approvers.length > 0)) && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                            {offer.creatorName && (
+                                <span className="text-xs text-gray-400">by {offer.creatorName}</span>
+                            )}
+                            {offer.requiresApproval && offer.approvers && offer.approvers.length > 0 && (
+                                <>
+                                    {offer.creatorName && <span className="text-xs text-gray-300">·</span>}
+                                    <div className="flex items-center">
+                                        {offer.approvers.slice(0, 3).map((a, i) => {
+                                            const initials = a.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+                                            const ring = a.status === 'approved' ? 'ring-green-400' : a.status === 'rejected' ? 'ring-red-400' : 'ring-gray-300';
+                                            return (
+                                                <span
+                                                    key={a.userId}
+                                                    title={`${a.name} — ${a.status}`}
+                                                    style={{ marginLeft: i === 0 ? 0 : -6, zIndex: i }}
+                                                    className={`relative flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-700 text-[10px] font-semibold ring-2 ring-white ${ring} cursor-default select-none`}
+                                                >
+                                                    {initials}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                    {offer.approvers.length > 3 && (
+                                        <span className="text-[11px] text-gray-400">+{offer.approvers.length - 3}</span>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
@@ -226,7 +237,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                                             <p>
                                                 <span className="font-medium">Salary:</span>{' '}
                                                 {co.salaryCurrency === 'USD' ? '$' : co.salaryCurrency}
-                                                {co.salaryAmount.toLocaleString()}{' '}
+                                                {Math.round(co.salaryAmount).toLocaleString()}{' '}
                                                 {co.salaryPeriod === 'yearly' ? 'per year' : co.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
                                             </p>
                                         )}

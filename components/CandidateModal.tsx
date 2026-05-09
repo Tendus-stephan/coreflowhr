@@ -2240,8 +2240,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                           <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                             {offer.salaryAmount && (
                               <span>
-                                {offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency} 
-                                {offer.salaryAmount.toLocaleString()} 
+                                {offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency}
+                                {Math.round(offer.salaryAmount).toLocaleString()}
                                 {offer.salaryPeriod === 'yearly' ? '/year' : offer.salaryPeriod === 'monthly' ? '/month' : '/hour'}
                               </span>
                             )}
