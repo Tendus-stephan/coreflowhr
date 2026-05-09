@@ -5,6 +5,7 @@ import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
 import { CheckCircle, XCircle, AlertCircle, Loader2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import { darkenHex } from '../utils/colorUtils';
 
 interface ApprovalData {
     request: {
@@ -20,35 +21,107 @@ interface ApprovalData {
     companyLogoUrl: string | null;
 }
 
-const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; companyLogoUrl?: string | null }> = ({ children, companyName, companyLogoUrl }) => (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-start px-4">
-        {/* Brand header — matches offer letter */}
-        <div className="w-full mb-6" style={{ background: '#1e3a5f' }}>
-            <div className="max-w-xl mx-auto px-6 py-5 flex items-center justify-center">
-                {companyLogoUrl ? (
-                    <img
-                        src={companyLogoUrl}
-                        alt={companyName || 'Company'}
-                        className="max-h-[48px] max-w-[200px] object-contain"
+const DEFAULT_BANNER = '#1e3a5f';
+const buildGradient = (color: string) =>
+    `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 38)} 100%)`;
+
+const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; companyLogoUrl?: string | null }> = ({ children, companyName, companyLogoUrl }) => {
+    const [logoErr, setLogoErr] = useState(false);
+    const gradient = buildGradient(DEFAULT_BANNER);
+
+    return (
+        <div className="min-h-screen bg-white font-sans">
+
+            {/* ── BANNER ─────────────────────────────────────────────────── */}
+            <div className="relative">
+                {/* Gradient cover with curved + faded bottom edge */}
+                <div
+                    className="relative w-full overflow-hidden"
+                    style={{ height: '200px', background: gradient }}
+                >
+                    <div
+                        className="absolute inset-x-0 bottom-0"
+                        style={{
+                            height: '80px',
+                            background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)',
+                        }}
                     />
-                ) : companyName ? (
-                    <span className="text-white text-lg font-bold">{companyName}</span>
-                ) : (
+                    <svg
+                        viewBox="0 0 1440 40"
+                        className="absolute bottom-0 left-0 w-full"
+                        preserveAspectRatio="none"
+                        style={{ height: '40px' }}
+                    >
+                        <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
+                    </svg>
+                </div>
+
+                {/* Logo + company name — overlaps banner */}
+                <div className="mx-auto px-6 relative" style={{ maxWidth: '560px' }}>
+                    <div className="flex items-center gap-4 -mt-10 pb-6">
+                        <div
+                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
+                            style={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: '10px',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
+                                border: '0.5px solid #e5e7eb',
+                            }}
+                        >
+                            {companyLogoUrl && !logoErr ? (
+                                <img
+                                    src={companyLogoUrl}
+                                    alt={companyName || 'Company'}
+                                    className="w-full h-full object-contain p-2"
+                                    onError={() => setLogoErr(true)}
+                                />
+                            ) : (
+                                <div
+                                    className="w-full h-full flex items-center justify-center"
+                                    style={{ background: gradient }}
+                                >
+                                    <span className="text-white text-2xl font-extrabold select-none">
+                                        {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        {companyName && (
+                            <div className="min-w-0">
+                                <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>
+                                    {companyName}
+                                </h1>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ── CONTENT ────────────────────────────────────────────────── */}
+            <div className="mx-auto px-6 pb-10" style={{ maxWidth: '560px' }}>
+                {children}
+            </div>
+
+            {/* ── FOOTER ─────────────────────────────────────────────────── */}
+            <div className="flex justify-center pb-12">
+                <a
+                    href="https://www.coreflowhr.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
+                >
                     <img
                         src="/assets/images/coreflow-favicon-logo.png"
-                        alt="CoreflowHR"
-                        className="object-contain"
-                        style={{ width: '44px', height: '44px' }}
+                        alt=""
+                        className="w-4 h-4 object-contain opacity-70"
                     />
-                )}
+                    Powered by CoreflowHR
+                </a>
             </div>
         </div>
-        <div className="w-full max-w-xl pb-10">
-            {children}
-        </div>
-        <p className="text-center text-xs text-gray-400 pb-8">Powered by CoreflowHR</p>
-    </div>
-);
+    );
+};
 
 const OfferApproval: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -210,55 +283,56 @@ const OfferApproval: React.FC = () => {
     // Main review UI
     return (
         <Shell companyName={brandName} companyLogoUrl={brandLogo}>
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
+
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Offer Approval Request</p>
-                    <h2 className="text-xl font-bold text-gray-900">{offer.positionTitle}</h2>
-                    {candidateName && <p className="text-sm text-gray-500 mt-0.5">Candidate: <span className="font-medium text-gray-700">{candidateName}</span></p>}
-                    {companyName && <p className="text-xs text-gray-400 mt-0.5">{companyName}{jobTitle ? ` · ${jobTitle}` : ''}</p>}
+                <div className="px-6 pt-5 pb-4">
+                    <h2 className="text-xl font-bold text-gray-900 leading-tight">{offer.positionTitle}</h2>
+                    {candidateName && (
+                        <p className="text-sm font-medium text-gray-500 mt-1">{candidateName}</p>
+                    )}
+                    {(companyName || jobTitle) && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                            {[companyName, jobTitle].filter(Boolean).join(' · ')}
+                        </p>
+                    )}
                 </div>
+                <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
 
                 {/* Offer details */}
-                <div className="px-6 py-5 space-y-3">
+                <div className="px-6 py-4">
                     <table className="w-full text-sm">
                         <tbody>
-                            <tr className="border-b border-gray-50">
-                                <td className="py-2.5 text-gray-500 font-medium w-32">Salary</td>
-                                <td className="py-2.5 text-gray-900 font-semibold">{formatSalary(offer)}</td>
+                            <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
+                                <td className="py-2 text-gray-500 font-medium w-32">Salary</td>
+                                <td className="py-2 text-gray-900 font-semibold">{formatSalary(offer)}</td>
                             </tr>
                             {offer.startDate && (
-                                <tr className="border-b border-gray-50">
-                                    <td className="py-2.5 text-gray-500 font-medium">Start Date</td>
-                                    <td className="py-2.5 text-gray-900">
+                                <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
+                                    <td className="py-2 text-gray-500 font-medium">Start Date</td>
+                                    <td className="py-2 text-gray-900">
                                         {format(new Date(offer.startDate), 'MMMM d, yyyy')}
                                     </td>
                                 </tr>
                             )}
                             {offer.expiresAt && (
-                                <tr className="border-b border-gray-50">
-                                    <td className="py-2.5 text-gray-500 font-medium">Offer Expires</td>
-                                    <td className="py-2.5 text-gray-900">
+                                <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
+                                    <td className="py-2 text-gray-500 font-medium">Offer Expires</td>
+                                    <td className="py-2 text-gray-900">
                                         {format(new Date(offer.expiresAt), 'MMMM d, yyyy')}
                                     </td>
                                 </tr>
                             )}
                             {offer.benefits && offer.benefits.length > 0 && (
-                                <tr className="border-b border-gray-50">
-                                    <td className="py-2.5 text-gray-500 font-medium align-top">Benefits</td>
-                                    <td className="py-2.5 text-gray-900">
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {offer.benefits.map(b => (
-                                                <span key={b} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">{b}</span>
-                                            ))}
-                                        </div>
-                                    </td>
+                                <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
+                                    <td className="py-2 text-gray-500 font-medium align-top">Benefits</td>
+                                    <td className="py-2 text-gray-900">{offer.benefits.join(', ')}</td>
                                 </tr>
                             )}
                             {offer.notes && (
                                 <tr>
-                                    <td className="py-2.5 text-gray-500 font-medium align-top">Notes</td>
-                                    <td className="py-2.5 text-gray-700 italic text-sm">"{offer.notes}"</td>
+                                    <td className="py-2 text-gray-500 font-medium align-top">Notes</td>
+                                    <td className="py-2 text-gray-700 italic text-sm">"{offer.notes}"</td>
                                 </tr>
                             )}
                         </tbody>
@@ -268,7 +342,7 @@ const OfferApproval: React.FC = () => {
                 {/* Rejection form */}
                 {showRejectForm ? (
                     <div className="px-6 pb-6 space-y-3">
-                        <div className="h-px bg-gray-100" />
+                        <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
                         <p className="text-sm font-medium text-gray-700">Reason for rejection <span className="text-gray-400 font-normal">(required)</span></p>
                         <textarea
                             value={rejectNote}
@@ -287,6 +361,7 @@ const OfferApproval: React.FC = () => {
                                 size="sm"
                                 onClick={() => { setShowRejectForm(false); setRejectNote(''); setError(null); }}
                                 disabled={submitting}
+                                style={{ borderRadius: '8px' }}
                             >
                                 Back
                             </Button>
@@ -298,6 +373,7 @@ const OfferApproval: React.FC = () => {
                                 }}
                                 disabled={submitting || !rejectNote.trim()}
                                 className="bg-red-600 hover:bg-red-700 text-white border-0"
+                                style={{ borderRadius: '8px' }}
                             >
                                 {submitting ? 'Submitting…' : 'Confirm Rejection'}
                             </Button>
@@ -305,7 +381,7 @@ const OfferApproval: React.FC = () => {
                     </div>
                 ) : (
                     <div className="px-6 pb-6">
-                        <div className="h-px bg-gray-100 mb-5" />
+                        <div style={{ height: '0.5px', backgroundColor: '#f0f0f0', marginBottom: '20px' }} />
                         {error && (
                             <p className="text-xs text-red-600 mb-3">{error}</p>
                         )}
@@ -315,6 +391,7 @@ const OfferApproval: React.FC = () => {
                                 onClick={() => handleDecision('approved')}
                                 disabled={submitting}
                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white border-0"
+                                style={{ borderRadius: '8px' }}
                             >
                                 {submitting ? 'Processing…' : 'Approve Offer'}
                             </Button>
@@ -323,7 +400,8 @@ const OfferApproval: React.FC = () => {
                                 size="sm"
                                 onClick={() => setShowRejectForm(true)}
                                 disabled={submitting}
-                                className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                                className="flex-1 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 hover:bg-red-50"
+                                style={{ borderRadius: '8px' }}
                             >
                                 Reject Offer
                             </Button>
