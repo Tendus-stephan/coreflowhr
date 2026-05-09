@@ -6667,6 +6667,7 @@ export const api = {
             notes?: string;
             expiresAt?: string;
             requireEsignature?: boolean;
+            requiresApproval?: boolean;
         }): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -6695,7 +6696,8 @@ export const api = {
                     notes: offerData.notes || null,
                     status: 'draft',
                     expires_at: offerData.expiresAt || null,
-                    require_esignature: offerData.requireEsignature ?? true
+                    require_esignature: offerData.requireEsignature ?? true,
+                    requires_approval: offerData.requiresApproval ?? false
                 })
                 .select()
                 .single();
@@ -6788,6 +6790,7 @@ export const api = {
             candidateId?: string | null; // Allow updating candidate_id
             archived?: boolean;
             requireEsignature?: boolean;
+            requiresApproval?: boolean;
         }>): Promise<Offer> => {
             const userId = await getUserId();
             if (!userId) throw new Error('Not authenticated');
@@ -6804,6 +6807,7 @@ export const api = {
             if (updates.candidateId !== undefined) updateData.candidate_id = updates.candidateId || null;
             if (updates.archived !== undefined) updateData.archived = updates.archived;
             if (updates.requireEsignature !== undefined) updateData.require_esignature = updates.requireEsignature;
+            if (updates.requiresApproval !== undefined) updateData.requires_approval = updates.requiresApproval;
 
             // RLS UPDATE policy already enforces access (user_id = auth.uid() or workspace admin/recruiter).
             // No extra app-level filter needed — avoids null workspace_id mismatches on older offers.

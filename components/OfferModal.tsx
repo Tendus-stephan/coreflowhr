@@ -237,6 +237,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     benefits: benefits,
                     notes: notes.trim() || undefined,
                     expiresAt: expiresAt,
+                    requiresApproval: requiresApproval,
                 });
             } else {
                 await api.offers.create({
@@ -250,6 +251,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     benefits: benefits, // Required (at least one)
                     notes: notes.trim() || undefined, // Optional
                     expiresAt: expiresAt, // Required
+                    requiresApproval: requiresApproval,
                 });
             }
 
