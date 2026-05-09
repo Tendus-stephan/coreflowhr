@@ -21,7 +21,7 @@ interface ApprovalData {
 }
 
 const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; companyLogoUrl?: string | null }> = ({ children, companyName, companyLogoUrl }) => (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start px-4">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-start px-4">
         {/* Brand header — matches offer letter */}
         <div className="w-full mb-6" style={{ background: '#1e3a5f' }}>
             <div className="max-w-xl mx-auto px-6 py-5 flex items-center justify-center">
@@ -297,7 +297,6 @@ const OfferApproval: React.FC = () => {
                                     handleDecision('rejected', rejectNote.trim());
                                 }}
                                 disabled={submitting || !rejectNote.trim()}
-                                icon={submitting ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                                 className="bg-red-600 hover:bg-red-700 text-white border-0"
                             >
                                 {submitting ? 'Submitting…' : 'Confirm Rejection'}
@@ -315,7 +314,6 @@ const OfferApproval: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleDecision('approved')}
                                 disabled={submitting}
-                                icon={submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white border-0"
                             >
                                 {submitting ? 'Processing…' : 'Approve Offer'}
@@ -325,7 +323,6 @@ const OfferApproval: React.FC = () => {
                                 size="sm"
                                 onClick={() => setShowRejectForm(true)}
                                 disabled={submitting}
-                                icon={<XCircle size={14} />}
                                 className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
                             >
                                 Reject Offer
