@@ -146,6 +146,12 @@ const Offers: React.FC = () => {
             toast.error('Cannot send a general offer. Please link it to a candidate first from the candidate profile.');
             return;
         }
+        if (offer.requiresApproval) {
+            // Route back through the approval flow instead of sending directly
+            setEditingOffer(offer);
+            setIsModalOpen(true);
+            return;
+        }
         try {
             setSendingOfferId(offer.id);
             await api.offers.send(offer.id);
