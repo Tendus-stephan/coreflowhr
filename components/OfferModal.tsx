@@ -97,15 +97,24 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                 setExpiresAt(defaultExpiration.toISOString().split('T')[0]);
             }
             setError(null);
-            // Reset approval state on open
-            setRequiresApproval(offer?.requiresApproval ?? false);
-            setSelectedApprovers([]);
             // Load workspace members for approver picker
             api.workspaces.getWorkspaceWithMembers()
                 .then(ws => setWorkspaceMembers(ws.members))
                 .catch(() => {});
         }
     }, [isOpen, offer, candidate]);
+
+    // Initialise approval state exactly once when the modal mounts.
+    // Must NOT share deps with the effect above: the parent's Realtime subscription
+    // creates a new `candidate` object on any stage change, which would re-run a
+    // combined effect and reset the checkbox mid-edit.
+    // Both call-sites conditionally render {isOpen && <OfferModal>} so this runs
+    // once per open — equivalent to a mount-only effect.
+    useEffect(() => {
+        setRequiresApproval(offer?.requiresApproval ?? false);
+        setSelectedApprovers([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const loadJobs = async () => {
         try {
@@ -317,14 +326,32 @@ export const OfferModal: React.FC<OfferModalProps> = ({
         try {
             let offerId = offer?.id;
             if (!offerId) {
-                // New offer — save draft first
-                await handleSave();
+                // New offer — create draft directly.
+                // Cannot reuse handleSave(): it guards on actionInFlightRef (already set)
+                // and calls onClose(), which would close the modal before submitForApproval runs.
+                if (!positionTitle.trim() || !jobId || !salaryAmount || !startDate || !expiresAt || !benefits?.length) {
+                    setError('Please fill in all required fields before submitting for approval.');
+                    actionInFlightRef.current = false;
+                    return;
+                }
                 const candidateToUse = candidate || candidates.find(c => c.id === selectedCandidateId);
+                await api.offers.create({
+                    candidateId: candidateToUse?.id || null,
+                    jobId,
+                    positionTitle: positionTitle.trim(),
+                    startDate,
+                    salaryAmount,
+                    salaryCurrency,
+                    salaryPeriod,
+                    benefits,
+                    notes: notes.trim() || undefined,
+                    expiresAt,
+                });
                 const saved = candidateToUse
                     ? await api.offers.list({ candidateId: candidateToUse.id })
                     : await api.offers.list({ generalOnly: true });
                 offerId = saved[0]?.id;
-                if (!offerId) { setError('Failed to save offer before submitting for approval.'); return; }
+                if (!offerId) throw new Error('Failed to find saved offer after creation.');
             } else {
                 // Existing draft — save current form state before submitting so
                 // the approval email reflects the latest salary and details
