@@ -737,15 +737,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 {submittingApproval ? 'Submitting...' : 'Submit for Approval'}
                             </Button>
                         )}
-                        {offer && offer.status !== 'draft' && (
-                            <Button
-                                variant="black"
-                                onClick={handleSave}
-                                disabled={saving || sending || submittingApproval}
-                            >
-                                {saving ? 'Saving...' : 'Update Offer'}
-                            </Button>
-                        )}
                         {(!offer || offer.status === 'draft') && !requiresApproval && (
                             <Button
                                 variant="black"
