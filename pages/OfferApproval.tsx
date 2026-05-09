@@ -228,7 +228,7 @@ const OfferApproval: React.FC = () => {
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {request.status === 'approved' ? (
                         <>
-                            <CheckCircle size={36} className="text-green-500 mx-auto mb-4" />
+                            <CheckCircle size={20} className="text-green-500 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Already approved</h2>
                             <p className="text-sm text-gray-500">You have already approved this offer.</p>
                         </>
@@ -264,12 +264,11 @@ const OfferApproval: React.FC = () => {
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {success.decision === 'approved' ? (
                         <>
-                            <CheckCircle size={40} className="text-green-500 mx-auto mb-4" />
+                            <CheckCircle size={20} className="text-green-500 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Offer approved</h2>
                             <p className="text-sm text-gray-500">
-                                {success.offerSent
-                                    ? `You approved this offer — it has been sent to ${candidateName || 'the candidate'}.`
-                                    : 'Your approval has been recorded. The offer is awaiting approval from other reviewers.'}
+                                The offer for {data?.jobTitle || 'this position'} has been approved.{' '}
+                                {brandRecruiterName || 'The recruiter'} has been notified and will be in touch with next steps.
                             </p>
                         </>
                     ) : (
