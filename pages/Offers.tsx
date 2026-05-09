@@ -141,6 +141,23 @@ function formatSalary(offer: Offer) {
     return `${sym}${offer.salaryAmount.toLocaleString()}${period}`;
 }
 
+// ── Pagination helper ─────────────────────────────────────────────────────────
+// Returns page numbers with `null` where an ellipsis should appear.
+// Always shows first, last, current ± 1. Gaps of 1 are filled rather than dotted.
+function getPageNumbers(current: number, total: number): (number | null)[] {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const show = new Set(
+        [1, total, current - 1, current, current + 1].filter(p => p >= 1 && p <= total)
+    );
+    const sorted = [...show].sort((a, b) => a - b);
+    const result: (number | null)[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+        if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push(null); // ellipsis
+        result.push(sorted[i]);
+    }
+    return result;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 20;
 
@@ -488,15 +505,19 @@ const Offers: React.FC = () => {
                                     >
                                         <ChevronLeft size={15} />
                                     </button>
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                        <button
-                                            key={page}
-                                            onClick={() => setCurrentPage(page)}
-                                            className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${currentPage === page ? 'bg-gray-900 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                        >
-                                            {page}
-                                        </button>
-                                    ))}
+                                    {getPageNumbers(currentPage, totalPages).map((page, i) =>
+                                        page === null ? (
+                                            <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-gray-400 select-none">…</span>
+                                        ) : (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${currentPage === page ? 'bg-gray-900 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    )}
                                     <button
                                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                         disabled={currentPage === totalPages}
