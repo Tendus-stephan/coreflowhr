@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { Button } from '../components/ui/Button';
-import { CheckCircle, XCircle, AlertCircle, Loader2, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Loader2, Clock, MinusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { darkenHex } from '../utils/colorUtils';
 
@@ -20,6 +20,7 @@ interface ApprovalData {
     companyName: string | null;
     companyLogoUrl: string | null;
     bannerColor: string | null;
+    recruiterName: string | null;
 }
 
 const DEFAULT_BANNER = '#1e3a5f';
@@ -136,6 +137,7 @@ const OfferApproval: React.FC = () => {
     const [brandName, setBrandName] = useState<string | null>(null);
     const [brandLogo, setBrandLogo] = useState<string | null>(null);
     const [brandBannerColor, setBrandBannerColor] = useState<string | null>(null);
+    const [brandRecruiterName, setBrandRecruiterName] = useState<string | null>(null);
 
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
@@ -160,6 +162,7 @@ const OfferApproval: React.FC = () => {
                 setBrandName(result.companyName);
                 setBrandLogo(result.companyLogoUrl);
                 setBrandBannerColor(result.bannerColor);
+                setBrandRecruiterName(result.recruiterName);
                 // If pre-filled with reject decision, show the rejection form immediately
                 if (prefillDecision === 'reject' && result.request.status === 'pending') {
                     setShowRejectForm(true);
@@ -271,10 +274,11 @@ const OfferApproval: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <XCircle size={40} className="text-red-400 mx-auto mb-4" />
-                            <h2 className="text-lg font-bold text-gray-900 mb-2">Offer rejected</h2>
+                            <MinusCircle size={20} className="text-gray-400 mx-auto mb-4" />
+                            <h2 className="text-lg font-bold text-gray-900 mb-2">Offer declined</h2>
                             <p className="text-sm text-gray-500">
-                                You rejected this offer — the recruiter has been notified.
+                                The offer for {data?.jobTitle || 'this position'} has been declined.{' '}
+                                {brandRecruiterName || 'The recruiter'} has been notified.
                             </p>
                         </>
                     )}
