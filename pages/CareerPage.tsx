@@ -69,7 +69,25 @@ const CareerPage: React.FC = () => {
                     bannerColor = (extra as any)?.banner_color ?? null;
                 } catch { /* non-fatal */ }
 
-                setWorkspace({ ...(ws as WorkspaceInfo), company_description: desc, banner_color: bannerColor });
+                // Prefer client logo when the workspace has exactly one client with a logo set
+                let clientLogoUrl: string | null = null;
+                try {
+                    const { data: clientsWithLogo } = await supabase
+                        .from('clients')
+                        .select('logo_url')
+                        .eq('workspace_id', ws.id)
+                        .not('logo_url', 'is', null);
+                    if (clientsWithLogo && clientsWithLogo.length === 1) {
+                        clientLogoUrl = (clientsWithLogo[0] as any).logo_url ?? null;
+                    }
+                } catch { /* non-fatal */ }
+
+                setWorkspace({
+                    ...(ws as WorkspaceInfo),
+                    company_logo_url: clientLogoUrl || (ws as any).company_logo_url || null,
+                    company_description: desc,
+                    banner_color: bannerColor,
+                });
 
                 const { data: jobsData } = await supabase
                     .from('jobs')

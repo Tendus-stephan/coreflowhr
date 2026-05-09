@@ -8413,6 +8413,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             return (data || []).map((client: any) => ({
                 id: client.id,
                 name: client.name,
+                logoUrl: client.logo_url || null,
                 contactEmail: client.contact_email || undefined,
                 contactPhone: client.contact_phone || undefined,
                 address: client.address || undefined,
@@ -8439,6 +8440,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             return {
                 id: data.id,
                 name: data.name,
+                logoUrl: data.logo_url || null,
                 contactEmail: data.contact_email || undefined,
                 contactPhone: data.contact_phone || undefined,
                 address: data.address || undefined,
@@ -8475,6 +8477,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             return {
                 id: data.id,
                 name: data.name,
+                logoUrl: data.logo_url || null,
                 contactEmail: data.contact_email || undefined,
                 contactPhone: data.contact_phone || undefined,
                 address: data.address || undefined,
@@ -8509,6 +8512,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             return {
                 id: data.id,
                 name: data.name,
+                logoUrl: data.logo_url || null,
                 contactEmail: data.contact_email || undefined,
                 contactPhone: data.contact_phone || undefined,
                 address: data.address || undefined,
@@ -8516,6 +8520,40 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 createdAt: data.created_at,
                 updatedAt: data.updated_at
             };
+        },
+        uploadLogo: async (clientId: string, file: File): Promise<{ publicUrl: string }> => {
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!workspaceId) throw new Error('Workspace not found');
+
+            const ext = file.name.split('.').pop()?.toLowerCase();
+            const allowedExts = ['png', 'jpg', 'jpeg', 'svg'];
+            if (!ext || !allowedExts.includes(ext)) throw new Error('Please use PNG, JPG, or SVG.');
+            if (file.size > 2 * 1024 * 1024) throw new Error('File is too large. Maximum size is 2MB.');
+
+            const path = `${workspaceId}/clients/${clientId}/logo.${ext}`;
+
+            // Remove existing logos for this client
+            await supabase.storage
+                .from('company-assets')
+                .remove(['png', 'jpg', 'jpeg', 'svg'].map(e => `${workspaceId}/clients/${clientId}/logo.${e}`))
+                .catch(() => {});
+
+            const { error: uploadError } = await supabase.storage
+                .from('company-assets')
+                .upload(path, file, { contentType: file.type, upsert: true });
+
+            if (uploadError) throw new Error(uploadError.message || 'Upload failed');
+
+            const { data: urlData } = supabase.storage.from('company-assets').getPublicUrl(path);
+            const publicUrl = urlData.publicUrl;
+
+            // Persist logo_url on the client record
+            let updateQuery = supabase.from('clients').update({ logo_url: publicUrl }).eq('id', clientId);
+            updateQuery = updateQuery.eq('workspace_id', workspaceId);
+            const { error: updateError } = await updateQuery;
+            if (updateError) throw new Error(updateError.message || 'Failed to update client logo');
+
+            return { publicUrl };
         },
         delete: async (id: string): Promise<void> => {
             const userId = await getUserId();

@@ -27,6 +27,7 @@ export interface User {
 export interface Client {
   id: string;
   name: string;
+  logoUrl?: string | null;
   contactEmail?: string;
   contactPhone?: string;
   address?: string;

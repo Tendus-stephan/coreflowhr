@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Building2, Mail, Phone, MapPin, Search, X, MoreVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, Mail, Phone, MapPin, Search, X, MoreVertical, Loader2, Upload } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { ClientsSkeleton } from '../components/ui/Skeleton';
 import { api, Client } from '../services/api';
@@ -27,6 +27,13 @@ const Clients: React.FC = () => {
     address: '',
     notes: ''
   });
+
+  // Logo upload state
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(null);
+  const [clientLogoErr, setClientLogoErr] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -67,6 +74,9 @@ const Clients: React.FC = () => {
 
   const handleCreate = () => {
     setEditingClient(null);
+    setClientLogoUrl(null);
+    setClientLogoErr(false);
+    setLogoUploadError(null);
     setFormData({ name: '', contactEmail: '', contactPhone: '', address: '', notes: '' });
     setShowCreateModal(true);
   };
@@ -74,6 +84,9 @@ const Clients: React.FC = () => {
   const handleEdit = (client: Client) => {
     setOpenMenuId(null);
     setEditingClient(client);
+    setClientLogoUrl(client.logoUrl || null);
+    setClientLogoErr(false);
+    setLogoUploadError(null);
     setFormData({
       name: client.name,
       contactEmail: client.contactEmail || '',
@@ -82,6 +95,24 @@ const Clients: React.FC = () => {
       notes: client.notes || ''
     });
     setShowCreateModal(true);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingClient) return;
+    setLogoUploadError(null);
+    setIsUploadingLogo(true);
+    try {
+      const { publicUrl } = await api.clients.uploadLogo(editingClient.id, file);
+      setClientLogoUrl(publicUrl);
+      setClientLogoErr(false);
+      setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, logoUrl: publicUrl } : c));
+    } catch (err: any) {
+      setLogoUploadError(err?.message || 'Upload failed');
+    } finally {
+      setIsUploadingLogo(false);
+      e.target.value = '';
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -215,10 +246,29 @@ const Clients: React.FC = () => {
                 key={client.id}
                 className={`grid grid-cols-[2fr_2fr_1.5fr_1.5fr_44px] gap-0 items-center hover:bg-gray-50 hover:shadow-[inset_3px_0_0_theme(colors.gray.900)] transition-all duration-150 ${idx !== filteredClients.length - 1 ? 'border-b border-gray-100' : ''}`}
               >
-                {/* Name */}
+                {/* Name + logo */}
                 <div className="px-4 py-3 flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                    {client.name.charAt(0).toUpperCase()}
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center overflow-hidden"
+                    style={{
+                      width: 32, height: 32,
+                      borderRadius: '8px',
+                      backgroundColor: client.logoUrl ? '#f3f4f6' : '#111827',
+                      border: client.logoUrl ? '0.5px solid #e5e7eb' : 'none',
+                    }}
+                  >
+                    {client.logoUrl ? (
+                      <img
+                        src={client.logoUrl}
+                        alt={client.name}
+                        className="w-full h-full object-contain p-0.5"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="text-white font-semibold text-sm select-none">
+                        {client.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <span className="text-sm font-semibold text-gray-900 truncate">{client.name}</span>
                 </div>
@@ -312,6 +362,76 @@ const Clients: React.FC = () => {
               >
                 <X size={18} />
               </button>
+            </div>
+
+            {/* Logo upload — top of modal, centered */}
+            <div className="px-6 pt-5 pb-1 flex flex-col items-center">
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml"
+                className="hidden"
+                onChange={handleLogoUpload}
+                disabled={!editingClient || isUploadingLogo}
+              />
+              <button
+                type="button"
+                onClick={() => editingClient && !isUploadingLogo && logoInputRef.current?.click()}
+                className="relative flex items-center justify-center overflow-hidden group transition-all"
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: '10px',
+                  backgroundColor: '#f3f4f6',
+                  border: '0.5px solid #e5e7eb',
+                  cursor: editingClient ? 'pointer' : 'default',
+                }}
+                title={editingClient ? 'Click to upload logo' : undefined}
+              >
+                {isUploadingLogo ? (
+                  <Loader2 size={20} className="animate-spin text-gray-400" />
+                ) : clientLogoUrl && !clientLogoErr ? (
+                  <>
+                    <img
+                      src={clientLogoUrl}
+                      alt=""
+                      className="w-full h-full object-contain p-1.5"
+                      onError={() => setClientLogoErr(true)}
+                    />
+                    {editingClient && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: '10px' }}
+                      >
+                        <Upload size={13} className="text-white" />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className="text-xl font-extrabold select-none"
+                      style={{ color: '#374151' }}
+                    >
+                      {(formData.name || '?').charAt(0).toUpperCase()}
+                    </span>
+                    {editingClient && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: '10px' }}
+                      >
+                        <Upload size={13} className="text-white" />
+                      </div>
+                    )}
+                  </>
+                )}
+              </button>
+              {logoUploadError && (
+                <p className="text-xs text-red-600 mt-1.5 text-center">{logoUploadError}</p>
+              )}
+              {!editingClient && (
+                <p className="text-[11px] text-gray-400 mt-1.5">Logo can be added after saving</p>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">

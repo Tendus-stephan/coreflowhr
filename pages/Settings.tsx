@@ -851,9 +851,6 @@ const Settings: React.FC = () => {
     const [workspaceInfo, setWorkspaceInfo] = useState<{ workspaceId: string; name: string; companyLogoUrl?: string; slug?: string } | null>(null);
     const [isLoadingTeam, setIsLoadingTeam] = useState(false);
     const [teamError, setTeamError] = useState<string | null>(null);
-    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-    const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
-    const [logoPreviewErr, setLogoPreviewErr] = useState(false);
     const [workspaceNameInput, setWorkspaceNameInput] = useState('');
     const [isSavingWorkspaceName, setIsSavingWorkspaceName] = useState(false);
     const [workspaceNameMsg, setWorkspaceNameMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -2275,80 +2272,6 @@ const Settings: React.FC = () => {
                                     />
                                 </div>
 
-                                <p className="text-xs text-gray-500">Logo appears in the header of offer letters. PNG, JPG, or SVG. Max 2MB. Transparent background recommended.</p>
-                                <div className="flex flex-wrap items-start gap-6">
-                                    <div className="flex flex-col gap-2">
-                                        <input
-                                            type="file"
-                                            accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml"
-                                            className="hidden"
-                                            id="company-logo-upload"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file || !workspaceInfo) return;
-                                                setLogoUploadError(null);
-                                                const ext = file.name.split('.').pop()?.toLowerCase();
-                                                const allowed = ['png', 'jpg', 'jpeg', 'svg'];
-                                                if (!ext || !allowed.includes(ext)) {
-                                                    setLogoUploadError('Please use PNG, JPG, or SVG. This file type is not supported.');
-                                                    return;
-                                                }
-                                                if (file.size > 2 * 1024 * 1024) {
-                                                    setLogoUploadError('File is too large. Maximum size is 2MB.');
-                                                    return;
-                                                }
-                                                setIsUploadingLogo(true);
-                                                try {
-                                                    const { publicUrl } = await api.workspaces.uploadCompanyLogo(workspaceInfo.workspaceId, file);
-                                                    await api.workspaces.updateWorkspace({ companyLogoUrl: publicUrl });
-                                                    setLogoPreviewErr(false);
-                                                    setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: publicUrl } : null);
-                                                } catch (err: any) {
-                                                    setLogoUploadError(err?.message || 'Upload failed');
-                                                } finally {
-                                                    setIsUploadingLogo(false);
-                                                    e.target.value = '';
-                                                }
-                                            }}
-                                        />
-                                        <label
-                                            htmlFor="company-logo-upload"
-                                            className={`flex flex-col items-center justify-center w-48 h-24 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${isUploadingLogo ? 'bg-gray-50 border-gray-200' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}`}
-                                        >
-                                            {isUploadingLogo ? (
-                                                <Loader2 size={24} className="animate-spin text-gray-400" />
-                                            ) : (
-                                                <span className="text-xs text-gray-500 text-center px-2">Upload your company logo</span>
-                                            )}
-                                        </label>
-                                        {logoUploadError && <p className="text-xs text-red-600">{logoUploadError}</p>}
-                                        {workspaceInfo?.companyLogoUrl && !isUploadingLogo && (
-                                            <button
-                                                onClick={async () => {
-                                                    if (!workspaceInfo) return;
-                                                    try {
-                                                        await api.workspaces.updateWorkspace({ companyLogoUrl: null });
-                                                        setLogoPreviewErr(false);
-                                                        setWorkspaceInfo(prev => prev ? { ...prev, companyLogoUrl: undefined } : null);
-                                                    } catch (err: any) {
-                                                        setLogoUploadError(err?.message || 'Failed to remove logo');
-                                                    }
-                                                }}
-                                                className="text-xs text-red-500 hover:text-red-700 transition-colors mt-1"
-                                            >
-                                                Remove logo
-                                            </button>
-                                        )}
-                                    </div>
-                                    {/* Preview as in offer header */}
-                                    <div className="rounded-lg bg-[#1e3a5f] px-4 py-3 flex items-center min-h-[50px] max-w-[220px]">
-                                        {workspaceInfo?.companyLogoUrl && !logoPreviewErr ? (
-                                            <img src={workspaceInfo.companyLogoUrl} alt="Company logo" className="max-h-[50px] max-w-[180px] object-contain" onError={() => setLogoPreviewErr(true)} />
-                                        ) : (
-                                            <span className="text-white text-sm font-medium">{workspaceInfo?.name || 'Company name'}</span>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
 
                             {teamError && (
