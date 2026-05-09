@@ -14,10 +14,11 @@ const isClientExpired = (offer: Offer): boolean =>
 const formatStatusLabel = (status: Offer['status'], archived?: boolean, expired?: boolean): string => {
     if (archived) return 'ARCHIVED';
     if (expired) return 'EXPIRED';
-    if (status === 'awaiting_signature') return 'Awaiting Signature';
+    if (status === 'pending_approval') return 'Awaiting approval';
+    if (status === 'awaiting_response') return 'Awaiting response';
+    if (status === 'awaiting_signature') return 'Awaiting signature';
     if (status === 'signed') return 'Signed';
-    if (status === 'pending_approval') return 'Pending Approval';
-    return status.toUpperCase();
+    return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
 interface OfferCardProps {
@@ -61,8 +62,10 @@ export const OfferCard: React.FC<OfferCardProps> = ({
 
     const getStatusColor = (status: Offer['status']) => {
         if (expired) return 'bg-red-100 text-red-700';
-        if (status === 'viewed') return 'bg-blue-50 text-blue-700';
+        if (status === 'pending_approval' && offer.approvalStatus === 'approved') return 'bg-green-50 text-green-700';
         if (status === 'pending_approval') return 'bg-amber-100 text-amber-700';
+        if (status === 'awaiting_response') return 'bg-indigo-50 text-indigo-700';
+        if (status === 'viewed') return 'bg-blue-50 text-blue-700';
         return 'bg-gray-100 text-gray-700';
     };
 
@@ -90,7 +93,9 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-base font-bold text-gray-900">{offer.positionTitle}</h3>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusColor(offer.status)}`}>
-                            {formatStatusLabel(offer.status, offer.archived, expired)}
+                            {offer.status === 'pending_approval' && offer.approvalStatus === 'approved'
+                                ? 'Approved — send pending'
+                                : formatStatusLabel(offer.status, offer.archived, expired)}
                         </span>
                         {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.some((item: any) => item.type === 'counter_offer') && (
                             <span className="px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700 flex items-center gap-1">
@@ -233,7 +238,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         Download
                     </Button>
                 )}
-                {offer.status === 'draft' && !offer.archived && onSend && !readOnly && (
+                {(offer.status === 'draft' || (offer.status === 'pending_approval' && offer.approvalStatus === 'approved')) && !offer.archived && onSend && !readOnly && (
                     <Button
                         variant="black"
                         size="sm"

@@ -146,7 +146,7 @@ const Offers: React.FC = () => {
             toast.error('Cannot send a general offer. Please link it to a candidate first from the candidate profile.');
             return;
         }
-        if (offer.requiresApproval) {
+        if (offer.requiresApproval && offer.approvalStatus !== 'approved') {
             // Route back through the approval flow instead of sending directly
             setEditingOffer(offer);
             setIsModalOpen(true);
@@ -251,8 +251,10 @@ const Offers: React.FC = () => {
     const statusOptions: Array<{ value: Offer['status'] | 'all' | 'archived'; label: string }> = [
         { value: 'all', label: 'All Statuses' },
         { value: 'draft', label: 'Draft' },
+        { value: 'pending_approval', label: 'Awaiting approval' },
+        { value: 'awaiting_response', label: 'Awaiting response' },
         { value: 'sent', label: 'Sent' },
-        { value: 'awaiting_signature', label: 'Awaiting Sign.' },
+        { value: 'awaiting_signature', label: 'Awaiting signature' },
         { value: 'signed', label: 'Signed' },
         { value: 'viewed', label: 'Viewed' },
         { value: 'negotiating', label: 'Negotiating' },
@@ -267,9 +269,10 @@ const Offers: React.FC = () => {
     const statusTabs: Array<{ value: Offer['status'] | 'all' | 'expired' | 'archived'; label: string }> = [
         { value: 'all', label: 'All' },
         { value: 'draft', label: 'Draft' },
-        { value: 'pending_approval', label: 'Pending Approval' },
+        { value: 'pending_approval', label: 'Awaiting approval' },
+        { value: 'awaiting_response', label: 'Awaiting response' },
         { value: 'sent', label: 'Sent' },
-        { value: 'awaiting_signature', label: 'Awaiting Sign.' },
+        { value: 'awaiting_signature', label: 'Awaiting sign.' },
         { value: 'negotiating', label: 'Negotiating' },
         { value: 'accepted', label: 'Accepted' },
         { value: 'declined', label: 'Declined' },

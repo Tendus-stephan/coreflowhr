@@ -679,14 +679,14 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                         </div>
                     )}
 
-                    {/* Pending approval — read-only status */}
+                    {/* Awaiting approval — read-only status */}
                     {offer?.status === 'pending_approval' && (
                         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
                             <Clock size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
                             <div>
-                                <p className="text-sm font-semibold text-amber-900">Pending Approval</p>
+                                <p className="text-sm font-semibold text-amber-900">Awaiting approval</p>
                                 <p className="text-xs text-amber-700 mt-0.5">
-                                    This offer is awaiting approval. Once all approvers respond, it will be sent automatically.
+                                    This offer is awaiting approval. Once all approvers respond, it will be sent to the candidate automatically.
                                 </p>
                             </div>
                         </div>

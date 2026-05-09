@@ -6853,6 +6853,13 @@ export const api = {
             const offer = await api.offers.get(offerId);
             if (!offer.candidateId) throw new Error('Cannot send a general offer. Please link it to a candidate first.');
 
+            // Track A guard: offers requiring approval must go through the approval flow.
+            // Exception: if all approvers have already approved (approvalStatus === 'approved')
+            // the recruiter can manually trigger send (recovery path if auto-send edge fn failed).
+            if (offer.requiresApproval && offer.approvalStatus !== 'approved') {
+                throw new Error('This offer requires approval before it can be sent. Please submit it for approval.');
+            }
+
             // Look up candidate
             const { data: candidate, error: candError } = await supabase
                 .from('candidates').select('id, name, email').eq('id', offer.candidateId).single();

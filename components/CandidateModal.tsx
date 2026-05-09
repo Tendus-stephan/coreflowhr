@@ -2046,7 +2046,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     }}
                                     onSend={async (offer) => {
                                         if (sendingOfferId) return;
-                                        if (offer.requiresApproval) {
+                                        if (offer.requiresApproval && offer.approvalStatus !== 'approved') {
                                             setEditingOffer(offer);
                                             setIsOfferModalOpen(true);
                                             return;
@@ -2272,7 +2272,10 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </div>
                         <div className="ml-4">
                           <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
-                            {offer.status}
+                            {offer.status === 'pending_approval' ? 'Awaiting approval'
+                              : offer.status === 'awaiting_response' ? 'Awaiting response'
+                              : offer.status === 'awaiting_signature' ? 'Awaiting signature'
+                              : offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
                           </span>
                         </div>
                       </div>

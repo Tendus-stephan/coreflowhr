@@ -266,10 +266,16 @@ const OfferApproval: React.FC = () => {
                         <>
                             <CheckCircle size={20} className="text-green-500 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Offer approved</h2>
-                            <p className="text-sm text-gray-500">
-                                The offer for {data?.jobTitle || 'this position'} has been approved.{' '}
-                                {brandRecruiterName || 'The recruiter'} has been notified and will be in touch with next steps.
-                            </p>
+                            {success.offerSent ? (
+                                <p className="text-sm text-gray-500">
+                                    The offer for {data?.jobTitle || 'this position'} has been approved and sent to the candidate.
+                                </p>
+                            ) : (
+                                <p className="text-sm text-gray-500">
+                                    Your approval has been recorded. The offer email could not be sent automatically — please let{' '}
+                                    {brandRecruiterName || 'the recruiter'} know so they can send it manually.
+                                </p>
+                            )}
                         </>
                     ) : (
                         <>
