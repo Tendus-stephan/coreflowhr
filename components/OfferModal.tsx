@@ -315,9 +315,9 @@ export const OfferModal: React.FC<OfferModalProps> = ({
         setSubmittingApproval(true);
         setError(null);
         try {
-            // Save draft first if new offer
             let offerId = offer?.id;
             if (!offerId) {
+                // New offer — save draft first
                 await handleSave();
                 const candidateToUse = candidate || candidates.find(c => c.id === selectedCandidateId);
                 const saved = candidateToUse
@@ -325,6 +325,19 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                     : await api.offers.list({ generalOnly: true });
                 offerId = saved[0]?.id;
                 if (!offerId) { setError('Failed to save offer before submitting for approval.'); return; }
+            } else {
+                // Existing draft — save current form state before submitting so
+                // the approval email reflects the latest salary and details
+                await api.offers.update(offerId, {
+                    positionTitle: positionTitle.trim(),
+                    startDate,
+                    salaryAmount,
+                    salaryCurrency,
+                    salaryPeriod,
+                    benefits,
+                    notes: notes.trim() || undefined,
+                    expiresAt,
+                });
             }
             await api.offers.submitForApproval(offerId, selectedApprovers);
             await onSave();
