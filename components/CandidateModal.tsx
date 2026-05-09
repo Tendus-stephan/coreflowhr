@@ -2046,6 +2046,11 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                     }}
                                     onSend={async (offer) => {
                                         if (sendingOfferId) return;
+                                        if (offer.requiresApproval) {
+                                            setEditingOffer(offer);
+                                            setIsOfferModalOpen(true);
+                                            return;
+                                        }
                                         try {
                                             setSendingOfferId(offer.id);
                                             await api.offers.send(offer.id);
