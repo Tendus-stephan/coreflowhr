@@ -12,7 +12,7 @@ interface OfferModalProps {
     candidate?: Candidate | null;
     isOpen: boolean;
     onClose: () => void;
-    onSave: () => void;
+    onSave: () => Promise<void>;
 }
 
 export const OfferModal: React.FC<OfferModalProps> = ({
@@ -244,7 +244,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                 });
             }
 
-            onSave();
+            await onSave();
             onClose();
         } catch (err: any) {
             console.error('Error saving offer:', err);
@@ -293,7 +293,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
             setSending(true);
             setError(null);
             await api.offers.send(offerId);
-            onSave();
+            await onSave();
             onClose();
         } catch (err: any) {
             console.error('Error sending offer:', err);
@@ -327,7 +327,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                 if (!offerId) { setError('Failed to save offer before submitting for approval.'); return; }
             }
             await api.offers.submitForApproval(offerId, selectedApprovers);
-            onSave();
+            await onSave();
             onClose();
         } catch (err: any) {
             setError(toUserError(err, 'Failed to submit for approval.'));
