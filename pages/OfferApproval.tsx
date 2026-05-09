@@ -19,15 +19,16 @@ interface ApprovalData {
     jobTitle: string | null;
     companyName: string | null;
     companyLogoUrl: string | null;
+    bannerColor: string | null;
 }
 
 const DEFAULT_BANNER = '#1e3a5f';
 const buildGradient = (color: string) =>
     `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 38)} 100%)`;
 
-const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; companyLogoUrl?: string | null }> = ({ children, companyName, companyLogoUrl }) => {
+const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; companyLogoUrl?: string | null; bannerColor?: string | null }> = ({ children, companyName, companyLogoUrl, bannerColor }) => {
     const [logoErr, setLogoErr] = useState(false);
-    const gradient = buildGradient(DEFAULT_BANNER);
+    const gradient = buildGradient(bannerColor || DEFAULT_BANNER);
 
     return (
         <div className="min-h-screen bg-white font-sans">
@@ -134,6 +135,7 @@ const OfferApproval: React.FC = () => {
     const [success, setSuccess] = useState<{ decision: 'approved' | 'rejected'; offerSent: boolean } | null>(null);
     const [brandName, setBrandName] = useState<string | null>(null);
     const [brandLogo, setBrandLogo] = useState<string | null>(null);
+    const [brandBannerColor, setBrandBannerColor] = useState<string | null>(null);
 
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
@@ -157,6 +159,7 @@ const OfferApproval: React.FC = () => {
                 setData(result as ApprovalData);
                 setBrandName(result.companyName);
                 setBrandLogo(result.companyLogoUrl);
+                setBrandBannerColor(result.bannerColor);
                 // If pre-filled with reject decision, show the rejection form immediately
                 if (prefillDecision === 'reject' && result.request.status === 'pending') {
                     setShowRejectForm(true);
@@ -189,7 +192,7 @@ const OfferApproval: React.FC = () => {
 
     if (loading) {
         return (
-            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="flex justify-center py-12">
                     <Loader2 size={28} className="animate-spin text-gray-400" />
                 </div>
@@ -199,7 +202,7 @@ const OfferApproval: React.FC = () => {
 
     if (error) {
         return (
-            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     <AlertCircle size={32} className="text-red-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Unable to load request</h2>
@@ -218,7 +221,7 @@ const OfferApproval: React.FC = () => {
     // Already responded
     if (alreadyResponded) {
         return (
-            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {request.status === 'approved' ? (
                         <>
@@ -241,7 +244,7 @@ const OfferApproval: React.FC = () => {
     // Expired
     if (isExpired) {
         return (
-            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     <Clock size={36} className="text-amber-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Link expired</h2>
@@ -254,7 +257,7 @@ const OfferApproval: React.FC = () => {
     // Success state
     if (success) {
         return (
-            <Shell companyName={brandName} companyLogoUrl={brandLogo}>
+            <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {success.decision === 'approved' ? (
                         <>
@@ -282,7 +285,7 @@ const OfferApproval: React.FC = () => {
 
     // Main review UI
     return (
-        <Shell companyName={brandName} companyLogoUrl={brandLogo}>
+        <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
             <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
 
                 {/* Header */}

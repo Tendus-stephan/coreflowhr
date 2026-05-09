@@ -8315,6 +8315,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             jobTitle: string | null;
             companyName: string | null;
             companyLogoUrl: string | null;
+            bannerColor: string | null;
         } | null> => {
             const { data, error } = await supabase.rpc('get_offer_approval_by_token', { p_token: token });
             if (error) throw error;
@@ -8359,6 +8360,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 jobTitle: d.job_title ?? null,
                 companyName: d.company_name ?? null,
                 companyLogoUrl: d.company_logo_url ?? null,
+                bannerColor: d.banner_color ?? null,
             };
         },
 
