@@ -121,9 +121,9 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                             {offer.approvers && offer.approvers.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5 items-center">
                                     <ShieldCheck size={13} className="text-amber-500 flex-shrink-0" />
-                                    {offer.approvers.map((a, i) => (
+                                    {offer.approvers.map((a) => (
                                         <span
-                                            key={i}
+                                            key={a.userId}
                                             className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
                                                 a.status === 'approved'
                                                     ? 'bg-green-50 text-green-700'
@@ -152,7 +152,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         </div>
                     )}
                 </div>
-                {offer.status === 'draft' && !readOnly && (
+                {(offer.status === 'draft' || offer.status === 'pending_approval') && !readOnly && (
                     <button
                         onClick={() => onEdit(offer)}
                         className="p-1.5 text-gray-400 hover:text-gray-900 transition-colors rounded hover:bg-gray-100"
@@ -273,7 +273,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                         Download
                     </Button>
                 )}
-                {(offer.status === 'draft' || (offer.status === 'pending_approval' && offer.approvalStatus === 'approved')) && !offer.archived && onSend && !readOnly && (
+                {((offer.status === 'draft' && !offer.requiresApproval) || (offer.status === 'pending_approval' && offer.approvalStatus === 'approved')) && !offer.archived && onSend && !readOnly && (
                     <Button
                         variant="black"
                         size="sm"

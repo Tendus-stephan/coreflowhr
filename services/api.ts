@@ -6586,7 +6586,7 @@ export const api = {
                     if (approverNames && typeof approverNames === 'object') Object.assign(approverNameById, approverNames);
                     for (const row of approvalRows as any[]) {
                         if (!approvalsByOfferId[row.offer_id]) approvalsByOfferId[row.offer_id] = [];
-                        approvalsByOfferId[row.offer_id].push({ name: approverNameById[row.approver_user_id] || 'Unknown', status: row.status });
+                        approvalsByOfferId[row.offer_id].push({ userId: row.approver_user_id, name: approverNameById[row.approver_user_id] || 'Unknown', status: row.status });
                     }
                 }
             }
@@ -6647,7 +6647,7 @@ export const api = {
                     const { data: approverNames } = await supabase.rpc('get_display_names_for_users', { p_user_ids: approverIds });
                     const approverNameById: Record<string, string> = {};
                     if (approverNames && typeof approverNames === 'object') Object.assign(approverNameById, approverNames);
-                    approvers = (approvalRows as any[]).map((r: any) => ({ name: approverNameById[r.approver_user_id] || 'Unknown', status: r.status }));
+                    approvers = (approvalRows as any[]).map((r: any) => ({ userId: r.approver_user_id, name: approverNameById[r.approver_user_id] || 'Unknown', status: r.status }));
                 }
             }
 

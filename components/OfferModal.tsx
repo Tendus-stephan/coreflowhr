@@ -112,7 +112,8 @@ export const OfferModal: React.FC<OfferModalProps> = ({
     // once per open — equivalent to a mount-only effect.
     useEffect(() => {
         setRequiresApproval(offer?.requiresApproval ?? false);
-        setSelectedApprovers([]);
+        // Pre-populate approvers from DB if available (e.g. re-opening after rejection)
+        setSelectedApprovers(offer?.approvers?.map(a => a.userId) ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
