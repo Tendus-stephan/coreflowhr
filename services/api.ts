@@ -8385,10 +8385,15 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             const result = data as any;
             let offerSent = false;
 
-            // If all approved, auto-send the offer
+            // If all approved, auto-send the offer via server-side edge function
+            // (approval page is public — no user session, so api.offers.send() would fail)
             if (result.all_resolved && result.outcome === 'approved') {
                 try {
-                    await api.offers.send(result.offer_id);
+                    const { error: autoSendError } = await supabase.functions.invoke(
+                        'auto-send-approved-offer',
+                        { body: { offerId: result.offer_id, token } }
+                    );
+                    if (autoSendError) throw autoSendError;
                     offerSent = true;
                 } catch (sendErr) {
                     console.error('Auto-send after approval failed (non-fatal):', sendErr);
