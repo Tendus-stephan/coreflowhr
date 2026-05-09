@@ -675,8 +675,18 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 <p className="text-xs text-amber-700 mt-0.5">
                                     This offer is awaiting approval. Once all approvers respond, it will be sent automatically.
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Declined by approver — visible when offer reverts to draft */}
+                    {offer?.status === 'draft' && offer.approvalStatus === 'rejected' && (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-start gap-3">
+                            <AlertCircle size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-gray-700">Declined by approver</p>
                                 {offer.approvalNote && (
-                                    <p className="text-xs text-red-700 mt-2 font-medium">Rejected: "{offer.approvalNote}"</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">"{offer.approvalNote}"</p>
                                 )}
                             </div>
                         </div>
