@@ -200,6 +200,7 @@ serve(async (req) => {
               content: `Dear ${(candidateRow as any).name || 'there'},\n\nCongratulations! Your signed offer letter for the ${positionTitle} position at ${companyName} has been received and recorded.\n\nWe look forward to welcoming you to the team. ${recruiterName} will be in touch shortly with your onboarding details.\n\nBest regards,\n${recruiterName}\n${companyName}`,
               fromName: recruiterName,
               candidateId,
+              userId: (updatedOffer as any).user_id || null,
               emailType: 'Offer Signed',
             },
           });

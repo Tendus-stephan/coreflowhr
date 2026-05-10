@@ -201,6 +201,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
         content: emailContent,
         fromName: companyName,
         candidateId: candidate.id,
+        userId: offer.user_id || null,
         emailType: 'Offer',
       }),
     });
