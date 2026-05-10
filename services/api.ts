@@ -2916,6 +2916,7 @@ export const api = {
                                 subject: `We've received your application — ${job.title}`,
                                 content: `<p>Hi ${applicationData.name},</p><p>Thank you for applying for <strong>${job.title}</strong>${job.company ? ` at ${job.company}` : ''}.</p><p>We've received your CV and will be in touch if you're shortlisted for the next stage.</p><p>Best of luck!</p>`,
                                 emailType: 'ApplicationConfirmation',
+                                userId: job.user_id || null,
                                 candidateId: existingCandidate.id,
                             }
                         });
@@ -3057,6 +3058,7 @@ export const api = {
                                 subject: `We've received your application — ${job.title}`,
                                 content: `<p>Hi ${applicationData.name},</p><p>Thank you for applying for <strong>${job.title}</strong>${job.company ? ` at ${job.company}` : ''}.</p><p>We've received your CV and will be in touch if you're shortlisted for the next stage.</p><p>Best of luck!</p>`,
                                 emailType: 'ApplicationConfirmation',
+                                userId: job.user_id || null,
                                 candidateId: newCandidate.id,
                             }
                         });
@@ -6972,7 +6974,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
 <p>Best regards,<br><strong>${companyName}</strong></p>`;
 
             const { error: emailError } = await supabase.functions.invoke('send-email', {
-                body: { to: candidate.email, subject: `Your Offer — ${offer.positionTitle} at ${companyName}`, content: emailContent, fromName: companyName, candidateId: candidate.id, emailType: 'Offer' },
+                body: { to: candidate.email, subject: `Your Offer — ${offer.positionTitle} at ${companyName}`, content: emailContent, fromName: companyName, candidateId: candidate.id, userId, emailType: 'Offer' },
             });
             if (emailError) throw new Error('Failed to send offer email. Please try again.');
 
@@ -7299,6 +7301,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                             content: content,
                             fromName: 'Recruiter',
                             candidateId: candidate.id,
+                            userId,
                             emailType: 'Offer Accepted'
                         }
                     });
@@ -7453,6 +7456,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                             content: content,
                             fromName: 'Recruiter',
                             candidateId: candidate.id,
+                            userId,
                             emailType: 'Offer Declined'
                         }
                     });
@@ -7662,6 +7666,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                             content: content,
                             fromName: 'Recruiter',
                             candidateId: candidate.id,
+                            userId,
                             emailType: 'Counter Offer Response'
                         }
                     });
