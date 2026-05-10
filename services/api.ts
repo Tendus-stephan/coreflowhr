@@ -8757,6 +8757,143 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             const filename = `coreflowhr-report-${new Date().toISOString().slice(0, 10)}.csv`;
             return { csv, filename };
         },
-    }
+    },
+
+    schedulingLinks: {
+        create: async (data: {
+            candidateId: string;
+            jobId: string;
+            interviewType: string;
+            durationMinutes: number;
+            dateRangeStart: string;
+            dateRangeEnd: string;
+            availableHoursStart: string;
+            availableHoursEnd: string;
+            bufferMinutes: number;
+            message?: string;
+        }): Promise<{ id: string; token: string }> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+            if (!workspaceId) throw new Error('No workspace');
+
+            const { data: row, error } = await supabase
+                .from('scheduling_links')
+                .insert({
+                    candidate_id: data.candidateId,
+                    job_id: data.jobId,
+                    workspace_id: workspaceId,
+                    created_by: userId,
+                    interview_type: data.interviewType,
+                    duration_minutes: data.durationMinutes,
+                    date_range_start: data.dateRangeStart,
+                    date_range_end: data.dateRangeEnd,
+                    available_hours_start: data.availableHoursStart,
+                    available_hours_end: data.availableHoursEnd,
+                    buffer_minutes: data.bufferMinutes,
+                    message: data.message || null,
+                })
+                .select('id, token')
+                .single();
+
+            if (error) throw error;
+            return row as { id: string; token: string };
+        },
+
+        getCandidateLinks: async (candidateId: string): Promise<any[]> => {
+            const { data, error } = await supabase
+                .from('scheduling_links')
+                .select('id, token, interview_type, duration_minutes, date_range_start, date_range_end, status, booked_at, booked_slot, booked_by_name, created_at')
+                .eq('candidate_id', candidateId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        },
+
+        getByToken: async (token: string): Promise<any | null> => {
+            const { data, error } = await supabase
+                .from('scheduling_links')
+                .select(`
+                    id, token, interview_type, duration_minutes,
+                    date_range_start, date_range_end,
+                    available_hours_start, available_hours_end,
+                    buffer_minutes, message, status, booked_slot,
+                    workspaces:workspace_id(name, company_logo_url, banner_color),
+                    candidates:candidate_id(name, email),
+                    jobs:job_id(title)
+                `)
+                .eq('token', token)
+                .maybeSingle();
+
+            if (error) throw error;
+            if (!data) return null;
+
+            // Fetch recruiter name separately
+            let recruiterName: string | null = null;
+            if ((data as any).created_by) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('name')
+                    .eq('id', (data as any).created_by)
+                    .maybeSingle();
+                recruiterName = profile?.name ?? null;
+            }
+
+            const ws = (data as any).workspaces || {};
+            const cand = (data as any).candidates || {};
+            const job = (data as any).jobs || {};
+
+            return {
+                id: data.id,
+                token: data.token,
+                interviewType: data.interview_type,
+                durationMinutes: data.duration_minutes,
+                dateRangeStart: data.date_range_start,
+                dateRangeEnd: data.date_range_end,
+                availableHoursStart: data.available_hours_start,
+                availableHoursEnd: data.available_hours_end,
+                bufferMinutes: data.buffer_minutes,
+                message: data.message,
+                status: data.status,
+                bookedSlot: data.booked_slot,
+                companyName: ws.name ?? null,
+                companyLogoUrl: ws.company_logo_url ?? null,
+                bannerColor: ws.banner_color ?? null,
+                candidateName: cand.name ?? null,
+                candidateEmail: cand.email ?? null,
+                jobTitle: job.title ?? null,
+                recruiterName,
+            };
+        },
+
+        getTakenSlots: async (token: string): Promise<string[]> => {
+            // Fetch the link to get date range + created_by
+            const { data: link, error: linkErr } = await supabase
+                .from('scheduling_links')
+                .select('date_range_start, date_range_end, created_by, duration_minutes')
+                .eq('token', token)
+                .maybeSingle();
+
+            if (linkErr || !link || !(link as any).created_by) return [];
+
+            const { data: interviews, error: intErr } = await supabase
+                .from('interviews')
+                .select('date, time, duration_minutes')
+                .eq('user_id', (link as any).created_by)
+                .eq('status', 'Scheduled')
+                .gte('date', (link as any).date_range_start)
+                .lte('date', (link as any).date_range_end);
+
+            if (intErr || !interviews) return [];
+
+            return (interviews as any[]).map((i: any) => {
+                const [h, m] = (i.time || '00:00').split(':').map(Number);
+                const dt = new Date(`${i.date}T00:00:00`);
+                dt.setHours(h, m, 0, 0);
+                return dt.toISOString();
+            });
+        },
+    },
 };
 

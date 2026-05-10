@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Candidate, CandidateStage, Job, Offer } from '../types';
-import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply, Pencil, Check } from 'lucide-react';
+import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, AlertTriangle, CheckCircle, AlertCircle, MapPin, Reply, Pencil, Check, Link2, Copy } from 'lucide-react';
 import { Button } from './ui/Button';
 import { draftEmail, draftOutreachMessage } from '../services/aiService';
 import { api } from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList, Legend } from 'recharts';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
+import { SendSchedulingLinkModal } from './SendSchedulingLinkModal';
 import { Avatar } from './ui/Avatar';
 import { CandidateNotes } from './CandidateNotes';
 import { InterviewFeedbackForm } from './InterviewFeedback';
@@ -21,6 +22,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { CustomSelect } from './ui/CustomSelect';
 import { toUserError } from '../utils/edgeFunctionError';
+import { format } from 'date-fns';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -99,6 +101,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   const [isAssigningJob, setIsAssigningJob] = useState(false);
   const [jobLoading, setJobLoading] = useState(false);
   const [regLinkLoading, setRegLinkLoading] = useState(false);
+  const [schedulingLinks, setSchedulingLinks] = useState<any[]>([]);
+  const [isSendSchedulingOpen, setIsSendSchedulingOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -290,10 +294,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
       if (activeTab === 'feedback' && candidate.id) {
         try {
           setLoadingFeedback(true);
-          
+
           // Load interviews for this candidate
           const interviews = await api.interviews.getCandidateInterviews(candidate.id);
           setCandidateInterviews(interviews);
+
+          // Load scheduling links
+          api.schedulingLinks.getCandidateLinks(candidate.id).then(setSchedulingLinks).catch(() => {});
           
           // Load existing feedback
           const feedbacks = await api.interviews.getCandidateFeedback(candidate.id);
@@ -839,11 +846,24 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
   return (
     <>
-    <ScheduleInterviewModal 
-        isOpen={isScheduleOpen} 
-        onClose={() => setIsScheduleOpen(false)} 
-        preSelectedCandidate={candidate} 
+    <ScheduleInterviewModal
+        isOpen={isScheduleOpen}
+        onClose={() => setIsScheduleOpen(false)}
+        preSelectedCandidate={candidate}
         editingInterviewId={scheduledUpcoming[0]?.id ?? undefined}
+    />
+    <SendSchedulingLinkModal
+        isOpen={isSendSchedulingOpen}
+        onClose={() => setIsSendSchedulingOpen(false)}
+        candidate={candidate}
+        jobId={candidate.jobId ?? ''}
+        jobTitle={job?.title ?? ''}
+        onCreated={(link) => {
+            setIsSendSchedulingOpen(false);
+            navigator.clipboard.writeText(`${window.location.origin}/schedule/${link.token}`).catch(() => {});
+            toast.success('Scheduling link copied to clipboard');
+            api.schedulingLinks.getCandidateLinks(candidate.id).then(setSchedulingLinks).catch(() => {});
+        }}
     />
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-sm" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
       <div className="w-[800px] h-full bg-white border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
@@ -1749,6 +1769,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-gray-900">Interview Feedback</h3>
+                        {!isViewer && (
+                            <button
+                                onClick={() => setIsSendSchedulingOpen(true)}
+                                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-lg px-2.5 py-1.5 transition-colors"
+                            >
+                                <Link2 size={12} />
+                                Send scheduling link
+                            </button>
+                        )}
                     </div>
 
                     {loadingFeedback ? (
@@ -1757,6 +1786,52 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </div>
                     ) : (
                         <>
+                            {/* Scheduling Links */}
+                            {schedulingLinks.length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Scheduling Links</h4>
+                                    {schedulingLinks.map((link: any) => (
+                                        <div key={link.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-xs font-medium text-gray-700">{link.interview_type}</span>
+                                                    <span className="text-xs text-gray-400">·</span>
+                                                    <span className="text-xs text-gray-500">{link.duration_minutes} min</span>
+                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                                                        link.status === 'active' ? 'bg-blue-50 text-blue-700' :
+                                                        link.status === 'booked' ? 'bg-green-50 text-green-700' :
+                                                        'bg-gray-100 text-gray-500'
+                                                    }`}>
+                                                        {link.status.charAt(0).toUpperCase() + link.status.slice(1)}
+                                                    </span>
+                                                </div>
+                                                {link.status === 'booked' && link.booked_slot && (
+                                                    <p className="text-xs text-gray-500 mt-0.5">
+                                                        Booked: {format(new Date(link.booked_slot), 'MMM d, yyyy · h:mm a')}
+                                                    </p>
+                                                )}
+                                                {link.status === 'active' && (
+                                                    <p className="text-xs text-gray-400 mt-0.5">
+                                                        Expires {format(new Date(link.date_range_end), 'MMM d')}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {link.status === 'active' && (
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(`${window.location.origin}/schedule/${link.token}`).catch(() => {});
+                                                        toast.success('Link copied');
+                                                    }}
+                                                    className="text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded px-2 py-1 transition-colors flex items-center gap-1 flex-shrink-0"
+                                                >
+                                                    <Copy size={11} /> Copy
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Interviews List - Submit Feedback */}
                             {candidateInterviews.length > 0 && (
                                 <div className="space-y-4">
