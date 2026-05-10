@@ -150,7 +150,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                         </p>
 
                         {/* Salary */}
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-[2fr_1fr_1fr] gap-3">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Salary Amount *
