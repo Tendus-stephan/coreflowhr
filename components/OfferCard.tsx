@@ -61,12 +61,22 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     const expired = isClientExpired(offer);
 
     const getStatusColor = (status: Offer['status']) => {
-        if (expired) return 'bg-red-100 text-red-700';
+        if (expired) return 'bg-gray-100 text-gray-500';
+        if (offer.archived) return 'bg-gray-100 text-gray-500';
         if (status === 'pending_approval' && offer.approvalStatus === 'approved') return 'bg-green-50 text-green-700';
-        if (status === 'pending_approval') return 'bg-amber-100 text-amber-700';
-        if (status === 'awaiting_response') return 'bg-indigo-50 text-indigo-700';
-        if (status === 'viewed') return 'bg-blue-50 text-blue-700';
-        return 'bg-gray-100 text-gray-700';
+        const map: Partial<Record<Offer['status'], string>> = {
+            draft:              'bg-gray-100 text-gray-600',
+            pending_approval:   'bg-amber-100 text-amber-700',
+            awaiting_response:  'bg-blue-50 text-blue-700',
+            awaiting_signature: 'bg-indigo-50 text-indigo-700',
+            sent:               'bg-blue-50 text-blue-700',
+            viewed:             'bg-blue-50 text-blue-600',
+            negotiating:        'bg-orange-50 text-orange-700',
+            accepted:           'bg-green-50 text-green-700',
+            declined:           'bg-red-50 text-red-700',
+            signed:             'bg-green-50 text-green-700',
+        };
+        return map[status] ?? 'bg-gray-100 text-gray-600';
     };
 
     const formatSalary = () => {
@@ -92,7 +102,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-base font-bold text-gray-900">{offer.positionTitle}</h3>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusColor(offer.status)}`}>
+                        <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded ${getStatusColor(offer.status)}`}>
                             {offer.status === 'pending_approval' && offer.approvalStatus === 'approved'
                                 ? 'Approved — send pending'
                                 : formatStatusLabel(offer.status, offer.archived, expired)}

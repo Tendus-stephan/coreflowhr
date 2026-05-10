@@ -2271,12 +2271,30 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                           )}
                         </div>
                         <div className="ml-4">
-                          <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
-                            {offer.status === 'pending_approval' ? 'Awaiting approval'
-                              : offer.status === 'awaiting_response' ? 'Awaiting response'
-                              : offer.status === 'awaiting_signature' ? 'Awaiting signature'
-                              : offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
-                          </span>
+                          {(() => {
+                            const s = offer.status;
+                            const cls =
+                              s === 'pending_approval'   ? 'bg-amber-100 text-amber-700' :
+                              s === 'awaiting_response'  ? 'bg-blue-50 text-blue-700' :
+                              s === 'awaiting_signature' ? 'bg-indigo-50 text-indigo-700' :
+                              s === 'sent'               ? 'bg-blue-50 text-blue-700' :
+                              s === 'viewed'             ? 'bg-blue-50 text-blue-600' :
+                              s === 'negotiating'        ? 'bg-orange-50 text-orange-700' :
+                              s === 'accepted'           ? 'bg-green-50 text-green-700' :
+                              s === 'declined'           ? 'bg-red-50 text-red-700' :
+                              s === 'signed'             ? 'bg-green-50 text-green-700' :
+                                                           'bg-gray-100 text-gray-600';
+                            const label =
+                              s === 'pending_approval'   ? 'Awaiting approval' :
+                              s === 'awaiting_response'  ? 'Awaiting response' :
+                              s === 'awaiting_signature' ? 'Awaiting signature' :
+                              s.charAt(0).toUpperCase() + s.slice(1);
+                            return (
+                              <span className={`px-1.5 py-0.5 text-[11px] font-medium rounded ${cls}`}>
+                                {label}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </button>
