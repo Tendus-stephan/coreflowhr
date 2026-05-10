@@ -413,48 +413,51 @@ export const OfferModal: React.FC<OfferModalProps> = ({
 
                     {/* Counter Offer Display */}
                     {offer && offer.negotiationHistory && offer.negotiationHistory.length > 0 && offer.negotiationHistory.some((item: any) => item.type === 'counter_offer') && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
                             <div className="flex items-center gap-2 mb-3">
-                                <AlertCircle size={16} className="text-orange-600" />
-                                <h3 className="text-sm font-bold text-orange-900">Counter Offer Received</h3>
+                                <AlertCircle size={15} className="text-amber-600 flex-shrink-0" />
+                                <h3 className="text-sm font-semibold text-amber-900">Counter offer received</h3>
                             </div>
                             {offer.negotiationHistory
                                 .filter((item: any) => item.type === 'counter_offer')
                                 .map((item: any, index: number) => {
                                     const co = item.counterOffer;
                                     return (
-                                        <div key={index} className="mb-3 last:mb-0 bg-white rounded-lg p-3 border border-orange-200">
-                                            <p className="text-xs text-orange-700 mb-2 font-medium">
-                                                {format(new Date(item.timestamp), 'MMM d, yyyy h:mm a')}
+                                        <div key={index} className="mb-2 last:mb-0 bg-white rounded-xl p-3 border border-amber-100">
+                                            <p className="text-[11px] text-gray-400 mb-2">
+                                                {format(new Date(item.timestamp), 'MMM d, yyyy · h:mm a')}
                                             </p>
-                                            <div className="space-y-1.5 text-sm text-gray-700">
+                                            <div className="space-y-1.5 text-sm">
                                                 {co.salaryAmount && (
                                                     <p>
-                                                        <span className="font-medium">Salary:</span>{' '}
-                                                        {co.salaryCurrency === 'USD' ? '$' : co.salaryCurrency}
-                                                        {Math.round(co.salaryAmount).toLocaleString()}{' '}
-                                                        {co.salaryPeriod === 'yearly' ? 'per year' : co.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
+                                                        <span className="text-gray-500">Salary</span>{' '}
+                                                        <span className="font-medium text-gray-900">
+                                                            {co.salaryCurrency === 'USD' ? '$' : co.salaryCurrency}
+                                                            {Math.round(co.salaryAmount).toLocaleString()}{' '}
+                                                            {co.salaryPeriod === 'yearly' ? 'per year' : co.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
+                                                        </span>
                                                     </p>
                                                 )}
                                                 {co.startDate && (
                                                     <p>
-                                                        <span className="font-medium">Start Date:</span>{' '}
-                                                        {format(new Date(co.startDate), 'MMM d, yyyy')}
+                                                        <span className="text-gray-500">Start date</span>{' '}
+                                                        <span className="font-medium text-gray-900">{format(new Date(co.startDate), 'MMM d, yyyy')}</span>
                                                     </p>
                                                 )}
                                                 {co.benefits && co.benefits.length > 0 && (
                                                     <p>
-                                                        <span className="font-medium">Benefits:</span> {co.benefits.join(', ')}
+                                                        <span className="text-gray-500">Benefits</span>{' '}
+                                                        <span className="text-gray-900">{co.benefits.join(', ')}</span>
                                                     </p>
                                                 )}
                                                 {co.notes && (
-                                                    <p className="mt-2 pt-2 border-t border-gray-200 italic text-gray-600">"{co.notes}"</p>
+                                                    <p className="mt-2 pt-2 border-t border-gray-100 text-gray-600 italic text-[13px]">"{co.notes}"</p>
                                                 )}
                                             </div>
                                         </div>
                                     );
                                 })}
-                            <p className="text-xs text-orange-700 mt-2">You can update the offer terms above to respond to the counter offer.</p>
+                            <p className="text-xs text-amber-700 mt-2">Update the offer terms below, save, then use "Negotiate counter" to send updated terms to the candidate.</p>
                         </div>
                     )}
 
@@ -767,6 +770,15 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                         >
                             Cancel
                         </Button>
+                        {offer && offer.status === 'negotiating' && (
+                            <Button
+                                variant="black"
+                                onClick={handleSave}
+                                disabled={saving || sending || submittingApproval}
+                            >
+                                {saving ? 'Saving...' : 'Update Offer'}
+                            </Button>
+                        )}
                         {offer && offer.status === 'draft' && !requiresApproval && (
                             <Button
                                 variant="black"

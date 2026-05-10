@@ -7305,6 +7305,19 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 }
             }
 
+            // Generate a fresh offer letter PDF with the negotiated terms and send Dropbox Sign request.
+            // Non-fatal — acceptance is already recorded.
+            try {
+                const { data: sigData, error: sigError } = await supabase.functions.invoke('send-offer-html-pdf', {
+                    body: { offerId: offerId },
+                });
+                if (sigError || (sigData as { error?: string })?.error) {
+                    console.error('send-offer-html-pdf failed (non-fatal):', sigError?.message || (sigData as { error?: string })?.error);
+                }
+            } catch (sigErr) {
+                console.error('send-offer-html-pdf error (non-fatal):', sigErr);
+            }
+
             // Move candidate to Hired stage if offer accepted
             if (offer.candidateId) {
                 try {

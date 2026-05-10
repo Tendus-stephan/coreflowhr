@@ -207,7 +207,7 @@ const OfferApproval: React.FC = () => {
         return (
             <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
-                    <AlertCircle size={32} className="text-red-400 mx-auto mb-4" />
+                    <AlertCircle size={28} className="text-red-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Unable to load request</h2>
                     <p className="text-sm text-gray-500">{error}</p>
                 </div>
@@ -251,7 +251,7 @@ const OfferApproval: React.FC = () => {
         return (
             <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
-                    <Clock size={36} className="text-amber-400 mx-auto mb-4" />
+                    <Clock size={28} className="text-amber-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Link expired</h2>
                     <p className="text-sm text-gray-500">This approval link has expired. Please contact the recruiter to request a new one.</p>
                 </div>
@@ -325,7 +325,7 @@ const OfferApproval: React.FC = () => {
                             </tr>
                             {offer.startDate && (
                                 <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
-                                    <td className="py-2 text-gray-500 font-medium">Start Date</td>
+                                    <td className="py-2 text-gray-500 font-medium">Start date</td>
                                     <td className="py-2 text-gray-900">
                                         {format(new Date(offer.startDate), 'MMMM d, yyyy')}
                                     </td>

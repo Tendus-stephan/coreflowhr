@@ -521,13 +521,19 @@ serve(async (req) => {
 
     const { data: job } = await supabase
       .from('jobs')
-      .select('id, title, company, workspace_id')
+      .select('id, title, company, workspace_id, client_id')
       .eq('id', offer.job_id)
       .single();
 
     const workspaceId = offer.workspace_id ?? (job as { workspace_id?: string })?.workspace_id ?? null;
     const { data: workspace } = workspaceId
       ? await supabase.from('workspaces').select('id, name, company_logo_url').eq('id', workspaceId).single()
+      : { data: null };
+
+    // Prefer client name + logo when the job is linked to a client (mirrors get_offer_by_token RPC)
+    const clientId = (job as { client_id?: string | null })?.client_id ?? null;
+    const { data: client } = clientId
+      ? await supabase.from('clients').select('name, logo_url').eq('id', clientId).single()
       : { data: null };
 
     const { data: profile } = await supabase
@@ -540,7 +546,10 @@ serve(async (req) => {
     const recruiterEmail = (authUser?.user?.email as string)?.trim() || '';
 
     const companyName =
-      (job as { company?: string })?.company || (workspace as { name?: string })?.name || 'Our Company';
+      (client as { name?: string })?.name ||
+      (job as { company?: string })?.company ||
+      (workspace as { name?: string })?.name ||
+      'Our Company';
     const positionTitle =
       (job as { title?: string })?.title || offer.position_title || 'Position';
     const candidateName = (candidate as { name?: string })?.name || 'Candidate';
@@ -564,10 +573,13 @@ serve(async (req) => {
     const recruiterName = (profile as { name?: string })?.name?.trim() || 'Recruiter';
     const recruiterTitle = (profile as { job_title?: string })?.job_title?.trim() || '';
 
-    const logoUrl = (workspace as { company_logo_url?: string })?.company_logo_url;
+    const logoUrl =
+      (client as { logo_url?: string })?.logo_url ||
+      (workspace as { company_logo_url?: string })?.company_logo_url ||
+      null;
     const companyLogoInner = logoUrl
       ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}">`
-      : 'TC';
+      : escapeHtml(companyName.charAt(0).toUpperCase());
 
     const placeholders: Record<string, string> = {
       candidate_name: escapeHtml(candidateName),
