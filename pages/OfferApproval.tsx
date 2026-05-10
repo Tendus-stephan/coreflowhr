@@ -228,7 +228,9 @@ const OfferApproval: React.FC = () => {
                 <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
                     {request.status === 'approved' ? (
                         <>
-                            <CheckCircle size={20} className="text-green-500 mx-auto mb-4" />
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
+                                <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Already approved</h2>
                             <p className="text-sm text-gray-500">You have already approved this offer.</p>
                         </>
