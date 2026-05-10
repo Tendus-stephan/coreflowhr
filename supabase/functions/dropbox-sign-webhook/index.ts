@@ -139,31 +139,90 @@ serve(async (req) => {
       });
     }
 
-    // Auto-move candidate to Hired when a Hired-stage email workflow is active
     const candidateId = (updated as any).candidate_id;
     const workspaceId = (updated as any).workspace_id;
-    if (candidateId && workspaceId) {
-      const { data: hiredWorkflow } = await supabase
-        .from('email_workflows')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('trigger_stage', 'Hired')
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
 
-      if (hiredWorkflow) {
-        const { error: stageError } = await supabase
+    // Always move candidate to Hired on signing — no email workflow prerequisite
+    if (candidateId) {
+      const { error: stageError } = await supabase
+        .from('candidates')
+        .update({ stage: 'Hired' })
+        .eq('id', candidateId)
+        .neq('stage', 'Hired');
+
+      if (stageError) {
+        console.error('Failed to move candidate to Hired', stageError);
+      } else {
+        console.log('Candidate', candidateId, 'moved to Hired after offer signed');
+      }
+    }
+
+    // Send confirmation email to candidate
+    if (candidateId) {
+      try {
+        // Fetch offer details for the email
+        const { data: offerRow } = await supabase
+          .from('offers')
+          .select('position_title, job_id, user_id')
+          .eq('id', String(offerId))
+          .single();
+
+        const { data: candidateRow } = await supabase
           .from('candidates')
-          .update({ stage: 'Hired' })
+          .select('name, email')
           .eq('id', candidateId)
-          .neq('stage', 'Hired');
+          .single();
 
-        if (stageError) {
-          console.error('Failed to move candidate to Hired', stageError);
-        } else {
-          console.log('Candidate', candidateId, 'moved to Hired after offer signed');
+        if (candidateRow?.email && offerRow) {
+          // Resolve company name: client → job.company → workspace
+          let companyName = 'Our Company';
+          if (offerRow.job_id) {
+            const { data: jobRow } = await supabase
+              .from('jobs')
+              .select('title, company, client_id')
+              .eq('id', offerRow.job_id)
+              .single();
+            if (jobRow?.client_id) {
+              const { data: clientRow } = await supabase
+                .from('clients')
+                .select('name')
+                .eq('id', jobRow.client_id)
+                .single();
+              companyName = clientRow?.name || jobRow?.company || companyName;
+            } else {
+              companyName = jobRow?.company || companyName;
+            }
+          }
+
+          // Recruiter name
+          let recruiterName = 'The team';
+          if (offerRow.user_id) {
+            const { data: profileRow } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', offerRow.user_id)
+              .single();
+            recruiterName = profileRow?.name || recruiterName;
+          }
+
+          const positionTitle = offerRow.position_title || 'the position';
+          const candidateName = (candidateRow as { name?: string }).name || 'there';
+
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: candidateRow.email,
+              subject: `Your offer letter is signed — ${positionTitle} at ${companyName}`,
+              content: `Dear ${candidateName},\n\nCongratulations! Your signed offer letter for the ${positionTitle} position at ${companyName} has been received and recorded.\n\nWe look forward to welcoming you to the team. ${recruiterName} will be in touch shortly with your onboarding details.\n\nBest regards,\n${recruiterName}\n${companyName}`,
+              fromName: recruiterName,
+              candidateId,
+              emailType: 'Offer Signed',
+            },
+          });
+          console.log('Signed confirmation email sent to', candidateRow.email);
         }
+      } catch (emailErr) {
+        // Non-fatal — signing is already recorded
+        console.error('Failed to send signed confirmation email (non-fatal):', emailErr);
       }
     }
 

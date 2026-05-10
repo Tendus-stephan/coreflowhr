@@ -135,14 +135,16 @@ serve(async (req) => {
       );
     }
 
-    const { error: updateError } = await supabase
+    const { data: updatedOffer, error: updateError } = await supabase
       .from('offers')
       .update({
         status: 'signed',
         signed_pdf_path: storagePath,
         responded_at: new Date().toISOString(),
       })
-      .eq('id', offerId);
+      .eq('id', offerId)
+      .select('candidate_id, position_title, job_id, user_id')
+      .single();
 
     if (updateError) {
       console.error('Offer update failed', updateError);
@@ -150,6 +152,61 @@ serve(async (req) => {
         JSON.stringify({ error: 'Failed to update offer' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Move candidate to Hired and send confirmation email (mirrors webhook behaviour)
+    const candidateId = (updatedOffer as any)?.candidate_id;
+    if (candidateId) {
+      await supabase
+        .from('candidates')
+        .update({ stage: 'Hired' })
+        .eq('id', candidateId)
+        .neq('stage', 'Hired');
+
+      try {
+        const { data: candidateRow } = await supabase
+          .from('candidates')
+          .select('name, email')
+          .eq('id', candidateId)
+          .single();
+
+        if (candidateRow?.email && updatedOffer) {
+          let companyName = 'Our Company';
+          if ((updatedOffer as any).job_id) {
+            const { data: jobRow } = await supabase
+              .from('jobs')
+              .select('company, client_id')
+              .eq('id', (updatedOffer as any).job_id)
+              .single();
+            if (jobRow?.client_id) {
+              const { data: clientRow } = await supabase
+                .from('clients').select('name').eq('id', jobRow.client_id).single();
+              companyName = clientRow?.name || jobRow?.company || companyName;
+            } else {
+              companyName = jobRow?.company || companyName;
+            }
+          }
+          let recruiterName = 'The team';
+          if ((updatedOffer as any).user_id) {
+            const { data: profileRow } = await supabase
+              .from('profiles').select('name').eq('id', (updatedOffer as any).user_id).single();
+            recruiterName = profileRow?.name || recruiterName;
+          }
+          const positionTitle = (updatedOffer as any).position_title || 'the position';
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: candidateRow.email,
+              subject: `Your offer letter is signed — ${positionTitle} at ${companyName}`,
+              content: `Dear ${(candidateRow as any).name || 'there'},\n\nCongratulations! Your signed offer letter for the ${positionTitle} position at ${companyName} has been received and recorded.\n\nWe look forward to welcoming you to the team. ${recruiterName} will be in touch shortly with your onboarding details.\n\nBest regards,\n${recruiterName}\n${companyName}`,
+              fromName: recruiterName,
+              candidateId,
+              emailType: 'Offer Signed',
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error('Failed to send signed confirmation email (non-fatal):', emailErr);
+      }
     }
 
     return new Response(
