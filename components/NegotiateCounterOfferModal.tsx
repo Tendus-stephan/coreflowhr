@@ -19,11 +19,17 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
     onClose,
     onSave
 }) => {
-    const [salaryAmount, setSalaryAmount] = useState<number | undefined>(offer.salaryAmount);
-    const [salaryCurrency, setSalaryCurrency] = useState(offer.salaryCurrency || 'USD');
-    const [salaryPeriod, setSalaryPeriod] = useState<'hourly' | 'monthly' | 'yearly'>(offer.salaryPeriod || 'yearly');
-    const [startDate, setStartDate] = useState(offer.startDate || '');
-    const [benefits, setBenefits] = useState<string[]>(offer.benefits || []);
+    // Seed initial state from the candidate's latest counter offer (falls back to offer terms)
+    const _initCo = (offer.negotiationHistory as any[] | undefined)
+        ?.filter((item: any) => item.type === 'counter_offer')
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+        ?.counterOffer;
+
+    const [salaryAmount, setSalaryAmount] = useState<number | undefined>(_initCo?.salaryAmount ?? offer.salaryAmount);
+    const [salaryCurrency, setSalaryCurrency] = useState(_initCo?.salaryCurrency || offer.salaryCurrency || 'USD');
+    const [salaryPeriod, setSalaryPeriod] = useState<'hourly' | 'monthly' | 'yearly'>(_initCo?.salaryPeriod || offer.salaryPeriod || 'yearly');
+    const [startDate, setStartDate] = useState(_initCo?.startDate || offer.startDate || '');
+    const [benefits, setBenefits] = useState<string[]>(_initCo?.benefits || offer.benefits || []);
     const [benefitInput, setBenefitInput] = useState('');
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
@@ -31,11 +37,18 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
 
     useEffect(() => {
         if (isOpen && offer) {
-            setSalaryAmount(offer.salaryAmount);
-            setSalaryCurrency(offer.salaryCurrency || 'USD');
-            setSalaryPeriod(offer.salaryPeriod || 'yearly');
-            setStartDate(offer.startDate || '');
-            setBenefits(offer.benefits || []);
+            // Pre-populate with the candidate's latest counter offer terms so the
+            // recruiter starts from what was actually requested, not the original offer.
+            const latestCo = (offer.negotiationHistory as any[] | undefined)
+                ?.filter((item: any) => item.type === 'counter_offer')
+                .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+                ?.counterOffer;
+
+            setSalaryAmount(latestCo?.salaryAmount ?? offer.salaryAmount);
+            setSalaryCurrency(latestCo?.salaryCurrency || offer.salaryCurrency || 'USD');
+            setSalaryPeriod(latestCo?.salaryPeriod || offer.salaryPeriod || 'yearly');
+            setStartDate(latestCo?.startDate || offer.startDate || '');
+            setBenefits(latestCo?.benefits || offer.benefits || []);
             setNotes('');
             setError(null);
         }
@@ -107,11 +120,34 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                     )}
 
                     <div className="space-y-4">
-                        <div>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Update the offer terms to respond to the candidate's counter offer. The candidate will receive an email with your updated terms.
-                            </p>
-                        </div>
+                        {/* Candidate's counter offer summary */}
+                        {_initCo && (
+                            <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm">
+                                <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider mb-1.5">Candidate requested</p>
+                                <div className="space-y-0.5 text-gray-700">
+                                    {_initCo.salaryAmount && (
+                                        <p>
+                                            <span className="text-gray-500">Salary</span>{' '}
+                                            {(_initCo.salaryCurrency === 'USD' ? '$' : _initCo.salaryCurrency) + Math.round(_initCo.salaryAmount).toLocaleString()}{' '}
+                                            {_initCo.salaryPeriod === 'yearly' ? 'per year' : _initCo.salaryPeriod === 'monthly' ? 'per month' : 'per hour'}
+                                        </p>
+                                    )}
+                                    {_initCo.startDate && (
+                                        <p><span className="text-gray-500">Start date</span>{' '}{new Date(_initCo.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                    )}
+                                    {_initCo.benefits?.length > 0 && (
+                                        <p><span className="text-gray-500">Benefits</span>{' '}{_initCo.benefits.join(', ')}</p>
+                                    )}
+                                    {_initCo.notes && (
+                                        <p className="italic text-gray-500 mt-1">"{_initCo.notes}"</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        <p className="text-sm text-gray-500">
+                            Adjust the terms below as needed. The candidate will receive an email with your response.
+                        </p>
 
                         {/* Salary */}
                         <div className="grid grid-cols-3 gap-4">
