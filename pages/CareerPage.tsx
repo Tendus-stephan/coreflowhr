@@ -133,7 +133,7 @@ const CareerPage: React.FC = () => {
     // ── Loading ────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-white flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-700 rounded-full animate-spin" />
             </div>
         );
@@ -142,9 +142,9 @@ const CareerPage: React.FC = () => {
     // ── Error ──────────────────────────────────────────────────────────────
     if (error || !workspace) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 text-center">
-                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
-                    <Building2 size={22} className="text-gray-400" />
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 text-center">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
+                    <Building2 size={18} className="text-gray-400" />
                 </div>
                 <p className="text-base font-semibold text-gray-900 mb-1">Page not found</p>
                 <p className="text-sm text-gray-400">{error || 'This careers page does not exist.'}</p>

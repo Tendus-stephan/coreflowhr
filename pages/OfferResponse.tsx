@@ -3,8 +3,116 @@ import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { X, AlertCircle, Mail, DollarSign, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { X, AlertCircle, Mail, DollarSign, Calendar, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { darkenHex } from '../utils/colorUtils';
+
+const DEFAULT_BANNER = '#1e3a5f';
+const buildGradient = (color: string) =>
+    `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 38)} 100%)`;
+
+// ── Shell: used for all full-page state screens (loading / error / success) ──
+const Shell: React.FC<{
+    children: React.ReactNode;
+    companyName?: string | null;
+    companyLogoUrl?: string | null;
+    bannerColor?: string | null;
+}> = ({ children, companyName, companyLogoUrl, bannerColor }) => {
+    const [logoErr, setLogoErr] = useState(false);
+    const gradient = buildGradient(bannerColor || DEFAULT_BANNER);
+
+    return (
+        <div className="min-h-screen bg-white font-sans">
+            <div className="relative">
+                <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
+                    <div
+                        className="absolute inset-x-0 bottom-0"
+                        style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }}
+                    />
+                    <svg viewBox="0 0 1440 40" className="absolute bottom-0 left-0 w-full" preserveAspectRatio="none" style={{ height: '40px' }}>
+                        <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
+                    </svg>
+                </div>
+                <div className="mx-auto px-6 relative" style={{ maxWidth: '560px' }}>
+                    <div className="flex items-center gap-4 -mt-10 pb-6">
+                        <div
+                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
+                            style={{ width: 80, height: 80, borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', border: '0.5px solid #e5e7eb' }}
+                        >
+                            {companyLogoUrl && !logoErr ? (
+                                <img src={companyLogoUrl} alt={companyName || 'Company'} className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center" style={{ background: gradient }}>
+                                    <span className="text-white text-2xl font-extrabold select-none">
+                                        {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        {companyName && (
+                            <div className="min-w-0">
+                                <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{companyName}</h1>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="mx-auto px-6 pb-10" style={{ maxWidth: '560px' }}>
+                {children}
+            </div>
+            <div className="flex justify-center pb-12">
+                <a href="https://www.coreflowhr.com" target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm">
+                    <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
+                    Powered by CoreflowHR
+                </a>
+            </div>
+        </div>
+    );
+};
+
+// ── BannerHeader: used at the top of the main two-column layout ──────────────
+const BannerHeader: React.FC<{
+    companyName: string;
+    companyLogoUrl: string | null;
+    bannerColor: string | null;
+}> = ({ companyName, companyLogoUrl, bannerColor }) => {
+    const [logoErr, setLogoErr] = useState(false);
+    const gradient = buildGradient(bannerColor || DEFAULT_BANNER);
+
+    return (
+        <div className="relative">
+            <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
+                <div className="absolute inset-x-0 bottom-0"
+                    style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }} />
+                <svg viewBox="0 0 1440 40" className="absolute bottom-0 left-0 w-full" preserveAspectRatio="none" style={{ height: '40px' }}>
+                    <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
+                </svg>
+            </div>
+            <div className="px-10 relative">
+                <div className="flex items-center gap-4 -mt-10 pb-4">
+                    <div
+                        className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
+                        style={{ width: 80, height: 80, borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', border: '0.5px solid #e5e7eb' }}
+                    >
+                        {companyLogoUrl && !logoErr ? (
+                            <img src={companyLogoUrl} alt={companyName} className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center" style={{ background: gradient }}>
+                                <span className="text-white text-2xl font-extrabold select-none">
+                                    {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{companyName}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const OfferResponse: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -16,6 +124,8 @@ const OfferResponse: React.FC = () => {
     const [responseNote, setResponseNote] = useState('');
     const [jobTitle, setJobTitle] = useState<string>('');
     const [companyName, setCompanyName] = useState<string>('');
+    const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+    const [bannerColor, setBannerColor] = useState<string | null>(null);
     const [candidateName, setCandidateName] = useState<string>('');
     const [showCounterOffer, setShowCounterOffer] = useState(false);
 
@@ -43,11 +153,13 @@ const OfferResponse: React.FC = () => {
                     return;
                 }
 
-                const { offer: offerData, jobTitle: jt, companyName: cn, candidateName: cand } = result;
+                const { offer: offerData, jobTitle: jt, companyName: cn, candidateName: cand, companyLogoUrl: logo, bannerColor: bc } = result;
                 setOffer(offerData);
                 setJobTitle(jt);
                 setCompanyName(cn || 'Our Company');
                 setCandidateName(cand);
+                setCompanyLogoUrl(logo);
+                setBannerColor(bc);
 
                 if (offerData.salaryAmount) setCounterSalary(offerData.salaryAmount.toString());
                 setCounterCurrency(offerData.salaryCurrency || 'USD');
@@ -155,23 +267,24 @@ const OfferResponse: React.FC = () => {
     // ── Loading ──────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
-            </div>
+            <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+                <div className="flex justify-center py-12">
+                    <Loader2 size={28} className="animate-spin text-gray-400" />
+                </div>
+            </Shell>
         );
     }
 
     // ── Error (no offer) ─────────────────────────────────────────────────────
     if (error && !offer) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-                <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
-                <div className="w-full max-w-xl text-center">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Link not found</h2>
+            <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                    <AlertCircle size={28} className="text-red-400 mx-auto mb-4" />
+                    <h2 className="text-lg font-bold text-gray-900 mb-2">Link not found</h2>
                     <p className="text-sm text-gray-500">{error}</p>
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
-            </div>
+            </Shell>
         );
     }
 
@@ -180,22 +293,41 @@ const OfferResponse: React.FC = () => {
         const isAccepted = success === 'accepted';
         const isCounter = success === 'counter_offered';
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-                <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
-                <div className="w-full max-w-xl text-center">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                        {isAccepted ? 'Offer accepted' : isCounter ? 'Counter offer submitted' : 'Offer declined'}
-                    </h2>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                        {isAccepted
-                            ? 'Your acceptance is recorded. Check your email for the signing link from Dropbox Sign to complete the process.'
-                            : isCounter
-                            ? 'Your counter offer has been sent. The recruiter will review and get back to you.'
-                            : 'Your response has been recorded. Thank you for your time.'}
-                    </p>
+            <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                    {isAccepted ? (
+                        <>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
+                                <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <h2 className="text-lg font-bold text-gray-900 mb-2">Offer accepted</h2>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                Your acceptance is recorded. Check your email for the signing link from Dropbox Sign to complete the process.
+                            </p>
+                        </>
+                    ) : isCounter ? (
+                        <>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
+                                <polyline points="4,12 9,17 20,6" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <h2 className="text-lg font-bold text-gray-900 mb-2">Counter offer submitted</h2>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                Your counter offer has been sent. The recruiter will review and get back to you.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
+                                <line x1="5" y1="12" x2="19" y2="12" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                            <h2 className="text-lg font-bold text-gray-900 mb-2">Offer declined</h2>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                Your response has been recorded. Thank you for your time.
+                            </p>
+                        </>
+                    )}
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
-            </div>
+            </Shell>
         );
     }
 
@@ -215,39 +347,33 @@ const OfferResponse: React.FC = () => {
     // ── Check email (Dropbox Sign) ────────────────────────────────────────────
     if (signViaEmailOnly) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-                <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
-                <div className="w-full max-w-xl text-center">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Check your email</h2>
+            <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                    <Mail size={28} className="text-gray-400 mx-auto mb-4" />
+                    <h2 className="text-lg font-bold text-gray-900 mb-2">Check your email</h2>
                     <p className="text-sm text-gray-500 leading-relaxed">
                         Your offer letter has been sent via Dropbox Sign. Open the email to review and sign the document.
                         Check your spam folder if you don't see it.
                     </p>
                     <p className="text-xs text-gray-400 mt-4">Questions? Contact {companyName || 'the company'} directly.</p>
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
-            </div>
+            </Shell>
         );
     }
 
-    const companyInitial = (companyName || 'C')[0].toUpperCase();
-
     // ── Main page ─────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-white flex flex-col">
+        <div className="min-h-screen bg-white font-sans flex flex-col">
+
+            {/* Banner + logo header */}
+            <BannerHeader companyName={companyName} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor} />
+
+            {/* Two-column content */}
             <div className="flex-1 flex flex-col lg:flex-row">
 
                 {/* ── LEFT PANEL: offer details ── */}
                 <div className="lg:w-[420px] lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r border-gray-100 bg-white">
-                    <div className="px-10 py-10 lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto flex flex-col">
-
-                        {/* Company */}
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {companyInitial}
-                            </div>
-                            <span className="text-sm font-medium text-gray-500">{companyName || 'Company'}</span>
-                        </div>
+                    <div className="px-10 py-6 lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto flex flex-col">
 
                         {/* Position title */}
                         <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-6">{offer.positionTitle}</h1>
@@ -338,13 +464,16 @@ const OfferResponse: React.FC = () => {
                         )}
 
                         {/* Platform attribution */}
-                        <div className="mt-auto pt-6 border-t border-gray-100 flex items-center gap-3">
-                            <span className="text-xs text-gray-300 whitespace-nowrap">Hiring powered by</span>
-                            <img
-                                src="/assets/images/coreflow-logo.png"
-                                alt="CoreflowHR"
-                                style={{ height: '140px', width: 'auto', display: 'block', opacity: 0.65 }}
-                            />
+                        <div className="mt-auto pt-6 border-t border-gray-100">
+                            <a
+                                href="https://www.coreflowhr.com"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
+                            >
+                                <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
+                                Powered by CoreflowHR
+                            </a>
                         </div>
 
                     </div>

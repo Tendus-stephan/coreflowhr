@@ -1,8 +1,116 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
-import { MapPin, Clock, DollarSign, Building2, Upload, FileText, X, AlertCircle, ArrowRight, Briefcase } from 'lucide-react';
+import { MapPin, Clock, DollarSign, Upload, FileText, X, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { darkenHex } from '../utils/colorUtils';
+
+const DEFAULT_BANNER = '#1e3a5f';
+const buildGradient = (color: string) =>
+    `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 38)} 100%)`;
+
+// ── Shell: used for all full-page state screens ───────────────────────────────
+const Shell: React.FC<{
+    children: React.ReactNode;
+    companyName?: string | null;
+    companyLogoUrl?: string | null;
+    bannerColor?: string | null;
+}> = ({ children, companyName, companyLogoUrl, bannerColor }) => {
+    const [logoErr, setLogoErr] = useState(false);
+    const gradient = buildGradient(bannerColor || DEFAULT_BANNER);
+
+    return (
+        <div className="min-h-screen bg-white font-sans">
+            <div className="relative">
+                <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
+                    <div
+                        className="absolute inset-x-0 bottom-0"
+                        style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }}
+                    />
+                    <svg viewBox="0 0 1440 40" className="absolute bottom-0 left-0 w-full" preserveAspectRatio="none" style={{ height: '40px' }}>
+                        <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
+                    </svg>
+                </div>
+                <div className="mx-auto px-6 relative" style={{ maxWidth: '560px' }}>
+                    <div className="flex items-center gap-4 -mt-10 pb-6">
+                        <div
+                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
+                            style={{ width: 80, height: 80, borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', border: '0.5px solid #e5e7eb' }}
+                        >
+                            {companyLogoUrl && !logoErr ? (
+                                <img src={companyLogoUrl} alt={companyName || 'Company'} className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center" style={{ background: gradient }}>
+                                    <span className="text-white text-2xl font-extrabold select-none">
+                                        {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        {companyName && (
+                            <div className="min-w-0">
+                                <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{companyName}</h1>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="mx-auto px-6 pb-10" style={{ maxWidth: '560px' }}>
+                {children}
+            </div>
+            <div className="flex justify-center pb-12">
+                <a href="https://www.coreflowhr.com" target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm">
+                    <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
+                    Powered by CoreflowHR
+                </a>
+            </div>
+        </div>
+    );
+};
+
+// ── BannerHeader: used at top of the main two-column layout ───────────────────
+const BannerHeader: React.FC<{
+    companyName: string;
+    companyLogoUrl: string | null;
+    bannerColor: string | null;
+}> = ({ companyName, companyLogoUrl, bannerColor }) => {
+    const [logoErr, setLogoErr] = useState(false);
+    const gradient = buildGradient(bannerColor || DEFAULT_BANNER);
+
+    return (
+        <div className="relative">
+            <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
+                <div className="absolute inset-x-0 bottom-0"
+                    style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }} />
+                <svg viewBox="0 0 1440 40" className="absolute bottom-0 left-0 w-full" preserveAspectRatio="none" style={{ height: '40px' }}>
+                    <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
+                </svg>
+            </div>
+            <div className="px-10 relative">
+                <div className="flex items-center gap-4 -mt-10 pb-4">
+                    <div
+                        className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
+                        style={{ width: 80, height: 80, borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', border: '0.5px solid #e5e7eb' }}
+                    >
+                        {companyLogoUrl && !logoErr ? (
+                            <img src={companyLogoUrl} alt={companyName} className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center" style={{ background: gradient }}>
+                                <span className="text-white text-2xl font-extrabold select-none">
+                                    {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{companyName}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const JobApplication: React.FC = () => {
   const { jobId, workspaceSlug, jobSlug } = useParams<{
@@ -23,6 +131,11 @@ const JobApplication: React.FC = () => {
   const [prefillMessage, setPrefillMessage] = useState<string | null>(null);
   const [prefillError, setPrefillError] = useState<string | null>(null);
   const [resolvedJobId, setResolvedJobId] = useState<string | null>(null);
+
+  // Branding
+  const [companyName, setCompanyName] = useState<string>('');
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [bannerColor, setBannerColor] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -47,20 +160,48 @@ const JobApplication: React.FC = () => {
       }
       try {
         let jobQuery;
+        let workspaceId: string | null = null;
+
         if (workspaceSlug && jobSlug) {
           const { data: ws } = await supabase
-            .from('workspaces').select('id').eq('slug', workspaceSlug).single();
+            .from('workspaces')
+            .select('id, name, company_logo_url, banner_color')
+            .eq('slug', workspaceSlug)
+            .single();
           if (!ws) throw new Error('Job not found or is no longer accepting applications');
+          workspaceId = ws.id;
+
+          // Set branding from workspace
+          setCompanyName((ws as any).name || '');
+          setBannerColor((ws as any).banner_color ?? null);
+
+          // Prefer client logo when there's exactly one client with a logo
+          try {
+            const { data: clientsWithLogo } = await supabase
+              .from('clients')
+              .select('logo_url')
+              .eq('workspace_id', ws.id)
+              .not('logo_url', 'is', null);
+            if (clientsWithLogo && clientsWithLogo.length === 1) {
+              setCompanyLogoUrl((clientsWithLogo[0] as any).logo_url ?? null);
+            } else {
+              setCompanyLogoUrl((ws as any).company_logo_url ?? null);
+            }
+          } catch {
+            setCompanyLogoUrl((ws as any).company_logo_url ?? null);
+          }
+
           jobQuery = supabase
             .from('jobs')
-            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills')
+            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills, workspace_id')
             .eq('workspace_id', ws.id).eq('slug', jobSlug).eq('status', 'Active').single();
         } else {
           jobQuery = supabase
             .from('jobs')
-            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills')
+            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills, workspace_id')
             .eq('id', jobId!).eq('status', 'Active').single();
         }
+
         const { data: jobData, error: jobError } = await jobQuery;
         if (jobError || !jobData) throw new Error('Job not found or is no longer accepting applications');
 
@@ -73,6 +214,38 @@ const JobApplication: React.FC = () => {
           company: jobData.company, salaryRange: jobData.salary_range,
           remote: jobData.remote || false, skills: jobData.skills || [],
         });
+
+        // If we came via jobId-only route, fetch workspace branding now
+        if (!workspaceSlug && (jobData as any).workspace_id) {
+          workspaceId = (jobData as any).workspace_id;
+          try {
+            const { data: ws } = await supabase
+              .from('workspaces')
+              .select('name, company_logo_url, banner_color')
+              .eq('id', workspaceId!)
+              .single();
+            if (ws) {
+              setCompanyName((ws as any).name || jobData.company || '');
+              setBannerColor((ws as any).banner_color ?? null);
+
+              // Prefer client logo
+              const { data: clientsWithLogo } = await supabase
+                .from('clients')
+                .select('logo_url')
+                .eq('workspace_id', workspaceId!)
+                .not('logo_url', 'is', null);
+              if (clientsWithLogo && clientsWithLogo.length === 1) {
+                setCompanyLogoUrl((clientsWithLogo[0] as any).logo_url ?? null);
+              } else {
+                setCompanyLogoUrl((ws as any).company_logo_url ?? null);
+              }
+            } else {
+              setCompanyName(jobData.company || '');
+            }
+          } catch {
+            setCompanyName(jobData.company || '');
+          }
+        }
 
         const searchParams = new URLSearchParams(window.location.search);
         let token = searchParams.get('token');
@@ -148,70 +321,76 @@ const JobApplication: React.FC = () => {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
-      </div>
+      <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+        <div className="flex justify-center py-12">
+          <Loader2 size={28} className="animate-spin text-gray-400" />
+        </div>
+      </Shell>
     );
   }
 
   // ── Error ─────────────────────────────────────────────────────────────────
   if (error && !job) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
-        <div className="w-full max-w-xl text-center">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Role unavailable</h2>
+      <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+          <AlertCircle size={28} className="text-red-400 mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Role unavailable</h2>
           <p className="text-sm text-gray-500">{error}</p>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
-      </div>
+      </Shell>
     );
   }
 
   // ── Already applied (same device re-visit) ────────────────────────────────
   if (alreadyApplied && !success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
-        <div className="w-full max-w-xl text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">You've already applied</h2>
+      <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
+            <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">You've already applied</h2>
           <p className="text-sm text-gray-500 leading-relaxed">
             Your application for <strong className="text-gray-700">{job?.title || 'this role'}</strong> has already been submitted.
             We'll be in touch if you're shortlisted.
           </p>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
-      </div>
+      </Shell>
     );
   }
 
   // ── Success ───────────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start py-10 px-4">
-        <img src="/assets/images/coreflow-favicon-logo.png" alt="CoreflowHR" className="object-contain mb-6" style={{ width: '120px', height: '120px' }} />
-        <div className="w-full max-w-xl text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Application received</h2>
+      <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
+            <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Application received</h2>
           <p className="text-sm text-gray-500 leading-relaxed">
             Thanks for applying for <strong className="text-gray-700">{job?.title}</strong>.
             We'll be in touch if you're shortlisted.
           </p>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-8">Powered by CoreflowHR</p>
-      </div>
+      </Shell>
     );
   }
 
   // ── Main page ─────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white font-sans flex flex-col">
 
-      {/* Page body */}
+      {/* Banner + logo header */}
+      <BannerHeader companyName={companyName || job?.company || ''} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor} />
+
+      {/* Two-column content */}
       <div className="flex-1 flex flex-col lg:flex-row">
 
         {/* ── LEFT PANEL: job info ── */}
         <div className="lg:w-[420px] lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r border-gray-100 bg-white">
-          <div className="px-10 py-10 lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto flex flex-col">
+          <div className="px-10 py-6 lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto flex flex-col">
 
             {/* Role title */}
             <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-6">{job?.title}</h1>
@@ -267,15 +446,17 @@ const JobApplication: React.FC = () => {
               </div>
             )}
 
-
             {/* Platform attribution */}
-            <div className="mt-auto pt-6 border-t border-gray-100 flex items-center gap-3">
-              <span className="text-xs text-gray-300 whitespace-nowrap">Hiring powered by</span>
-              <img
-                src="/assets/images/coreflow-logo.png"
-                alt="CoreflowHR"
-                style={{ height: '140px', width: 'auto', display: 'block', opacity: 0.65 }}
-              />
+            <div className="mt-auto pt-6 border-t border-gray-100">
+              <a
+                href="https://www.coreflowhr.com"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
+              >
+                <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
+                Powered by CoreflowHR
+              </a>
             </div>
 
           </div>
@@ -293,7 +474,9 @@ const JobApplication: React.FC = () => {
             {/* Banners */}
             {prefillMessage && (
               <div className="flex items-start gap-3 bg-white border border-gray-200 rounded-xl p-4 mb-6 text-sm text-gray-600">
-                <CheckCircle size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 mt-0.5 flex-shrink-0">
+                  <polyline points="4,12 9,17 20,6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
                 {prefillMessage}
               </div>
             )}
@@ -455,7 +638,6 @@ const JobApplication: React.FC = () => {
         </div>
 
       </div>
-
 
     </div>
   );

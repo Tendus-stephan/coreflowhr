@@ -7776,7 +7776,7 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 updatedAt: data.updated_at
             };
         },
-        getByToken: async (token: string): Promise<{ offer: Offer; jobTitle: string; companyName: string; candidateName: string } | null> => {
+        getByToken: async (token: string): Promise<{ offer: Offer; jobTitle: string; companyName: string; candidateName: string; companyLogoUrl: string | null; bannerColor: string | null } | null> => {
             // Uses SECURITY DEFINER RPC — no auth required (candidate public page)
             const { data, error } = await supabase.rpc('get_offer_by_token', { p_token: token });
 
@@ -7815,6 +7815,8 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
                 jobTitle: (data as any).job_title || '',
                 companyName: (data as any).company_name || '',
                 candidateName: (data as any).candidate_name || '',
+                companyLogoUrl: (data as any).company_logo_url ?? null,
+                bannerColor: (data as any).banner_color ?? null,
             };
         },
         markViewedByToken: async (token: string): Promise<void> => {
