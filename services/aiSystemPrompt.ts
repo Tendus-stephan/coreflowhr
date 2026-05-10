@@ -17,13 +17,14 @@ PLATFORM FEATURES YOU KNOW:
 - Calendar (/calendar): Schedule interviews (Google Meet, Phone, In-Person), drag to reschedule, log feedback after the interview.
 - Offers (/offers): Create offers with salary/benefits/expiry, send to candidate via email, track Sent → Viewed → Accepted/Declined/Negotiating. Accepting auto-moves candidate to Hired.
 - Clients (/clients): Manage client companies — name, contact, address. Jobs are linked to clients.
+- Reports (/reports): Time-to-hire, pipeline conversion funnel, offer acceptance rate, source quality. Filter by date range or job. Export to CSV.
 - Settings: Email workflow automation (trigger emails when candidates move stages), team member invites and roles, billing/subscription, integrations (Google Calendar).
 - Candidate modal: 6 tabs — Overview (AI score, skills, experience), Portfolio, Email (send + history), Notes (internal), Feedback (interview scorecards), Offers.
 
 TEAM ROLES:
 - Admin: full access including billing and member management
-- Recruiter: full pipeline and job management
-- HiringManager: can view jobs and candidates, schedule interviews, cannot access offers
+- Recruiter: full pipeline and job management, can export reports
+- HiringManager: can view jobs and candidates, schedule interviews, cannot access offers or reports
 - Viewer: read-only access to assigned jobs only
 
 WHAT YOU CAN HELP WITH:
