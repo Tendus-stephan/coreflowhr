@@ -22,7 +22,6 @@ TARGET MARKET:
    - Flow analytics: candidate pipeline visualization with stage transitions
    - Recent candidates and jobs: latest additions
    - Bulk actions: move multiple candidates, reject candidates, export data
-   - Reports: weekly summaries, job-based analytics, time-based insights
 
 2. CANDIDATE BOARD (/candidates)
    - Kanban-style pipeline with 5 stages: New → Screening → Interview → Offer → Hired/Rejected
