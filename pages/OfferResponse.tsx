@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { X, AlertCircle, Mail, DollarSign, Calendar, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { X, AlertCircle, Mail, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { darkenHex } from '../utils/colorUtils';
 
@@ -11,7 +11,9 @@ const DEFAULT_BANNER = '#1e3a5f';
 const buildGradient = (color: string) =>
     `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 38)} 100%)`;
 
-// ── Shell: used for all full-page state screens (loading / error / success) ──
+const MAX_W = '680px';
+
+// ── Shell ─────────────────────────────────────────────────────────────────────
 const Shell: React.FC<{
     children: React.ReactNode;
     companyName?: string | null;
@@ -23,6 +25,7 @@ const Shell: React.FC<{
 
     return (
         <div className="min-h-screen bg-white font-sans">
+            {/* ── BANNER ── */}
             <div className="relative">
                 <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
                     <div
@@ -33,7 +36,8 @@ const Shell: React.FC<{
                         <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
                     </svg>
                 </div>
-                <div className="mx-auto px-6 relative" style={{ maxWidth: '560px' }}>
+                {/* Logo + company name */}
+                <div className="mx-auto px-6 relative" style={{ maxWidth: MAX_W }}>
                     <div className="flex items-center gap-4 -mt-10 pb-6">
                         <div
                             className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
@@ -57,58 +61,23 @@ const Shell: React.FC<{
                     </div>
                 </div>
             </div>
-            <div className="mx-auto px-6 pb-10" style={{ maxWidth: '560px' }}>
+
+            {/* ── CONTENT ── */}
+            <div className="mx-auto px-6 pb-10" style={{ maxWidth: MAX_W }}>
                 {children}
             </div>
+
+            {/* ── FOOTER ── */}
             <div className="flex justify-center pb-12">
-                <a href="https://www.coreflowhr.com" target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm">
+                <a
+                    href="https://www.coreflowhr.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
+                >
                     <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
                     Powered by CoreflowHR
                 </a>
-            </div>
-        </div>
-    );
-};
-
-// ── BannerHeader: used at the top of the main two-column layout ──────────────
-const BannerHeader: React.FC<{
-    companyName: string;
-    companyLogoUrl: string | null;
-    bannerColor: string | null;
-}> = ({ companyName, companyLogoUrl, bannerColor }) => {
-    const [logoErr, setLogoErr] = useState(false);
-    const gradient = buildGradient(bannerColor || DEFAULT_BANNER);
-
-    return (
-        <div className="relative">
-            <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
-                <div className="absolute inset-x-0 bottom-0"
-                    style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }} />
-                <svg viewBox="0 0 1440 40" className="absolute bottom-0 left-0 w-full" preserveAspectRatio="none" style={{ height: '40px' }}>
-                    <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
-                </svg>
-            </div>
-            <div className="px-10 relative">
-                <div className="flex items-center gap-4 -mt-10 pb-4">
-                    <div
-                        className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
-                        style={{ width: 80, height: 80, borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', border: '0.5px solid #e5e7eb' }}
-                    >
-                        {companyLogoUrl && !logoErr ? (
-                            <img src={companyLogoUrl} alt={companyName} className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center" style={{ background: gradient }}>
-                                <span className="text-white text-2xl font-extrabold select-none">
-                                    {companyName ? companyName.charAt(0).toUpperCase() : 'C'}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                    <div className="min-w-0">
-                        <p className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{companyName}</p>
-                    </div>
-                </div>
             </div>
         </div>
     );
@@ -156,7 +125,7 @@ const OfferResponse: React.FC = () => {
                 const { offer: offerData, jobTitle: jt, companyName: cn, candidateName: cand, companyLogoUrl: logo, bannerColor: bc } = result;
                 setOffer(offerData);
                 setJobTitle(jt);
-                setCompanyName(cn || 'Our Company');
+                setCompanyName(cn || '');
                 setCandidateName(cand);
                 setCompanyLogoUrl(logo);
                 setBannerColor(bc);
@@ -253,18 +222,13 @@ const OfferResponse: React.FC = () => {
     };
 
     const formatSalary = (amount?: number, currency?: string, period?: string) => {
-        if (!amount) return 'To be discussed';
-        const curr = currency === 'USD' ? '$' : currency || 'USD';
-        const per = period === 'yearly' ? '/yr' : period === 'monthly' ? '/mo' : '/hr';
-        return `${curr}${Math.round(amount).toLocaleString()}${per}`;
+        if (!amount) return 'Not specified';
+        const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : (currency || '') + ' ';
+        const per = period === 'yearly' ? 'per year' : period === 'monthly' ? 'per month' : 'per hour';
+        return `${sym}${Math.round(amount).toLocaleString()} ${per}`;
     };
 
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Not specified';
-        return format(new Date(dateString), 'MMM d, yyyy');
-    };
-
-    // ── Loading ──────────────────────────────────────────────────────────────
+    // ── Loading ───────────────────────────────────────────────────────────────
     if (loading) {
         return (
             <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
@@ -288,7 +252,7 @@ const OfferResponse: React.FC = () => {
         );
     }
 
-    // ── Success ──────────────────────────────────────────────────────────────
+    // ── Success ───────────────────────────────────────────────────────────────
     if (success) {
         const isAccepted = success === 'accepted';
         const isCounter = success === 'counter_offered';
@@ -361,377 +325,372 @@ const OfferResponse: React.FC = () => {
         );
     }
 
-    // ── Main page ─────────────────────────────────────────────────────────────
-    return (
-        <div className="min-h-screen bg-white font-sans flex flex-col">
+    // ── Counter offer form ────────────────────────────────────────────────────
+    if (showCounterOffer) {
+        return (
+            <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+                <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
 
-            {/* Banner + logo header */}
-            <BannerHeader companyName={companyName} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor} />
-
-            {/* Two-column content */}
-            <div className="flex-1 flex flex-col lg:flex-row">
-
-                {/* ── LEFT PANEL: offer details ── */}
-                <div className="lg:w-[420px] lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r border-gray-100 bg-white">
-                    <div className="px-10 py-6 lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto flex flex-col">
-
-                        {/* Position title */}
-                        <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-6">{offer.positionTitle}</h1>
-
-                        {/* Meta pills */}
-                        <div className="flex flex-wrap gap-2 mb-8">
-                            {offer.salaryAmount && (
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">
-                                    <DollarSign size={11} className="text-gray-400" />
-                                    {formatSalary(offer.salaryAmount, offer.salaryCurrency, offer.salaryPeriod)}
-                                </span>
-                            )}
-                            {offer.startDate && (
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">
-                                    <Calendar size={11} className="text-gray-400" />
-                                    Starts {formatDate(offer.startDate)}
-                                </span>
-                            )}
-                            {offer.expiresAt && (
-                                <span className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1.5 ${isExpired ? 'bg-red-50 border border-red-100 text-red-600' : 'bg-gray-50 border border-gray-100 text-gray-600'}`}>
-                                    <Clock size={11} className={isExpired ? 'text-red-400' : 'text-gray-400'} />
-                                    {isExpired ? 'Expired' : `Expires ${formatDate(offer.expiresAt)}`}
-                                </span>
-                            )}
+                    {/* Header */}
+                    <div className="px-6 pt-5 pb-4 flex items-start justify-between">
+                        <div>
+                            <h2 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>Counter offer</h2>
+                            <p className="text-sm text-gray-400 mt-0.5">Propose your preferred terms below.</p>
                         </div>
+                        <button onClick={() => setShowCounterOffer(false)} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors -mt-0.5">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
 
-                        {/* Notes */}
-                        {offer.notes && (
-                            <div className="mb-8">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">About this offer</p>
-                                <p className="text-sm text-gray-600 leading-relaxed">{offer.notes}</p>
+                    <div className="px-6 py-5 space-y-5">
+
+                        {error && (
+                            <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-600">
+                                <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                                <p>{error}</p>
                             </div>
                         )}
 
+                        {/* Salary */}
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Salary</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <input
+                                    type="number"
+                                    value={counterSalary}
+                                    onChange={(e) => setCounterSalary(e.target.value)}
+                                    placeholder="Amount"
+                                    className="h-11 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors"
+                                />
+                                <CustomSelect
+                                    inputStyle
+                                    value={counterCurrency}
+                                    onChange={setCounterCurrency}
+                                    className="rounded-xl text-sm"
+                                    options={[
+                                        { value: 'USD', label: 'USD' },
+                                        { value: 'EUR', label: 'EUR' },
+                                        { value: 'GBP', label: 'GBP' },
+                                    ]}
+                                />
+                                <CustomSelect
+                                    inputStyle
+                                    value={counterPeriod}
+                                    onChange={(val) => setCounterPeriod(val as 'hourly' | 'monthly' | 'yearly')}
+                                    className="rounded-xl text-sm"
+                                    options={[
+                                        { value: 'yearly', label: '/yr' },
+                                        { value: 'monthly', label: '/mo' },
+                                        { value: 'hourly', label: '/hr' },
+                                    ]}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Start date */}
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
+                                Start date <span className="text-gray-300 normal-case tracking-normal font-normal">Optional</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={counterStartDate}
+                                onChange={(e) => setCounterStartDate(e.target.value)}
+                                className="w-full h-11 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors"
+                            />
+                        </div>
+
                         {/* Benefits */}
-                        {offer.benefits && offer.benefits.length > 0 && (
-                            <div className="mb-8">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Benefits & Perks</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {offer.benefits.map((b, i) => (
-                                        <span key={i} className="text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
+                                Benefits <span className="text-gray-300 normal-case tracking-normal font-normal">Optional</span>
+                            </label>
+                            <div className="flex gap-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={newBenefit}
+                                    onChange={(e) => setNewBenefit(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBenefit())}
+                                    placeholder="Add a benefit…"
+                                    className="flex-1 h-11 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addBenefit}
+                                    className="h-11 px-4 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            {counterBenefits.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {counterBenefits.map((b, idx) => (
+                                        <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
                                             {b}
+                                            <button onClick={() => removeBenefit(idx)} className="text-gray-400 hover:text-gray-700"><X size={11} /></button>
                                         </span>
                                     ))}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
-                        {/* Negotiation history */}
-                        {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.length > 0 && (
-                            <div className="mb-8">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Negotiation History</p>
-                                <div className="space-y-2">
-                                    {offer.negotiationHistory
-                                        .filter((item: any) => item.type === 'counter_offer_response' || item.type === 'counter_offer')
-                                        .slice(-3)
-                                        .map((item: any, index: number) => (
-                                            <div key={index} className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                                                <p className="text-[10px] text-gray-400 mb-1">{format(new Date(item.timestamp), 'MMM d, yyyy · h:mm a')}</p>
-                                                {item.type === 'counter_offer_response' && item.updatedFields && (
-                                                    <div className="space-y-1">
-                                                        <p className="text-xs font-medium text-gray-700">Recruiter updated terms:</p>
-                                                        {item.updatedFields.salaryAmount && (
-                                                            <p className="text-xs text-gray-600">
-                                                                Salary: {item.updatedFields.salaryCurrency === 'USD' ? '$' : item.updatedFields.salaryCurrency}
-                                                                {Math.round(item.updatedFields.salaryAmount).toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? '/yr' : item.updatedFields.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
-                                                            </p>
-                                                        )}
-                                                        {item.notes && <p className="text-xs text-gray-500 italic">"{item.notes}"</p>}
-                                                    </div>
-                                                )}
-                                                {item.type === 'counter_offer' && item.counterOffer && (
-                                                    <div className="space-y-1">
-                                                        <p className="text-xs font-medium text-gray-700">Your counter offer:</p>
-                                                        {item.counterOffer.salaryAmount && (
-                                                            <p className="text-xs text-gray-600">
-                                                                Salary: {item.counterOffer.salaryCurrency === 'USD' ? '$' : item.counterOffer.salaryCurrency}
-                                                                {Math.round(item.counterOffer.salaryAmount).toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? '/yr' : item.counterOffer.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
-                                                            </p>
-                                                        )}
-                                                        {item.counterOffer.notes && <p className="text-xs text-gray-500 italic">"{item.counterOffer.notes}"</p>}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Platform attribution */}
-                        <div className="mt-auto pt-6 border-t border-gray-100">
-                            <a
-                                href="https://www.coreflowhr.com"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
-                            >
-                                <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
-                                Powered by CoreflowHR
-                            </a>
+                        {/* Message */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Add a note <span className="text-gray-400 font-normal">(optional)</span>
+                            </label>
+                            <textarea
+                                value={counterNote}
+                                onChange={(e) => setCounterNote(e.target.value)}
+                                placeholder="Explain your counter offer…"
+                                rows={3}
+                                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors resize-none"
+                            />
                         </div>
 
                     </div>
+                    <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
+
+                    <div className="px-6 py-5 space-y-3">
+                        <button
+                            onClick={handleCounterOffer}
+                            disabled={submitting}
+                            className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {submitting ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Submitting…
+                                </>
+                            ) : (
+                                <>Submit counter offer <ArrowRight size={14} /></>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setShowCounterOffer(false)}
+                            disabled={submitting}
+                            className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-1 text-center"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+
+                </div>
+            </Shell>
+        );
+    }
+
+    // ── Main view ─────────────────────────────────────────────────────────────
+    return (
+        <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
+            <div className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid #e5e7eb' }}>
+
+                {/* ── 1. HEADER ── */}
+                <div className="px-6 pt-5 pb-4">
+                    <h2 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{offer.positionTitle}</h2>
+                    {candidateName && (
+                        <p className="text-sm text-gray-500 mt-1">{candidateName}</p>
+                    )}
+                    {(companyName || jobTitle) && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                            {[companyName, jobTitle].filter(Boolean).join(' · ')}
+                        </p>
+                    )}
+                </div>
+                <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
+
+                {/* ── 2. OFFER DETAILS ── */}
+                <div className="px-6 py-4">
+                    <table className="w-full text-sm">
+                        <tbody>
+                            <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
+                                <td className="py-2 text-gray-500 font-medium w-32">Salary</td>
+                                <td className="py-2 text-gray-900 font-semibold">
+                                    {formatSalary(offer.salaryAmount, offer.salaryCurrency, offer.salaryPeriod)}
+                                </td>
+                            </tr>
+                            {offer.startDate && (
+                                <tr style={{ borderBottom: '0.5px solid #f5f5f5' }}>
+                                    <td className="py-2 text-gray-500 font-medium">Start date</td>
+                                    <td className="py-2 text-gray-900">
+                                        {format(new Date(offer.startDate), 'MMMM d, yyyy')}
+                                    </td>
+                                </tr>
+                            )}
+                            {offer.expiresAt && (
+                                <tr style={{ borderBottom: offer.benefits && offer.benefits.length > 0 || offer.notes ? '0.5px solid #f5f5f5' : 'none' }}>
+                                    <td className="py-2 text-gray-500 font-medium">Offer expires</td>
+                                    <td className={`py-2 font-medium ${isExpired ? 'text-red-500' : 'text-gray-900'}`}>
+                                        {format(new Date(offer.expiresAt), 'MMMM d, yyyy')}
+                                        {isExpired && <span className="text-xs font-normal ml-1">(expired)</span>}
+                                    </td>
+                                </tr>
+                            )}
+                            {offer.benefits && offer.benefits.length > 0 && (
+                                <tr style={{ borderBottom: offer.notes ? '0.5px solid #f5f5f5' : 'none' }}>
+                                    <td className="py-2 text-gray-500 font-medium align-top">Benefits</td>
+                                    <td className="py-2 text-gray-900">{offer.benefits.join(', ')}</td>
+                                </tr>
+                            )}
+                            {offer.notes && (
+                                <tr>
+                                    <td className="py-2 text-gray-500 font-medium align-top">Notes</td>
+                                    <td className="py-2 text-gray-700 italic text-sm">"{offer.notes}"</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
-                {/* ── RIGHT PANEL: response ── */}
-                <div className="flex-1 bg-gray-50/60">
-                    <div className="max-w-xl mx-auto px-8 py-10">
-
-                        {!showCounterOffer ? (
-                            <>
-                                <div className="mb-8">
-                                    <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                                        {canRespond ? 'Review your offer' : 'Offer details'}
-                                    </h2>
-                                    <p className="text-sm text-gray-400">
-                                        Dear {candidateName || 'Candidate'}, we're pleased to extend this offer for{' '}
-                                        <strong className="text-gray-600">{offer.positionTitle}</strong>.
-                                    </p>
-                                </div>
-
-                                {/* Error banner */}
-                                {error && (
-                                    <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4 mb-6 text-sm text-red-600">
-                                        <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
-                                        <div className="flex-1">
-                                            <p>{error}</p>
-                                            <button onClick={() => setError(null)} className="mt-1 text-xs font-medium text-red-600 underline underline-offset-2">Dismiss</button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Expired banner */}
-                                {isExpired && (
-                                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6 text-sm text-amber-800">
-                                        <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
-                                        This offer has expired. Contact the recruiter if you'd still like to proceed.
-                                    </div>
-                                )}
-
-                                {/* Awaiting signature banner */}
-                                {awaitingEsignature && (
-                                    <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-sm text-blue-800">
-                                        <Mail size={15} className="mt-0.5 flex-shrink-0" />
-                                        A signing link has been sent to your email. Complete the signature there.
-                                    </div>
-                                )}
-
-                                {/* Action area */}
-                                {canRespond && !isExpired && (
-                                    <div className="space-y-5">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                                                Message <span className="text-gray-300 normal-case tracking-normal font-normal">Optional</span>
-                                            </label>
-                                            <textarea
-                                                value={responseNote}
-                                                onChange={(e) => setResponseNote(e.target.value)}
-                                                placeholder="Add an optional message…"
-                                                rows={3}
-                                                className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors resize-none"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={handleAccept}
-                                            disabled={submitting}
-                                            className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            {submitting ? (
-                                                <>
-                                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Processing…
-                                                </>
-                                            ) : (
-                                                <>Accept offer <ArrowRight size={14} /></>
-                                            )}
-                                        </button>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <button
-                                                onClick={() => setShowCounterOffer(true)}
-                                                disabled={submitting}
-                                                className="h-11 flex items-center justify-center text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                Make a counter offer
-                                            </button>
-                                            <button
-                                                onClick={handleDecline}
-                                                disabled={submitting}
-                                                className="h-11 flex items-center justify-center text-sm font-medium text-gray-400 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                {submitting ? '…' : 'Decline'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Already responded */}
-                                {!canRespond && !signViaEmailOnly && !isExpired && !awaitingEsignature && (
-                                    <div className="py-8 text-center">
-                                        <p className="text-sm text-gray-500">
-                                            This offer has already been <span className="font-medium text-gray-700">{offer.status}</span>.
-                                        </p>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            /* ── Counter offer form ── */
-                            <>
-                                <div className="mb-8 flex items-start justify-between">
-                                    <div>
-                                        <h2 className="text-xl font-semibold text-gray-900 mb-1">Counter offer</h2>
-                                        <p className="text-sm text-gray-400">Propose your preferred terms below.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowCounterOffer(false)}
-                                        className="p-2 text-gray-400 hover:text-gray-700 transition-colors"
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                </div>
-
-                                {error && (
-                                    <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4 mb-6 text-sm text-red-600">
-                                        <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
-                                        <p>{error}</p>
-                                    </div>
-                                )}
-
-                                <div className="space-y-5">
-                                    {/* Salary */}
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Salary</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <input
-                                                type="number"
-                                                value={counterSalary}
-                                                onChange={(e) => setCounterSalary(e.target.value)}
-                                                placeholder="Amount"
-                                                className="h-11 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors"
-                                            />
-                                            <CustomSelect
-                                                inputStyle
-                                                value={counterCurrency}
-                                                onChange={setCounterCurrency}
-                                                className="rounded-xl text-sm"
-                                                options={[
-                                                    { value: 'USD', label: 'USD' },
-                                                    { value: 'EUR', label: 'EUR' },
-                                                    { value: 'GBP', label: 'GBP' },
-                                                ]}
-                                            />
-                                            <CustomSelect
-                                                inputStyle
-                                                value={counterPeriod}
-                                                onChange={(val) => setCounterPeriod(val as 'hourly' | 'monthly' | 'yearly')}
-                                                className="rounded-xl text-sm"
-                                                options={[
-                                                    { value: 'yearly', label: '/yr' },
-                                                    { value: 'monthly', label: '/mo' },
-                                                    { value: 'hourly', label: '/hr' },
-                                                ]}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Start date */}
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                                            Start date <span className="text-gray-300 normal-case tracking-normal font-normal">Optional</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={counterStartDate}
-                                            onChange={(e) => setCounterStartDate(e.target.value)}
-                                            className="w-full h-11 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors"
-                                        />
-                                    </div>
-
-                                    {/* Benefits */}
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                                            Benefits <span className="text-gray-300 normal-case tracking-normal font-normal">Optional</span>
-                                        </label>
-                                        <div className="flex gap-2 mb-2">
-                                            <input
-                                                type="text"
-                                                value={newBenefit}
-                                                onChange={(e) => setNewBenefit(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBenefit())}
-                                                placeholder="Add a benefit…"
-                                                className="flex-1 h-11 px-4 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={addBenefit}
-                                                className="h-11 px-4 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-colors"
-                                            >
-                                                Add
-                                            </button>
-                                        </div>
-                                        {counterBenefits.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {counterBenefits.map((b, idx) => (
-                                                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
-                                                        {b}
-                                                        <button onClick={() => removeBenefit(idx)} className="text-gray-400 hover:text-gray-700"><X size={11} /></button>
-                                                    </span>
-                                                ))}
+                {/* ── 3. NEGOTIATION HISTORY (when negotiating) ── */}
+                {offer.status === 'negotiating' && offer.negotiationHistory && offer.negotiationHistory.length > 0 && (() => {
+                    const relevant = offer.negotiationHistory
+                        .filter((item: any) => item.type === 'counter_offer_response' || item.type === 'counter_offer')
+                        .slice(-3);
+                    if (!relevant.length) return null;
+                    return (
+                        <>
+                            <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
+                            <div className="px-6 py-4 space-y-2">
+                                <p className="text-xs font-medium text-gray-400 mb-3">Negotiation history</p>
+                                {relevant.map((item: any, index: number) => (
+                                    <div key={index} className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                                        <p className="text-[10px] text-gray-400 mb-1">{format(new Date(item.timestamp), 'MMM d, yyyy · h:mm a')}</p>
+                                        {item.type === 'counter_offer_response' && item.updatedFields && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-gray-700">Recruiter updated terms:</p>
+                                                {item.updatedFields.salaryAmount && (
+                                                    <p className="text-xs text-gray-600">
+                                                        Salary: {item.updatedFields.salaryCurrency === 'USD' ? '$' : item.updatedFields.salaryCurrency}
+                                                        {Math.round(item.updatedFields.salaryAmount).toLocaleString()} {item.updatedFields.salaryPeriod === 'yearly' ? '/yr' : item.updatedFields.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
+                                                    </p>
+                                                )}
+                                                {item.notes && <p className="text-xs text-gray-500 italic">"{item.notes}"</p>}
+                                            </div>
+                                        )}
+                                        {item.type === 'counter_offer' && item.counterOffer && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-gray-700">Your counter offer:</p>
+                                                {item.counterOffer.salaryAmount && (
+                                                    <p className="text-xs text-gray-600">
+                                                        Salary: {item.counterOffer.salaryCurrency === 'USD' ? '$' : item.counterOffer.salaryCurrency}
+                                                        {Math.round(item.counterOffer.salaryAmount).toLocaleString()} {item.counterOffer.salaryPeriod === 'yearly' ? '/yr' : item.counterOffer.salaryPeriod === 'monthly' ? '/mo' : '/hr'}
+                                                    </p>
+                                                )}
+                                                {item.counterOffer.notes && <p className="text-xs text-gray-500 italic">"{item.counterOffer.notes}"</p>}
                                             </div>
                                         )}
                                     </div>
+                                ))}
+                            </div>
+                        </>
+                    );
+                })()}
 
-                                    {/* Message */}
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                                            Message <span className="text-gray-300 normal-case tracking-normal font-normal">Optional</span>
-                                        </label>
-                                        <textarea
-                                            value={counterNote}
-                                            onChange={(e) => setCounterNote(e.target.value)}
-                                            placeholder="Explain your counter offer…"
-                                            rows={3}
-                                            className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors resize-none"
-                                        />
+                {/* ── 4. ACTION AREA ── */}
+                {canRespond && !isExpired ? (
+                    <>
+                        <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
+                        <div className="px-6 py-5 space-y-3">
+
+                            {/* Error */}
+                            {error && (
+                                <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-600">
+                                    <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1">
+                                        <p>{error}</p>
+                                        <button onClick={() => setError(null)} className="mt-1 text-xs font-medium text-red-600 underline underline-offset-2">Dismiss</button>
                                     </div>
-
-                                    {/* Submit */}
-                                    <button
-                                        onClick={handleCounterOffer}
-                                        disabled={submitting}
-                                        className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        {submitting ? (
-                                            <>
-                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Submitting…
-                                            </>
-                                        ) : (
-                                            <>Submit counter offer <ArrowRight size={14} /></>
-                                        )}
-                                    </button>
-
-                                    <button
-                                        onClick={() => setShowCounterOffer(false)}
-                                        disabled={submitting}
-                                        className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-1"
-                                    >
-                                        Cancel
-                                    </button>
                                 </div>
-                            </>
-                        )}
+                            )}
 
-                    </div>
-                </div>
+                            {/* Awaiting e-signature */}
+                            {awaitingEsignature && (
+                                <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+                                    <Mail size={15} className="mt-0.5 flex-shrink-0" />
+                                    A signing link has been sent to your email. Complete the signature there.
+                                </div>
+                            )}
+
+                            {/* Note textarea */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Add a note <span className="text-gray-400 font-normal">(optional)</span>
+                                </label>
+                                <textarea
+                                    value={responseNote}
+                                    onChange={(e) => setResponseNote(e.target.value)}
+                                    placeholder="Add an optional message…"
+                                    rows={3}
+                                    className="w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors resize-none"
+                                />
+                            </div>
+
+                            {/* Accept — full width primary */}
+                            <button
+                                onClick={handleAccept}
+                                disabled={submitting}
+                                className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Processing…
+                                    </>
+                                ) : (
+                                    <>Accept offer <ArrowRight size={14} /></>
+                                )}
+                            </button>
+
+                            {/* Counter offer — full width ghost */}
+                            <button
+                                onClick={() => setShowCounterOffer(true)}
+                                disabled={submitting}
+                                className="w-full h-11 flex items-center justify-center text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Make a counter offer
+                            </button>
+
+                            {/* Decline — text-only link */}
+                            <div className="text-center pt-1">
+                                <button
+                                    onClick={handleDecline}
+                                    disabled={submitting}
+                                    className="text-sm text-gray-400 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {submitting ? '…' : 'Decline offer'}
+                                </button>
+                            </div>
+
+                        </div>
+                    </>
+                ) : (
+                    /* ── Non-actionable states ── */
+                    <>
+                        <div style={{ height: '0.5px', backgroundColor: '#f0f0f0' }} />
+                        <div className="px-6 py-5">
+                            {isExpired ? (
+                                <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-800">
+                                    <Clock size={15} className="mt-0.5 flex-shrink-0" />
+                                    This offer has expired. Contact the recruiter if you'd still like to proceed.
+                                </div>
+                            ) : awaitingEsignature ? (
+                                <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+                                    <Mail size={15} className="mt-0.5 flex-shrink-0" />
+                                    A signing link has been sent to your email. Complete the signature there.
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500 text-center py-2">
+                                    This offer has already been <span className="font-medium text-gray-700">{offer.status}</span>.
+                                </p>
+                            )}
+                        </div>
+                    </>
+                )}
 
             </div>
-        </div>
+        </Shell>
     );
 };
 
