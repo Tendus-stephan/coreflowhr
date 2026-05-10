@@ -38,6 +38,7 @@ import AuthRedirect from './pages/AuthRedirect';
 import WorkspaceLapsed from './pages/WorkspaceLapsed';
 import CareerPage from './pages/CareerPage';
 import OfferApproval from './pages/OfferApproval';
+import Reports from './pages/Reports';
 
 // Shows the PageLoader for one paint frame then hands off to the real page.
 // This ensures every route change shows the spinner before the page data loads.
@@ -361,6 +362,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/calendar"      element={<Calendar />} />
           <Route path="/offers"        element={<Offers />} />
           <Route path="/clients"       element={<Clients />} />
+          <Route path="/reports"       element={<Reports />} />
         </Route>
         <Route path="/change-email" element={<ChangeEmail />} />
 <Route
