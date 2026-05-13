@@ -584,7 +584,7 @@ const Onboarding: React.FC = () => {
           <img
             src="/assets/images/coreflow-favicon-logo.png"
             alt="CoreflowHR"
-            className="h-8 w-auto object-contain mb-6"
+            className="h-14 w-auto object-contain mb-6"
           />
         </div>
 
