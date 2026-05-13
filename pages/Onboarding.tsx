@@ -71,6 +71,8 @@ const Onboarding: React.FC = () => {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleChecking, setGoogleChecking] = useState(false);
+  const [googleWaiting, setGoogleWaiting] = useState(false);
+  const googlePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Step 4 — Invites
   const [invites, setInvites] = useState<InviteRow[]>([{ email: '', role: 'Recruiter' }]);
@@ -113,18 +115,6 @@ const Onboarding: React.FC = () => {
     return () => { mounted = false; };
   }, [navigate]);
 
-  // Restore step after Google OAuth redirect
-  useEffect(() => {
-    try {
-      const resumeStep = sessionStorage.getItem('wizard_resume_step');
-      if (resumeStep === '3') {
-        setStep(3);
-        sessionStorage.removeItem('wizard_resume_step');
-        checkGoogleConnection();
-      }
-    } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const checkGoogleConnection = async () => {
     setGoogleChecking(true);
@@ -201,6 +191,47 @@ const Onboarding: React.FC = () => {
     }
   };
 
+  const stopGooglePoll = () => {
+    if (googlePollRef.current) {
+      clearInterval(googlePollRef.current);
+      googlePollRef.current = null;
+    }
+  };
+
+  const startGooglePoll = () => {
+    stopGooglePoll();
+    googlePollRef.current = setInterval(async () => {
+      try {
+        const integrations = await api.settings.getIntegrations();
+        const gcal = integrations.find(i => i.name === 'Google Calendar');
+        if (gcal?.active) {
+          stopGooglePoll();
+          setGoogleWaiting(false);
+          setGoogleConnected(true);
+          try { localStorage.removeItem('google_oauth_done'); } catch { /* ignore */ }
+        }
+      } catch { /* ignore */ }
+    }, 2500);
+  };
+
+  // Listen for the storage event fired when the OAuth tab closes
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'google_oauth_done' && e.newValue) {
+        stopGooglePoll();
+        setGoogleWaiting(false);
+        setGoogleConnected(true);
+        try { localStorage.removeItem('google_oauth_done'); } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      stopGooglePoll();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleConnectGoogle = async () => {
     setGoogleLoading(true);
     setError(null);
@@ -208,14 +239,17 @@ const Onboarding: React.FC = () => {
       const integrations = await api.settings.getIntegrations();
       const gcal = integrations.find(i => i.name === 'Google Calendar');
       if (!gcal) throw new Error('Google Calendar integration not found');
-      sessionStorage.setItem('wizard_resume_step', '3');
       const { url, error: connectError } = await api.settings.connectIntegration(gcal.id);
       if (connectError) throw new Error(connectError);
-      if (url) window.location.href = url;
+      if (url) {
+        window.open(url, '_blank', 'noopener');
+        setGoogleWaiting(true);
+        startGooglePoll();
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to start Google connection.');
+    } finally {
       setGoogleLoading(false);
-      try { sessionStorage.removeItem('wizard_resume_step'); } catch { /* ignore */ }
     }
   };
 
@@ -389,20 +423,27 @@ const Onboarding: React.FC = () => {
           <Check size={15} className="flex-shrink-0" />
           Google Calendar connected successfully
         </div>
+      ) : googleWaiting ? (
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700">
+          <Loader2 size={14} className="animate-spin flex-shrink-0" />
+          Waiting for Google authorisation to complete…
+        </div>
       ) : (
         <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-600">
-          Authorise CoreflowHR to access your Google Calendar. You can disconnect at any time in Settings → Integrations.
+          Authorise CoreflowHR to access your Google Calendar. A new tab will open — once you approve access it will close automatically.
         </div>
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex items-center justify-between">
         <button className={btnBack} onClick={() => { setError(null); setStep(2); }}>Back</button>
         <div className="flex items-center gap-4">
-          {!googleConnected && (
+          {!googleConnected && !googleWaiting && (
             <button className={btnSkip} onClick={() => advanceStep(3, 'skipped')}>Skip for now</button>
           )}
           {googleConnected ? (
             <button className={btnPrimary} onClick={() => advanceStep(3, 'done')}>Continue</button>
+          ) : googleWaiting ? (
+            <button className={btnSkip} onClick={() => { stopGooglePoll(); setGoogleWaiting(false); advanceStep(3, 'skipped'); }}>Skip for now</button>
           ) : (
             <button className={btnPrimary} onClick={handleConnectGoogle} disabled={googleLoading}>
               {googleLoading ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}

@@ -1250,6 +1250,13 @@ const Settings: React.FC = () => {
                 // Clean up URL but preserve tab
                 const cleanUrl = tabParam ? `/settings?tab=${tabParam}` : '/settings';
                 window.history.replaceState({}, '', cleanUrl);
+
+                // If this tab was opened by the onboarding wizard, signal and close
+                if (window.opener !== null) {
+                    try { localStorage.setItem('google_oauth_done', integrationSuccess); } catch { /* ignore */ }
+                    window.close();
+                    return;
+                }
             }
         };
 
