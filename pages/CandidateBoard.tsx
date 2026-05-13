@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, RefObject } from 'react';
 import { CandidateBoardSkeleton } from '../components/ui/Skeleton';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -19,6 +19,8 @@ import { api, Notification } from '../services/api';
 import { supabase } from '../services/supabase';
 import { toUserError } from '../utils/edgeFunctionError';
 import { sendSlackNotification, buildCandidateStagedBlocks } from '../services/slack';
+import { CoachMarkIfUnseen } from '../components/CoachMark';
+import { loadSeenMarks } from '../utils/coachMarks';
 
 // ── Import History ────────────────────────────────────────────────────────────
 
@@ -271,6 +273,15 @@ const CandidateBoard: React.FC = () => {
     const [fixingEmails, setFixingEmails] = useState(false);
     const importHistoryRef = useRef<HTMLDivElement | null>(null);
     const importHistoryPortalRef = useRef<HTMLDivElement | null>(null);
+
+    // Coach marks
+    const [coachMarksReady, setCoachMarksReady] = useState(false);
+    const firstColRef = useRef<HTMLDivElement>(null);
+    const uploadBtnRef = useRef<HTMLSpanElement>(null);
+    const scoreChipRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        loadSeenMarks().then(() => setCoachMarksReady(true)).catch(() => setCoachMarksReady(true));
+    }, []);
 
     const openTrash = async () => {
         setTrashOpen(true);
@@ -946,14 +957,16 @@ const CandidateBoard: React.FC = () => {
                     </div>
 
                     {!isViewer && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon={<Upload size={14} />}
-                            onClick={() => setShowBulkUpload(true)}
-                        >
-                            Import CVs
-                        </Button>
+                        <span ref={uploadBtnRef} className="inline-flex">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                icon={<Upload size={14} />}
+                                onClick={() => setShowBulkUpload(true)}
+                            >
+                                Import CVs
+                            </Button>
+                        </span>
                     )}
                     {!isViewer && (
                         <div className="relative" ref={importHistoryRef}>
@@ -1167,7 +1180,7 @@ const CandidateBoard: React.FC = () => {
                     <span className="text-xs font-semibold text-gray-900">{metrics.waitlist}</span>
                 </div>
                 {metrics.avgScore > 0 && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                    <div ref={scoreChipRef} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
                         <Sparkles size={12} className="text-gray-400" />
                         <span className="text-xs text-gray-500">Avg match</span>
                         <span className="text-xs font-semibold text-gray-900">{metrics.avgScore}%</span>
@@ -1259,17 +1272,19 @@ const CandidateBoard: React.FC = () => {
                     </div>
                 )}
                 <div className="flex gap-4 w-max snap-x snap-mandatory pb-6" style={{ height: '100%' }}>
-                    <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
-                        onRejectCandidate={isViewer ? undefined : (id) => {
-                            const c = candidates.find(x => x.id === id);
-                            if (c) setPendingAction({ type: 'reject', candidateId: id, candidateName: c.name });
-                        }}
-                        onDeleteCandidate={!canDelete ? undefined : (id) => {
-                            const c = candidates.find(x => x.id === id);
-                            if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name });
-                        }}
-                        fixingEmails={fixingEmails}
-                    />
+                    <div ref={firstColRef} className="flex-shrink-0">
+                        <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
+                            onRejectCandidate={isViewer ? undefined : (id) => {
+                                const c = candidates.find(x => x.id === id);
+                                if (c) setPendingAction({ type: 'reject', candidateId: id, candidateName: c.name });
+                            }}
+                            onDeleteCandidate={!canDelete ? undefined : (id) => {
+                                const c = candidates.find(x => x.id === id);
+                                if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name });
+                            }}
+                            fixingEmails={fixingEmails}
+                        />
+                    </div>
                     <PipelineColumn title="Screening" stage={CandidateStage.SCREENING} candidates={getCandidatesByStage(CandidateStage.SCREENING)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
                         onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                     <PipelineColumn title="Interview" stage={CandidateStage.INTERVIEW} candidates={getCandidatesByStage(CandidateStage.INTERVIEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
@@ -1518,6 +1533,32 @@ const CandidateBoard: React.FC = () => {
                     </div>
                 </div>,
                 document.body
+            )}
+
+            {/* Coach marks — only after loadSeenMarks() resolves */}
+            {coachMarksReady && (
+                <>
+                    <CoachMarkIfUnseen
+                        markId="pipeline-columns"
+                        targetRef={firstColRef as RefObject<HTMLElement>}
+                        text="Drag candidates between columns to move them through your hiring stages"
+                        side="bottom"
+                    />
+                    <CoachMarkIfUnseen
+                        markId="upload-cvs"
+                        targetRef={uploadBtnRef as RefObject<HTMLElement>}
+                        text="Bulk upload CVs — AI parses and scores each candidate automatically"
+                        side="bottom"
+                    />
+                    {metrics.avgScore > 0 && (
+                        <CoachMarkIfUnseen
+                            markId="ai-score"
+                            targetRef={scoreChipRef as RefObject<HTMLElement>}
+                            text="AI scores candidates 1–100 against the job. Click a card to see the full reasoning"
+                            side="bottom"
+                        />
+                    )}
+                </>
             )}
         </div>
     );

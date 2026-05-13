@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Offer } from '../types';
 import { api } from '../services/api';
@@ -11,6 +11,8 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { toUserError } from '../utils/edgeFunctionError';
 import { format } from 'date-fns';
+import { CoachMarkIfUnseen } from '../components/CoachMark';
+import { loadSeenMarks } from '../utils/coachMarks';
 
 const NON_EXPIRABLE_STATUSES: Array<Offer['status']> = ['draft', 'pending_approval', 'accepted', 'declined', 'signed'];
 const isOfferExpired = (offer: Offer): boolean =>
@@ -182,6 +184,11 @@ const Offers: React.FC = () => {
     const toast = useToast();
     const confirm = useConfirm();
     const tabBarRef = useRef<HTMLDivElement>(null);
+    const createOfferBtnRef = useRef<HTMLSpanElement>(null);
+    const [coachMarksReady, setCoachMarksReady] = useState(false);
+    useEffect(() => {
+        loadSeenMarks().then(() => setCoachMarksReady(true)).catch(() => setCoachMarksReady(true));
+    }, []);
 
     useEffect(() => { loadOffers(); }, []);
     useEffect(() => {
@@ -367,9 +374,11 @@ const Offers: React.FC = () => {
                             </button>
                         )}
                     </div>
-                    <Button size="sm" icon={<Plus size={15} />} onClick={() => { setEditingOffer(null); setIsModalOpen(true); }}>
-                        Create Offer
-                    </Button>
+                    <span ref={createOfferBtnRef} className="inline-flex">
+                        <Button size="sm" icon={<Plus size={15} />} onClick={() => { setEditingOffer(null); setIsModalOpen(true); }}>
+                            Create Offer
+                        </Button>
+                    </span>
                 </div>
             </div>
 
@@ -548,6 +557,15 @@ const Offers: React.FC = () => {
                     isOpen={isNegotiateModalOpen}
                     onClose={() => { setIsNegotiateModalOpen(false); setNegotiatingOffer(null); }}
                     onSave={loadOffers}
+                />
+            )}
+
+            {coachMarksReady && (
+                <CoachMarkIfUnseen
+                    markId="offers-approval"
+                    targetRef={createOfferBtnRef as RefObject<HTMLElement>}
+                    text="Tick 'Requires approval' on any offer to route it to the client before the candidate sees it"
+                    side="bottom"
                 />
             )}
         </div>

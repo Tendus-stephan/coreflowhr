@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { CoachMarkIfUnseen } from '../components/CoachMark';
+import { loadSeenMarks } from '../utils/coachMarks';
 import { toUserError } from '../utils/edgeFunctionError';
 import {
   Download, TrendingUp, TrendingDown, Calendar,
@@ -76,6 +78,12 @@ const Reports: React.FC = () => {
   const [error, setError]             = React.useState<string | null>(null);
   const [userRole, setUserRole]       = React.useState<string>('');
   const [exporting, setExporting]     = React.useState(false);
+
+  const headingRef = React.useRef<HTMLHeadingElement>(null);
+  const [coachMarksReady, setCoachMarksReady] = React.useState(false);
+  React.useEffect(() => {
+    loadSeenMarks().then(() => setCoachMarksReady(true)).catch(() => setCoachMarksReady(true));
+  }, []);
 
   const { dateFrom, dateTo } = React.useMemo(() => {
     if (useCustom && customFrom && customTo) {
@@ -227,7 +235,7 @@ const Reports: React.FC = () => {
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Reports</h1>
+          <h1 ref={headingRef} className="text-2xl font-bold text-gray-900 tracking-tight">Reports</h1>
           <p className="text-sm text-gray-400 mt-0.5">Hiring analytics & performance</p>
         </div>
 
@@ -513,6 +521,15 @@ const Reports: React.FC = () => {
           </div>
 
         </>
+      )}
+
+      {coachMarksReady && (
+        <CoachMarkIfUnseen
+          markId="reports-overview"
+          targetRef={headingRef as React.RefObject<HTMLElement>}
+          text="Track pipeline performance, time-to-hire, and conversion rates across all your clients"
+          side="bottom"
+        />
       )}
     </div>
   );

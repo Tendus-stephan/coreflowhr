@@ -23,6 +23,8 @@ import { useConfirm } from '../contexts/ConfirmContext';
 import { CustomSelect } from './ui/CustomSelect';
 import { toUserError } from '../utils/edgeFunctionError';
 import { format } from 'date-fns';
+import { CoachMarkIfUnseen } from './CoachMark';
+import { loadSeenMarks } from '../utils/coachMarks';
 
 interface CandidateModalProps {
   candidate: Candidate;
@@ -41,6 +43,11 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   // Using the ID (not a plain boolean) means switching to a different candidate
   // is never blocked by a call that was started for the previous candidate.
   const analysisInFlightRef = useRef<string | null>(null);
+  const copyLinkRef = useRef<HTMLButtonElement>(null);
+  const [coachMarksReady, setCoachMarksReady] = useState(false);
+  useEffect(() => {
+    loadSeenMarks().then(() => setCoachMarksReady(true)).catch(() => setCoachMarksReady(true));
+  }, []);
 
   // Update modal context when modal opens/closes (and reset when unmounting so AI button shows on other pages)
   useEffect(() => {
@@ -1790,7 +1797,9 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             {schedulingLinks.length > 0 && (
                                 <div className="space-y-2">
                                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Scheduling Links</h4>
-                                    {schedulingLinks.map((link: any) => (
+                                    {schedulingLinks.map((link: any, linkIdx: number) => {
+                                        const isFirstActive = link.status === 'active' && linkIdx === schedulingLinks.findIndex((l: any) => l.status === 'active');
+                                        return (
                                         <div key={link.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-3">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
@@ -1818,6 +1827,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             </div>
                                             {link.status === 'active' && (
                                                 <button
+                                                    ref={isFirstActive ? copyLinkRef : undefined}
                                                     onClick={() => {
                                                         navigator.clipboard.writeText(`${window.location.origin}/schedule/${link.token}`).catch(() => {});
                                                         toast.success('Link copied');
@@ -1828,7 +1838,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 </button>
                                             )}
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
 
@@ -2387,6 +2398,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         </div>
       </div>,
       document.body
+    )}
+
+    {coachMarksReady && schedulingLinks.some((l: any) => l.status === 'active') && (
+      <CoachMarkIfUnseen
+        markId="scheduling-copy"
+        targetRef={copyLinkRef as React.RefObject<HTMLElement>}
+        text="Send this link to the candidate — they pick a slot and it books straight into your Google Calendar"
+        side="left"
+      />
     )}
     </>
   );

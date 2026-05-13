@@ -8895,5 +8895,101 @@ ${offer.notes ? `<p><strong>Additional Information:</strong><br>${offer.notes}</
             });
         },
     },
+
+    onboarding: {
+        completeWizard: async (steps: Record<string, 'done' | 'skipped'>): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) throw new Error('Not authenticated');
+            const workspaceId = await getCurrentWorkspaceId();
+
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    onboarding_completed: true,
+                    onboarding_completed_at: new Date().toISOString(),
+                })
+                .eq('id', userId);
+
+            if (profileError) throw profileError;
+
+            if (workspaceId) {
+                const { error: wsError } = await supabase
+                    .from('workspaces')
+                    .update({
+                        setup_wizard_completed: true,
+                        setup_steps: steps,
+                    })
+                    .eq('id', workspaceId);
+
+                if (wsError) throw wsError;
+            }
+
+            // Brief delay to ensure DB propagation before ProtectedRoute re-checks
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        },
+
+        getResendDomainStatus: async (): Promise<{
+            domain: string | null;
+            status: 'verified' | 'pending' | 'not_configured';
+            records: Array<{ type: string; name: string; value: string }>;
+        }> => {
+            const { data, error } = await supabase.functions.invoke('resend-domain', {
+                body: { action: 'status' },
+            });
+            if (error) return { domain: null, status: 'not_configured', records: [] };
+            return {
+                domain: data?.domain ?? null,
+                status: data?.status ?? 'not_configured',
+                records: data?.records ?? [],
+            };
+        },
+
+        verifyResendDomain: async (): Promise<{ success: boolean; status: string }> => {
+            const { data, error } = await supabase.functions.invoke('resend-domain', {
+                body: { action: 'verify' },
+            });
+            if (error) return { success: false, status: 'error' };
+            return { success: !!data?.success, status: data?.status ?? 'pending' };
+        },
+    },
+
+    users: {
+        dismissCoachMark: async (markId: string): Promise<void> => {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            // Read current array then append — avoids a race condition from a
+            // pure RPC jsonb_array_append approach when multiple marks fire fast.
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('coach_marks_seen')
+                .eq('id', userId)
+                .maybeSingle();
+
+            const current: string[] = Array.isArray((profile as any)?.coach_marks_seen)
+                ? (profile as any).coach_marks_seen
+                : [];
+
+            if (current.includes(markId)) return;
+
+            await supabase
+                .from('profiles')
+                .update({ coach_marks_seen: [...current, markId] })
+                .eq('id', userId);
+        },
+
+        getCoachMarksSeen: async (): Promise<string[]> => {
+            const userId = await getUserId();
+            if (!userId) return [];
+            const { data } = await supabase
+                .from('profiles')
+                .select('coach_marks_seen')
+                .eq('id', userId)
+                .maybeSingle();
+            return Array.isArray((data as any)?.coach_marks_seen)
+                ? (data as any).coach_marks_seen
+                : [];
+        },
+    },
 };
 

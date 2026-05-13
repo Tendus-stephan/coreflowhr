@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, RefObject } from 'react';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
@@ -30,6 +30,8 @@ import {
   type ChartConfig,
 } from '../components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { CoachMarkIfUnseen } from '../components/CoachMark';
+import { loadSeenMarks } from '../utils/coachMarks';
 
 type HiringMetrics = Awaited<ReturnType<typeof api.reports.getMetrics>> | null;
 
@@ -746,6 +748,12 @@ const Dashboard: React.FC = () => {
   const [recentSearch, setRecentSearch] = useState('');
   const notificationRef = useRef<HTMLDivElement>(null);
   const [hiringMetrics, setHiringMetrics] = useState<HiringMetrics>(null);
+
+  const activityBtnRef = useRef<HTMLButtonElement>(null);
+  const [coachMarksReady, setCoachMarksReady] = useState(false);
+  useEffect(() => {
+    loadSeenMarks().then(() => setCoachMarksReady(true)).catch(() => setCoachMarksReady(true));
+  }, []);
   const [activeOfferSlice, setActiveOfferSlice] = useState('accepted');
 
   // Dynamic flow data based on actual data
@@ -1272,7 +1280,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 {activityFeed.length > 4 && (
                     <div className="mt-4 pt-4 border-t border-gray-50 text-center">
-                        <button onClick={() => setIsAllActivityOpen(true)} className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
+                        <button ref={activityBtnRef} onClick={() => setIsAllActivityOpen(true)} className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">
                             View All Activity ({activityFeed.length})
                         </button>
                     </div>
@@ -1670,15 +1678,24 @@ const Dashboard: React.FC = () => {
       <ReportModal isOpen={!!reportModalType} onClose={() => setReportModalType(null)} type={reportModalType} />
 
       {/* Bulk Action Modal */}
-      <BulkActionModal 
-        setNotifications={setNotifications} 
-        isOpen={!!bulkActionType} 
-        onClose={() => setBulkActionType(null)} 
-        type={bulkActionType} 
+      <BulkActionModal
+        setNotifications={setNotifications}
+        isOpen={!!bulkActionType}
+        onClose={() => setBulkActionType(null)}
+        type={bulkActionType}
         candidates={candidates}
         setCandidates={setCandidates}
         setActivityFeed={setActivityFeed}
       />
+
+      {coachMarksReady && activityFeed.length > 4 && (
+        <CoachMarkIfUnseen
+          markId="activity-feed"
+          targetRef={activityBtnRef as RefObject<HTMLElement>}
+          text="Every action in your workspace is logged here — who moved what, when, and why"
+          side="top"
+        />
+      )}
     </div>
   );
 };
