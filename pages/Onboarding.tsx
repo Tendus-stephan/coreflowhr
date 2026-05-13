@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Copy, Loader2, Plus, X, ExternalLink } from 'lucide-react';
+import { Check, Loader2, Plus, X, Camera } from 'lucide-react';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { UserRole } from '../types';
+import { Avatar } from '../components/ui/Avatar';
 
-type StepKey = 'workspace_name' | 'google' | 'invites' | 'client' | 'email';
+type StepKey = 'workspace_name' | 'profile' | 'google' | 'invites' | 'client';
 type StepStatus = 'done' | 'skipped';
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 'complete';
 
@@ -19,10 +20,10 @@ const TOTAL_STEPS = 5;
 const stepKey = (step: WizardStep): StepKey | null => {
   switch (step) {
     case 1: return 'workspace_name';
-    case 2: return 'google';
-    case 3: return 'invites';
-    case 4: return 'client';
-    case 5: return 'email';
+    case 2: return 'profile';
+    case 3: return 'google';
+    case 4: return 'invites';
+    case 5: return 'client';
     default: return null;
   }
 };
@@ -39,11 +40,7 @@ const DotIndicator: React.FC<{ current: WizardStep }> = ({ current }) => {
           <div
             key={i}
             className={`w-2 h-2 rounded-full transition-colors ${
-              i < stepNum
-                ? 'bg-gray-400'
-                : i === stepNum
-                ? 'bg-gray-900'
-                : 'bg-gray-200'
+              i < stepNum ? 'bg-gray-400' : i === stepNum ? 'bg-gray-900' : 'bg-gray-200'
             }`}
           />
         ))}
@@ -60,31 +57,31 @@ const Onboarding: React.FC = () => {
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Step 1
+  // Step 1 — workspace
   const [workspaceName, setWorkspaceName] = useState('');
 
-  // Step 2 — Google
+  // Step 2 — profile
+  const [profileName, setProfileName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Step 3 — Google
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleChecking, setGoogleChecking] = useState(false);
 
-  // Step 3 — Invites
+  // Step 4 — Invites
   const [invites, setInvites] = useState<InviteRow[]>([{ email: '', role: 'Recruiter' }]);
   const [sendingInvites, setSendingInvites] = useState(false);
 
-  // Step 4 — Client
+  // Step 5 — Client
   const [clientName, setClientName] = useState('');
   const [clientIndustry, setClientIndustry] = useState('');
   const [savingClient, setSavingClient] = useState(false);
 
-  // Step 5 — Email domain
-  const [domainStatus, setDomainStatus] = useState<'loading' | 'verified' | 'pending' | 'not_configured'>('loading');
-  const [domainName, setDomainName] = useState<string | null>(null);
-  const [dnsRecords, setDnsRecords] = useState<Array<{ type: string; name: string; value: string }>>([]);
-  const [verifying, setVerifying] = useState(false);
-  const [copiedRecord, setCopiedRecord] = useState<number | null>(null);
-
-  // Pre-fill workspace name
+  // Pre-fill workspace name + profile name on mount
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -95,12 +92,18 @@ const Onboarding: React.FC = () => {
         // Check if already completed
         const { data: profile } = await supabase
           .from('profiles')
-          .select('onboarding_completed')
+          .select('onboarding_completed, name, avatar_url')
           .eq('id', user.id)
           .maybeSingle();
+
         if (profile?.onboarding_completed === true) {
           navigate('/dashboard', { replace: true });
           return;
+        }
+
+        if (mounted) {
+          setProfileName(profile?.name || user.email?.split('@')[0] || '');
+          setAvatarUrl(profile?.avatar_url || null);
         }
 
         const ws = await api.workspaces.getWorkspaceWithMembers();
@@ -114,22 +117,14 @@ const Onboarding: React.FC = () => {
   useEffect(() => {
     try {
       const resumeStep = sessionStorage.getItem('wizard_resume_step');
-      if (resumeStep === '2') {
-        setStep(2);
+      if (resumeStep === '3') {
+        setStep(3);
         sessionStorage.removeItem('wizard_resume_step');
         checkGoogleConnection();
       }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Load domain status when reaching step 5
-  useEffect(() => {
-    if (step === 5) {
-      loadDomainStatus();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
 
   const checkGoogleConnection = async () => {
     setGoogleChecking(true);
@@ -142,21 +137,6 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  const loadDomainStatus = async () => {
-    setDomainStatus('loading');
-    try {
-      const result = await api.onboarding.getResendDomainStatus();
-      setDomainName(result.domain);
-      setDnsRecords(result.records);
-      setDomainStatus(result.status);
-      if (result.status === 'verified') {
-        setTimeout(() => advanceStep(5, 'done'), 2000);
-      }
-    } catch {
-      setDomainStatus('not_configured');
-    }
-  };
-
   const recordStep = (s: WizardStep, status: StepStatus) => {
     const key = stepKey(s);
     if (!key) return;
@@ -166,10 +146,35 @@ const Onboarding: React.FC = () => {
   const advanceStep = (from: WizardStep, status: StepStatus) => {
     recordStep(from, status);
     setError(null);
-    if (from === 5) {
-      setStep('complete');
-    } else {
-      setStep((from as number + 1) as WizardStep);
+    setStep(from === 5 ? 'complete' : (from as number + 1) as WizardStep);
+  };
+
+  // ── Avatar upload ──────────────────────────────────────────────
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB.'); return; }
+
+    setUploadingAvatar(true);
+    setError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const ext = file.name.split('.').pop();
+      const filePath = `${user.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      setAvatarUrl(publicUrl);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to upload photo.');
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
 
@@ -178,10 +183,22 @@ const Onboarding: React.FC = () => {
   const handleStep1 = async () => {
     if (!workspaceName.trim()) { setError('Please enter a workspace name.'); return; }
     setError(null);
-    try {
-      await api.workspaces.updateWorkspace({ name: workspaceName.trim() });
-    } catch { /* non-blocking */ }
+    try { await api.workspaces.updateWorkspace({ name: workspaceName.trim() }); } catch { /* non-blocking */ }
     advanceStep(1, 'done');
+  };
+
+  const handleStep2 = async () => {
+    if (!profileName.trim()) { setError('Please enter your name.'); return; }
+    setSavingProfile(true);
+    setError(null);
+    try {
+      await api.auth.updateProfile({ name: profileName.trim(), avatar: avatarUrl ?? undefined });
+      advanceStep(2, 'done');
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save profile.');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handleConnectGoogle = async () => {
@@ -191,7 +208,7 @@ const Onboarding: React.FC = () => {
       const integrations = await api.settings.getIntegrations();
       const gcal = integrations.find(i => i.name === 'Google Calendar');
       if (!gcal) throw new Error('Google Calendar integration not found');
-      sessionStorage.setItem('wizard_resume_step', '2');
+      sessionStorage.setItem('wizard_resume_step', '3');
       const { url, error: connectError } = await api.settings.connectIntegration(gcal.id);
       if (connectError) throw new Error(connectError);
       if (url) window.location.href = url;
@@ -202,19 +219,14 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  const handleStep3 = async () => {
+  const handleStep4 = async () => {
     const validRows = invites.filter(r => r.email.trim());
-    if (validRows.length === 0) {
-      advanceStep(3, 'skipped');
-      return;
-    }
+    if (validRows.length === 0) { advanceStep(4, 'skipped'); return; }
     setSendingInvites(true);
     setError(null);
     try {
-      for (const row of validRows) {
-        await api.workspaces.createInvite(row.email.trim(), row.role);
-      }
-      advanceStep(3, 'done');
+      for (const row of validRows) await api.workspaces.createInvite(row.email.trim(), row.role);
+      advanceStep(4, 'done');
     } catch (e: any) {
       setError(e?.message || 'Failed to send some invites.');
     } finally {
@@ -222,7 +234,7 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  const handleStep4 = async () => {
+  const handleStep5 = async () => {
     if (!clientName.trim()) { setError('Please enter a client name.'); return; }
     setSavingClient(true);
     setError(null);
@@ -231,30 +243,11 @@ const Onboarding: React.FC = () => {
         name: clientName.trim(),
         ...(clientIndustry.trim() ? { notes: clientIndustry.trim() } : {}),
       });
-      advanceStep(4, 'done');
+      advanceStep(5, 'done');
     } catch (e: any) {
       setError(e?.message || 'Failed to create client.');
     } finally {
       setSavingClient(false);
-    }
-  };
-
-  const handleVerifyDomain = async () => {
-    setVerifying(true);
-    setError(null);
-    try {
-      const result = await api.onboarding.verifyResendDomain();
-      if (result.success) {
-        setDomainStatus('verified');
-        setTimeout(() => advanceStep(5, 'done'), 1500);
-      } else {
-        setDomainStatus('pending');
-        setError('DNS records not verified yet — they can take up to 48 hours to propagate.');
-      }
-    } catch {
-      setError('Verification failed. Please try again.');
-    } finally {
-      setVerifying(false);
     }
   };
 
@@ -263,9 +256,7 @@ const Onboarding: React.FC = () => {
     try {
       await api.onboarding.completeWizard({ all: 'skipped' } as any);
       navigate('/auth/redirect', { replace: true });
-    } catch {
-      setCompleting(false);
-    }
+    } catch { setCompleting(false); }
   };
 
   const handleFinish = async () => {
@@ -275,23 +266,19 @@ const Onboarding: React.FC = () => {
       await api.onboarding.completeWizard(steps as Record<string, StepStatus>);
       sessionStorage.setItem('showDashboardLoader', 'true');
       navigate('/auth/redirect', { replace: true });
-    } catch (e: any) {
+    } catch {
       setError('Something went wrong. Please try again.');
       setCompleting(false);
     }
   };
 
-  const copyRecord = (value: string, idx: number) => {
-    navigator.clipboard.writeText(value).catch(() => {});
-    setCopiedRecord(idx);
-    setTimeout(() => setCopiedRecord(null), 2000);
-  };
-
-  // ── Render helpers ─────────────────────────────────────────────
+  // ── Styles ─────────────────────────────────────────────────────
 
   const btnPrimary = 'h-10 px-5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
   const btnBack = 'h-10 px-4 text-sm text-gray-500 hover:text-gray-900 transition-colors';
   const btnSkip = 'text-sm text-gray-400 hover:text-gray-600 transition-colors bg-transparent border-0 p-0';
+
+  // ── Step renders ───────────────────────────────────────────────
 
   const renderStep1 = () => (
     <div className="space-y-6">
@@ -321,6 +308,75 @@ const Onboarding: React.FC = () => {
   const renderStep2 = () => (
     <div className="space-y-6">
       <div>
+        <h2 className="text-xl font-bold text-gray-900">Set up your profile</h2>
+        <p className="text-sm text-gray-500 mt-1">Add your name and photo so teammates can recognise you.</p>
+      </div>
+
+      {/* Avatar picker */}
+      <div className="flex items-center gap-5">
+        <div className="relative flex-shrink-0">
+          <Avatar name={profileName || 'You'} src={avatarUrl ?? undefined} className="w-[72px] h-[72px] text-xl" />
+          <button
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            className="absolute -bottom-1 -right-1 w-7 h-7 bg-gray-900 rounded-full flex items-center justify-center text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
+            title="Upload photo"
+          >
+            {uploadingAvatar ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarUpload}
+          />
+        </div>
+        <div className="flex-1 space-y-1">
+          <p className="text-sm font-medium text-gray-700">Profile photo</p>
+          <p className="text-xs text-gray-400">JPG, PNG or GIF · max 5 MB</p>
+          {avatarUrl && (
+            <button
+              onClick={() => setAvatarUrl(null)}
+              className="text-xs text-red-400 hover:text-red-600 transition-colors"
+            >
+              Remove photo
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Name */}
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-gray-700">Your name</label>
+        <input
+          type="text"
+          value={profileName}
+          onChange={e => setProfileName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleStep2(); }}
+          placeholder="e.g. Sarah Johnson"
+          className="w-full h-10 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 transition-colors"
+          autoFocus
+        />
+      </div>
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex items-center justify-between">
+        <button className={btnBack} onClick={() => { setError(null); setStep(1); }}>Back</button>
+        <div className="flex items-center gap-4">
+          <button className={btnSkip} onClick={() => advanceStep(2, 'skipped')}>Skip for now</button>
+          <button className={btnPrimary} onClick={handleStep2} disabled={savingProfile}>
+            {savingProfile ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+            Save &amp; continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-6">
+      <div>
         <h2 className="text-xl font-bold text-gray-900">Connect your Google account</h2>
         <p className="text-sm text-gray-500 mt-1">Sync interviews to Google Calendar and auto-generate Google Meet links.</p>
       </div>
@@ -340,13 +396,13 @@ const Onboarding: React.FC = () => {
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex items-center justify-between">
-        <button className={btnBack} onClick={() => { setError(null); setStep(1); }}>Back</button>
+        <button className={btnBack} onClick={() => { setError(null); setStep(2); }}>Back</button>
         <div className="flex items-center gap-4">
           {!googleConnected && (
-            <button className={btnSkip} onClick={() => advanceStep(2, 'skipped')}>Skip for now</button>
+            <button className={btnSkip} onClick={() => advanceStep(3, 'skipped')}>Skip for now</button>
           )}
           {googleConnected ? (
-            <button className={btnPrimary} onClick={() => advanceStep(2, 'done')}>Continue</button>
+            <button className={btnPrimary} onClick={() => advanceStep(3, 'done')}>Continue</button>
           ) : (
             <button className={btnPrimary} onClick={handleConnectGoogle} disabled={googleLoading}>
               {googleLoading ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
@@ -358,7 +414,7 @@ const Onboarding: React.FC = () => {
     </div>
   );
 
-  const renderStep3 = () => (
+  const renderStep4 = () => (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900">Invite your team</h2>
@@ -385,10 +441,7 @@ const Onboarding: React.FC = () => {
               <option value="Viewer">Viewer</option>
             </select>
             {invites.length > 1 && (
-              <button
-                onClick={() => setInvites(prev => prev.filter((_, j) => j !== i))}
-                className="text-gray-400 hover:text-gray-700 transition-colors"
-              >
+              <button onClick={() => setInvites(prev => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-gray-700 transition-colors">
                 <X size={15} />
               </button>
             )}
@@ -405,10 +458,10 @@ const Onboarding: React.FC = () => {
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex items-center justify-between">
-        <button className={btnBack} onClick={() => { setError(null); setStep(2); }}>Back</button>
+        <button className={btnBack} onClick={() => { setError(null); setStep(3); }}>Back</button>
         <div className="flex items-center gap-4">
-          <button className={btnSkip} onClick={() => advanceStep(3, 'skipped')}>Skip for now</button>
-          <button className={btnPrimary} onClick={handleStep3} disabled={sendingInvites}>
+          <button className={btnSkip} onClick={() => advanceStep(4, 'skipped')}>Skip for now</button>
+          <button className={btnPrimary} onClick={handleStep4} disabled={sendingInvites}>
             {sendingInvites ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
             Send invites
           </button>
@@ -417,7 +470,7 @@ const Onboarding: React.FC = () => {
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900">Add your first client</h2>
@@ -431,7 +484,7 @@ const Onboarding: React.FC = () => {
             placeholder="e.g. TechCorp Ltd"
             value={clientName}
             onChange={e => setClientName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleStep4(); }}
+            onKeyDown={e => { if (e.key === 'Enter') handleStep5(); }}
             className="w-full h-10 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 transition-colors"
             autoFocus
           />
@@ -449,92 +502,13 @@ const Onboarding: React.FC = () => {
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex items-center justify-between">
-        <button className={btnBack} onClick={() => { setError(null); setStep(3); }}>Back</button>
+        <button className={btnBack} onClick={() => { setError(null); setStep(4); }}>Back</button>
         <div className="flex items-center gap-4">
-          <button className={btnSkip} onClick={() => advanceStep(4, 'skipped')}>Skip for now</button>
-          <button className={btnPrimary} onClick={handleStep4} disabled={savingClient}>
+          <button className={btnSkip} onClick={() => advanceStep(5, 'skipped')}>Skip for now</button>
+          <button className={btnPrimary} onClick={handleStep5} disabled={savingClient}>
             {savingClient ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
             Add client
           </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStep5 = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Set up candidate emails</h2>
-        <p className="text-sm text-gray-500 mt-1">Verify your sending domain so candidate emails come from your address.</p>
-      </div>
-
-      {domainStatus === 'loading' && (
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <Loader2 size={14} className="animate-spin" /> Checking domain status…
-        </div>
-      )}
-
-      {domainStatus === 'verified' && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
-          <Check size={15} className="flex-shrink-0" />
-          {domainName} is verified — candidate emails are ready to go
-        </div>
-      )}
-
-      {domainStatus === 'not_configured' && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 space-y-2">
-          <p className="font-medium">No custom domain configured yet</p>
-          <p className="text-blue-700">To send emails from your own address, add and verify a domain in your <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 inline-flex items-center gap-0.5">Resend account <ExternalLink size={11} /></a>, then set <code className="bg-blue-100 px-1 rounded text-xs">FROM_EMAIL</code> in your Supabase edge function secrets.</p>
-        </div>
-      )}
-
-      {domainStatus === 'pending' && dnsRecords.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-sm text-gray-600">Add these DNS records to <span className="font-medium text-gray-900">{domainName}</span> through your domain provider:</p>
-          <div className="space-y-2">
-            {dnsRecords.map((rec, i) => (
-              <div key={i} className="bg-gray-50 border border-gray-100 rounded-xl p-3 flex items-start gap-3 text-xs font-mono">
-                <div className="flex-1 min-w-0 space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-gray-200 rounded text-gray-700 font-sans text-[10px] font-semibold">{rec.type}</span>
-                    <span className="text-gray-500 truncate">{rec.name}</span>
-                  </div>
-                  <p className="text-gray-700 break-all leading-relaxed">{rec.value}</p>
-                </div>
-                <button
-                  onClick={() => copyRecord(rec.value, i)}
-                  className="flex-shrink-0 text-gray-400 hover:text-gray-900 transition-colors p-1"
-                  title="Copy value"
-                >
-                  {copiedRecord === i ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {domainStatus === 'pending' && dnsRecords.length === 0 && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-          Domain found but DNS records could not be fetched. Check your Resend dashboard.
-        </div>
-      )}
-
-      {error && <p className="text-xs text-red-500">{error}</p>}
-
-      <div className="flex items-center justify-between">
-        <button className={btnBack} onClick={() => { setError(null); setStep(4); }}>Back</button>
-        <div className="flex items-center gap-4">
-          <button className={btnSkip} onClick={() => advanceStep(5, 'skipped')}>Skip for now — remind me later</button>
-          {domainStatus === 'pending' && (
-            <button className={btnPrimary} onClick={handleVerifyDomain} disabled={verifying}>
-              {verifying ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
-              I've added the records — verify now
-            </button>
-          )}
-          {(domainStatus === 'not_configured' || domainStatus === 'loading') && (
-            <button className={btnPrimary} onClick={() => advanceStep(5, 'skipped')}>Continue</button>
-          )}
         </div>
       </div>
     </div>
@@ -556,10 +530,8 @@ const Onboarding: React.FC = () => {
           { label: 'View pipeline', desc: 'See your Kanban board', href: '/candidates' },
         ].map(tile => (
           <button
-            key={tile.href}
-            onClick={() => {
-              handleFinish();
-            }}
+            key={tile.label}
+            onClick={handleFinish}
             className="text-left w-full px-4 py-3 border border-gray-100 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-colors group"
           >
             <p className="text-sm font-semibold text-gray-900 group-hover:underline underline-offset-2">{tile.label}</p>
@@ -580,13 +552,11 @@ const Onboarding: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-[520px] bg-white rounded-2xl border border-gray-100 px-10 py-10 shadow-sm">
-        <div className="mb-2">
-          <img
-            src="/assets/images/coreflow-favicon-logo.png"
-            alt="CoreflowHR"
-            className="h-14 w-auto object-contain mb-6"
-          />
-        </div>
+        <img
+          src="/assets/images/coreflow-favicon-logo.png"
+          alt="CoreflowHR"
+          className="h-14 w-auto object-contain mb-6"
+        />
 
         {step !== 'complete' && <DotIndicator current={step} />}
 
