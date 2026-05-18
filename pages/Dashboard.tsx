@@ -62,7 +62,7 @@ const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string })
 // --- Helper Components ---
 
 const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month" }: any) => (
-    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between shadow-sm hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-150">
+    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between hover:border-gray-200 transition-colors duration-150">
         <div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
@@ -132,12 +132,12 @@ const ActivityFeedModal = ({ isOpen, onClose, items }: { isOpen: boolean; onClos
 
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/40 p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 flex flex-col max-h-[80vh] overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <h2 className="text-base font-bold text-gray-900">Activity Feed</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                    <button onClick={onClose} aria-label="Close activity feed" className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100">
                         <X size={18} />
                     </button>
                 </div>
@@ -205,11 +205,11 @@ const GenericListModal = ({ isOpen, onClose, title, children }: { isOpen: boolea
 
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/40 p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
+                    <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
                         <X size={20} />
                     </button>
                 </div>
@@ -281,11 +281,11 @@ const ReportModal = ({ isOpen, onClose, type }: { isOpen: boolean; onClose: () =
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/40 p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-lg font-bold text-gray-900">Generate Report</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
+                    <button onClick={onClose} aria-label="Close report dialog" className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
                         <X size={20} />
                     </button>
                 </div>
@@ -329,7 +329,9 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
     const [sourceStage, setSourceStage] = useState<CandidateStage>(CandidateStage.NEW);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
-    
+    const [confirmationPending, setConfirmationPending] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
     // Prevent body scroll when modal is open
     useEffect(() => {
         if (isOpen) {
@@ -346,6 +348,8 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
     useEffect(() => {
         setSelectedIds([]);
         setSearchQuery('');
+        setConfirmationPending(false);
+        setErrorMessage(null);
     }, [type, sourceStage]);
 
     // Reset source stage to SCREENING when modal opens for move type
@@ -418,16 +422,105 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
         }
     };
 
+    const performAction = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        setErrorMessage(null);
+        try {
+            if (type === 'reject') {
+                const rejectPromises = selectedIds.map(id =>
+                    api.candidates.update(id, { stage: CandidateStage.REJECTED })
+                );
+                await Promise.all(rejectPromises);
+                const { playNotificationSound } = await import('../utils/soundUtils');
+                playNotificationSound();
+                const [updated, updatedNotifications, updatedActivity] = await Promise.all([
+                    api.candidates.list({ page: 1, pageSize: 100 }),
+                    api.notifications.list(),
+                    api.dashboard.getActivity()
+                ]);
+                setCandidates(updated.data || []);
+                setNotifications(updatedNotifications);
+                setActivityFeed(updatedActivity);
+            } else if (type === 'move') {
+                const targetStage = getNextStage(sourceStage) as CandidateStage;
+                const { playNotificationSound } = await import('../utils/soundUtils');
+                playNotificationSound();
+                const movePromises = selectedIds.map(id =>
+                    api.candidates.update(id, { stage: targetStage })
+                );
+                await Promise.all(movePromises);
+                const [updated, updatedNotifications, updatedActivity] = await Promise.all([
+                    api.candidates.list({ page: 1, pageSize: 100 }),
+                    api.notifications.list(),
+                    api.dashboard.getActivity()
+                ]);
+                setCandidates(updated.data || []);
+                setNotifications(updatedNotifications);
+                setActivityFeed(updatedActivity);
+            }
+            onClose();
+        } catch (error) {
+            console.error(`Error performing ${type}:`, error);
+            setErrorMessage(type === 'reject' ? 'Rejection failed. Please try again.' : 'Move failed. Please try again.');
+            setConfirmationPending(false);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const performExport = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        setErrorMessage(null);
+        try {
+            const selectedCandidates = candidates.filter(c => selectedIds.includes(c.id));
+            const exportCheck = await api.plan.canExportCandidates(selectedCandidates.length);
+            if (!exportCheck.allowed) {
+                setErrorMessage(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export.`);
+                return;
+            }
+            const csvContent = [
+                ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
+                ...selectedCandidates.map(c => [
+                    `"${c.name}"`,
+                    `"${c.email}"`,
+                    `"${c.role}"`,
+                    `"${c.stage}"`,
+                    c.aiMatchScore || '',
+                    `"${c.skills.join('; ')}"`,
+                    `"${c.location}"`,
+                    c.experience || ''
+                ].join(','))
+            ].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            onClose();
+        } catch (error) {
+            console.error('Export error:', error);
+            setErrorMessage('Export failed. Please try again.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/40 p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-lg font-bold text-gray-900">{titles[type]}</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
+                    <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-100">
                         <X size={20} />
                     </button>
                 </div>
-                
+
                 <div className="p-6 flex-1 overflow-hidden flex flex-col">
                     <p className="text-sm text-gray-500 mb-4">{descriptions[type]}</p>
 
@@ -512,105 +605,57 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
-                    <Button variant="outline" onClick={onClose}>Cancel</Button>
-                    <Button 
-                        variant="black" 
-                        disabled={selectedIds.length === 0 || isProcessing}
-                        onClick={async () => {
-                            if (isProcessing) return;
-                            setIsProcessing(true);
-                            try {
-                                if (type === 'export') {
-                                    // Export selected candidates to CSV
-                                    const selectedCandidates = candidates.filter(c => selectedIds.includes(c.id));
-                                    
-                                    // Check export limit
-                                    const exportCheck = await api.plan.canExportCandidates(selectedCandidates.length);
-                                    if (!exportCheck.allowed) {
-                                        alert(exportCheck.message || `Your plan allows up to ${exportCheck.maxAllowed} candidates per export. Please select fewer candidates or upgrade to Professional.`);
-                                        return;
-                                    }
-                                    
-                                    const csvContent = [
-                                        ['Name', 'Email', 'Role', 'Stage', 'AI Match Score', 'Skills', 'Location', 'Experience'].join(','),
-                                        ...selectedCandidates.map(c => [
-                                            `"${c.name}"`,
-                                            `"${c.email}"`,
-                                            `"${c.role}"`,
-                                            `"${c.stage}"`,
-                                            c.aiMatchScore || '',
-                                            `"${c.skills.join('; ')}"`,
-                                            `"${c.location}"`,
-                                            c.experience || ''
-                                        ].join(','))
-                                    ].join('\n');
-                                    
-                                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                                    const link = document.createElement('a');
-                                    const url = URL.createObjectURL(blob);
-                                    link.setAttribute('href', url);
-                                    link.setAttribute('download', `candidates_export_${new Date().toISOString().split('T')[0]}.csv`);
-                                    link.style.visibility = 'hidden';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                } else if (type === 'reject') {
-                                    // Reject selected candidates
-                                    const rejectPromises = selectedIds.map(id => 
-                                        api.candidates.update(id, { stage: CandidateStage.REJECTED })
-                                    );
-                                    await Promise.all(rejectPromises);
-                                    
-                                    // Play notification sound
-                                    const { playNotificationSound } = await import('../utils/soundUtils');
-                                    playNotificationSound();
-                                    
-                                    // Reload candidates, notifications, and activity feed
-                                    const [updated, updatedNotifications, updatedActivity] = await Promise.all([
-                                        api.candidates.list({ page: 1, pageSize: 100 }),
-                                        api.notifications.list(),
-                                        api.dashboard.getActivity()
-                                    ]);
-                                    setCandidates(updated.data || []);
-                                    setNotifications(updatedNotifications);
-                                    setActivityFeed(updatedActivity);
-                                } else if (type === 'move') {
-                                    // Move selected candidates to next stage
-                                    const targetStage = getNextStage(sourceStage) as CandidateStage;
-                                    
-                                    // Play notification sound
-                                    const { playNotificationSound } = await import('../utils/soundUtils');
-                                    playNotificationSound();
-                                    
-                                    const movePromises = selectedIds.map(id => 
-                                        api.candidates.update(id, { stage: targetStage })
-                                    );
-                                    await Promise.all(movePromises);
-                                    
-                                    // Reload candidates, notifications, and activity feed
-                                    const [updated, updatedNotifications, updatedActivity] = await Promise.all([
-                                        api.candidates.list({ page: 1, pageSize: 100 }),
-                                        api.notifications.list(),
-                                        api.dashboard.getActivity()
-                                    ]);
-                                    setCandidates(updated.data || []);
-                                    setNotifications(updatedNotifications);
-                                    setActivityFeed(updatedActivity);
-                                }
-                                onClose();
-                            } catch (error) {
-                                console.error(`Error performing ${type}:`, error);
-                                alert(`Failed to ${type} candidates. Please try again.`);
-                            }
-                            setIsProcessing(false);
-                        }}
-                    >
-                        {type === 'move' ? `Move ${selectedIds.length} Candidates` : 
-                         type === 'reject' ? `Reject ${selectedIds.length} Candidates` : 
-                         `Export ${selectedIds.length} Rows`}
-                    </Button>
-                </div>
+                {errorMessage && (
+                    <div className="px-6 pt-4">
+                        <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 text-xs text-red-700 font-medium">
+                            {errorMessage}
+                        </div>
+                    </div>
+                )}
+
+                {confirmationPending ? (
+                    <div className="p-6 border-t border-gray-100">
+                        <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
+                            <p className="text-sm font-semibold text-red-800 mb-1">
+                                {type === 'reject'
+                                    ? `Reject ${selectedIds.length} ${selectedIds.length === 1 ? 'candidate' : 'candidates'}?`
+                                    : `Move ${selectedIds.length} ${selectedIds.length === 1 ? 'candidate' : 'candidates'} to ${getNextStage(sourceStage)}?`}
+                            </p>
+                            <p className="text-xs text-red-600">
+                                {type === 'reject'
+                                    ? 'This will move them to Rejected. This action cannot be undone.'
+                                    : `This will advance them from ${sourceStage} to ${getNextStage(sourceStage)}. Stage moves cannot be undone in bulk.`}
+                            </p>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <Button variant="outline" onClick={() => setConfirmationPending(false)} disabled={isProcessing}>Go back</Button>
+                            <button
+                                disabled={isProcessing}
+                                onClick={performAction}
+                                className="px-5 py-2 rounded-full text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:bg-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isProcessing
+                                    ? 'Processing...'
+                                    : type === 'reject'
+                                        ? `Yes, reject ${selectedIds.length}`
+                                        : `Yes, move ${selectedIds.length}`}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+                        <Button variant="outline" onClick={onClose}>Cancel</Button>
+                        <Button
+                            variant="black"
+                            disabled={selectedIds.length === 0 || isProcessing}
+                            onClick={type === 'export' ? performExport : () => setConfirmationPending(true)}
+                        >
+                            {type === 'move' ? `Move ${selectedIds.length} Candidates` :
+                             type === 'reject' ? `Reject ${selectedIds.length} Candidates` :
+                             `Export ${selectedIds.length} Rows`}
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>,
         document.body
@@ -731,11 +776,11 @@ const Dashboard: React.FC = () => {
   // sourcingUsage removed — sourcing is now per-job, not monthly
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [flowTab, setFlowTab] = useState('New Candidates');
+  const [flowTab, setFlowTab] = useState('Applications');
   const [timeRange, setTimeRange] = useState('12w');
   
   // Available flow tabs
-  const flowTabs = ['New Candidates', 'Weekly Avg', 'Screening', 'Interviews', 'Offers', 'Hired'];
+  const flowTabs = ['Applications', 'Avg / wk', 'Screening', 'Interviews', 'Offers', 'Hired'];
   
   // Modal States
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
@@ -784,13 +829,13 @@ const Dashboard: React.FC = () => {
         
         let value = 0;
         
-        if (flowTab === 'New Candidates') {
+        if (flowTab === 'Applications') {
             // Count candidates created in this week
             value = candidates.filter(c => {
                 const candidateDate = new Date(c.appliedDate || 0);
                 return candidateDate >= weekStart && candidateDate <= weekEnd;
             }).length;
-        } else if (flowTab === 'Weekly Avg') {
+        } else if (flowTab === 'Avg / wk') {
             // Calculate average of new candidates per week over the selected period
             const allWeeksData = [];
             for (let j = weeks - 1; j >= 0; j--) {
@@ -1081,7 +1126,7 @@ const Dashboard: React.FC = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="pt-8 px-8 pb-2 space-y-6 max-w-[1600px] mx-auto bg-white font-sans text-gray-900 relative">
+    <div className="pt-8 px-8 pb-10 max-w-[1600px] mx-auto bg-white font-sans text-gray-900 relative">
       
       {/* Payment Success Message */}
       {showSuccessMessage && (
@@ -1095,6 +1140,7 @@ const Dashboard: React.FC = () => {
           </div>
           <button
             onClick={() => setShowSuccessMessage(false)}
+            aria-label="Dismiss"
             className="ml-4 text-gray-600 hover:text-gray-800"
           >
             <X size={20} />
@@ -1148,17 +1194,22 @@ const Dashboard: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
               Welcome back{user?.name?.trim() ? `, ${user.name.trim().split(' ')[0]}` : ''}
             </h1>
-            <p className="text-gray-500 text-sm mt-1">Here's what's happening in your pipeline today.</p>
+            <p className="text-gray-500 text-sm mt-1">Your pipeline at a glance.</p>
         </div>
         <div className="flex gap-3 items-center">
             <div className="relative" ref={notificationRef}>
-                <button 
+                <button
                     onClick={() => setShowNotifications(!showNotifications)}
+                    aria-label="Notifications"
+                    aria-haspopup="true"
+                    aria-expanded={showNotifications}
                     className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-900 text-gray-900' : 'border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300'}`}
                 >
                     <Bell size={18} />
                     {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white">
+                            <span className="sr-only">You have unread notifications</span>
+                        </span>
                     )}
                 </button>
 
@@ -1199,72 +1250,90 @@ const Dashboard: React.FC = () => {
           { label: 'Move a candidate through the pipeline',  done: candidates.some(c => c.stage !== CandidateStage.NEW && c.stage !== CandidateStage.REJECTED),         cta: 'View pipeline',       href: '/candidates' },
           { label: 'Send a scheduling link',                 done: interviews.length > 0,                                                                                cta: 'Schedule interview',  href: '/candidates' },
           { label: 'Create and send an offer',               done: hasOffers,                                                                                            cta: 'Create offer',        href: '/candidates' },
-          { label: 'Check your reports',                     done: false,                                                                                                cta: 'View reports',        href: '/reports' },
+          { label: 'Generate your first report',              done: false,                                                                                                cta: 'Generate',            onAction: () => setReportModalType('weekly') },
         ];
         const completedCount = steps.filter(s => s.done).length;
         const allDone = completedCount === steps.length;
         if (loading || checklistDismissed || allDone) return null;
         return (
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Getting started</p>
-                <p className="text-xs text-gray-400 mt-0.5">{completedCount} of {steps.length} steps complete</p>
+          <div className="mt-6">
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+              <div className="flex items-center gap-5">
+                <div>
+                  <p className="label-overline">Setup</p>
+                  <p className="text-[15px] font-semibold text-gray-900 mt-0.5 tracking-tight">Get started with Coreflow</p>
+                </div>
+                <div className="flex items-baseline gap-0.5 pl-5 border-l border-gray-100">
+                  <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{completedCount}</span>
+                  <span className="text-sm text-gray-400 font-medium ml-0.5">/ {steps.length}</span>
+                </div>
               </div>
               <button
                 onClick={() => { localStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
-                className="text-gray-300 hover:text-gray-500 transition-colors"
+                className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded-md hover:bg-gray-100 ml-4"
                 aria-label="Dismiss checklist"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
-            {/* Progress bar */}
-            <div className="w-full h-1.5 bg-gray-100 rounded-full mb-4">
+            {/* Progress track */}
+            <div className="h-0.5 bg-gray-100">
               <div
-                className="h-1.5 bg-gray-900 rounded-full transition-all"
+                className="h-0.5 bg-gray-900 transition-all duration-500"
                 style={{ width: `${(completedCount / steps.length) * 100}%` }}
               />
             </div>
-            <div className="space-y-1">
-              {steps.map(step => (
-                <div key={step.label} className={`flex items-center justify-between py-2 px-3 rounded-lg ${step.done ? '' : 'hover:bg-gray-50'} transition-colors`}>
-                  <div className="flex items-center gap-2.5">
-                    {step.done ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            {/* Steps */}
+            <div className="px-6 py-2 divide-y divide-gray-50">
+              {steps.map((step, i) => (
+                <div key={step.label} className="flex items-center gap-3 py-3">
+                  {/* Step indicator */}
+                  {step.done ? (
+                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border-2 border-gray-200 flex-shrink-0" />
-                    )}
-                    <span className={`text-sm ${step.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{step.label}</span>
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-bold text-white tabular-nums leading-none">{i + 1}</span>
+                    </div>
+                  )}
+                  {/* Label */}
+                  <span className={`flex-1 text-sm ${step.done ? 'text-gray-400' : 'text-gray-800 font-medium'}`}>
+                    {step.label}
+                  </span>
+                  {/* CTA */}
                   {!step.done && (
                     <button
-                      onClick={() => navigate(step.href)}
-                      className="text-xs font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors flex-shrink-0 ml-3"
+                      onClick={() => { if (step.onAction) step.onAction(); else if (step.href) navigate(step.href); }}
+                      className="flex-shrink-0 text-xs font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-full hover:bg-gray-700 active:bg-gray-950 transition-colors ml-2"
                     >
-                      {step.cta} <ArrowRight size={11} />
+                      {step.cta}
                     </button>
                   )}
                 </div>
               ))}
             </div>
           </div>
+          <div className="h-px bg-gray-100 mt-4" aria-hidden="true" />
+          </div>
         );
       })()}
 
       {/* Row 1: Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Active Jobs" value={stats?.activeJobs || 0} trend={stats?.activeJobsTrend || '+0'} icon={Briefcase} />
         <StatCard title="Total Candidates" value={stats?.totalCandidates || 0} trend={stats?.candidatesTrend || '+0%'} icon={Users} />
         <StatCard title="Qualified Candidates" value={stats?.qualifiedCandidates || 0} trend={stats?.qualifiedTrend || '+0%'} icon={CheckCircle} />
-        <StatCard title="Avg Time to Fill" value={stats?.avgTimeToFill || '0d'} trend={stats?.timeToFillTrend || '0d'} trendLabel="improvement" icon={Clock} />
+        <StatCard title="Avg Time to Fill" value={stats?.avgTimeToFill || '0d'} trend={stats?.timeToFillTrend || '0d'} trendLabel={stats?.timeToFillTrend?.startsWith('-') ? 'improvement' : 'vs last month'} icon={Clock} />
       </div>
 
 
       {/* Row 2: Chart & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Recruitment Flow */}
           <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-6  flex flex-col">
@@ -1276,11 +1345,12 @@ const Dashboard: React.FC = () => {
                       ))}
                   </div>
               </div>
-              <div className="flex gap-6 border-b border-gray-100 mb-4">
+              <div className="flex gap-6 border-b border-gray-100">
                   {flowTabs.map((tab) => (
                       <button key={tab} onClick={() => setFlowTab(tab)} className={`pb-2 text-xs font-medium transition-all relative ${flowTab === tab ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>{tab} {flowTab === tab && (<span className="absolute bottom-0 left-0 w-full h-0.5 bg-black rounded-full"></span>)}</button>
                   ))}
               </div>
+              <p className="text-[11px] text-gray-400 mt-2 mb-2">Candidates entering each stage per week</p>
               <div className="h-[240px] w-full relative flex-1">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={flowData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
@@ -1314,8 +1384,8 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 3: Operational */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white border border-gray-100 rounded-xl p-6 ">
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Upcoming Interviews</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
                 <div className="space-y-3">
                     {interviews.slice(0, 3).map((interview) => (
@@ -1328,7 +1398,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <button onClick={() => navigate('/calendar')} className="w-full mt-4 text-xs font-medium text-gray-500 hover:text-gray-900 py-2 border-t border-gray-100 transition-colors">View Calendar</button>
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-6 ">
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
              <div className="flex items-center justify-between mb-5"><h3 className="font-bold text-gray-900 text-lg">Jobs in Progress</h3>{user?.role !== 'Viewer' && user?.role !== 'HiringManager' && <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => navigate('/jobs/new')}><Plus size={16}/></Button>}</div>
              <div className="space-y-3">
                 {jobs.slice(0, 3).map((job) => (
@@ -1343,7 +1413,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-6  flex flex-col">
                 <div className="flex items-center justify-between mb-6"><h3 className="font-bold text-gray-900 text-lg">Activity Feed</h3><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal size={16}/></Button></div>
-                <div className="relative flex-1 overflow-y-auto max-h-[240px] pr-2 custom-scrollbar">
+                <div className="relative flex-1 overflow-y-auto max-h-72 pr-2 custom-scrollbar">
                     {activityFeed.length > 0 ? (
                         <div className="relative">
                             <div className="absolute left-4 top-1 bottom-1 w-px bg-gray-100" />
@@ -1382,7 +1452,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 4: Recently Sourced */}
-      <div className="bg-white border border-gray-100 rounded-xl p-6 ">
+      <div className="mt-4 bg-white border border-gray-100 rounded-xl p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-gray-900 text-lg">Recently Sourced</h3>
             <div className="relative hidden sm:block">

@@ -97,15 +97,19 @@ textarea:focus {
   outline: none !important;
 }
 
-/* Buttons / links — no ring */
-button:focus,
-button:focus-visible,
-a:focus,
-a:focus-visible,
-[role="option"]:focus,
-[role="menuitem"]:focus,
-[role="listbox"]:focus {
+/* Buttons / links — suppress click-triggered focus ring; keep keyboard focus visible */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role="option"]:focus:not(:focus-visible),
+[role="menuitem"]:focus:not(:focus-visible),
+[role="listbox"]:focus:not(:focus-visible) {
   outline: none !important;
+  box-shadow: none !important;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #111827 !important;
+  outline-offset: 2px !important;
   box-shadow: none !important;
 }
 
@@ -171,6 +175,19 @@ input[type="radio"]:focus {
   to   { opacity: 0; visibility: hidden; }
 }
 .fill-mode-forwards { animation-fill-mode: forwards; }
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+/* Respects user OS setting: Settings > Accessibility > Reduce Motion         */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* Hide native browser password-reveal eye (Edge/IE) so it doesn't double
    up with our custom toggle button */
