@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Loader2, Plus, X, Camera } from 'lucide-react';
+import { Check, Loader2, Plus, X, Camera, Briefcase, Upload, Kanban, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -693,27 +693,60 @@ const Onboarding: React.FC = () => {
   );
 
   const renderComplete = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center mb-4">
-          <Check size={18} className="text-white" />
-        </div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
         <h2 className="text-xl font-bold text-gray-900">You're all set</h2>
         <p className="text-sm text-gray-500 mt-1">Your workspace is ready. Here's what to do next.</p>
       </div>
-      <div className="grid gap-3">
+      <div className="grid gap-2.5">
         {[
-          { label: 'Post a job', desc: 'Create your first active role', href: '/jobs/new' },
-          { label: 'Upload candidates', desc: 'Bulk-import CVs to get started fast', href: '/candidates' },
-          { label: 'View pipeline', desc: 'See your Kanban board', href: '/candidates' },
+          {
+            label: 'Post a job',
+            desc: 'Create your first active role',
+            icon: <Briefcase size={16} className="text-blue-600" />,
+            iconBg: 'bg-blue-50',
+            primary: true,
+          },
+          {
+            label: 'Upload candidates',
+            desc: 'Bulk-import CVs to get started fast',
+            icon: <Upload size={16} className="text-purple-600" />,
+            iconBg: 'bg-purple-50',
+            primary: false,
+          },
+          {
+            label: 'View pipeline',
+            desc: 'See your Kanban board',
+            icon: <Kanban size={16} className="text-green-600" />,
+            iconBg: 'bg-green-50',
+            primary: false,
+          },
         ].map(tile => (
           <button
             key={tile.label}
             onClick={handleFinish}
-            className="text-left w-full px-4 py-3 border border-gray-100 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-colors group"
+            className={`relative text-left w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all group
+              ${tile.primary
+                ? 'border-gray-900/20 bg-gray-50 hover:bg-gray-100 hover:shadow-sm'
+                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50 hover:shadow-sm'
+              }`}
           >
-            <p className="text-sm font-semibold text-gray-900 group-hover:underline underline-offset-2">{tile.label}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{tile.desc}</p>
+            {tile.primary && (
+              <span className="absolute top-2.5 right-9 text-[10px] font-semibold text-gray-500 bg-gray-200 rounded-full px-2 py-0.5 leading-none">
+                Start here
+              </span>
+            )}
+            <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${tile.iconBg}`}>
+              {tile.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900">{tile.label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{tile.desc}</p>
+            </div>
+            <ArrowRight size={14} className="flex-shrink-0 text-gray-300 group-hover:text-gray-500 transition-colors" />
           </button>
         ))}
       </div>
@@ -729,12 +762,15 @@ const Onboarding: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-[520px] bg-white rounded-2xl border border-gray-100 px-10 py-10 shadow-sm">
-        <img
-          src="/assets/images/coreflow-favicon-logo.png"
-          alt="CoreflowHR"
-          className="h-14 w-auto object-contain mb-6"
-        />
+      <div className="w-full max-w-[520px] bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <img
+            src="/assets/images/coreflow-favicon-logo.png"
+            alt="CoreflowHR"
+            className="h-7 w-auto object-contain"
+          />
+          <span className="text-base font-semibold text-gray-900 tracking-tight">CoreflowHR</span>
+        </div>
 
         {step !== 'complete' && <DotIndicator current={step} />}
 
