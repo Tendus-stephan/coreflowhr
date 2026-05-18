@@ -77,10 +77,12 @@ const Onboarding: React.FC = () => {
   const googlePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Step 4 — Invites
+  const roleDropdownRef = useRef<HTMLDivElement | null>(null);
   const [invites, setInvites] = useState<InviteRow[]>([{ email: '', role: 'Recruiter' }]);
   const [sendingInvites, setSendingInvites] = useState(false);
   const [inviteErrors, setInviteErrors] = useState<(string | null)[]>([null]);
   const [inviteSent, setInviteSent] = useState<boolean[]>([false]);
+  const [roleOpenIdx, setRoleOpenIdx] = useState<number | null>(null);
 
   // Step 5 — Client
   const [clientName, setClientName] = useState('');
@@ -239,6 +241,18 @@ const Onboarding: React.FC = () => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Close role dropdown on outside click
+  useEffect(() => {
+    if (roleOpenIdx === null) return;
+    const handler = (e: MouseEvent) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(e.target as Node)) {
+        setRoleOpenIdx(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [roleOpenIdx]);
 
   // Check Google connection status when entering step 3
   useEffect(() => {
@@ -531,7 +545,7 @@ const Onboarding: React.FC = () => {
         <h2 className="text-xl font-bold text-gray-900">Invite your team</h2>
         <p className="text-sm text-gray-500 mt-1">Team members can collaborate on jobs, candidates, and interviews.</p>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2" ref={roleDropdownRef}>
         {invites.map((row, i) => (
           <div key={i} className="space-y-1">
             <div className="flex items-center gap-2">
@@ -550,20 +564,38 @@ const Onboarding: React.FC = () => {
                 }`}
               />
               <div className="relative flex-shrink-0">
-                <select
-                  value={row.role}
+                <button
+                  type="button"
                   disabled={inviteSent[i]}
-                  onChange={e => setInvites(prev => prev.map((r, j) => j === i ? { ...r, role: e.target.value as UserRole } : r))}
-                  className="h-10 pl-3 pr-7 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 bg-white transition-colors appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-100"
+                  onClick={() => setRoleOpenIdx(roleOpenIdx === i ? null : i)}
+                  className={`h-10 pl-3 pr-7 text-sm border rounded-xl bg-white transition-colors text-left w-36 ${
+                    inviteSent[i] ? 'border-gray-100 text-gray-400 bg-gray-50 cursor-default' : 'border-gray-200 text-gray-700 hover:border-gray-300 cursor-pointer'
+                  }`}
                 >
-                  <option value="Recruiter">Recruiter</option>
-                  <option value="Admin">Admin</option>
-                  <option value="HiringManager">Hiring Manager</option>
-                  <option value="Viewer">Viewer</option>
-                </select>
+                  {row.role === 'HiringManager' ? 'Hiring Manager' : row.role}
+                </button>
                 <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
+                {roleOpenIdx === i && (
+                  <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                    {(['Recruiter', 'HiringManager', 'Viewer'] as UserRole[]).map(r => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => {
+                          setInvites(prev => prev.map((row, j) => j === i ? { ...row, role: r } : row));
+                          setRoleOpenIdx(null);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                          row.role === r ? 'bg-gray-50 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        {r === 'HiringManager' ? 'Hiring Manager' : r}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {invites.length > 1 && !inviteSent[i] && (
                 <button
