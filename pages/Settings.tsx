@@ -1251,12 +1251,18 @@ const Settings: React.FC = () => {
                 const cleanUrl = tabParam ? `/settings?tab=${tabParam}` : '/settings';
                 window.history.replaceState({}, '', cleanUrl);
 
-                // If this tab was opened by the onboarding wizard, signal and close
-                if (window.opener !== null) {
-                    try { localStorage.setItem('google_oauth_done', integrationSuccess); } catch { /* ignore */ }
+                // If this tab was opened as a popup (e.g. from onboarding), signal parent and close.
+                // Note: window.opener is nulled by browsers on cross-origin redirects, so we
+                // skip that check and always attempt close — it only works on script-opened windows.
+                try { localStorage.setItem('google_oauth_done', integrationSuccess); } catch { /* ignore */ }
+                try {
                     window.close();
-                    return;
-                }
+                    // Give close a moment to fire; if it doesn't (direct navigation), stay on settings
+                    setTimeout(() => {
+                        window.history.replaceState({}, '', '/settings?tab=integrations');
+                    }, 300);
+                } catch { /* ignore */ }
+                return;
             }
         };
 

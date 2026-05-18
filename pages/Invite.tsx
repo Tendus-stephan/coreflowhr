@@ -134,6 +134,12 @@ const Invite: React.FC = () => {
       const result = await api.workspaces.acceptInvite(token);
       if (!result.success) {
         const errMsg = (result.error || '').toLowerCase();
+        const isNetworkErr = !navigator.onLine || errMsg.includes('failed to fetch') || errMsg.includes('networkerror') || errMsg.includes('network request failed');
+        if (isNetworkErr) {
+          setStatus('error');
+          setMessage('Network error. Please check your connection and try again.');
+          return;
+        }
         if (errMsg.includes('not authenticated')) {
           clearInviteStorage();
           setStatus('error');

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Check, Loader2, Plus, X, Camera } from 'lucide-react';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { Avatar } from '../components/ui/Avatar';
 
@@ -51,6 +52,7 @@ const DotIndicator: React.FC<{ current: WizardStep }> = ({ current }) => {
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
 
   const [step, setStep] = useState<WizardStep>(1);
   const [steps, setSteps] = useState<Partial<Record<StepKey, StepStatus>>>({});
@@ -77,6 +79,8 @@ const Onboarding: React.FC = () => {
   // Step 4 — Invites
   const [invites, setInvites] = useState<InviteRow[]>([{ email: '', role: 'Recruiter' }]);
   const [sendingInvites, setSendingInvites] = useState(false);
+  const [inviteErrors, setInviteErrors] = useState<(string | null)[]>([null]);
+  const [inviteSent, setInviteSent] = useState<boolean[]>([false]);
 
   // Step 5 — Client
   const [clientName, setClientName] = useState('');
@@ -88,7 +92,7 @@ const Onboarding: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = authUser;
         if (!user || !mounted) return;
 
         // Check if already completed
@@ -150,8 +154,8 @@ const Onboarding: React.FC = () => {
     setUploadingAvatar(true);
     setError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const user = authUser;
+      if (!user) { setError('Please refresh the page and try again.'); setUploadingAvatar(false); return; }
       const ext = file.name.split('.').pop();
       const filePath = `${user.id}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -173,7 +177,10 @@ const Onboarding: React.FC = () => {
   const handleStep1 = async () => {
     if (!workspaceName.trim()) { setError('Please enter a workspace name.'); return; }
     setError(null);
-    try { await api.workspaces.updateWorkspace({ name: workspaceName.trim() }); } catch { /* non-blocking */ }
+    try {
+      await api.workspaces.updateWorkspace({ name: workspaceName.trim() });
+      window.dispatchEvent(new CustomEvent('workspaceUpdated'));
+    } catch { /* non-blocking */ }
     advanceStep(1, 'done');
   };
 
@@ -183,6 +190,7 @@ const Onboarding: React.FC = () => {
     setError(null);
     try {
       await api.auth.updateProfile({ name: profileName.trim(), avatar: avatarUrl ?? undefined });
+      window.dispatchEvent(new Event('profileUpdated'));
       advanceStep(2, 'done');
     } catch (e: any) {
       setError(e?.message || 'Failed to save profile.');
@@ -232,6 +240,20 @@ const Onboarding: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Check Google connection status when entering step 3
+  useEffect(() => {
+    if (step === 3) checkGoogleConnection();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Auto-advance 1.5 s after Google connects
+  useEffect(() => {
+    if (!googleConnected || step !== 3) return;
+    const t = setTimeout(() => advanceStep(3, 'done'), 1500);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleConnected, step]);
+
   const handleConnectGoogle = async () => {
     setGoogleLoading(true);
     setError(null);
@@ -242,7 +264,7 @@ const Onboarding: React.FC = () => {
       const { url, error: connectError } = await api.settings.connectIntegration(gcal.id);
       if (connectError) throw new Error(connectError);
       if (url) {
-        window.open(url, '_blank', 'noopener');
+        window.open(url, 'google_oauth', 'width=600,height=700,resizable=yes');
         setGoogleWaiting(true);
         startGooglePoll();
       }
@@ -254,18 +276,66 @@ const Onboarding: React.FC = () => {
   };
 
   const handleStep4 = async () => {
-    const validRows = invites.filter(r => r.email.trim());
-    if (validRows.length === 0) { advanceStep(4, 'skipped'); return; }
+    // Client-side validation first
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const newErrors: (string | null)[] = invites.map((r, i) => {
+      if (inviteSent[i]) return null; // already sent — no re-validation
+      const email = r.email.trim();
+      if (!email) return 'Please enter an email address';
+      if (!emailRe.test(email)) return 'Please enter a valid email address';
+      return null;
+    });
+
+    // If all rows are empty (and none already sent), show error on first row
+    const allEmpty = invites.every((r, i) => !inviteSent[i] && !r.email.trim());
+    if (allEmpty) {
+      setInviteErrors(invites.map((_, i) => i === 0 ? 'Please enter an email address' : null));
+      return;
+    }
+
+    // Show errors only on rows that have a non-empty but invalid email
+    const hasErrors = newErrors.some((e, i) => e !== null && invites[i].email.trim() !== '');
+    if (hasErrors) {
+      setInviteErrors(newErrors.map((e, i) => invites[i].email.trim() ? e : null));
+      return;
+    }
+
     setSendingInvites(true);
     setError(null);
-    try {
-      for (const row of validRows) await api.workspaces.createInvite(row.email.trim(), row.role);
-      advanceStep(4, 'done');
-    } catch (e: any) {
-      setError(e?.message || 'Failed to send some invites.');
-    } finally {
-      setSendingInvites(false);
+    const updatedErrors = [...newErrors];
+    const updatedSent = [...inviteSent];
+    let anySuccess = false;
+
+    for (let i = 0; i < invites.length; i++) {
+      if (inviteSent[i]) continue; // already sent
+      const email = invites[i].email.trim();
+      if (!email) continue;
+      try {
+        await api.workspaces.createInvite(email, invites[i].role);
+        updatedSent[i] = true;
+        updatedErrors[i] = null;
+        anySuccess = true;
+      } catch (e: any) {
+        const msg = e?.message || '';
+        if (msg === 'ALREADY_MEMBER') {
+          updatedErrors[i] = 'This person is already in your workspace';
+        } else {
+          updatedErrors[i] = msg || 'Failed to send invite';
+        }
+      }
     }
+
+    setInviteErrors(updatedErrors);
+    setInviteSent(updatedSent);
+    setSendingInvites(false);
+
+    // If all unblocked rows succeeded or were skipped, advance
+    const allDoneOrSent = invites.every((r, i) => {
+      if (inviteSent[i] || updatedSent[i]) return true;
+      if (!r.email.trim()) return true;
+      return false;
+    });
+    if (allDoneOrSent) advanceStep(4, anySuccess ? 'done' : 'skipped');
   };
 
   const handleStep5 = async () => {
@@ -463,34 +533,69 @@ const Onboarding: React.FC = () => {
       </div>
       <div className="space-y-2">
         {invites.map((row, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input
-              type="email"
-              placeholder="colleague@company.com"
-              value={row.email}
-              onChange={e => setInvites(prev => prev.map((r, j) => j === i ? { ...r, email: e.target.value } : r))}
-              className="flex-1 h-10 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 transition-colors"
-            />
-            <select
-              value={row.role}
-              onChange={e => setInvites(prev => prev.map((r, j) => j === i ? { ...r, role: e.target.value as UserRole } : r))}
-              className="h-10 px-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 bg-white transition-colors"
-            >
-              <option value="Recruiter">Recruiter</option>
-              <option value="Admin">Admin</option>
-              <option value="HiringManager">Hiring Manager</option>
-              <option value="Viewer">Viewer</option>
-            </select>
-            {invites.length > 1 && (
-              <button onClick={() => setInvites(prev => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-gray-700 transition-colors">
-                <X size={15} />
-              </button>
+          <div key={i} className="space-y-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                placeholder="colleague@company.com"
+                value={row.email}
+                disabled={inviteSent[i]}
+                onChange={e => {
+                  setInvites(prev => prev.map((r, j) => j === i ? { ...r, email: e.target.value } : r));
+                  setInviteErrors(prev => prev.map((err, j) => j === i ? null : err));
+                }}
+                className={`flex-1 h-10 px-3 text-sm border rounded-xl focus:outline-none focus:border-gray-400 transition-colors ${
+                  inviteSent[i] ? 'bg-gray-50 text-gray-400 border-gray-100' :
+                  inviteErrors[i] ? 'border-red-300 focus:border-red-400' : 'border-gray-200'
+                }`}
+              />
+              <div className="relative flex-shrink-0">
+                <select
+                  value={row.role}
+                  disabled={inviteSent[i]}
+                  onChange={e => setInvites(prev => prev.map((r, j) => j === i ? { ...r, role: e.target.value as UserRole } : r))}
+                  className="h-10 pl-3 pr-7 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 bg-white transition-colors appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-100"
+                >
+                  <option value="Recruiter">Recruiter</option>
+                  <option value="Admin">Admin</option>
+                  <option value="HiringManager">Hiring Manager</option>
+                  <option value="Viewer">Viewer</option>
+                </select>
+                <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              {invites.length > 1 && !inviteSent[i] && (
+                <button
+                  onClick={() => {
+                    setInvites(prev => prev.filter((_, j) => j !== i));
+                    setInviteErrors(prev => prev.filter((_, j) => j !== i));
+                    setInviteSent(prev => prev.filter((_, j) => j !== i));
+                  }}
+                  className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
+                >
+                  <X size={15} />
+                </button>
+              )}
+              {inviteSent[i] && (
+                <Check size={15} className="text-green-500 flex-shrink-0" />
+              )}
+            </div>
+            {inviteSent[i] && (
+              <p className="text-xs text-green-600 pl-1">Invite sent to {invites[i].email}</p>
+            )}
+            {!inviteSent[i] && inviteErrors[i] && (
+              <p className="text-xs text-red-500 pl-1">{inviteErrors[i]}</p>
             )}
           </div>
         ))}
         {invites.length < 5 && (
           <button
-            onClick={() => setInvites(prev => [...prev, { email: '', role: 'Recruiter' }])}
+            onClick={() => {
+              setInvites(prev => [...prev, { email: '', role: 'Recruiter' }]);
+              setInviteErrors(prev => [...prev, null]);
+              setInviteSent(prev => [...prev, false]);
+            }}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
             <Plus size={13} /> Add another
