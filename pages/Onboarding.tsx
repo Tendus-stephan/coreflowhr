@@ -706,44 +706,46 @@ const Onboarding: React.FC = () => {
           {
             label: 'Post a job',
             desc: 'Create your first active role',
-            icon: <Briefcase size={16} className="text-blue-600" />,
-            iconBg: 'bg-blue-50',
+            icon: <Briefcase size={18} style={{ color: '#3b82f6' }} />,
+            iconBg: '#eff6ff',
             primary: true,
           },
           {
             label: 'Upload candidates',
             desc: 'Bulk-import CVs to get started fast',
-            icon: <Upload size={16} className="text-purple-600" />,
-            iconBg: 'bg-purple-50',
+            icon: <Upload size={18} style={{ color: '#7c3aed' }} />,
+            iconBg: '#f5f3ff',
             primary: false,
           },
           {
             label: 'View pipeline',
             desc: 'See your Kanban board',
-            icon: <Kanban size={16} className="text-green-600" />,
-            iconBg: 'bg-green-50',
+            icon: <Kanban size={18} style={{ color: '#16a34a' }} />,
+            iconBg: '#f0fdf4',
             primary: false,
           },
         ].map(tile => (
           <button
             key={tile.label}
             onClick={handleFinish}
-            className={`relative text-left w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all group
+            className={`text-left w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all group
               ${tile.primary
                 ? 'border-gray-900/20 bg-gray-50 hover:bg-gray-100 hover:shadow-sm'
                 : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50 hover:shadow-sm'
               }`}
           >
-            {tile.primary && (
-              <span className="absolute top-2.5 right-9 text-[10px] font-semibold text-gray-500 bg-gray-200 rounded-full px-2 py-0.5 leading-none">
-                Start here
-              </span>
-            )}
-            <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${tile.iconBg}`}>
+            <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: tile.iconBg }}>
               {tile.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900">{tile.label}</p>
+              <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                {tile.label}
+                {tile.primary && (
+                  <span className="text-[11px] font-medium rounded-[4px] px-2 py-0.5 leading-none" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
+                    Start here
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-gray-500 mt-0.5">{tile.desc}</p>
             </div>
             <ArrowRight size={14} className="flex-shrink-0 text-gray-300 group-hover:text-gray-500 transition-colors" />
