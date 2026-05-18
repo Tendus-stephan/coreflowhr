@@ -911,7 +911,7 @@ const Dashboard: React.FC = () => {
       const loadData = async () => {
           setLoading(true);
           try {
-              const [u, s, a, jobsResult, i, candidatesResult, n] = await Promise.all([
+              const [uR, sR, aR, jobsR, iR, candidatesR, nR] = await Promise.allSettled([
                   api.auth.me(),
                   api.dashboard.getStats(),
                   api.dashboard.getActivity(),
@@ -920,13 +920,29 @@ const Dashboard: React.FC = () => {
                   api.candidates.list({ page: 1, pageSize: 100 }),
                   api.notifications.list()
               ]);
-              setUser(u);
-              setStats(s);
-              setActivityFeed(a);
-              setJobs(jobsResult.data || []);
-              setInterviews(i);
-              setCandidates(candidatesResult.data || []);
-              setNotifications(n);
+
+              // Log any failures to help with debugging
+              const labels = ['auth.me', 'dashboard.getStats', 'dashboard.getActivity', 'jobs.list', 'interviews.list', 'candidates.list', 'notifications.list'];
+              [uR, sR, aR, jobsR, iR, candidatesR, nR].forEach((r, idx) => {
+                  if (r.status === 'rejected') console.error(`[Dashboard] ${labels[idx]} failed:`, r.reason);
+              });
+
+              if (uR.status === 'fulfilled') setUser(uR.value);
+              if (sR.status === 'fulfilled') setStats(sR.value);
+              if (aR.status === 'fulfilled') setActivityFeed(aR.value);
+              if (jobsR.status === 'fulfilled') setJobs(jobsR.value.data || []);
+              if (iR.status === 'fulfilled') setInterviews(iR.value);
+              if (candidatesR.status === 'fulfilled') setCandidates(candidatesR.value.data || []);
+              if (nR.status === 'fulfilled') setNotifications(nR.value);
+
+              // Only show error toast if auth failed (critical) or ALL calls failed
+              const failCount = [uR, sR, aR, jobsR, iR, candidatesR, nR].filter(r => r.status === 'rejected').length;
+              if (uR.status === 'rejected' || failCount === 7) {
+                  const err = uR.status === 'rejected' ? (uR as PromiseRejectedResult).reason : null;
+                  toast.error(err?.message?.includes('Failed to fetch') || !navigator.onLine
+                    ? 'No internet connection. Please check your network and refresh.'
+                    : 'Failed to load dashboard. Please refresh the page.');
+              }
           } catch (error: any) {
               console.error("Error loading dashboard", error);
               toast.error(error?.message?.includes('Failed to fetch') || !navigator.onLine
