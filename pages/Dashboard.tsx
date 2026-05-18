@@ -756,6 +756,12 @@ const Dashboard: React.FC = () => {
   }, []);
   const [activeOfferSlice, setActiveOfferSlice] = useState('accepted');
 
+  // Onboarding checklist
+  const CHECKLIST_DISMISS_KEY = 'coreflow_checklist_dismissed';
+  const [checklistDismissed, setChecklistDismissed] = useState(() => localStorage.getItem(CHECKLIST_DISMISS_KEY) === 'true');
+  const [hasClients, setHasClients] = useState(false);
+  const [hasOffers, setHasOffers] = useState(false);
+
   // Dynamic flow data based on actual data
   const flowData = useMemo(() => {
     const weeks = parseInt(timeRange.replace('w', ''));
@@ -950,6 +956,13 @@ const Dashboard: React.FC = () => {
       loadData();
   }, []);
 
+  // Load checklist completion data (non-blocking, runs after main data)
+  useEffect(() => {
+    if (loading) return;
+    api.clients.list().then(list => setHasClients(list.length > 0)).catch(() => {});
+    api.offers.list().then(list => setHasOffers(list.length > 0)).catch(() => {});
+  }, [loading]);
+
   // Load hiring analytics metrics (non-blocking — loads after main data)
   useEffect(() => {
     const from = new Date();
@@ -1117,7 +1130,7 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-              Welcome back, {user?.name?.trim()?.split(' ')[0] || (user?.email ? user.email.split('@')[0] : 'there')}
+              Welcome back{user?.name?.trim() ? `, ${user.name.trim().split(' ')[0]}` : ''}
             </h1>
             <p className="text-gray-500 text-sm mt-1">Here's what's happening in your pipeline today.</p>
         </div>
@@ -1160,6 +1173,70 @@ const Dashboard: React.FC = () => {
             )}
         </div>
       </div>
+
+      {/* Onboarding checklist */}
+      {(() => {
+        const steps = [
+          { label: 'Add your first client',                  done: hasClients,                                                                                           cta: 'Add client',          href: '/clients' },
+          { label: 'Post your first job',                    done: jobs.length > 0,                                                                                      cta: 'Post a job',          href: '/jobs/new' },
+          { label: 'Upload candidates',                      done: candidates.length > 0,                                                                                cta: 'Upload CVs',          href: '/candidates' },
+          { label: 'Move a candidate through the pipeline',  done: candidates.some(c => c.stage !== CandidateStage.NEW && c.stage !== CandidateStage.REJECTED),         cta: 'View pipeline',       href: '/candidates' },
+          { label: 'Send a scheduling link',                 done: interviews.length > 0,                                                                                cta: 'Schedule interview',  href: '/candidates' },
+          { label: 'Create and send an offer',               done: hasOffers,                                                                                            cta: 'Create offer',        href: '/candidates' },
+          { label: 'Check your reports',                     done: false,                                                                                                cta: 'View reports',        href: '/reports' },
+        ];
+        const completedCount = steps.filter(s => s.done).length;
+        const allDone = completedCount === steps.length;
+        if (loading || checklistDismissed || allDone) return null;
+        return (
+          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Getting started</p>
+                <p className="text-xs text-gray-400 mt-0.5">{completedCount} of {steps.length} steps complete</p>
+              </div>
+              <button
+                onClick={() => { localStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
+                className="text-gray-300 hover:text-gray-500 transition-colors"
+                aria-label="Dismiss checklist"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-gray-100 rounded-full mb-4">
+              <div
+                className="h-1.5 bg-gray-900 rounded-full transition-all"
+                style={{ width: `${(completedCount / steps.length) * 100}%` }}
+              />
+            </div>
+            <div className="space-y-1">
+              {steps.map(step => (
+                <div key={step.label} className={`flex items-center justify-between py-2 px-3 rounded-lg ${step.done ? '' : 'hover:bg-gray-50'} transition-colors`}>
+                  <div className="flex items-center gap-2.5">
+                    {step.done ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border-2 border-gray-200 flex-shrink-0" />
+                    )}
+                    <span className={`text-sm ${step.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{step.label}</span>
+                  </div>
+                  {!step.done && (
+                    <button
+                      onClick={() => navigate(step.href)}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors flex-shrink-0 ml-3"
+                    >
+                      {step.cta} <ArrowRight size={11} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Row 1: Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
