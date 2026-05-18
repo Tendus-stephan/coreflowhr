@@ -1259,20 +1259,17 @@ const Dashboard: React.FC = () => {
           <div className="mt-6">
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-              <div className="flex items-center gap-5">
-                <div>
-                  <p className="label-overline">Setup</p>
-                  <p className="text-[15px] font-semibold text-gray-900 mt-0.5 tracking-tight">Get started with Coreflow</p>
-                </div>
-                <div className="flex items-baseline gap-0.5 pl-5 border-l border-gray-100">
+            <div className="px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <p className="label-overline">Setup</p>
+                <div className="flex items-baseline gap-0.5">
                   <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{completedCount}</span>
                   <span className="text-sm text-gray-400 font-medium ml-0.5">/ {steps.length}</span>
                 </div>
               </div>
               <button
                 onClick={() => { localStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
-                className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded-md hover:bg-gray-100 ml-4"
+                className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded-md hover:bg-gray-100"
                 aria-label="Dismiss checklist"
               >
                 <X size={14} />
@@ -1286,13 +1283,13 @@ const Dashboard: React.FC = () => {
               />
             </div>
             {/* Steps */}
-            <div className="px-6 py-2 divide-y divide-gray-50">
+            <div className="px-6 pt-2 pb-3">
               {steps.map((step, i) => (
-                <div key={step.label} className="flex items-center gap-3 py-3">
+                <div key={step.label} className="flex items-center gap-3 py-2.5">
                   {/* Step indicator */}
                   {step.done ? (
-                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                     </div>
@@ -1309,7 +1306,7 @@ const Dashboard: React.FC = () => {
                   {!step.done && (
                     <button
                       onClick={() => { if (step.onAction) step.onAction(); else if (step.href) navigate(step.href); }}
-                      className="flex-shrink-0 text-xs font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-full hover:bg-gray-700 active:bg-gray-950 transition-colors ml-2"
+                      className="flex-shrink-0 text-xs font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-full hover:bg-gray-700 active:bg-gray-950 transition-colors"
                     >
                       {step.cta}
                     </button>
