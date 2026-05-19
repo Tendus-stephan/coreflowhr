@@ -73,19 +73,21 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # Build with env vars injected directly — vercel pull does not expose
-      # vars to vite build (writes to .vercel/.env.* which Vite never reads).
+      # Write staging env vars into .env.production.local so Vite embeds
+      # them during vercel build (vercel pull writes to .vercel/ which Vite never reads).
+      - name: Write staging env file
+        run: |
+          echo "VITE_SUPABASE_URL=${{ secrets.STAGING_VITE_SUPABASE_URL }}" >> .env.production.local
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.STAGING_VITE_SUPABASE_ANON_KEY }}" >> .env.production.local
+          echo "VITE_FRONTEND_URL=https://staging.coreflowhr.com" >> .env.production.local
+          echo "VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.STAGING_VITE_STRIPE_PUBLISHABLE_KEY }}" >> .env.production.local
+          echo "VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY=${{ secrets.STAGING_VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY }}" >> .env.production.local
+          echo "VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY=${{ secrets.STAGING_VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY }}" >> .env.production.local
+          echo "VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}" >> .env.production.local
+          echo "VITE_CALENDLY_URL=${{ secrets.VITE_CALENDLY_URL }}" >> .env.production.local
+
       - name: Build
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.STAGING_VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_VITE_SUPABASE_ANON_KEY }}
-          VITE_FRONTEND_URL: https://staging.coreflowhr.com
-          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STAGING_VITE_STRIPE_PUBLISHABLE_KEY }}
-          VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY: ${{ secrets.STAGING_VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY }}
-          VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY: ${{ secrets.STAGING_VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_CALENDLY_URL: ${{ secrets.VITE_CALENDLY_URL }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
