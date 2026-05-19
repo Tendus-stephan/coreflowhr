@@ -73,12 +73,19 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # Pull env vars that are set in the staging Vercel project dashboard
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
+      # Build with env vars injected directly — vercel pull does not expose
+      # vars to vite build (writes to .vercel/.env.* which Vite never reads).
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.STAGING_VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_VITE_SUPABASE_ANON_KEY }}
+          VITE_FRONTEND_URL: https://staging.coreflowhr.com
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STAGING_VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY: ${{ secrets.STAGING_VITE_STRIPE_PRICE_ID_PROFESSIONAL_MONTHLY }}
+          VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY: ${{ secrets.STAGING_VITE_STRIPE_PRICE_ID_FOUNDING_MONTHLY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_CALENDLY_URL: ${{ secrets.VITE_CALENDLY_URL }}
 
       - name: Deploy
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
