@@ -18,7 +18,13 @@
     "test:watch": "vitest tests/workspace-and-invite.test.ts tests/integration.test.ts --watch",
     "test:functions": "node scripts/test-edge-functions.mjs",
     "test:functions:local": "node scripts/test-edge-functions.mjs --local",
-    "update-email-template": "node scripts/update-change-email-template.mjs"
+    "update-email-template": "node scripts/update-change-email-template.mjs",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test --project=visual",
+    "promote:prod": "bash scripts/promote-to-prod.sh",
+    "db:seed": "node scripts/seed-staging.mjs",
+    "pre-deploy": "node scripts/pre-deploy-check.mjs",
+    "sync:staging": "node scripts/sync-staging.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
