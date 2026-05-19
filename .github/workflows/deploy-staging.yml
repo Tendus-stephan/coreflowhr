@@ -73,6 +73,11 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      # Pull project settings (.vercel/project.json) — required by vercel build.
+      # This also writes .vercel/.env.production.local but Vite doesn't read that path.
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
       # Write staging env vars into .env.production.local so Vite embeds
       # them during vercel build (vercel pull writes to .vercel/ which Vite never reads).
       - name: Write staging env file
