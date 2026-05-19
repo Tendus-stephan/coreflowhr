@@ -3050,7 +3050,7 @@ const Settings: React.FC = () => {
                                                      <button
                                                          onClick={() => handleRevokeSession(session.id)}
                                                          disabled={isRevokingSession === session.id}
-                                                         className="ml-4 flex-shrink-0 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-red-200 transition-colors disabled:opacity-50"
+                                                         className="ml-4 flex-shrink-0 text-xs font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-red-200 transition-colors disabled:opacity-50"
                                                      >
                                                          {isRevokingSession === session.id ? (
                                                              <Loader2 size={12} className="animate-spin" />
@@ -3066,7 +3066,7 @@ const Settings: React.FC = () => {
                                  {sessions.length > 1 && (
                                      <button
                                          onClick={handleRevokeAllSessions}
-                                         className="mt-3 w-full text-xs font-medium text-gray-500 hover:text-red-600 py-2.5 border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                         className="mt-3 w-full text-xs font-medium text-gray-600 hover:text-red-600 py-2.5 border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2"
                                      >
                                          <LogOut size={13} />
                                          Sign out all other sessions

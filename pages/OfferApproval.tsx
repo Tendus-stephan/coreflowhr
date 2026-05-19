@@ -416,7 +416,7 @@ const OfferApproval: React.FC = () => {
                                 size="sm"
                                 onClick={() => setShowRejectForm(true)}
                                 disabled={submitting}
-                                className="flex-1 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 hover:bg-red-50"
+                                className="flex-1 border-gray-200 text-gray-700 hover:border-red-200 hover:text-red-600 hover:bg-red-50"
                                 style={{ borderRadius: '8px' }}
                             >
                                 Reject Offer
