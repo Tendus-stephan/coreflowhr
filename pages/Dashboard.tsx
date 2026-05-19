@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, RefObject } from 'react';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { createPortal } from 'react-dom';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -762,6 +762,7 @@ const QuickActions = ({
 // --- Dashboard ---
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -803,7 +804,15 @@ const Dashboard: React.FC = () => {
 
   // Onboarding checklist
   const CHECKLIST_DISMISS_KEY = 'coreflow_checklist_dismissed';
-  const [checklistDismissed, setChecklistDismissed] = useState(() => localStorage.getItem(CHECKLIST_DISMISS_KEY) === 'true');
+  const [checklistDismissed, setChecklistDismissed] = useState(() => sessionStorage.getItem(CHECKLIST_DISMISS_KEY) === 'true');
+
+  useEffect(() => {
+    if ((location.state as any)?.showChecklist) {
+      sessionStorage.removeItem(CHECKLIST_DISMISS_KEY);
+      setChecklistDismissed(false);
+    }
+  }, [location.state]);
+
   const [hasClients, setHasClients] = useState(false);
   const [hasOffers, setHasOffers] = useState(false);
 
@@ -1268,7 +1277,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => { localStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
+                onClick={() => { sessionStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
                 className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded-md hover:bg-gray-100"
                 aria-label="Dismiss checklist"
               >

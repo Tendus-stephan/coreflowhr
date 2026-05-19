@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Users, Calendar,
-  Settings, LogOut, User as UserIcon, FileText, Building2,
+  Settings, LogOut, User as UserIcon, FileText, Building2, CheckSquare,
 } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +33,7 @@ const NAV_TYPE_MAP: Record<string, string> = {
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, session, signOut } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,11 @@ const Sidebar: React.FC = () => {
     loadProfile();
     const handleProfileUpdate = () => loadProfile();
     window.addEventListener('profileUpdated', handleProfileUpdate);
-    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
+    window.addEventListener('workspaceUpdated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
+      window.removeEventListener('workspaceUpdated', handleProfileUpdate);
+    };
   }, [user]);
 
   // Notification badges: subscribe to unread counts per nav section
@@ -212,6 +217,20 @@ const Sidebar: React.FC = () => {
           {mainNav.map(item => <NavLink key={item.path} item={item} />)}
         </div>
       </nav>
+
+      {/* Setup guide */}
+      <div className="px-3 pb-1 flex-shrink-0">
+        <button
+          onClick={() => {
+            sessionStorage.removeItem('coreflow_checklist_dismissed');
+            navigate('/dashboard', { state: { showChecklist: true } });
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100 text-gray-500 hover:text-gray-800 hover:bg-gray-100/50"
+        >
+          <CheckSquare size={14} className="flex-shrink-0 text-gray-400" />
+          <span>Setup guide</span>
+        </button>
+      </div>
 
       {/* Settings — separated at bottom */}
       <div className="px-3 pb-2 flex-shrink-0">
