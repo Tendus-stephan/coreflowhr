@@ -1802,7 +1802,7 @@ export const api = {
 
             const role = await getCurrentUserRole();
             if (role === 'Viewer') {
-                throw new Error('Viewers cannot create jobs. You can only view jobs you’re assigned to. Ask an admin or recruiter to create jobs or assign you to more.');
+                throw new Error("Viewers cannot create jobs. You can only view jobs you're assigned to. Ask an admin or recruiter to create jobs or assign you to more.");
             }
             if (role === 'HiringManager') {
                 throw new Error('Only admins and recruiters can create jobs. You can view and work on existing jobs in this workspace.');
@@ -5993,6 +5993,23 @@ export const api = {
 
             const workspaceId = membership.workspace_id as string;
 
+            // Check if email is already an active workspace member
+            const { data: existingProfiles } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('email', trimmedEmail);
+            if (existingProfiles && existingProfiles.length > 0) {
+                const existingProfileIds = existingProfiles.map((p: any) => p.id);
+                const { count: memberCount } = await supabase
+                    .from('workspace_members')
+                    .select('user_id', { count: 'exact', head: true })
+                    .eq('workspace_id', workspaceId)
+                    .in('user_id', existingProfileIds);
+                if ((memberCount ?? 0) > 0) {
+                    throw new Error('ALREADY_MEMBER');
+                }
+            }
+
             // Viewer cap: max 5 Viewers per workspace (existing members + pending invites)
             if (role === 'Viewer') {
                 const { count: viewerMemberCount, error: viewerCountErr } = await supabase
@@ -6053,9 +6070,21 @@ export const api = {
 
                 const inviteLink = `${frontendUrl}/invite?token=${encodeURIComponent(token)}`;
                 const friendlyRole = role === 'HiringManager' ? 'Hiring Manager' : role;
-                const subject = 'You’ve been invited to join CoreFlowHR';
+
+                // Fetch inviter name for personalised subject + body
+                let inviterName = 'Someone';
+                try {
+                    const { data: inviterProfile } = await supabase
+                        .from('profiles')
+                        .select('name')
+                        .eq('id', userId)
+                        .maybeSingle();
+                    if (inviterProfile?.name) inviterName = inviterProfile.name;
+                } catch { /* non-fatal */ }
+
+                const subject = `${inviterName} invited you to CoreflowHR`;
                 const btn = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#111827" style="border-radius:8px;padding:13px 28px;"><a href="${inviteLink}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;font-family:Arial,sans-serif;white-space:nowrap;">Accept Invitation</a></td></tr></table></td></tr></table>`;
-                const content = `<p style="margin:0 0 16px 0;">Hi,</p><p style="margin:0 0 16px 0;">You’ve been invited to join a CoreFlowHR workspace as a <strong>${friendlyRole}</strong>.</p><p style="margin:0 0 24px 0;">Click the button below to accept the invitation and create your account:</p>${btn}<p style="margin:16px 0 0 0;font-size:12px;color:#9ca3af;text-align:center;">If you weren’t expecting this, you can safely ignore this email.</p>`;
+                const content = `<p style="margin:0 0 16px 0;">Hi,</p><p style="margin:0 0 16px 0;"><strong>${inviterName}</strong> has invited you to join their <strong>CoreflowHR</strong> workspace as a <strong>${friendlyRole}</strong>.</p><p style="margin:0 0 16px 0;">CoreflowHR is a modern recruitment platform that helps teams manage candidates, schedule interviews, and close roles faster.</p><p style="margin:0 0 24px 0;">Click the button below to accept the invitation and set up your account:</p>${btn}<p style="margin:16px 0 0 0;font-size:12px;color:#9ca3af;text-align:center;">If you weren't expecting this, you can safely ignore this email.</p>`;
 
                 const { error } = await supabase.functions.invoke('send-email', {
                     body: {

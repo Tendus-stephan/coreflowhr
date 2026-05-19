@@ -316,7 +316,8 @@ serve(async (req) => {
     htmlContent = sanitizeHtml(htmlContent);
 
     // All emails use the CoreflowHR logo. Toast images (success/error) are UI-only.
-    const storageBase = 'https://lpjyxpxkagctaibmqcoi.supabase.co/storage/v1/object/public/email-assets';
+    const supabaseStorageUrl = Deno.env.get('SUPABASE_URL') || 'https://lpjyxpxkagctaibmqcoi.supabase.co';
+    const storageBase = `${supabaseStorageUrl}/storage/v1/object/public/email-assets`;
     const logoUrl = Deno.env.get('LOGO_URL') || `${storageBase}/logo.png`;
     const companyName = 'CoreflowHR';
     const companyWebsite = Deno.env.get('COMPANY_WEBSITE') || 'https://coreflowhr.com';
