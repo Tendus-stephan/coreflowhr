@@ -420,27 +420,18 @@ const Clients: React.FC = () => {
                       onError={() => setClientLogoErr(true)}
                     />
                     {editingClient && (
-                      <div
-                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: '10px' }}
-                      >
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900/35 rounded-[10px]">
                         <Upload size={13} className="text-white" />
                       </div>
                     )}
                   </>
                 ) : (
                   <>
-                    <span
-                      className="text-xl font-extrabold select-none"
-                      style={{ color: '#374151' }}
-                    >
+                    <span className="text-xl font-extrabold select-none text-gray-700">
                       {(formData.name || '?').charAt(0).toUpperCase()}
                     </span>
                     {editingClient && (
-                      <div
-                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: '10px' }}
-                      >
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900/35 rounded-[10px]">
                         <Upload size={13} className="text-white" />
                       </div>
                     )}
