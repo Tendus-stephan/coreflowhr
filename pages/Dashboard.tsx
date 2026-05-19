@@ -5,13 +5,9 @@ import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-do
 import { useToast } from '../contexts/ToastContext';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Sector, Label,
-  RadialBarChart, RadialBar, PolarRadiusAxis,
-  FunnelChart, Funnel, LabelList, Cell,
 } from 'recharts';
-import type { PieSectorDataItem } from 'recharts/types/polar/Pie';
 import {
-    Users, Briefcase, CheckCircle, Clock, Activity, TrendingUp, TrendingDown, Filter,
+    Briefcase, CheckCircle, Clock, Activity, Filter,
     ChevronRight, MoreHorizontal, Plus, Calendar, Download, ChevronDown,
     BarChart2, Search, X, Video, Link as LinkIcon, CheckSquare, Square, Bell,
     FileText, File, ArrowRight, Zap, Mail, UserPlus, Archive, Pencil,
@@ -24,62 +20,11 @@ import { Avatar } from '../components/ui/Avatar';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { api, Notification } from '../services/api';
 import { getNotificationLink } from '../utils/notificationLinks';
-import {
-  ChartContainer, ChartLegend, ChartLegendContent,
-  ChartTooltip, ChartTooltipContent, ChartStyle,
-  type ChartConfig,
-} from '../components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { CoachMarkIfUnseen } from '../components/CoachMark';
 import { loadSeenMarks } from '../utils/coachMarks';
 
-type HiringMetrics = Awaited<ReturnType<typeof api.reports.getMetrics>> | null;
-
-const TTH_BENCHMARK = 21;
-
-const pipelineChartConfig = {
-  toInterview: { label: 'Screening → Interview', color: 'var(--chart-1)' },
-  toOffer:     { label: 'Interview → Offer',     color: 'var(--chart-2)' },
-} satisfies ChartConfig;
-
-const offerChartConfig = {
-  accepted:    { label: 'Accepted',    color: 'var(--chart-1)' },
-  sent:        { label: 'Sent',        color: '#111827' },
-  viewed:      { label: 'Viewed',      color: 'var(--chart-2)' },
-  declined:    { label: 'Declined',    color: '#f87171' },
-  negotiating: { label: 'Negotiating', color: 'var(--chart-4)' },
-} satisfies ChartConfig;
-
-const DeltaBadge = ({ value, suffix = '%' }: { value: number; suffix?: string }) => (
-  <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-    value >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-100 text-red-600'
-  }`}>
-    {value >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-    {value >= 0 ? '+' : ''}{value}{suffix}
-  </span>
-);
-
 // --- Helper Components ---
-
-const StatCard = ({ title, value, trend, icon: Icon, trendLabel = "vs last month" }: any) => (
-    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-start justify-between hover:border-gray-200 transition-colors duration-150">
-        <div>
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
-            <div className="flex items-center gap-1 mt-1">
-                {trend.startsWith('-')
-                  ? <TrendingDown size={12} className="text-red-500" />
-                  : <TrendingUp size={12} className="text-green-600" />}
-                <span className={`text-[10px] font-medium ${trend.startsWith('-') ? 'text-red-500' : 'text-green-600'}`}>
-                    {trend} <span className="text-gray-400">{trendLabel}</span>
-                </span>
-            </div>
-        </div>
-        <div className="p-2.5 rounded-lg bg-gray-50 text-gray-900 border border-gray-100">
-            <Icon size={18} />
-        </div>
-    </div>
-);
 
 // --- Activity feed helpers ---
 const getActivityMeta = (action: string): { icon: React.ElementType; bg: string; color: string } => {
@@ -587,7 +532,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                     onClick={() => toggleSelection(c.id)}
                                     className={`p-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors ${selectedIds.includes(c.id) ? 'bg-blue-50/50' : ''}`}
                                 >
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${selectedIds.includes(c.id) ? 'bg-black border-black' : 'bg-white border-gray-300'}`}>
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${selectedIds.includes(c.id) ? 'bg-gray-900 border-gray-900' : 'bg-white border-gray-300'}`}>
                                         {selectedIds.includes(c.id) && <CheckCircle size={12} className="text-white" />}
                                     </div>
                                     <Avatar name={c.name} className="w-8 h-8 text-[10px]" />
@@ -704,7 +649,7 @@ const QuickActions = ({
                 {!isViewer && (
                 <button 
                     onClick={onSchedule}
-                    className="w-full bg-black text-white rounded-lg py-4 px-4 flex items-center justify-center gap-3 font-bold hover:bg-gray-900 transition-all active:scale-[0.98]"
+                    className="w-full bg-gray-900 text-white rounded-lg py-4 px-4 flex items-center justify-center gap-3 font-bold hover:bg-gray-800 transition-all active:scale-[0.98]"
                 >
                     <Calendar size={20} />
                     <span>Schedule Interview</span>
@@ -793,14 +738,12 @@ const Dashboard: React.FC = () => {
   
   const [recentSearch, setRecentSearch] = useState('');
   const notificationRef = useRef<HTMLDivElement>(null);
-  const [hiringMetrics, setHiringMetrics] = useState<HiringMetrics>(null);
 
   const activityBtnRef = useRef<HTMLButtonElement>(null);
   const [coachMarksReady, setCoachMarksReady] = useState(false);
   useEffect(() => {
     loadSeenMarks().then(() => setCoachMarksReady(true)).catch(() => setCoachMarksReady(true));
   }, []);
-  const [activeOfferSlice, setActiveOfferSlice] = useState('accepted');
 
   // Onboarding checklist
   const CHECKLIST_DISMISS_KEY = 'coreflow_checklist_dismissed';
@@ -1033,15 +976,6 @@ const Dashboard: React.FC = () => {
     api.offers.list().then(list => setHasOffers(list.length > 0)).catch(() => {});
   }, [loading]);
 
-  // Load hiring analytics metrics (non-blocking — loads after main data)
-  useEffect(() => {
-    const from = new Date();
-    from.setDate(from.getDate() - 90);
-    api.reports
-      .getMetrics({ dateFrom: from.toISOString(), dateTo: new Date().toISOString() })
-      .then(setHiringMetrics)
-      .catch(() => {});
-  }, []);
 
   // Real-time subscription for notifications (to play sound on new notifications)
   useEffect(() => {
@@ -1329,11 +1263,18 @@ const Dashboard: React.FC = () => {
       })()}
 
       {/* Row 1: Stats */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Active Jobs" value={stats?.activeJobs || 0} trend={stats?.activeJobsTrend || '+0'} icon={Briefcase} />
-        <StatCard title="Total Candidates" value={stats?.totalCandidates || 0} trend={stats?.candidatesTrend || '+0%'} icon={Users} />
-        <StatCard title="Qualified Candidates" value={stats?.qualifiedCandidates || 0} trend={stats?.qualifiedTrend || '+0%'} icon={CheckCircle} />
-        <StatCard title="Avg Time to Fill" value={stats?.avgTimeToFill || '0d'} trend={stats?.timeToFillTrend || '0d'} trendLabel={stats?.timeToFillTrend?.startsWith('-') ? 'improvement' : 'vs last month'} icon={Clock} />
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+        {[
+          { label: 'Active Jobs', value: stats?.activeJobs ?? 0 },
+          { label: 'Total Candidates', value: stats?.totalCandidates ?? 0 },
+          { label: 'Qualified', value: stats?.qualifiedCandidates ?? 0 },
+          { label: 'Avg Time to Fill', value: stats?.avgTimeToFill ?? '—' },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-white px-5 py-4">
+            <p className="text-xs text-gray-400 mb-1">{label}</p>
+            <p className="text-xl font-bold text-gray-900 tabular-nums">{value}</p>
+          </div>
+        ))}
       </div>
 
 
@@ -1346,13 +1287,13 @@ const Dashboard: React.FC = () => {
                   <h2 className="text-lg font-bold text-gray-900">Recruitment Flow</h2>
                   <div className="flex gap-1 mt-2 sm:mt-0">
                       {['4w', '8w', '12w'].map((range) => (
-                          <button key={range} onClick={() => setTimeRange(range)} className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-colors ${timeRange === range ? 'bg-black text-white border-black' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{range}</button>
+                          <button key={range} onClick={() => setTimeRange(range)} className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-colors ${timeRange === range ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{range}</button>
                       ))}
                   </div>
               </div>
               <div className="flex gap-6 border-b border-gray-100">
                   {flowTabs.map((tab) => (
-                      <button key={tab} onClick={() => setFlowTab(tab)} className={`pb-2 text-xs font-medium transition-all relative ${flowTab === tab ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>{tab} {flowTab === tab && (<span className="absolute bottom-0 left-0 w-full h-0.5 bg-black rounded-full"></span>)}</button>
+                      <button key={tab} onClick={() => setFlowTab(tab)} className={`pb-2 text-xs font-medium transition-all relative ${flowTab === tab ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>{tab} {flowTab === tab && (<span className="absolute bottom-0 left-0 w-full h-0.5 bg-gray-900 rounded-full"></span>)}</button>
                   ))}
               </div>
               <p className="text-[11px] text-gray-400 mt-2 mb-2">Candidates entering each stage per week</p>
@@ -1486,361 +1427,6 @@ const Dashboard: React.FC = () => {
          </div>
       </div>
 
-      {/* ── Hiring Analytics moved to Reports page ── */}
-      {false && hiringMetrics && (() => {
-        const pc  = hiringMetrics.pipelineConversion;
-        const tth = hiringMetrics.timeToHire;
-        const oa  = hiringMetrics.offerAcceptance;
-        const ior = hiringMetrics.interviewOfferRatio;
-        const sq  = hiringMetrics.sourceQuality;
-
-        const hasData =
-          (tth?.weekly_series?.length ?? 0) > 0 ||
-          (pc?.screening_count ?? 0) + (pc?.hired_count ?? 0) > 0 ||
-          (oa?.counts?.sent ?? 0) + (oa?.counts?.accepted ?? 0) > 0 ||
-          (sq?.rows?.length ?? 0) > 0;
-
-        if (!hasData) return null;
-
-        // Candidate drop-off funnel
-        const totalApplied = candidates.length;
-        const funnelStages = [
-          { label: 'Applied',    count: totalApplied,          color: '#111827' },
-          { label: 'Screened',   count: pc?.screening_count  ?? 0, color: '#7c3aed' },
-          { label: 'Interviewed',count: pc?.interview_count  ?? 0, color: '#0ea5e9' },
-          { label: 'Offered',    count: pc?.offer_count      ?? 0, color: '#f59e0b' },
-          { label: 'Hired',      count: pc?.hired_count      ?? 0, color: '#10b981' },
-        ];
-        const funnelMax = Math.max(totalApplied, 1);
-        const funnelData = funnelStages.map((stage, i) => ({
-          value: stage.count,
-          name: stage.label,
-          fill: stage.color,
-          dropPct: i > 0 && funnelStages[i - 1].count > 0
-            ? Math.round(((funnelStages[i - 1].count - stage.count) / funnelStages[i - 1].count) * 100)
-            : null,
-        }));
-
-        // Hiring velocity (weekly TTH trend)
-        const velocitySeries = (tth?.weekly_series ?? []).map((e, i) => ({
-          week: e.week ? new Date(e.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : `W${i + 1}`,
-          days: e.avg_days ?? 0,
-        }));
-        const velocityFirst = velocitySeries[0]?.days ?? 0;
-        const velocityLast  = velocitySeries[velocitySeries.length - 1]?.days ?? 0;
-        const velocityDelta = velocityFirst > 0 ? Math.round(((velocityLast - velocityFirst) / velocityFirst) * 100) : 0;
-        const velocityBest  = velocitySeries.reduce((b, e) => (e.days < b ? e.days : b), Infinity);
-        const velocityWorst = velocitySeries.reduce((w, e) => (e.days > w ? e.days : w), 0);
-
-        // Job health
-        const today = Date.now();
-        const jobHealth = jobs.map((j) => {
-          const daysOpen = j.postedDate ? Math.floor((today - new Date(j.postedDate).getTime()) / 86_400_000) : 0;
-          const status = daysOpen > 45 ? 'Stale' : daysOpen > 30 ? 'At Risk' : 'Healthy';
-          return { ...j, daysOpen, status };
-        }).sort((a, b) => b.daysOpen - a.daysOpen).slice(0, 5);
-
-        // Pipeline radial
-        const toInterviewRate = pc && pc.screening_count > 0
-          ? Math.round((pc.interview_count / pc.screening_count) * 100) : 0;
-        const toOfferRate = pc && pc.interview_count > 0
-          ? Math.round((pc.offer_count / pc.interview_count) * 100) : 0;
-        const overallFunnelRate = pc && pc.screening_count > 0
-          ? Math.round(((pc.hired_count ?? 0) / pc.screening_count) * 100) : 0;
-        const radialData = [{ month: 'pipeline', toInterview: toInterviewRate, toOffer: toOfferRate }];
-
-        // Offer pie
-        const pieData = oa?.counts
-          ? (['accepted', 'sent', 'viewed', 'declined', 'negotiating'] as const)
-              .map((k) => ({ month: k, desktop: oa.counts![k] ?? 0, fill: `var(--color-${k})` }))
-              .filter((d) => d.desktop > 0)
-          : [];
-        const activeIdx = Math.max(0, pieData.findIndex((d) => d.month === activeOfferSlice));
-
-        const pieId = 'dash-offer-pie';
-
-        return (
-          <>
-            {/* Section header */}
-            <div className="flex items-center gap-4 pt-2">
-              <h2 className="text-lg font-bold text-gray-900 whitespace-nowrap">Hiring Analytics</h2>
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-xs text-gray-400 whitespace-nowrap">Last 90 days</span>
-            </div>
-
-            {/* Analytics Row 1: Drop-off Funnel + Pipeline Health */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-              {/* Candidate Drop-off Funnel */}
-              <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl p-5 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Pipeline Funnel</p>
-                    <p className="text-[11px] text-gray-400">Drop-off by stage</p>
-                  </div>
-                </div>
-
-                {funnelMax > 1 ? (
-                  <div className="flex-1 min-h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <FunnelChart margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null;
-                            const d = payload[0].payload;
-                            const pct = funnelMax > 0 ? Math.round((d.value / funnelMax) * 100) : 0;
-                            return (
-                              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-lg">
-                                <p className="text-xs font-bold text-gray-900">{d.name}</p>
-                                <p className="text-xs text-gray-500">{d.value.toLocaleString()} candidates · {pct}% of total</p>
-                                {d.dropPct != null && d.dropPct > 0 && (
-                                  <p className="text-xs text-red-500 mt-0.5">−{d.dropPct}% from previous stage</p>
-                                )}
-                              </div>
-                            );
-                          }}
-                        />
-                        <Funnel dataKey="value" data={funnelData} isAnimationActive>
-                          {funnelData.map((_, i) => (
-                            <Cell key={`cell-${i}`} fill={funnelData[i].fill} />
-                          ))}
-                          <LabelList
-                            position="center"
-                            content={(props: any) => {
-                              const { x, y, width, height, value, name, dropPct } = props;
-                              if (!value || height < 26) return null;
-                              const pct = funnelMax > 0 ? Math.round((value / funnelMax) * 100) : 0;
-                              const cx = x + width / 2;
-                              const cy = y + height / 2;
-                              const showDrop = dropPct != null && dropPct > 0 && height >= 44;
-                              return (
-                                <g>
-                                  <text x={cx} y={showDrop ? cy - 14 : cy - 7} textAnchor="middle" dominantBaseline="middle"
-                                    style={{ fontSize: 12, fontWeight: 700, fill: 'white', pointerEvents: 'none' }}>
-                                    {name}
-                                  </text>
-                                  <text x={cx} y={showDrop ? cy + 1 : cy + 8} textAnchor="middle" dominantBaseline="middle"
-                                    style={{ fontSize: 11, fill: 'rgba(255,255,255,0.75)', pointerEvents: 'none' }}>
-                                    {value.toLocaleString()} · {pct}%
-                                  </text>
-                                  {showDrop && (
-                                    <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="middle"
-                                      style={{ fontSize: 10, fontWeight: 700, fill: '#fca5a5', pointerEvents: 'none' }}>
-                                      ↓ −{dropPct}%
-                                    </text>
-                                  )}
-                                </g>
-                              );
-                            }}
-                          />
-                        </Funnel>
-                      </FunnelChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center py-8 text-sm text-gray-300">No pipeline data yet</div>
-                )}
-
-                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Applied → Hired</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    {funnelMax > 0 ? Math.round(((pc?.hired_count ?? 0) / funnelMax) * 100) : 0}%
-                    <span className="text-xs font-normal text-gray-400 ml-1">overall conversion</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Pipeline Health */}
-              <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Pipeline Health</p>
-                    <p className="text-[11px] text-gray-400">Conversion by stage</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">{overallFunnelRate}%</p>
-                    <p className="text-[10px] text-gray-400">overall</p>
-                  </div>
-                </div>
-                <div className="flex-1 space-y-4">
-                  {[
-                    { label: 'Applied → Screened',    rate: pc && totalApplied > 0 ? Math.round(((pc.screening_count ?? 0) / totalApplied) * 100) : 0, color: 'bg-violet-500' },
-                    { label: 'Screened → Interview',  rate: toInterviewRate, color: 'bg-sky-500' },
-                    { label: 'Interview → Offer',     rate: toOfferRate, color: 'bg-amber-400' },
-                    { label: 'Offer → Hired',         rate: pc && (pc.offer_count ?? 0) > 0 ? Math.round(((pc.hired_count ?? 0) / (pc.offer_count ?? 1)) * 100) : 0, color: 'bg-emerald-500' },
-                  ].map(({ label, rate, color }) => (
-                    <div key={label}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs text-gray-500">{label}</span>
-                        <span className="text-xs font-bold text-gray-900">{rate}%</span>
-                      </div>
-                      <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${rate}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 pt-4 mt-4 border-t border-gray-50">
-                  {pc?.screening_count ?? 0} screened · {pc?.hired_count ?? 0} hired
-                </p>
-              </div>
-            </div>
-
-            {/* Analytics Row 2: Offer Acceptance + Source Performance */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-              {/* Offer Acceptance */}
-              {pieData.length > 0 && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Briefcase size={18} /></div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">Offer Acceptance</h3>
-                        <p className="text-xs text-gray-400 mt-0.5">Last 90 days</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900">{oa?.acceptance_rate_pct ?? 0}%</p>
-                      {oa?.trend_pct != null && <div className="flex justify-end mt-0.5"><DeltaBadge value={oa.trend_pct} /></div>}
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-4">
-                    {(() => {
-                      const total = pieData.reduce((s, d) => s + d.desktop, 0) || 1;
-                      const barColors: Record<string, string> = {
-                        accepted: 'bg-emerald-500', sent: 'bg-gray-800',
-                        viewed: 'bg-sky-400', declined: 'bg-red-400', negotiating: 'bg-amber-400',
-                      };
-                      return pieData.map((d) => (
-                        <div key={d.month}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-gray-500 capitalize">{d.month}</span>
-                            <span className="text-xs font-bold text-gray-900">{d.desktop} <span className="text-gray-400 font-normal">· {Math.round((d.desktop / total) * 100)}%</span></span>
-                          </div>
-                          <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${barColors[d.month] ?? 'bg-gray-400'} transition-all duration-500`} style={{ width: `${Math.round((d.desktop / total) * 100)}%` }} />
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                  <p className="text-xs text-gray-400 pt-4 mt-4 border-t border-gray-50">
-                    {pieData.reduce((s, d) => s + d.desktop, 0)} total offers
-                  </p>
-                </div>
-              )}
-
-              {/* Hiring Velocity */}
-              <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Zap size={18} /></div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Hiring Velocity</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">Speed trend over 90 days</p>
-                  </div>
-                </div>
-                {tth?.avg_days != null && (
-                  <div className="flex items-end justify-between mb-4">
-                    <div>
-                      <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                        {tth.avg_days}<span className="text-sm font-medium text-gray-400 ml-1">days avg</span>
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">vs {TTH_BENCHMARK}d benchmark</p>
-                    </div>
-                    {tth.trend_pct != null && <DeltaBadge value={-tth.trend_pct} />}
-                  </div>
-                )}
-                {velocitySeries.length > 1 ? (
-                  <div className="flex-1 min-h-[160px]">
-                    <ChartContainer config={{}} className="h-full w-full">
-                      <BarChart data={velocitySeries} barCategoryGap="28%">
-                        <CartesianGrid vertical={false} stroke="#f3f4f6" />
-                        <XAxis dataKey="week" tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#9ca3af' }} tickFormatter={(v) => v.slice(0, 5)} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#9ca3af' }} width={24} />
-                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                        <Bar dataKey="days" radius={[4, 4, 0, 0]}
-                          fill="var(--chart-2)"
-                          label={false} />
-                      </BarChart>
-                    </ChartContainer>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic flex-1">Not enough weekly data yet.</p>
-                )}
-                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-50">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Best week</p>
-                    <p className="text-base font-bold text-gray-900">{velocityBest === Infinity ? '—' : `${velocityBest}d`}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Slowest week</p>
-                    <p className="text-base font-bold text-gray-900">{velocityWorst > 0 ? `${velocityWorst}d` : '—'}</p>
-                  </div>
-                </div>
-                {((ior?.interview_count ?? 0) + (ior?.offer_count ?? 0)) > 0 && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Interview–Offer Ratio</p>
-                      <p className="text-base font-bold text-gray-900">{ior!.ratio}<span className="text-xs font-normal text-gray-400 ml-1">per offer</span></p>
-                    </div>
-                    {ior?.trend_pct != null && <DeltaBadge value={ior.trend_pct} />}
-                  </div>
-                )}
-              </div>
-
-              {/* Job Health Score */}
-              <div className="bg-white border border-gray-100 rounded-xl p-6 flex flex-col">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900"><Briefcase size={18} /></div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Job Health</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">Open reqs by urgency</p>
-                  </div>
-                </div>
-                {jobHealth.length > 0 ? (
-                  <div className="space-y-3.5 flex-1">
-                    {jobHealth.map((job) => {
-                      const styles = {
-                        Healthy:  { bar: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                        'At Risk':{ bar: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-                        Stale:    { bar: 'bg-red-400',     badge: 'bg-red-50 text-red-600 border-red-200' },
-                      }[job.status] ?? { bar: 'bg-gray-300', badge: 'bg-gray-100 text-gray-500 border-gray-200' };
-                      const urgencyPct = Math.min(Math.round((job.daysOpen / 45) * 100), 100);
-                      return (
-                        <div key={job.id}>
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-xs font-semibold text-gray-900 truncate flex-1 mr-2">{job.title}</p>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0 ${styles.badge}`}>{job.status}</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${styles.bar} transition-all duration-500`} style={{ width: `${urgencyPct}%` }} />
-                          </div>
-                          <p className="text-[10px] text-gray-400 mt-1">{job.applicantsCount} applicants · {job.daysOpen}d open</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic flex-1">No active jobs.</p>
-                )}
-                <div className="mt-4 pt-3 border-t border-gray-50 grid grid-cols-3 gap-2 text-center">
-                  {(['Healthy', 'At Risk', 'Stale'] as const).map((s) => {
-                    const count = jobHealth.filter(j => j.status === s).length;
-                    const colors = { Healthy: 'text-emerald-600', 'At Risk': 'text-amber-600', Stale: 'text-red-500' }[s];
-                    return (
-                      <div key={s}>
-                        <p className={`text-base font-bold ${colors}`}>{count}</p>
-                        <p className="text-[10px] text-gray-400">{s}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </>
-        );
-      })()}
 
       {/* Report Modal */}
       <ReportModal isOpen={!!reportModalType} onClose={() => setReportModalType(null)} type={reportModalType} />
