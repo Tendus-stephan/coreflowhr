@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-18T00:00:00.000Z",
+  "title": "Design System: Coreflow",
+  "extensions": {
+    "colorMeta": {
+      "action": {
+        "role": "primary",
+        "displayName": "Action Black",
+        "canonical": "oklch(18% 0.012 255)",
+        "tonalRamp": [
+          "oklch(12% 0.010 255)",
+          "oklch(18% 0.012 255)",
+          "oklch(26% 0.013 255)",
+          "oklch(35% 0.013 255)",
+          "oklch(46% 0.011 255)",
+          "oklch(58% 0.009 255)",
+          "oklch(72% 0.006 255)",
+          "oklch(87% 0.003 255)"
+        ]
+      },
+      "accent": {
+        "role": "secondary",
+        "displayName": "Notification Blue",
+        "canonical": "oklch(55% 0.23 264)",
+        "tonalRamp": [
+          "oklch(32% 0.22 264)",
+          "oklch(40% 0.24 264)",
+          "oklch(47% 0.26 264)",
+          "oklch(55% 0.23 264)",
+          "oklch(63% 0.20 264)",
+          "oklch(73% 0.16 264)",
+          "oklch(83% 0.10 264)",
+          "oklch(95% 0.04 264)"
+        ]
+      },
+      "shell": {
+        "role": "neutral",
+        "displayName": "Page Shell",
+        "canonical": "oklch(98% 0.002 240)",
+        "tonalRamp": [
+          "oklch(85% 0.004 240)",
+          "oklch(88% 0.004 240)",
+          "oklch(91% 0.003 240)",
+          "oklch(93% 0.003 240)",
+          "oklch(95% 0.003 240)",
+          "oklch(96% 0.002 240)",
+          "oklch(98% 0.002 240)",
+          "oklch(99.5% 0.001 240)"
+        ]
+      },
+      "border-default": {
+        "role": "neutral",
+        "displayName": "Border Default",
+        "canonical": "oklch(95% 0.003 240)"
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Border Strong",
+        "canonical": "oklch(91% 0.004 240)"
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Text Secondary",
+        "canonical": "oklch(55% 0.010 255)"
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "Text Tertiary",
+        "canonical": "oklch(68% 0.007 255)"
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level titles, empty states, onboarding headers needing authority at scale." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings, kanban column titles, primary modal headers." },
+      "title": { "displayName": "Title", "purpose": "Card headings, form group labels, sidebar subsection titles." },
+      "body": { "displayName": "Body", "purpose": "All running content: pipeline card copy, form text, notifications. Max 65ch." },
+      "label": { "displayName": "Label / Overline", "purpose": "Navigation section dividers, table column headers, category markers. UPPERCASE only in this role." }
+    },
+    "shadows": [
+      {
+        "name": "flat",
+        "value": "none",
+        "purpose": "All resting cards, panels, sidebar. Border carries the edge."
+      },
+      {
+        "name": "modal-lift",
+        "value": "0 20px 60px -10px rgba(0,0,0,0.16), 0 8px 24px -8px rgba(0,0,0,0.08)",
+        "purpose": "Dialogs, command palettes, overlays that float above the document layer."
+      },
+      {
+        "name": "dropdown-lift",
+        "value": "0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)",
+        "purpose": "Portaled select panels, context menus, tooltip panels."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing for color, border, and opacity state changes (hover, active, focus)."
+      },
+      {
+        "name": "entrance-fade",
+        "value": "300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Dropdown and modal entrance. Opacity 0 to 1 + translateY(4px) to translateY(0). Never on layout properties."
+      },
+      {
+        "name": "micro-press",
+        "value": "scale(0.97), 150ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Button active state only. Signals physical confirmation of a click."
+      }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px", "purpose": "Sidebar appears. Below this, mobile layout (sidebar hidden)." },
+      { "name": "lg", "value": "1024px", "purpose": "Kanban board optimal width; 4+ columns visible." },
+      { "name": "xl", "value": "1280px", "purpose": "Full pipeline visible without horizontal scroll." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default CTA. Gray-900 fill, white text, pill shape. Used for primary actions on any screen.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; background-color: #111827; color: #ffffff; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1; padding: 10px 20px; border-radius: 9999px; border: 1px solid transparent; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); user-select: none; } .ds-btn-primary:hover { background-color: #1f2937; } .ds-btn-primary:active { background-color: #030712; transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 2px solid #111827; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "De-emphasized action. Gray-100 fill, gray-200 border, pill shape. Pairs with a primary button.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; background-color: #f3f4f6; color: #111827; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1; padding: 10px 20px; border-radius: 9999px; border: 1px solid #e5e7eb; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16,1,0.3,1), border-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); user-select: none; } .ds-btn-secondary:hover { background-color: #e5e7eb; border-color: #d1d5db; } .ds-btn-secondary:active { background-color: #d1d5db; transform: scale(0.97); } .ds-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Lowest-emphasis action. No background, no border at rest. Used in dense toolbars and inline contexts.",
+      "html": "<button class=\"ds-btn-ghost\">View details</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; background-color: transparent; color: #6b7280; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1; padding: 10px 20px; border-radius: 9999px; border: 1px solid transparent; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); user-select: none; } .ds-btn-ghost:hover { background-color: #f3f4f6; color: #111827; } .ds-btn-ghost:active { background-color: #e5e7eb; transform: scale(0.97); } .ds-btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Nav Item — Default",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Sidebar navigation link in its default inactive state.",
+      "html": "<a class=\"ds-nav-item\" href=\"#\">\n  <svg class=\"ds-nav-icon\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/></svg>\n  <span>Dashboard</span>\n</a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-family: Inter, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; color: #6b7280; text-decoration: none; transition: background-color 100ms ease, color 100ms ease; } .ds-nav-item:hover { background-color: rgba(243,244,246,0.5); color: #374151; } .ds-nav-item:hover .ds-nav-icon { color: #6b7280; } .ds-nav-icon { color: #9ca3af; flex-shrink: 0; transition: color 100ms ease; }"
+    },
+    {
+      "name": "Nav Item — Active",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Sidebar navigation link in its active (current page) state.",
+      "html": "<a class=\"ds-nav-item-active\" href=\"#\">\n  <svg class=\"ds-nav-icon-active\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/></svg>\n  <span>Dashboard</span>\n</a>",
+      "css": ".ds-nav-item-active { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-family: Inter, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; color: #111827; text-decoration: none; background-color: rgba(243,244,246,0.8); } .ds-nav-icon-active { color: #111827; flex-shrink: 0; }"
+    },
+    {
+      "name": "Status Badge — Green",
+      "kind": "chip",
+      "refersTo": "badge-green",
+      "description": "Pipeline stage badge for active, hired, or offer-sent states.",
+      "html": "<span class=\"ds-badge ds-badge-green\">Active</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-family: Inter, system-ui, sans-serif; font-size: 0.6875rem; font-weight: 500; line-height: 1.4; border: 1px solid transparent; white-space: nowrap; } .ds-badge-green { background-color: #f0fdf4; color: #15803d; border-color: #bbf7d0; } .ds-badge-blue { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; } .ds-badge-amber { background-color: #fffbeb; color: #b45309; border-color: #fde68a; } .ds-badge-red { background-color: #fef2f2; color: #dc2626; border-color: #fecaca; } .ds-badge-neutral { background-color: #f3f4f6; color: #374151; border-color: #e5e7eb; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Standard form text field. White background, gray-200 border, 8px radius.",
+      "html": "<div class=\"ds-field\">\n  <label class=\"ds-label\" for=\"ds-input-1\">Full name</label>\n  <input class=\"ds-input\" id=\"ds-input-1\" type=\"text\" placeholder=\"e.g. Jordan Smith\" />\n</div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; } .ds-label { font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; color: #111827; } .ds-input { width: 100%; padding: 8px 12px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; color: #111827; outline: none; box-sizing: border-box; transition: border-color 150ms ease; } .ds-input::placeholder { color: #9ca3af; } .ds-input:focus { border-color: #9ca3af; box-shadow: none; outline: none; } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; background-color: #f9fafb; }"
+    },
+    {
+      "name": "Pipeline Card",
+      "kind": "card",
+      "refersTo": "kanban-card",
+      "description": "The primary work unit of the kanban board. Flat at rest, border-shift on hover.",
+      "html": "<div class=\"ds-pipeline-card\">\n  <div class=\"ds-pipeline-card-header\">\n    <div class=\"ds-pipeline-avatar\">JD</div>\n    <div class=\"ds-pipeline-meta\">\n      <p class=\"ds-pipeline-name\">Jordan Davies</p>\n      <p class=\"ds-pipeline-role\">Senior Product Designer</p>\n    </div>\n    <span class=\"ds-badge ds-badge-blue\">Interview</span>\n  </div>\n</div>",
+      "css": ".ds-pipeline-card { background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color 150ms ease; } .ds-pipeline-card:hover { border-color: #e5e7eb; } .ds-pipeline-card-header { display: flex; align-items: center; gap: 10px; } .ds-pipeline-avatar { width: 32px; height: 32px; border-radius: 9999px; background-color: #e5e7eb; color: #374151; font-family: Inter, system-ui, sans-serif; font-size: 0.6875rem; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; } .ds-pipeline-meta { flex: 1; min-width: 0; } .ds-pipeline-name { font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; } .ds-pipeline-role { font-family: Inter, system-ui, sans-serif; font-size: 0.75rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 2px 0 0 0; } .ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-family: Inter, system-ui, sans-serif; font-size: 0.6875rem; font-weight: 500; line-height: 1.4; border: 1px solid transparent; white-space: nowrap; flex-shrink: 0; } .ds-badge-blue { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Steady Hand",
+    "overview": "Coreflow is a precision tool for people already under pressure. In-house recruiters and agency professionals spend hours inside this interface on deadline: moving candidates, scheduling interviews, sending offers, tracking pipeline across dozens of open roles. The design system earns their trust by making itself invisible. No motion that announces itself. No color that decorates rather than communicates. No hierarchy that competes with the work below it.\n\nThe aesthetic owes to Attio: flat surfaces, border-only depth, Inter set tight with optical sizing. Everything reads at a glance. The interface is a table, not a theater. Information arrives cleanly, departs cleanly. Cognitive load is the enemy and every design decision is measured against it.\n\nThis is not enterprise software dressed down, nor a generic SaaS template dressed up. It shares no DNA with SAP SuccessFactors, BambooHR, or the Tailwind starter with the blue gradient hero and three-column feature grid. It is closer to a trading terminal than a productivity app: specific, fast, serious, and entirely confident in its priorities.",
+    "keyCharacteristics": [
+      "Flat surfaces with border-only elevation. No decorative shadows at any resting state.",
+      "Gray-900 as the primary action color. Blue is reserved exclusively for notification state.",
+      "Inter with tight negative tracking and optical sizing across all text roles.",
+      "Pill-shaped buttons against square-to-gently-rounded containers: a clear interaction grammar.",
+      "Status semantics delivered through badge color, never through animation.",
+      "Breathing room through varied spacing, not through decoration."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "Blue (#2563eb) appears only on notification badges and data-table link affordances. It does not appear in buttons, backgrounds, or decorative elements. Its sole job is 'you have a message.' Anything else strips the signal of its meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Uppercase-Creep Rule",
+        "body": "Uppercase is reserved for .label-overline instances: navigation section dividers, table column headers, and static category markers. Button labels, card titles, and body copy are always sentence case. Using uppercase for emphasis in body or UI copy is prohibited; use font-weight 600 or color shift instead.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "A surface is flat unless it physically floats above the document (modal, portaled dropdown, tooltip). Hover states shift border color from border-default to border-strong; they do not introduce a shadow. If you find yourself adding box-shadow to a card, the answer is almost certainly a border shift instead.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use #111827 as the primary CTA button color. The product deliberately avoids a blue CTA so blue retains its meaning as a notification signal.",
+      "Do use border-only hierarchy: #f3f4f6 at rest, #e5e7eb on hover or for stronger separators. No shadows on resting cards, rows, or panels.",
+      "Do set Inter with letter-spacing: -0.02em and font-optical-sizing: auto on all headings (h1-h4). The tight tracking is load-bearing.",
+      "Do use status badge colors (green, amber, red, blue, neutral) exclusively for pipeline stage and system-state communication.",
+      "Do keep button shapes as pills (border-radius: 9999px) and container shapes as gently rounded rectangles (6-16px). The contrast is the interaction grammar.",
+      "Do meet WCAG 2.1 AA minimum contrast. #111827 on #ffffff is 16.1:1. #6b7280 on #ffffff is 4.6:1; that is the floor for secondary text, not the target.",
+      "Do respect prefers-reduced-motion: replace transition-all and animate-in with instant state changes.",
+      "Do vary spacing for rhythm. The sidebar uses 4px, 8px, 12px, and 24px intentionally. Uniform padding everywhere is monotony."
+    ],
+    "donts": [
+      "Don't build screens that look like legacy HR software (SAP SuccessFactors, Oracle HCM, Taleo): dense modal grids, enterprise-grey surfaces, or multi-step form wizards with no escape.",
+      "Don't build screens that look like generic Tailwind SaaS templates: blue gradient heroes, three-column icon-heading-text feature grids, testimonial strips, floating action buttons.",
+      "Don't use border-left or border-right greater than 1px as a colored stripe accent on cards, list items, callouts, or alerts. Rewrite with a full border, a background tint, or a leading icon.",
+      "Don't use gradient text (background-clip: text with a gradient). Use a solid color and adjust weight or size for emphasis.",
+      "Don't add box-shadow to cards, sidebar panels, or table rows at any state. Only modals and portaled dropdowns are permitted to lift.",
+      "Don't add blue (#2563eb) to buttons, backgrounds, hero elements, or decorative patterns.",
+      "Don't use uppercase text outside .label-overline contexts.",
+      "Don't add glassmorphism (backdrop-filter: blur), gradient overlays, or translucent surface treatments to the product UI.",
+      "Don't animate layout properties (height, width, padding, margin, top, left). Animate opacity and transform only."
+    ]
+  }
+}

@@ -94,14 +94,14 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
         <button 
             type="button"
             onClick={onChange}
-            className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/20 ${checked ? 'bg-black' : 'bg-gray-200'}`}
+            className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/20 ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
         >
             <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
     );
 
         return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <div>
@@ -366,7 +366,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                 />
             )}
             {createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
 
                 {/* ── Header ── */}
@@ -793,7 +793,7 @@ const Jobs: React.FC = () => {
 
       {/* Close Job Confirmation Modal */}
       {jobToClose && createPortal(
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md">
                   <div className="p-6 border-b border-gray-200">
                       <h3 className="text-lg font-bold text-gray-900">Close Job</h3>

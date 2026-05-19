@@ -23,7 +23,7 @@ export const CoreLoader: React.FC = () => {
           
           {/* Elegant Progress Line */}
           <div className="w-24 h-[2px] bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-black w-full -translate-x-full animate-[loading_1.5s_ease-in-out_infinite]"></div>
+            <div className="h-full bg-gray-900 w-full -translate-x-full animate-[loading_1.5s_ease-in-out_infinite]"></div>
           </div>
           
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.5em] mt-2 animate-pulse">

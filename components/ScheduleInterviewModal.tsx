@@ -561,7 +561,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
             <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-xl font-bold text-gray-900">{editingInterviewId ? 'Reschedule Interview' : 'Schedule Interview'}</h2>
@@ -593,7 +593,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     <input 
                                         type="text" 
                                         placeholder="Search by name or email..." 
-                                        className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+                                        className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         autoFocus
@@ -629,7 +629,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 type="date" 
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black" 
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black" 
                             />
                         </div>
                         <div className="space-y-2">
@@ -643,7 +643,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
                             />
                         </div>
                     </div>
@@ -737,7 +737,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                         }
                                     }}
                                     readOnly={integrations.length > 0}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black text-gray-600" 
+                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black text-gray-600" 
                                 />
                             </div>
                             )}
@@ -771,7 +771,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     placeholder="Enter interview address..."
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
                                 />
                             </div>
                         </div>

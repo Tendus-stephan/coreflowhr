@@ -890,7 +890,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 onChange={(e) => setEmailEditValue(e.target.value)}
                                 autoFocus
                                 placeholder="email@example.com"
-                                className="text-sm border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:border-black w-48"
+                                className="text-sm border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:border-gray-900 w-48"
                                 onBlur={handleSaveEmail}
                             />
                             <button type="submit" className="text-green-600 hover:text-green-700 flex-shrink-0" onMouseDown={(e) => e.preventDefault()}>
@@ -1478,7 +1478,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 <label className="text-sm font-medium text-gray-700">Subject (for reference)</label>
                                                 <input 
                                                     type="text"
-                                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10"
                                                     value={outreachDraft.subject}
                                                     readOnly
                                                 />
@@ -1486,7 +1486,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium text-gray-700">Outreach message</label>
                                                 <textarea 
-                                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-black focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
+                                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-gray-900 focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
                                                     value={outreachDraft.content}
                                                     readOnly
                                                 />
@@ -1496,7 +1496,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 <div className="flex items-center gap-2">
                                                     <input 
                                                         type="text"
-                                                        className="flex-1 bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10 font-mono text-xs"
+                                                        className="flex-1 bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 font-mono text-xs"
                                                         value={outreachDraft.registrationLink}
                                                         readOnly
                                                     />
@@ -1610,7 +1610,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                                 <label className="text-sm font-medium text-gray-700">Subject</label>
                                                 <input 
                                                     type="text"
-                                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                                                    className="w-full bg-gray-50 border border-border rounded-lg p-3 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10"
                                                     value={emailDraft.subject}
                                                     onChange={(e) => setEmailDraft({ ...emailDraft, subject: e.target.value })}
                                                     placeholder="Email subject..."
@@ -1619,7 +1619,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium text-gray-700">Email Content</label>
                                                 <textarea 
-                                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-black focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
+                                                    className="w-full h-64 bg-gray-50 border border-border rounded-lg p-4 text-sm text-gray-900 focus:border-gray-900 focus:outline-none resize-none focus:ring-2 focus:ring-black/10 whitespace-pre-wrap"
                                                     value={emailDraft.content}
                                                     onChange={(e) => setEmailDraft({ ...emailDraft, content: e.target.value })}
                                                     placeholder="Email content will appear here..."

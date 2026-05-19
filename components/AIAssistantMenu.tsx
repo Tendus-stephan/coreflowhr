@@ -118,7 +118,7 @@ export const AIAssistantMenu: React.FC = () => {
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white shadow-md">
+            <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-md">
               <Command size={16} />
             </div>
             <div>
@@ -169,7 +169,7 @@ export const AIAssistantMenu: React.FC = () => {
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[90%] px-4 py-2.5 text-[13px] leading-relaxed ${
                 m.role === 'user' 
-                ? 'bg-black text-white rounded-[18px] rounded-tr-none shadow-sm font-medium' 
+                ? 'bg-gray-900 text-white rounded-[18px] rounded-tr-none shadow-sm font-medium' 
                 : 'bg-white text-gray-800 rounded-[18px] rounded-tl-none border border-gray-100 shadow-sm'
               }`}>
                 {m.role === 'user' ? m.text : <FormattedMessage text={m.text} />}
@@ -204,7 +204,7 @@ export const AIAssistantMenu: React.FC = () => {
             <button
               onClick={() => handleSend(input)}
               disabled={isLoading || !input.trim()}
-              className="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-sm hover:scale-105 active:scale-95 disabled:opacity-20 transition-all flex-shrink-0"
+              className="w-7 h-7 flex items-center justify-center bg-gray-900 text-white rounded-lg shadow-sm hover:scale-105 active:scale-95 disabled:opacity-20 transition-all flex-shrink-0"
             >
               <Send size={12} />
             </button>
@@ -218,7 +218,7 @@ export const AIAssistantMenu: React.FC = () => {
       {/* FAB (Floating Action Button) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`group relative flex items-center justify-center w-14 h-14 rounded-[20px] bg-black shadow-[0_12px_32px_rgba(0,0,0,0.2)] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+        className={`group relative flex items-center justify-center w-14 h-14 rounded-[20px] bg-gray-900 shadow-[0_12px_32px_rgba(0,0,0,0.2)] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
           isOpen ? 'rotate-90 scale-90' : 'hover:scale-110'
         }`}
         style={{ pointerEvents: 'auto' }}

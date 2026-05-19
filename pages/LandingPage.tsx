@@ -97,7 +97,7 @@ const BookDemoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isO
   const calendlyUrl = import.meta.env.VITE_CALENDLY_URL || 'https://calendly.com/coreflowhr/product-demo';
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Close button floating on top-right */}
       <button 
         onClick={onClose} 
@@ -509,7 +509,7 @@ const LandingPage: React.FC = () => {
                       <div className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 bg-white">
                         <Bell size={12} />
                       </div>
-                      <div className="bg-black text-white px-2.5 py-1.5 rounded-full text-[9px] sm:text-[10px] font-medium flex items-center gap-1 shadow-sm">
+                      <div className="bg-gray-900 text-white px-2.5 py-1.5 rounded-full text-[9px] sm:text-[10px] font-medium flex items-center gap-1 shadow-sm">
                         <Plus size={9} /><span>Post a Job</span>
                       </div>
                     </div>
@@ -548,7 +548,7 @@ const LandingPage: React.FC = () => {
                         <h3 className="text-xs font-bold text-gray-900">Recruitment Flow</h3>
                         <div className="flex gap-1">
                           {['4w', '8w', '12w'].map((r, i) => (
-                            <span key={r} className={`text-[7px] sm:text-[8px] font-medium px-1.5 py-0.5 rounded border ${i === 2 ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>{r}</span>
+                            <span key={r} className={`text-[7px] sm:text-[8px] font-medium px-1.5 py-0.5 rounded border ${i === 2 ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}>{r}</span>
                           ))}
                         </div>
                       </div>
@@ -556,7 +556,7 @@ const LandingPage: React.FC = () => {
                         {['New Candidates', 'Screening', 'Interviews', 'Hired'].map((tab, i) => (
                           <span key={tab} className={`pb-1.5 text-[7px] sm:text-[8px] font-medium relative whitespace-nowrap ${i === 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                             {tab}
-                            {i === 0 && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-black rounded-full" />}
+                            {i === 0 && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gray-900 rounded-full" />}
                           </span>
                         ))}
                       </div>
@@ -579,7 +579,7 @@ const LandingPage: React.FC = () => {
 
                     <div className="col-span-1 bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
                       <h3 className="text-xs font-bold text-gray-900 mb-2.5">Quick Actions</h3>
-                      <button className="w-full bg-black text-white rounded-lg py-2 px-2 flex items-center justify-center gap-1 text-[9px] sm:text-[10px] font-medium mb-1.5">
+                      <button className="w-full bg-gray-900 text-white rounded-lg py-2 px-2 flex items-center justify-center gap-1 text-[9px] sm:text-[10px] font-medium mb-1.5">
                         <Calendar size={10} /> Schedule Interview
                       </button>
                       <button className="w-full bg-white border border-gray-200 text-gray-700 rounded-lg py-1.5 px-2 flex items-center justify-between text-[9px] sm:text-[10px] font-medium mb-1.5">
@@ -714,7 +714,7 @@ const LandingPage: React.FC = () => {
                     }
                  ].map((item, i) => (
                      <FadeIn key={i} delay={i * 100}>
-                       <div className="bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300 border-t-[3px] border-black h-full">
+                       <div className="bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300 border-t-[3px] border-gray-900 h-full">
                            <div className="p-6 flex-1">
                                <h3 className="text-lg font-extrabold text-gray-900 mb-3 tracking-tight">{item.title}</h3>
                                <p className="text-sm text-gray-500 leading-relaxed mb-6">{item.desc}</p>
@@ -837,7 +837,7 @@ const LandingPage: React.FC = () => {
             </div>
 
             {/* 6. Deep Analytics (With Chart) */}
-            <div className="md:col-span-3 bg-black rounded-[2rem] p-10 flex flex-col lg:flex-row items-center gap-12 group shadow-2xl overflow-hidden relative">
+            <div className="md:col-span-3 bg-gray-900 rounded-[2rem] p-10 flex flex-col lg:flex-row items-center gap-12 group shadow-2xl overflow-hidden relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black z-0"></div>
                 
                 <div className="flex-1 relative z-10">
@@ -1015,7 +1015,7 @@ const LandingPage: React.FC = () => {
                     "Priority support",
                   ].map((feat, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
-                      <div className="mt-0.5 bg-black rounded-full p-0.5 text-white flex-shrink-0">
+                      <div className="mt-0.5 bg-gray-900 rounded-full p-0.5 text-white flex-shrink-0">
                         <Check size={10} strokeWidth={4} />
                       </div>
                       {feat}

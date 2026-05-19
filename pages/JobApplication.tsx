@@ -621,7 +621,7 @@ const JobApplication: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting || !cvFile}
-                className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? (
                   <>

@@ -196,7 +196,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                         value={strengths}
                         onChange={(e) => setStrengths(e.target.value)}
                         placeholder="What did the candidate do well?"
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
                         rows={4}
                     />
                 </div>
@@ -210,7 +210,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                         value={weaknesses}
                         onChange={(e) => setWeaknesses(e.target.value)}
                         placeholder="What areas could the candidate improve?"
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
                         rows={4}
                     />
                 </div>
@@ -224,7 +224,7 @@ export const InterviewFeedbackForm: React.FC<InterviewFeedbackFormProps> = ({
                         value={overallImpression}
                         onChange={(e) => setOverallImpression(e.target.value)}
                         placeholder="Provide your overall thoughts and impressions..."
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
                         rows={4}
                     />
                 </div>

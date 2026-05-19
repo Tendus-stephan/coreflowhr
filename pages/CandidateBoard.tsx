@@ -1332,7 +1332,7 @@ const CandidateBoard: React.FC = () => {
 
             {/* Move candidate confirmation */}
             {pendingMove && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-5">
                         <h3 className="text-sm font-semibold text-gray-900 mb-3">Move candidate?</h3>
 

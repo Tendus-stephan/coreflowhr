@@ -88,7 +88,7 @@ export const WorkflowExecutionHistory: React.FC<WorkflowExecutionHistoryProps> =
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-gray-200 flex flex-col max-h-[80vh]">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">

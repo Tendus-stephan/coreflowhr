@@ -506,7 +506,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                 placeholder="Search by name, email, role, location, or skills..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
+                                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
                             />
                         </div>
                     </div>
@@ -660,7 +660,7 @@ const QuickActions = ({
                 <div className="relative" style={{ zIndex: openDropdown === 'bulk' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('bulk')}
-                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'bulk' ? 'border-black ring-1 ring-black' : 'border-gray-200'}`}
+                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'bulk' ? 'border-gray-900 ring-1 ring-black' : 'border-gray-200'}`}
                     >
                         <div className="flex items-center gap-3 text-gray-800 font-semibold">
                             <Download size={18} className="text-gray-500" />
@@ -682,7 +682,7 @@ const QuickActions = ({
                 <div className="relative" style={{ zIndex: openDropdown === 'report' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('report')}
-                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'report' ? 'border-black ring-1 ring-black' : 'border-gray-200'}`}
+                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'report' ? 'border-gray-900 ring-1 ring-black' : 'border-gray-200'}`}
                     >
                         <div className="flex items-center gap-3 text-gray-800 font-semibold">
                             <BarChart2 size={18} className="text-gray-500" />
@@ -1408,7 +1408,7 @@ const Dashboard: React.FC = () => {
                     placeholder="Search..." 
                     value={recentSearch}
                     onChange={(e) => setRecentSearch(e.target.value)}
-                    className="pl-9 pr-4 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:border-black transition-colors" 
+                    className="pl-9 pr-4 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:border-gray-900 transition-colors" 
                 />
             </div>
          </div>

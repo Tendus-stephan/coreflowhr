@@ -262,10 +262,10 @@ const Reports: React.FC = () => {
           {useCustom && (
             <div className="flex items-center gap-1.5">
               <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-black" />
+                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-gray-900" />
               <span className="text-gray-300 text-xs">→</span>
               <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-black" />
+                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-gray-900" />
             </div>
           )}
 

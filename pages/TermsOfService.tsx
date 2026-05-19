@@ -153,7 +153,7 @@ const TermsOfService: React.FC = () => {
 
         {/* Mobile Sidebar */}
         {mobileSidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setMobileSidebarOpen(false)}>
+          <div className="lg:hidden fixed inset-0 z-40 bg-gray-900/50" onClick={() => setMobileSidebarOpen(false)}>
             <aside 
               className="fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 shadow-lg"
               onClick={(e) => e.stopPropagation()}

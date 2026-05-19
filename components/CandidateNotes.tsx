@@ -164,7 +164,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                         value={newNoteContent}
                         onChange={(e) => setNewNoteContent(e.target.value)}
                         placeholder="Write a note about this candidate..."
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
                         rows={4}
                         autoFocus
                     />
@@ -210,7 +210,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                 <textarea
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all resize-none"
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
                                     rows={4}
                                     autoFocus
                                 />
@@ -225,7 +225,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                     <button
                                         onClick={() => handleUpdateNote(note.id)}
                                         disabled={!editContent.trim() || isSaving}
-                                        className="px-3 py-1.5 text-sm bg-black text-white rounded-lg hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-3 py-1.5 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Check size={16} className="inline mr-1" />
                                         {isSaving ? 'Saving…' : 'Save'}
