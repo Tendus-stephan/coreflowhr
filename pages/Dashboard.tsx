@@ -804,11 +804,11 @@ const Dashboard: React.FC = () => {
 
   // Onboarding checklist
   const CHECKLIST_DISMISS_KEY = 'coreflow_checklist_dismissed';
-  const [checklistDismissed, setChecklistDismissed] = useState(() => sessionStorage.getItem(CHECKLIST_DISMISS_KEY) === 'true');
+  const [checklistDismissed, setChecklistDismissed] = useState(() => localStorage.getItem(CHECKLIST_DISMISS_KEY) === 'true');
 
   useEffect(() => {
     if ((location.state as any)?.showChecklist) {
-      sessionStorage.removeItem(CHECKLIST_DISMISS_KEY);
+      localStorage.removeItem(CHECKLIST_DISMISS_KEY);
       setChecklistDismissed(false);
     }
   }, [location.state]);
@@ -1259,7 +1259,6 @@ const Dashboard: React.FC = () => {
           { label: 'Move a candidate through the pipeline',  done: candidates.some(c => c.stage !== CandidateStage.NEW && c.stage !== CandidateStage.REJECTED),         cta: 'View pipeline',       href: '/candidates' },
           { label: 'Send a scheduling link',                 done: interviews.length > 0,                                                                                cta: 'Schedule interview',  href: '/candidates' },
           { label: 'Create and send an offer',               done: hasOffers,                                                                                            cta: 'Create offer',        href: '/candidates' },
-          { label: 'Generate your first report',              done: false,                                                                                                cta: 'Generate',            onAction: () => setReportModalType('weekly') },
         ];
         const completedCount = steps.filter(s => s.done).length;
         const allDone = completedCount === steps.length;
@@ -1277,7 +1276,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => { sessionStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
+                onClick={() => { localStorage.setItem(CHECKLIST_DISMISS_KEY, 'true'); setChecklistDismissed(true); }}
                 className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded-md hover:bg-gray-100"
                 aria-label="Dismiss checklist"
               >
@@ -1297,8 +1296,8 @@ const Dashboard: React.FC = () => {
                 <div key={step.label} className="flex items-center gap-3 py-2.5">
                   {/* Step indicator */}
                   {step.done ? (
-                    <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                     </div>
@@ -1314,7 +1313,7 @@ const Dashboard: React.FC = () => {
                   {/* CTA */}
                   {!step.done && (
                     <button
-                      onClick={() => { if (step.onAction) step.onAction(); else if (step.href) navigate(step.href); }}
+                      onClick={() => { if (step.href) navigate(step.href); }}
                       className="flex-shrink-0 text-xs font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-full hover:bg-gray-700 active:bg-gray-950 transition-colors"
                     >
                       {step.cta}
