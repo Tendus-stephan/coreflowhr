@@ -60,7 +60,7 @@ jobs:
       - name: Push DB migrations → staging
         run: |
           supabase link --project-ref ${{ secrets.SUPABASE_STAGING_PROJECT_REF }}
-          supabase db push --linked --yes
+          supabase db push --linked --include-all --yes
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
