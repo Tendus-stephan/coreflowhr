@@ -1325,7 +1325,7 @@ const CandidateBoard: React.FC = () => {
                         setSearchParams(newSearchParams, { replace: true });
                     }}
                     onUpdate={handleCandidateUpdate}
-                    initialActiveTab={initialTabFromUrl as 'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers' | undefined}
+                    initialActiveTab={initialTabFromUrl as 'overview' | 'communication' | 'interviews' | 'offers' | undefined}
                     initialEmailSubTab={initialEmailSubTabFromUrl as 'compose' | 'history' | undefined}
                 />
             )}

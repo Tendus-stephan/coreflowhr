@@ -5,7 +5,6 @@ import { X, BrainCircuit, Mail, Calendar, FileText, ExternalLink, Briefcase, Ale
 import { Button } from './ui/Button';
 import { draftEmail, draftOutreachMessage } from '../services/aiService';
 import { api } from '../services/api';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList, Legend } from 'recharts';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
 import { SendSchedulingLinkModal } from './SendSchedulingLinkModal';
 import { Avatar } from './ui/Avatar';
@@ -31,7 +30,7 @@ interface CandidateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (c: Candidate) => void;
-  initialActiveTab?: 'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers';
+  initialActiveTab?: 'overview' | 'communication' | 'interviews' | 'offers';
   initialEmailSubTab?: 'compose' | 'history';
 }
 
@@ -69,8 +68,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
   }, [candidate?.id]);
 
   const [loadingAI, setLoadingAI] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'portfolio' | 'email' | 'notes' | 'feedback' | 'offers'>('overview');
-  const [emailSubTab, setEmailSubTab] = useState<'compose' | 'history'>('compose');
+  const [activeTab, setActiveTab] = useState<'overview' | 'communication' | 'interviews' | 'offers'>('overview');
+  const [emailSubTab, setEmailSubTab] = useState<'compose' | 'history' | 'notes'>('compose');
   const [emailUnreadCount, setEmailUnreadCount] = useState(0);
   const [emailHistoryRefreshKey, setEmailHistoryRefreshKey] = useState(0);
   const [interviewFeedbacks, setInterviewFeedbacks] = useState<any[]>([]);
@@ -872,7 +871,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
             api.schedulingLinks.getCandidateLinks(candidate.id).then(setSchedulingLinks).catch(() => {});
         }}
     />
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-sm" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-gray-900/40 backdrop-blur-sm" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' }}>
       <div className="w-[800px] h-full bg-white border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         {/* Header */}
@@ -1032,19 +1031,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
         <div className="flex border-b border-border px-6">
             <button 
                 onClick={() => setActiveTab('overview')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
             >
-                Overview & AI
-            </button>
-            <button 
-                onClick={() => setActiveTab('portfolio')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'portfolio' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-            >
-                Portfolio
+                Overview
             </button>
             <button
-                onClick={() => setActiveTab('email')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === 'email' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                onClick={() => setActiveTab('communication')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${activeTab === 'communication' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
             >
                 Communication
                 {emailUnreadCount > 0 && (
@@ -1052,20 +1045,14 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 )}
             </button>
             <button 
-                onClick={() => setActiveTab('notes')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'notes' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                onClick={() => setActiveTab('interviews')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'interviews' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
             >
-                Notes
-            </button>
-            <button 
-                onClick={() => setActiveTab('feedback')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'feedback' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-            >
-                Interview Feedback
+                Interviews
             </button>
             <button 
                 onClick={() => setActiveTab('offers')}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'offers' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'offers' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
             >
                 Offers
             </button>
@@ -1085,7 +1072,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                     )}
                     {/* Pool candidate banner — must assign to a job before scheduling/offering */}
                     {!jobLoading && isPoolCandidate && (
-                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
                             <div className="flex items-start gap-2.5 mb-3">
                                 <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
                                 <div>
@@ -1133,7 +1120,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                       const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
                       const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                       return (
-                        <div className="flex items-center justify-between bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 gap-3">
+                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 gap-3">
                           <div className="flex items-center gap-2.5">
                             <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <div>
@@ -1173,16 +1160,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         ) : (
                                 <p className="text-sm text-gray-500 italic">AI analysis is being generated...</p>
                         )}
-                        
-                            {/* Risk Analysis Section - Only show if match score exists */}
-                        {candidate.aiMatchScore && (
-                             <div className={`mt-4 p-3 rounded-lg border flex items-center gap-3 ${riskColor}`}>
-                                <RiskIcon size={16} />
-                                <div>
-                                    <p className="text-xs font-bold uppercase tracking-wide">Risk Assessment: {riskLevel}</p>
-                                </div>
-                             </div>
-                        )}
+
                     </div>
                     )}
                     
@@ -1199,84 +1177,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                         </div>
                     )}
 
-                    {/* Charts Row - Only show for job candidates with CVs */}
-                    {!jobLoading && candidate.cvFileUrl && !isPoolCandidate && (
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Skills Assessment Pie Chart */}
-                        <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">
-                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Skills Assessment</h4>
-                             <div className="flex-1 w-full min-h-0">
-                                {skillsData.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full gap-1">
-                                        <p className="text-xs font-medium text-gray-400">No skills identified</p>
-                                        <p className="text-xs text-gray-300">Skills will appear after CV is analysed</p>
-                                    </div>
-                                ) : (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={skillsData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={40}
-                                            outerRadius={60}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {skillsData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            contentStyle={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px' }}
-                                        />
-                                        <Legend
-                                            layout="horizontal"
-                                            verticalAlign="bottom"
-                                            align="center"
-                                            iconSize={8}
-                                            wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                                )}
-                             </div>
-                        </div>
 
-                        {/* Interview Readiness Bar Chart */}
-                        <div className="border border-gray-100 rounded-xl p-4 flex flex-col h-64">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Interview Readiness</h4>
-                            <div className="flex-1 w-full min-h-0">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart 
-                                        layout="vertical" 
-                                        data={readinessData} 
-                                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                                    >
-                                        <XAxis type="number" hide domain={[0, 100]} />
-                                        <YAxis 
-                                            dataKey="name" 
-                                            type="category" 
-                                            width={50} 
-                                            tick={{fontSize: 10, fill: '#374151', fontWeight: 500}} 
-                                            axisLine={false} 
-                                            tickLine={false}
-                                        />
-                                        <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ fontSize: '10px', borderRadius: '4px' }} />
-                                        <Bar dataKey="value" fill="#18181b" radius={[0, 4, 4, 0]} barSize={18}>
-                                            <LabelList 
-                                                dataKey="value" 
-                                                position="right" 
-                                                formatter={(val: any) => `${val}%`} 
-                                                style={{ fontSize: '10px', fontWeight: 'bold', fill: '#6b7280' }} 
-                                            />
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-                    )}
 
                     {/* Skills Tags */}
                     <div>
@@ -1301,7 +1202,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 </div>
             )}
 
-            {activeTab === 'portfolio' && (
+            {activeTab === 'overview' && (
                 <div className="space-y-8">
                     {/* Experience Timeline */}
                     {experienceHistory.length > 0 && (
@@ -1500,15 +1401,15 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                 </div>
             )}
             
-            {activeTab === 'email' && (
+            {activeTab === 'communication' && (
                 <div className="space-y-6">
-                    {/* Email Sub-tabs */}
+                    {/* Communication Sub-tabs */}
                     <div className="flex border-b border-gray-200">
                         <button
                             onClick={() => setEmailSubTab('compose')}
                             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                                 emailSubTab === 'compose' 
-                                    ? 'border-black text-black' 
+                                    ? 'border-gray-900 text-gray-900' 
                                     : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                         >
@@ -1518,11 +1419,21 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             onClick={() => setEmailSubTab('history')}
                             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                                 emailSubTab === 'history' 
-                                    ? 'border-black text-black' 
+                                    ? 'border-gray-900 text-gray-900' 
                                     : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                         >
                             History
+                        </button>
+                        <button
+                            onClick={() => setEmailSubTab('notes')}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                emailSubTab === 'notes' 
+                                    ? 'border-gray-900 text-gray-900' 
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            Notes
                         </button>
                     </div>
 
@@ -1626,7 +1537,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                                 <>
                                     {/* Registration invite — Waitlist candidates without a CV */}
                                     {candidate.stage === CandidateStage.NEW && !isPoolCandidate && !candidate.cvFileUrl && (
-                                        <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
                                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
                                             <div className="flex-1">
                                                 <p className="text-[13px] font-bold text-gray-900 leading-tight">No CV on file</p>
@@ -1763,16 +1674,13 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                             }}
                         />
                     )}
+                    {emailSubTab === 'notes' && (
+                        <CandidateNotes candidateId={candidate.id} />
+                    )}
                 </div>
             )}
 
-            {activeTab === 'notes' && (
-                <div className="space-y-6">
-                    <CandidateNotes candidateId={candidate.id} />
-                </div>
-            )}
-
-            {activeTab === 'feedback' && (
+            {activeTab === 'interviews' && (
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-gray-900">Interview Feedback</h3>
@@ -2209,7 +2117,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
     {/* Confirmation Modal */}
     {showConfirmSend && createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
@@ -2235,7 +2143,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
                   </span>
                 )}
                 {currentEmailType === 'Hired' && (
-                  <div className="mt-2 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                  <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                     <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                     <p className="text-[12px] text-gray-600">This will automatically move the candidate to <strong className="text-gray-900">Hired</strong>.</p>
                   </div>
@@ -2275,7 +2183,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({ candidate, isOpe
 
     {/* Link General Offer Selection Modal */}
     {isLinkOfferModalOpen && createPortal(
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed', width: '100vw', height: '100vh' }}>
+      <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ top: 0, left: 0, right: 0, bottom: 0, position: 'fixed', width: '100vw', height: '100vh' }}>
         <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[85vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
