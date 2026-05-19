@@ -280,7 +280,7 @@ const PrivacyPolicy: React.FC = () => {
                     <li><strong>Restriction:</strong> Request restriction of processing</li>
                   </ul>
                   <p className="mt-3">
-                    To exercise these rights, please contact us at <a href="mailto:teams@coreflowhr.com" className="text-black hover:underline">teams@coreflowhr.com</a>.
+                    To exercise these rights, please contact us at <a href="mailto:teams@coreflowhr.com" className="text-gray-900 hover:underline">teams@coreflowhr.com</a>.
                   </p>
                 </div>
               </section>

@@ -506,7 +506,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                                 placeholder="Search by name, email, role, location, or skills..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                             />
                         </div>
                     </div>
@@ -518,7 +518,7 @@ const BulkActionModal = ({ isOpen, onClose, type, candidates, setCandidates, set
                             {searchQuery && ` (filtered)`}
                         </span>
                         {filteredCandidates.length > 0 && (
-                            <button onClick={toggleAll} className="text-xs font-medium text-black hover:underline">
+                            <button onClick={toggleAll} className="text-xs font-medium text-gray-900 hover:underline">
                                 {selectedIds.length === filteredCandidates.length ? 'Deselect All' : 'Select All'}
                             </button>
                         )}
@@ -660,7 +660,7 @@ const QuickActions = ({
                 <div className="relative" style={{ zIndex: openDropdown === 'bulk' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('bulk')}
-                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'bulk' ? 'border-gray-900 ring-1 ring-black' : 'border-gray-200'}`}
+                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'bulk' ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200'}`}
                     >
                         <div className="flex items-center gap-3 text-gray-800 font-semibold">
                             <Download size={18} className="text-gray-500" />
@@ -671,9 +671,9 @@ const QuickActions = ({
                     
                     {openDropdown === 'bulk' && (
                         <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden max-h-60 overflow-y-auto" style={{ zIndex: 1000 }}>
-                            <button onClick={() => { onBulkReject(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Bulk Reject</button>
-                            <button onClick={() => { onBulkMove(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Move to Next Stage</button>
-                            <button onClick={() => { onExport(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors">Export Selected</button>
+                            <button onClick={() => { onBulkReject(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors">Bulk Reject</button>
+                            <button onClick={() => { onBulkMove(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors">Move to Next Stage</button>
+                            <button onClick={() => { onExport(); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">Export Selected</button>
                         </div>
                     )}
                 </div>
@@ -682,7 +682,7 @@ const QuickActions = ({
                 <div className="relative" style={{ zIndex: openDropdown === 'report' ? 100 : 10 }}>
                     <button 
                         onClick={() => toggleDropdown('report')}
-                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'report' ? 'border-gray-900 ring-1 ring-black' : 'border-gray-200'}`}
+                        className={`w-full bg-white border text-gray-700 rounded-lg py-3.5 px-4 flex items-center justify-between font-medium hover:bg-gray-50 transition-colors relative ${openDropdown === 'report' ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200'}`}
                     >
                         <div className="flex items-center gap-3 text-gray-800 font-semibold">
                             <BarChart2 size={18} className="text-gray-500" />
@@ -693,9 +693,9 @@ const QuickActions = ({
 
                     {openDropdown === 'report' && (
                         <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-[100] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden max-h-60 overflow-y-auto">
-                            <button onClick={() => { onGenerateReport('weekly'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Weekly Performance</button>
-                            <button onClick={() => { onGenerateReport('job'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors">Job Posting Analysis</button>
-                            <button onClick={() => { onGenerateReport('time'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium transition-colors">Time to Hire Analysis</button>
+                            <button onClick={() => { onGenerateReport('weekly'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors">Weekly Performance</button>
+                            <button onClick={() => { onGenerateReport('job'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors">Job Posting Analysis</button>
+                            <button onClick={() => { onGenerateReport('time'); setOpenDropdown(null); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">Time to Hire Analysis</button>
                         </div>
                     )}
                 </div>

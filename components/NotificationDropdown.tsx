@@ -105,7 +105,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 {onMarkAllRead && (
                     <button 
                         onClick={onMarkAllRead}
-                        className="text-xs text-black hover:underline font-medium"
+                        className="text-xs text-gray-900 hover:underline font-medium"
                     >
                         Mark all read
                     </button>

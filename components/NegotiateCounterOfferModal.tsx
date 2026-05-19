@@ -160,7 +160,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                     value={salaryAmount || ''}
                                     onChange={(e) => setSalaryAmount(e.target.value ? parseFloat(e.target.value) : undefined)}
                                     placeholder="0.00"
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                                 />
                             </div>
                             <div>
@@ -207,7 +207,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                             />
                         </div>
 
@@ -228,7 +228,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                         }
                                     }}
                                     placeholder="e.g., Health Insurance"
-                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                                 />
                                 <Button
                                     type="button"
@@ -271,7 +271,7 @@ export const NegotiateCounterOfferModal: React.FC<NegotiateCounterOfferModalProp
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="Add any additional notes or comments for the candidate..."
                                 rows={4}
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all resize-none"
                             />
                         </div>
                     </div>

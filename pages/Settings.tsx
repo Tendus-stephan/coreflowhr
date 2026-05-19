@@ -256,7 +256,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                         <label className="block text-sm font-bold text-gray-900 mb-1">Subject Line</label>
                         <input 
                             type="text" 
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                             value={formData.subject}
                             onChange={(e) => setFormData({...formData, subject: e.target.value})}
                             disabled={isSaving || isGenerating}
@@ -265,7 +265,7 @@ const EditTemplateModal: React.FC<{ template: EmailTemplate | null, isOpen: bool
                     <div>
                         <label className="block text-sm font-bold text-gray-900 mb-1">Email Body</label>
                         <textarea 
-                            className="w-full h-64 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black resize-none font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full h-64 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 resize-none font-mono disabled:opacity-50 disabled:cursor-not-allowed"
                             value={formData.content}
                             onChange={(e) => setFormData({...formData, content: e.target.value})}
                             disabled={isSaving || isGenerating}
@@ -402,7 +402,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                         <div className="relative">
                             <input
                                 type={showCurrentPassword ? "text" : "password"}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black pr-10"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 pr-10"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
                                 disabled={isLoading}
@@ -422,7 +422,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                         <div className="relative">
                             <input
                                 type={showNewPassword ? "text" : "password"}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black pr-10"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 pr-10"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 disabled={isLoading}
@@ -444,7 +444,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                         <div className="relative">
                             <input
                                 type={showConfirmPassword ? "text" : "password"}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black pr-10"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 pr-10"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 disabled={isLoading}
@@ -609,7 +609,7 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
                                         inputMode="numeric"
                                         pattern="[0-9]{6}"
                                         maxLength={6}
-                                        className="w-full px-4 py-3 text-center text-lg font-mono tracking-widest border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                        className="w-full px-4 py-3 text-center text-lg font-mono tracking-widest border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                         value={verificationCode}
                                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                         disabled={isLoading}
@@ -661,7 +661,7 @@ const NotificationToggle = ({ label, description, checked, onChange }: {
                 type="button"
                 onClick={handleToggle}
                 disabled={isUpdating}
-                className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/20 disabled:opacity-50 disabled:cursor-not-allowed ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
+                className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-900/20 disabled:opacity-50 disabled:cursor-not-allowed ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
             >
                 <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
@@ -783,7 +783,7 @@ const TestWorkflowModal: React.FC<{
                                     value={testPlaceholders[placeholder] || ''}
                                     onChange={(e) => handlePlaceholderChange(placeholder, e.target.value)}
                                     placeholder={getDefaultValue(placeholder)}
-                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                     disabled={isTesting}
                                 />
                             </div>
@@ -1921,7 +1921,7 @@ const Settings: React.FC = () => {
                                         type="text" 
                                         value={profileData.name}
                                         onChange={(e) => setProfileData({...profileData, name: e.target.value})}
-                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black" 
+                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900" 
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1946,7 +1946,7 @@ const Settings: React.FC = () => {
                                                     setEmailChangeMessage(null);
                                                 }}
                                                 placeholder="New email address"
-                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black" 
+                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900" 
                                             />
                                         </div>
                                         <div className="flex gap-2">
@@ -1958,7 +1958,7 @@ const Settings: React.FC = () => {
                                                     setEmailChangeMessage(null);
                                                 }}
                                                 placeholder="Current password (for security)"
-                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                                className="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                             />
                                             <Button 
                                                 variant="outline" 
@@ -1999,7 +1999,7 @@ const Settings: React.FC = () => {
                                         value={profileData.jobTitle}
                                         onChange={(e) => setProfileData({...profileData, jobTitle: e.target.value})}
                                         placeholder="e.g. Senior Recruiter, Head of Talent"
-                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black" 
+                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900" 
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -2009,7 +2009,7 @@ const Settings: React.FC = () => {
                                         value={profileData.phone}
                                         onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
                                         placeholder="+1 (555) 000-0000" 
-                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black" 
+                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900" 
                                     />
                                 </div>
                             </div>
@@ -2308,7 +2308,7 @@ const Settings: React.FC = () => {
                                                         setTeamPage(0);
                                                     }}
                                                     placeholder="Search by name…"
-                                                    className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black w-44"
+                                                    className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 w-44"
                                                 />
                                             </div>
                                         )}
@@ -2520,7 +2520,7 @@ const Settings: React.FC = () => {
                                             value={inviteEmail}
                                             onChange={(e) => setInviteEmail(e.target.value)}
                                             placeholder="teammate@company.com"
-                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                         />
                                     </div>
                                     <div className="w-full md:w-44 space-y-1">
@@ -2966,7 +2966,7 @@ const Settings: React.FC = () => {
                                     <button 
                                         onClick={() => twoFactorEnabled ? handleDisable2FA() : handleEnable2FA()}
                                         disabled={isEnabling2FA}
-                                        className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/20 disabled:opacity-50 disabled:cursor-not-allowed ${twoFactorEnabled ? 'bg-gray-900' : 'bg-gray-300'}`}
+                                        className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900/20 disabled:opacity-50 disabled:cursor-not-allowed ${twoFactorEnabled ? 'bg-gray-900' : 'bg-gray-300'}`}
                                     >
                                         <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${twoFactorEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>

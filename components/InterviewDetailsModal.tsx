@@ -229,7 +229,7 @@ export const InterviewDetailsModal: React.FC<InterviewDetailsModalProps> = ({
 
           {/* Calendar sync failed - retry */}
           {interview.calendarSyncStatus === 'failed' && !readOnly && (
-            <div className="bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
               <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
               <div className="flex-1">
                 <p className="text-[13px] font-bold text-gray-900 leading-tight">Calendar sync failed</p>

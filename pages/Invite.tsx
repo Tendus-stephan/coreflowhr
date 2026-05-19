@@ -208,7 +208,7 @@ const Invite: React.FC = () => {
           </div>
         )}
         {status === 'error' && (
-          <div className="mb-4 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
             <div className="flex-1">
               <p className="text-[13px] font-bold text-gray-900 leading-tight">Something went wrong</p>
@@ -235,14 +235,14 @@ const Invite: React.FC = () => {
           </div>
         )}
         {status === 'success' && (
-          <div className="mb-4 bg-white border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+          <div className="mb-4 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
             <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
             <p className="text-[13px] text-gray-700">{message}</p>
           </div>
         )}
 
         {showWrongAccount && (
-          <div className="mb-6 bg-white border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2.5">
             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain mt-0.5" />
             <div className="flex-1">
             <p className="text-[13px] font-bold text-gray-900 leading-tight">Wrong account</p>

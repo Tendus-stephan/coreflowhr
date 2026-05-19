@@ -94,7 +94,7 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
         <button 
             type="button"
             onClick={onChange}
-            className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-black/20 ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
+            className={`w-11 h-6 rounded-full transition-colors duration-300 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-900/20 ${checked ? 'bg-gray-900' : 'bg-gray-200'}`}
         >
             <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
@@ -548,7 +548,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                                                         >
                                                             <input
                                                                 type="checkbox"
-                                                                className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black shrink-0"
+                                                                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 shrink-0"
                                                                 checked={checked}
                                                                 disabled={!canManageAssignments || savingAssignments || m.isCurrentUser}
                                                                 onChange={() => toggleAssignment(m.userId)}
@@ -1014,19 +1014,19 @@ const Jobs: React.FC = () => {
                       >
                         <button
                           onClick={() => handleAction('edit', job)}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
                         >
                           <Edit size={13} /> Edit Job
                         </button>
                         <button
                           onClick={() => handleAction('settings', job)}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
                         >
                           <Settings size={13} /> Settings
                         </button>
                         <button
                           onClick={() => handleAction('close', job)}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium border-b border-gray-50 transition-colors flex items-center gap-2"
                         >
                           <Archive size={13} /> Close Job
                         </button>

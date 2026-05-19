@@ -1083,7 +1083,7 @@ const LandingPage: React.FC = () => {
 
         {/* Giant Text */}
         <div className="w-full flex justify-center border-t border-transparent">
-            <h1 className="text-[11vw] sm:text-[12vw] md:text-[13vw] font-bold tracking-tighter leading-none text-black select-none text-center">
+            <h1 className="text-[11vw] sm:text-[12vw] md:text-[13vw] font-bold tracking-tighter leading-none text-gray-900 select-none text-center">
                 coreflowhr
             </h1>
         </div>

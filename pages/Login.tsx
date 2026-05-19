@@ -238,7 +238,7 @@ const Login: React.FC = () => {
           Welcome back
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or <Link to={signupPath} className="font-semibold text-black hover:underline transition-all">Sign up</Link>
+          Or <Link to={signupPath} className="font-semibold text-gray-900 hover:underline transition-all">Sign up</Link>
         </p>
       </div>
 

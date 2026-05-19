@@ -518,7 +518,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 value={positionTitle}
                                 onChange={(e) => setPositionTitle(e.target.value)}
                                 placeholder="e.g., Senior Software Engineer"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                             />
                         </div>
                         <div>
@@ -554,7 +554,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                         />
                     </div>
 
@@ -571,7 +571,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                 value={salaryAmount || ''}
                                 onChange={(e) => setSalaryAmount(e.target.value ? parseFloat(e.target.value) : undefined)}
                                 placeholder="e.g., 100000"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                             />
                         </div>
                         <div>
@@ -628,7 +628,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                                     }
                                 }}
                                 placeholder="e.g., Health Insurance, 401k"
-                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                             />
                             <Button
                                 variant="outline"
@@ -667,7 +667,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder="Additional offer details or notes (optional)..."
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-y"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all resize-y"
                             rows={4}
                         />
                         <p className="text-xs text-gray-500 mt-1">
@@ -752,7 +752,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({
                             type="date"
                             value={expiresAt}
                             onChange={(e) => setExpiresAt(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all"
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             The offer will automatically expire after this date

@@ -205,11 +205,11 @@ const TermsOfService: React.FC = () => {
                 <div className="text-gray-700 leading-relaxed space-y-4">
                   <p>
                     We are <strong>CoreflowHR</strong>, a recruitment platform that helps agencies and in-house teams post jobs, manage their hiring pipeline, score applicants with AI, and send offer letters — all in one place.
-                    We operate the website <a href="http://www.coreflowhr.com" target="_blank" rel="noopener noreferrer" className="text-black hover:underline">http://www.coreflowhr.com</a> (the 'Site'), as well as any other 
+                    We operate the website <a href="http://www.coreflowhr.com" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:underline">http://www.coreflowhr.com</a> (the 'Site'), as well as any other 
                     related products and services that refer or link to these legal terms (the 'Legal Terms') (collectively, the 'Services').
                   </p>
                   <p>
-                    You can contact us by email at <a href="mailto:teams@coreflowhr.com" className="text-black hover:underline">teams@coreflowhr.com</a>, or by mail to our registered office.
+                    You can contact us by email at <a href="mailto:teams@coreflowhr.com" className="text-gray-900 hover:underline">teams@coreflowhr.com</a>, or by mail to our registered office.
                   </p>
                   <p>
                     These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ('you'), 
@@ -341,14 +341,14 @@ const TermsOfService: React.FC = () => {
                   <div>
                     <h3 className="text-xl font-semibold mb-2">Cancellation</h3>
                     <p>
-                      You can cancel your subscription at any time by contacting us at <a href="mailto:team@coreflowhr.com" className="text-black hover:underline">team@coreflowhr.com</a>. Your cancellation will
+                      You can cancel your subscription at any time by contacting us at <a href="mailto:team@coreflowhr.com" className="text-gray-900 hover:underline">team@coreflowhr.com</a>. Your cancellation will
                       take effect at the end of the current paid term, and you will not be charged again.
                     </p>
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold mb-2">14-Day Money-Back Guarantee</h3>
                     <p>
-                      If CoreflowHR does not meet your needs within 14 days of your first payment, contact us at <a href="mailto:team@coreflowhr.com" className="text-black hover:underline">team@coreflowhr.com</a> for
+                      If CoreflowHR does not meet your needs within 14 days of your first payment, contact us at <a href="mailto:team@coreflowhr.com" className="text-gray-900 hover:underline">team@coreflowhr.com</a> for
                       a full refund — no questions asked. Refund requests made after 14 days of the initial purchase are not eligible.
                     </p>
                   </div>

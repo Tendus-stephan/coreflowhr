@@ -169,7 +169,7 @@ export const SendSchedulingLinkModal: React.FC<Props> = ({
                                     value={dateRangeStart}
                                     min={today()}
                                     onChange={(e) => setDateRangeStart(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                 />
                             </div>
                             <div>
@@ -178,7 +178,7 @@ export const SendSchedulingLinkModal: React.FC<Props> = ({
                                     value={dateRangeEnd}
                                     min={dateRangeStart || today()}
                                     onChange={(e) => setDateRangeEnd(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                 />
                             </div>
                         </div>
@@ -194,7 +194,7 @@ export const SendSchedulingLinkModal: React.FC<Props> = ({
                                     type="time"
                                     value={hoursStart}
                                     onChange={(e) => setHoursStart(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                 />
                             </div>
                             <div>
@@ -203,7 +203,7 @@ export const SendSchedulingLinkModal: React.FC<Props> = ({
                                     type="time"
                                     value={hoursEnd}
                                     onChange={(e) => setHoursEnd(e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                 />
                             </div>
                         </div>
@@ -236,7 +236,7 @@ export const SendSchedulingLinkModal: React.FC<Props> = ({
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder={`Hi ${candidate.name.split(' ')[0]}, please pick a time that works for you.`}
-                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black resize-none"
+                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 resize-none"
                         />
                     </div>
                 </div>

@@ -152,7 +152,7 @@ const SignUp: React.FC = () => {
           {inviteEmailLocked ? 'Join your team' : 'Create your account'}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or <Link to={loginPath} className="font-semibold text-black hover:underline transition-all">Sign in</Link>
+          Or <Link to={loginPath} className="font-semibold text-gray-900 hover:underline transition-all">Sign in</Link>
         </p>
       </div>
 
@@ -311,9 +311,9 @@ const SignUp: React.FC = () => {
             </div>
 
             <div className="flex items-center">
-                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-black focus:ring-0 focus:ring-offset-0 focus:outline-none bg-white" required />
+                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-gray-900 focus:ring-0 focus:ring-offset-0 focus:outline-none bg-white" required />
                 <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
-                    I agree to the <Link to="/terms" className="text-black font-medium hover:underline">Terms</Link> and <Link to="/privacy" className="text-black font-medium hover:underline">Privacy Policy</Link>
+                    I agree to the <Link to="/terms" className="text-gray-900 font-medium hover:underline">Terms</Link> and <Link to="/privacy" className="text-gray-900 font-medium hover:underline">Privacy Policy</Link>
                 </label>
             </div>
 

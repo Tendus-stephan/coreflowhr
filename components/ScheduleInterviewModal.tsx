@@ -593,7 +593,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     <input 
                                         type="text" 
                                         placeholder="Search by name or email..." 
-                                        className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                        className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                         autoFocus
@@ -629,7 +629,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 type="date" 
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black" 
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900" 
                             />
                         </div>
                         <div className="space-y-2">
@@ -643,7 +643,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                 type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                             />
                         </div>
                     </div>
@@ -737,7 +737,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                         }
                                     }}
                                     readOnly={integrations.length > 0}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black text-gray-600" 
+                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 text-gray-600" 
                                 />
                             </div>
                             )}
@@ -771,7 +771,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                                     placeholder="Enter interview address..."
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-black"
+                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                                 />
                             </div>
                         </div>
@@ -779,7 +779,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
                     {/* Template status banner — sits below the last field in the scroll area */}
                     {templateExists === true && !usedFallback && (
-                        <div className="border border-gray-100 border-l-[3px] border-l-green-600 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-success.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
                                 {isImported ? '"Interview – Sourced" template active.' : 'Interview template active.'}
@@ -787,7 +787,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         </div>
                     )}
                     {templateExists === true && usedFallback && (
-                        <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
                                 No sourced template — falling back to standard.{' '}
@@ -798,7 +798,7 @@ export const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                         </div>
                     )}
                     {templateExists === false && (
-                        <div className="border border-gray-100 border-l-[3px] border-l-amber-500 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
                             <img src="/assets/images/toast-warning.png" alt="" className="w-5 h-5 flex-shrink-0 object-contain" />
                             <p className="text-[13px] text-gray-700 leading-snug">
                                 {isImported

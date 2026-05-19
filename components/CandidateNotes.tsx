@@ -164,7 +164,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                         value={newNoteContent}
                         onChange={(e) => setNewNoteContent(e.target.value)}
                         placeholder="Write a note about this candidate..."
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all resize-none"
                         rows={4}
                         autoFocus
                     />
@@ -210,7 +210,7 @@ export const CandidateNotes: React.FC<CandidateNotesProps> = ({ candidateId }) =
                                 <textarea
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-black/5 focus:border-gray-900 outline-none transition-all resize-none"
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all resize-none"
                                     rows={4}
                                     autoFocus
                                 />
