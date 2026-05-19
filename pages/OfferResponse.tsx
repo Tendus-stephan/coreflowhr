@@ -97,6 +97,7 @@ const OfferResponse: React.FC = () => {
     const [bannerColor, setBannerColor] = useState<string | null>(null);
     const [candidateName, setCandidateName] = useState<string>('');
     const [showCounterOffer, setShowCounterOffer] = useState(false);
+    const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
 
     // Counter offer form state
     const [counterSalary, setCounterSalary] = useState<string>('');
@@ -355,7 +356,7 @@ const OfferResponse: React.FC = () => {
                         {/* Salary */}
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Salary</label>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                 <input
                                     type="number"
                                     value={counterSalary}
@@ -456,7 +457,7 @@ const OfferResponse: React.FC = () => {
                         <button
                             onClick={handleCounterOffer}
                             disabled={submitting}
-                            className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-gray-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             {submitting ? (
                                 <>
@@ -627,21 +628,52 @@ const OfferResponse: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Accept — full width primary */}
-                            <button
-                                onClick={handleAccept}
-                                disabled={submitting}
-                                className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Processing…
-                                    </>
-                                ) : (
-                                    <>Accept offer <ArrowRight size={14} /></>
-                                )}
-                            </button>
+                            {/* Accept — two-step confirmation */}
+                            {showAcceptConfirm ? (
+                                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Confirm acceptance</p>
+                                        <p className="text-sm text-gray-700 mt-1 font-medium">{offer.positionTitle}</p>
+                                        {offer.salaryAmount && (
+                                            <p className="text-xs text-gray-500 mt-0.5">{formatSalary(offer.salaryAmount, offer.salaryCurrency, offer.salaryPeriod)}</p>
+                                        )}
+                                        {offer.startDate && (
+                                            <p className="text-xs text-gray-500 mt-0.5">Starting {format(new Date(offer.startDate), 'MMMM d, yyyy')}</p>
+                                        )}
+                                    </div>
+                                    <div className="px-4 py-3 flex gap-2">
+                                        <button
+                                            onClick={handleAccept}
+                                            disabled={submitting}
+                                            className="flex-1 h-10 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 active:bg-gray-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {submitting ? (
+                                                <>
+                                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    Processing…
+                                                </>
+                                            ) : (
+                                                'Confirm'
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowAcceptConfirm(false)}
+                                            disabled={submitting}
+                                            className="h-10 px-4 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAcceptConfirm(true)}
+                                    disabled={submitting}
+                                    className="w-full h-11 flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:bg-gray-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Accept offer <ArrowRight size={14} />
+                                </button>
+                            )}
 
                             {/* Counter offer — full width ghost */}
                             <button

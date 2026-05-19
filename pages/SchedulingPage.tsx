@@ -6,6 +6,17 @@ import { format, addDays, parseISO, isBefore, isAfter, startOfDay } from 'date-f
 import { Check, AlertCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { darkenHex } from '../utils/colorUtils';
 
+// Detect candidate's local timezone abbreviation (e.g. "BST", "EST", "PST")
+function getTzAbbr(): string | null {
+    try {
+        return new Intl.DateTimeFormat('en', { timeZoneName: 'short' })
+            .formatToParts(new Date())
+            .find(p => p.type === 'timeZoneName')?.value ?? null;
+    } catch {
+        return null;
+    }
+}
+
 // ── Shell (same pattern as OfferResponse) ─────────────────────────────────────
 const DEFAULT_BANNER = '#1e3a5f';
 const buildGradient = (color: string) =>
@@ -174,6 +185,8 @@ const SchedulingPage: React.FC = () => {
     const [weekOffset, setWeekOffset] = useState(0);
     const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+    const tzAbbr = useMemo(() => getTzAbbr(), []);
+
     useEffect(() => {
         if (!token) {
             setError('Invalid link');
@@ -333,7 +346,7 @@ const SchedulingPage: React.FC = () => {
                     </div>
                     <h2 className="text-lg font-bold text-gray-900 mb-1">Interview booked</h2>
                     <p className="text-sm text-gray-500">
-                        {format(new Date(selectedSlot), 'EEEE, MMMM d · h:mm a')} · {linkData.durationMinutes} min
+                        {format(new Date(selectedSlot), 'EEEE, MMMM d · h:mm a')}{tzAbbr ? ` ${tzAbbr}` : ''} · {linkData.durationMinutes} min
                     </p>
                     <p className="text-xs text-gray-400 mt-2">A confirmation email has been sent to {email}</p>
                 </div>
@@ -353,6 +366,7 @@ const SchedulingPage: React.FC = () => {
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
                         {linkData.durationMinutes} min · Select a time that works for you
+                        {tzAbbr && <span className="ml-1 text-gray-400">· {tzAbbr}</span>}
                     </p>
                     {linkData.message && (
                         <p className="text-sm text-gray-600 mt-2 italic">"{linkData.message}"</p>
@@ -386,7 +400,8 @@ const SchedulingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(weekDays.length, 7)}, 1fr)` }}>
+                        <div className="overflow-x-auto -mx-1 px-1 pb-0.5">
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(weekDays.length, 7)}, minmax(40px, 1fr))`, minWidth: `${Math.min(weekDays.length, 7) * 48}px` }}>
                             {weekDays.map((day) => {
                                 const dateStr = format(day, 'yyyy-MM-dd');
                                 const hasSlots = slotMap.has(dateStr);
@@ -415,6 +430,7 @@ const SchedulingPage: React.FC = () => {
                                 );
                             })}
                         </div>
+                        </div>
                     </div>
 
                     {/* Slot list */}
@@ -426,7 +442,7 @@ const SchedulingPage: React.FC = () => {
                             {selectedDaySlots.length === 0 ? (
                                 <p className="text-sm text-gray-400">No available slots for this day.</p>
                             ) : (
-                                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                                     {selectedDaySlots.map((slot) => {
                                         const isChosen = selectedSlot === slot;
                                         return (
