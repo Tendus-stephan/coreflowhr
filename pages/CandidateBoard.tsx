@@ -19,7 +19,7 @@ import { api, Notification } from '../services/api';
 import { supabase } from '../services/supabase';
 import { toUserError } from '../utils/edgeFunctionError';
 import { sendSlackNotification, buildCandidateStagedBlocks } from '../services/slack';
-import { CoachMarkIfUnseen } from '../components/CoachMark';
+import { CoachMarkQueue } from '../components/CoachMark';
 import { loadSeenMarks } from '../utils/coachMarks';
 
 // ── Import History ────────────────────────────────────────────────────────────
@@ -1251,9 +1251,9 @@ const CandidateBoard: React.FC = () => {
             >
                 {/* Board-level empty state — shown when no candidates exist at all */}
                 {!loading && candidates.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        <div className="flex flex-col items-center gap-3 text-center pointer-events-auto">
-                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-3 text-center">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
                                 <Users size={20} className="text-gray-300" />
                             </div>
                             <div>
@@ -1271,6 +1271,7 @@ const CandidateBoard: React.FC = () => {
                         </div>
                     </div>
                 )}
+                {(loading || candidates.length > 0) && (
                 <div className="flex gap-4 w-max snap-x snap-mandatory pb-6" style={{ height: '100%' }}>
                     <div ref={firstColRef} className="flex-shrink-0">
                         <PipelineColumn title="Waitlist" stage={CandidateStage.NEW} candidates={getCandidatesByStage(CandidateStage.NEW)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
@@ -1296,6 +1297,7 @@ const CandidateBoard: React.FC = () => {
                     <PipelineColumn title="Rejected" stage={CandidateStage.REJECTED} candidates={getCandidatesByStage(CandidateStage.REJECTED)} onSelectCandidate={setSelectedCandidate} onDropCandidate={isViewer ? undefined : handleDropCandidate} isValidDropTarget={isValidStageTransition} jobRequiredSkills={selectedJob !== 'all' ? jobs.find(j => j.id === selectedJob)?.skills : undefined} readOnly={isViewer} poolJobId={poolJobId ?? undefined}
                         onDeleteCandidate={!canDelete ? undefined : (id) => { const c = candidates.find(x => x.id === id); if (c) setPendingAction({ type: 'delete', candidateId: id, candidateName: c.name }); }} fixingEmails={fixingEmails} />
                 </div>
+                )}
             </div>
 
             {/* List View */}
@@ -1535,30 +1537,13 @@ const CandidateBoard: React.FC = () => {
                 document.body
             )}
 
-            {/* Coach marks — only after loadSeenMarks() resolves */}
+            {/* Coach marks — only after loadSeenMarks() resolves; shown one at a time */}
             {coachMarksReady && (
-                <>
-                    <CoachMarkIfUnseen
-                        markId="pipeline-columns"
-                        targetRef={firstColRef as RefObject<HTMLElement>}
-                        text="Drag candidates between columns to move them through your hiring stages"
-                        side="bottom"
-                    />
-                    <CoachMarkIfUnseen
-                        markId="upload-cvs"
-                        targetRef={uploadBtnRef as RefObject<HTMLElement>}
-                        text="Bulk upload CVs — AI parses and scores each candidate automatically"
-                        side="bottom"
-                    />
-                    {metrics.avgScore > 0 && (
-                        <CoachMarkIfUnseen
-                            markId="ai-score"
-                            targetRef={scoreChipRef as RefObject<HTMLElement>}
-                            text="AI scores candidates 1–100 against the job. Click a card to see the full reasoning"
-                            side="bottom"
-                        />
-                    )}
-                </>
+                <CoachMarkQueue marks={[
+                    { markId: 'pipeline-columns', targetRef: firstColRef as RefObject<HTMLElement>, text: 'Drag candidates between columns to move them through your hiring stages', side: 'bottom' },
+                    { markId: 'upload-cvs', targetRef: uploadBtnRef as RefObject<HTMLElement>, text: 'Bulk upload CVs — AI parses and scores each candidate automatically', side: 'bottom' },
+                    ...(metrics.avgScore > 0 ? [{ markId: 'ai-score', targetRef: scoreChipRef as RefObject<HTMLElement>, text: 'AI scores candidates 1–100 against the job. Click a card to see the full reasoning', side: 'bottom' as const }] : []),
+                ]} />
             )}
         </div>
     );

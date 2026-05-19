@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { isMarkSeen, dismissMark } from '../utils/coachMarks';
 
-interface CoachMarkProps {
+export interface CoachMarkProps {
   markId: string;
   targetRef: RefObject<HTMLElement>;
   text: string;
   side?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
+  onDismiss?: () => void;
 }
 
 interface Position {
@@ -21,6 +22,7 @@ const CoachMark: React.FC<CoachMarkProps> = ({
   text,
   side = 'bottom',
   delay = 500,
+  onDismiss,
 }) => {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState<Position>({ top: 0, left: 0 });
@@ -76,6 +78,7 @@ const CoachMark: React.FC<CoachMarkProps> = ({
     setDismissed(true);
     setVisible(false);
     dismissMark(markId);
+    onDismiss?.();
   };
 
   if (dismissed || !visible) return null;
@@ -123,4 +126,26 @@ export default CoachMark;
 export function CoachMarkIfUnseen(props: CoachMarkProps) {
   if (isMarkSeen(props.markId)) return null;
   return <CoachMark {...props} />;
+}
+
+/**
+ * Shows coach marks one at a time in order.
+ * Filters already-seen marks on mount, then advances to the next
+ * after a 500ms delay when the current one is dismissed.
+ */
+export function CoachMarkQueue({ marks }: { marks: Omit<CoachMarkProps, 'onDismiss'>[] }) {
+  const queueRef = useRef(marks.filter(m => !isMarkSeen(m.markId)));
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const activeMark = queueRef.current[activeIndex];
+  if (!activeMark) return null;
+
+  return (
+    <CoachMark
+      key={activeMark.markId}
+      {...activeMark}
+      delay={activeIndex === 0 ? (activeMark.delay ?? 500) : 0}
+      onDismiss={() => setTimeout(() => setActiveIndex(i => i + 1), 500)}
+    />
+  );
 }
