@@ -45,24 +45,29 @@ ALTER TABLE email_workflows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workflow_executions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for email_workflows
+DROP POLICY IF EXISTS "Users can view their own workflows" ON email_workflows;
 CREATE POLICY "Users can view their own workflows"
     ON email_workflows FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own workflows" ON email_workflows;
 CREATE POLICY "Users can create their own workflows"
     ON email_workflows FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own workflows" ON email_workflows;
 CREATE POLICY "Users can update their own workflows"
     ON email_workflows FOR UPDATE
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own workflows" ON email_workflows;
 CREATE POLICY "Users can delete their own workflows"
     ON email_workflows FOR DELETE
     USING (auth.uid() = user_id);
 
 -- RLS Policies for workflow_executions
+DROP POLICY IF EXISTS "Users can view executions for their workflows" ON workflow_executions;
 CREATE POLICY "Users can view executions for their workflows"
     ON workflow_executions FOR SELECT
     USING (
@@ -73,6 +78,7 @@ CREATE POLICY "Users can view executions for their workflows"
         )
     );
 
+DROP POLICY IF EXISTS "Users can create executions for their workflows" ON workflow_executions;
 CREATE POLICY "Users can create executions for their workflows"
     ON workflow_executions FOR INSERT
     WITH CHECK (
@@ -83,6 +89,7 @@ CREATE POLICY "Users can create executions for their workflows"
         )
     );
 
+DROP POLICY IF EXISTS "Users can update executions for their workflows" ON workflow_executions;
 CREATE POLICY "Users can update executions for their workflows"
     ON workflow_executions FOR UPDATE
     USING (
@@ -110,6 +117,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to automatically update updated_at
+DROP TRIGGER IF EXISTS update_email_workflows_updated_at ON email_workflows;
 CREATE TRIGGER update_email_workflows_updated_at
     BEFORE UPDATE ON email_workflows
     FOR EACH ROW
@@ -176,6 +184,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to create default workflows when templates are created
+DROP TRIGGER IF EXISTS create_default_workflow_after_template ON email_templates;
 CREATE TRIGGER create_default_workflow_after_template
     AFTER INSERT ON email_templates
     FOR EACH ROW

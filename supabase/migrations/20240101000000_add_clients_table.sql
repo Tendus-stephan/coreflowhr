@@ -28,21 +28,25 @@ CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id);
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Users can only see their own clients
+DROP POLICY IF EXISTS "Users can view their own clients" ON clients;
 CREATE POLICY "Users can view their own clients"
   ON clients FOR SELECT
   USING (auth.uid() = user_id);
 
 -- RLS Policy: Users can insert their own clients
+DROP POLICY IF EXISTS "Users can insert their own clients" ON clients;
 CREATE POLICY "Users can insert their own clients"
   ON clients FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- RLS Policy: Users can update their own clients
+DROP POLICY IF EXISTS "Users can update their own clients" ON clients;
 CREATE POLICY "Users can update their own clients"
   ON clients FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- RLS Policy: Users can delete their own clients
+DROP POLICY IF EXISTS "Users can delete their own clients" ON clients;
 CREATE POLICY "Users can delete their own clients"
   ON clients FOR DELETE
   USING (auth.uid() = user_id);
@@ -57,6 +61,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
 CREATE TRIGGER update_clients_updated_at
   BEFORE UPDATE ON clients
   FOR EACH ROW

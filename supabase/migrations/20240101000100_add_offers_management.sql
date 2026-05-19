@@ -52,19 +52,23 @@ CREATE INDEX IF NOT EXISTS idx_offer_templates_user_id ON offer_templates(user_i
 -- RLS Policies for offers
 ALTER TABLE offers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their offers" ON offers;
 CREATE POLICY "Users can view their offers"
     ON offers FOR SELECT
     USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can create their offers" ON offers;
 CREATE POLICY "Users can create their offers"
     ON offers FOR INSERT
     WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their offers" ON offers;
 CREATE POLICY "Users can update their offers"
     ON offers FOR UPDATE
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their offers" ON offers;
 CREATE POLICY "Users can delete their offers"
     ON offers FOR DELETE
     USING (user_id = auth.uid());
@@ -72,19 +76,23 @@ CREATE POLICY "Users can delete their offers"
 -- RLS Policies for offer_templates
 ALTER TABLE offer_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their offer templates" ON offer_templates;
 CREATE POLICY "Users can view their offer templates"
     ON offer_templates FOR SELECT
     USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can create their offer templates" ON offer_templates;
 CREATE POLICY "Users can create their offer templates"
     ON offer_templates FOR INSERT
     WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their offer templates" ON offer_templates;
 CREATE POLICY "Users can update their offer templates"
     ON offer_templates FOR UPDATE
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their offer templates" ON offer_templates;
 CREATE POLICY "Users can delete their offer templates"
     ON offer_templates FOR DELETE
     USING (user_id = auth.uid());
@@ -99,6 +107,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to automatically update updated_at for offers
+DROP TRIGGER IF EXISTS update_offers_updated_at ON offers;
 CREATE TRIGGER update_offers_updated_at
     BEFORE UPDATE ON offers
     FOR EACH ROW
@@ -114,6 +123,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to automatically update updated_at for offer_templates
+DROP TRIGGER IF EXISTS update_offer_templates_updated_at ON offer_templates;
 CREATE TRIGGER update_offer_templates_updated_at
     BEFORE UPDATE ON offer_templates
     FOR EACH ROW

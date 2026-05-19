@@ -21,6 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_user_credits_expires ON public.user_credits(expir
 ALTER TABLE public.user_credits ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Users can view their own credits
+DROP POLICY IF EXISTS "Users can view their own credits" ON public.user_credits;
 CREATE POLICY "Users can view their own credits"
     ON public.user_credits FOR SELECT
     USING (auth.uid() = user_id);

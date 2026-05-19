@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.scrape_metrics (
 
 ALTER TABLE public.scrape_metrics ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own metrics" ON public.scrape_metrics;
 CREATE POLICY "Users can read own metrics"
   ON public.scrape_metrics FOR SELECT
   USING (auth.uid() = user_id);
