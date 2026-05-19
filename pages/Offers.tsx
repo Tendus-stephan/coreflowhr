@@ -78,6 +78,7 @@ interface RowMenuProps {
     offer: Offer;
     expired: boolean;
     onView: () => void;
+    onSend?: () => void;
     onArchive: () => void;
     onUnarchive: () => void;
     onDownload?: () => void;
@@ -85,7 +86,7 @@ interface RowMenuProps {
     onDeclineCounter?: () => void;
     onNegotiateCounter?: () => void;
 }
-function RowMenu({ offer, expired, onView, onArchive, onUnarchive, onDownload, onAcceptCounter, onDeclineCounter, onNegotiateCounter }: RowMenuProps) {
+function RowMenu({ offer, expired, onView, onSend, onArchive, onUnarchive, onDownload, onAcceptCounter, onDeclineCounter, onNegotiateCounter }: RowMenuProps) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -121,6 +122,7 @@ function RowMenu({ offer, expired, onView, onArchive, onUnarchive, onDownload, o
             {open && (
                 <div className="absolute right-0 top-8 z-30 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 flex flex-col">
                     {item('View / Edit', onView)}
+                    {onSend && item('Send offer', onSend)}
                     {offer.status === 'signed' && onDownload && item('Download signed', onDownload)}
                     {hasCounter && onAcceptCounter && item('Accept counter offer', onAcceptCounter)}
                     {hasCounter && onNegotiateCounter && item('Negotiate counter', onNegotiateCounter)}
@@ -141,6 +143,26 @@ function formatSalary(offer: Offer) {
     const sym = offer.salaryCurrency === 'USD' ? '$' : offer.salaryCurrency === 'EUR' ? '€' : offer.salaryCurrency === 'GBP' ? '£' : offer.salaryCurrency;
     const period = offer.salaryPeriod === 'yearly' ? '/yr' : offer.salaryPeriod === 'monthly' ? '/mo' : '/hr';
     return `${sym}${Math.round(offer.salaryAmount).toLocaleString()}${period}`;
+}
+
+// ── Urgency-aware expiry cell ─────────────────────────────────────────────────
+function ExpiryCell({ expiresAt }: { expiresAt?: string }) {
+    if (!expiresAt) return <span className="text-[13px] text-gray-400">—</span>;
+    const diffDays = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+    const label = format(new Date(expiresAt), 'MMM d, yyyy');
+    if (diffDays <= 2) return (
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-red-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+            {label}
+        </span>
+    );
+    if (diffDays <= 7) return (
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-amber-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+            {label}
+        </span>
+    );
+    return <span className="text-[13px] text-gray-500">{label}</span>;
 }
 
 // ── Pagination helper ─────────────────────────────────────────────────────────
@@ -169,7 +191,7 @@ const Offers: React.FC = () => {
     const [filteredOffers, setFilteredOffers] = useState<Offer[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<Offer['status'] | 'all' | 'expired' | 'archived'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'live' | 'closed' | 'archived'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -205,10 +227,12 @@ const Offers: React.FC = () => {
             filtered = filtered.filter(o => o.archived);
         } else if (statusFilter === 'all') {
             filtered = filtered.filter(o => !o.archived);
-        } else if (statusFilter === 'expired') {
-            filtered = filtered.filter(o => !o.archived && (o.status === 'expired' || isOfferExpired(o)));
-        } else {
-            filtered = filtered.filter(o => o.status === statusFilter && !o.archived && !isOfferExpired(o));
+        } else if (statusFilter === 'draft') {
+            filtered = filtered.filter(o => !o.archived && ['draft', 'pending_approval'].includes(o.status));
+        } else if (statusFilter === 'live') {
+            filtered = filtered.filter(o => !o.archived && !isOfferExpired(o) && ['sent', 'viewed', 'awaiting_response', 'awaiting_signature', 'negotiating'].includes(o.status));
+        } else if (statusFilter === 'closed') {
+            filtered = filtered.filter(o => !o.archived && (['accepted', 'signed', 'declined', 'expired'].includes(o.status) || isOfferExpired(o)));
         }
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
@@ -258,6 +282,8 @@ const Offers: React.FC = () => {
         if (sendingOfferId) return;
         if (!offer.candidateId) { toast.error('Cannot send a general offer. Please link it to a candidate first.'); return; }
         if (offer.requiresApproval && offer.approvalStatus !== 'approved') { setEditingOffer(offer); setIsModalOpen(true); return; }
+        const ok = await confirm({ title: 'Send this offer?', description: 'This will email the offer to the candidate. Once sent it cannot be unsent.', confirmLabel: 'Send offer' });
+        if (!ok) return;
         try {
             setSendingOfferId(offer.id);
             await api.offers.send(offer.id);
@@ -317,30 +343,20 @@ const Offers: React.FC = () => {
         } catch (err: any) { toast.error(err.message || 'Failed to load signed document'); }
     };
 
-    const statusTabs: Array<{ value: Offer['status'] | 'all' | 'expired' | 'archived'; label: string }> = [
-        { value: 'all',                label: 'All' },
-        { value: 'draft',              label: 'Draft' },
-        { value: 'pending_approval',   label: 'Awaiting approval' },
-        { value: 'awaiting_response',  label: 'Awaiting response' },
-        { value: 'sent',               label: 'Sent' },
-        { value: 'awaiting_signature', label: 'Awaiting signature' },
-        { value: 'negotiating',        label: 'Negotiating' },
-        { value: 'accepted',           label: 'Accepted' },
-        { value: 'declined',           label: 'Declined' },
-        { value: 'expired',            label: 'Expired' },
-        { value: 'archived',           label: 'Archived' },
+    const statusTabs: Array<{ value: 'all' | 'draft' | 'live' | 'closed' | 'archived'; label: string }> = [
+        { value: 'all',      label: 'All' },
+        { value: 'draft',    label: 'Draft' },
+        { value: 'live',     label: 'Live' },
+        { value: 'closed',   label: 'Closed' },
+        { value: 'archived', label: 'Archived' },
     ];
 
     const tabCounts: Record<string, number> = {
-        all: offers.filter(o => !o.archived).length,
-        ...Object.fromEntries(statusTabs.slice(1).map(t => [
-            t.value,
-            t.value === 'archived'
-                ? offers.filter(o => o.archived).length
-                : t.value === 'expired'
-                ? offers.filter(o => !o.archived && (o.status === 'expired' || isOfferExpired(o))).length
-                : offers.filter(o => o.status === t.value && !o.archived && !isOfferExpired(o)).length
-        ]))
+        all:      offers.filter(o => !o.archived).length,
+        draft:    offers.filter(o => !o.archived && ['draft', 'pending_approval'].includes(o.status)).length,
+        live:     offers.filter(o => !o.archived && !isOfferExpired(o) && ['sent', 'viewed', 'awaiting_response', 'awaiting_signature', 'negotiating'].includes(o.status)).length,
+        closed:   offers.filter(o => !o.archived && (['accepted', 'signed', 'declined', 'expired'].includes(o.status) || isOfferExpired(o))).length,
+        archived: offers.filter(o => o.archived).length,
     };
 
     const totalPages = Math.ceil(filteredOffers.length / ITEMS_PER_PAGE);
@@ -392,7 +408,7 @@ const Offers: React.FC = () => {
                     {statusTabs.map(tab => (
                         <button
                             key={tab.value}
-                            onClick={() => { setStatusFilter(tab.value as any); setCurrentPage(1); }}
+                            onClick={() => { setStatusFilter(tab.value); setCurrentPage(1); }}
                             className={`flex-shrink-0 px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                                 statusFilter === tab.value
                                     ? 'border-gray-900 text-gray-900'
@@ -451,6 +467,10 @@ const Offers: React.FC = () => {
                                 const candidateName = offer.candidateId ? candidateMap.get(offer.candidateId) ?? '—' : 'General Offer';
                                 const jmeta = jobMap.get(offer.jobId);
                                 const clientDept = [jmeta?.company, jmeta?.department].filter(Boolean).join(' · ');
+                                const canSend = !expired && (
+                                    (offer.status === 'draft' && !offer.requiresApproval) ||
+                                    (offer.status === 'pending_approval' && offer.approvalStatus === 'approved')
+                                );
 
                                 return (
                                     <div
@@ -477,9 +497,7 @@ const Offers: React.FC = () => {
                                         </p>
 
                                         {/* Expiry */}
-                                        <p className="text-[13px] text-gray-500">
-                                            {offer.expiresAt ? format(new Date(offer.expiresAt), 'MMM d, yyyy') : '—'}
-                                        </p>
+                                        <div><ExpiryCell expiresAt={offer.expiresAt} /></div>
 
                                         {/* Actions */}
                                         <div onClick={e => e.stopPropagation()}>
@@ -487,6 +505,7 @@ const Offers: React.FC = () => {
                                                 offer={offer}
                                                 expired={expired}
                                                 onView={() => handleEdit(offer)}
+                                                onSend={canSend ? () => handleSend(offer) : undefined}
                                                 onArchive={() => handleArchive(offer)}
                                                 onUnarchive={() => handleUnarchive(offer)}
                                                 onDownload={offer.status === 'signed' ? () => handleDownloadSigned(offer) : undefined}
