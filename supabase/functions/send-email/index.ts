@@ -153,7 +153,7 @@ serve(async (req) => {
     const windowMinutes = 60;
 
     // Check rate limit using Supabase RPC
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const { createClient } = await import('npm:@supabase/supabase-js@2');
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     
@@ -222,7 +222,7 @@ serve(async (req) => {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
         if (supabaseServiceKey) {
-          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+          const { createClient } = await import('npm:@supabase/supabase-js@2');
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           const { data: lastLog } = await supabase
             .from('email_logs')
@@ -349,7 +349,7 @@ serve(async (req) => {
         const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
         if (supabaseServiceKey) {
-          const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+          const { createClient } = await import('npm:@supabase/supabase-js@2');
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           const { data: parentLog } = await supabase
             .from('email_logs')
@@ -462,7 +462,7 @@ serve(async (req) => {
                 recipient: finalRecipient,
               });
             } else {
-              const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+              const { createClient } = await import('npm:@supabase/supabase-js@2');
               const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
               // Insert email log using service role (bypasses RLS)
@@ -548,7 +548,7 @@ serve(async (req) => {
     try {
       const sentryDsn = Deno.env.get('SENTRY_DSN');
       if (sentryDsn) {
-        const sentry = await import('https://esm.sh/@sentry/node@10.35.0');
+        const sentry = await import('npm:@sentry/node@10.35.0');
         sentry.init({ dsn: sentryDsn, environment: Deno.env.get('ENVIRONMENT') || 'production' });
         sentry.captureException(error);
         await sentry.flush(2000);

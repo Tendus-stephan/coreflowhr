@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { encodeBase64 } from 'https://deno.land/std@0.208.0/encoding/base64.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { PDFDocument, StandardFonts, rgb, RGB } from 'npm:pdf-lib@1.17.1';
 
 const corsHeaders = {
