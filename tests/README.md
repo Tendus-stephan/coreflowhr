@@ -1,185 +1,138 @@
-# CoreFlow Test Suite
+# CoreflowHR Test Suite
 
-## Overview
-
-This test suite provides comprehensive testing for the CoreFlow application, ensuring security, reliability, and production-readiness.
-
-## Test Structure
+## Structure
 
 ```
 tests/
-├── setup.ts                    # Test configuration and mocks
-├── TEST_PLAN.md                # Comprehensive test plan
-├── api.security.test.ts        # Security and authorization tests
-├── offers.test.ts              # Offer management tests
-├── workflow-engine.test.ts     # Workflow engine tests
-├── candidate-stages.test.ts    # Candidate stage transition tests
-├── job-management.test.ts      # Job closing/deletion tests
-├── activity-logging.test.ts    # Activity logging tests
-├── race-conditions.test.ts     # Race condition and deadlock tests
-└── integration.test.ts         # End-to-end integration tests
+├── unit/              Vitest unit tests — pure functions, no network
+├── e2e/               Playwright E2E tests — full browser flows
+├── visual/            Playwright visual regression snapshots
+├── fixtures/          Shared test data (test-data.ts)
+├── helpers/           Shared helpers (auth, api, mail, webhook)
+├── setup.ts           Vitest global setup (Supabase mock)
+└── *.test.ts          Existing integration/security tests (260 passing)
+
+Also at repo root:
+  playwright.config.ts   Playwright configuration
+  vitest.config.ts       Vitest configuration
+  test-checklist.html    Manual QA checklist (open in browser)
+  test-results/          All test output (gitignored)
 ```
 
 ## Running Tests
 
-### Run All Tests
 ```bash
-npm test
+# Unit tests only (fast, no browser)
+npm run test:unit
+
+# All Vitest tests (unit + integration)
+npm run test:run
+
+# E2E headless (Chrome + Firefox + Safari)
+npm run test:e2e
+
+# E2E with visible browser (for debugging)
+npm run test:e2e:headed
+
+# E2E debug mode (pauses on each step)
+npm run test:e2e:debug
+
+# Visual regression (must set CI_VISUAL=1)
+CI_VISUAL=1 npm run test:visual
+
+# Update visual baselines after intentional UI changes
+CI_VISUAL=1 npm run test:visual:update
+
+# Full suite: unit → E2E
+npm run test:all
+
+# Open the last HTML report
+npm run test:report
 ```
 
-### Run Tests in Watch Mode
+## Adding New Tests
+
+### Unit test
+1. Create `tests/unit/my-feature.test.ts`
+2. Import the function under test from `../../utils/` or `../../services/`
+3. Use `describe` + `it` + `expect` from `vitest`
+4. Run: `npm run test:unit`
+
+### E2E test
+1. Create `tests/e2e/my-flow.spec.ts`
+2. Import `{ test, expect }` from `@playwright/test`
+3. Import helpers from `../helpers/auth.helper`
+4. Import fixture data from `../fixtures/test-data`
+5. Run: `npm run test:e2e:headed` to develop interactively
+
+### Visual regression
+1. Add a `test` block in `tests/visual/snapshots.spec.ts`
+2. Call `await expect(page).toHaveScreenshot('name.png', { maxDiffPixelRatio: 0.02 })`
+3. Run `CI_VISUAL=1 npm run test:visual:update` to generate the baseline
+4. Commit the `.png` snapshot files in `tests/visual/snapshots/`
+
+## Updating Visual Baselines
+
+After an intentional UI change (e.g. redesign, impeccable pass):
+
 ```bash
-npm test -- --watch
+CI_VISUAL=1 npm run test:visual:update
+git add tests/visual/snapshots/
+git commit -m "chore: update visual regression baselines"
 ```
 
-### Run Tests with UI
+## Debugging a Failing Test
+
+### Unit test failure
 ```bash
-npm run test:ui
+npm run test:unit -- --reporter=verbose
 ```
+Add `console.log` temporarily if needed. Unit tests are fast to iterate on.
 
-### Run Tests with Coverage
+### E2E test failure
 ```bash
-npm run test:coverage
+npm run test:e2e:debug
 ```
+Opens Playwright Inspector. Step through actions one at a time. Screenshots and videos are saved to `test-results/e2e-artifacts/` on failure.
 
-### Run Specific Test File
 ```bash
-npm test tests/offers.test.ts
+npm run test:report
+```
+Opens the HTML report with screenshots, videos, and traces for every failed test.
+
+### Visual regression failure
+A diff image is saved alongside the baseline. Open it to see exactly which pixels changed. If the change is intentional, run `test:visual:update`.
+
+## Interpreting CI Reports
+
+After `npm run test:e2e`, the HTML report is at `test-results/playwright-report/index.html`. In CI it's uploaded as a GitHub Actions artifact (14-day retention).
+
+- **Green** — passed
+- **Red** — failed (screenshot + video attached)
+- **Amber** — passed on retry (investigate flakiness)
+
+## Environment Variables for E2E
+
+```env
+PLAYWRIGHT_BASE_URL=http://localhost:5173
+VITE_SUPABASE_URL=https://...
+VITE_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...       # for test data seeding
+TEST_ADMIN_EMAIL=...
+TEST_ADMIN_PASSWORD=...
+TEST_RECRUITER_EMAIL=...
+TEST_RECRUITER_PASSWORD=...
+MAILPIT_URL=http://localhost:8025   # for email delivery tests
 ```
 
-### Run Tests Matching Pattern
-```bash
-npm test -- -t "offer acceptance"
-```
+Set locally in `.env.test.local`. In CI, add as GitHub Actions secrets.
 
-## Test Categories
+## Manual QA Checklist
 
-### 1. Security Tests (`api.security.test.ts`)
-- Authentication and authorization
-- Row Level Security (RLS) policies
-- Token validation
-- Input sanitization
-- SQL injection prevention
-- XSS prevention
+Open `test-checklist.html` in any browser — no server needed.
 
-### 2. Offer Management Tests (`offers.test.ts`)
-- Offer creation and validation
-- Offer sending with token generation
-- Offer acceptance/decline/counter
-- Placeholder replacement
-- Token security
-
-### 3. Workflow Engine Tests (`workflow-engine.test.ts`)
-- Placeholder replacement (all types)
-- Duplicate email prevention
-- Workflow conditions
-- Delay execution
-- Error handling
-
-### 4. Candidate Stage Tests (`candidate-stages.test.ts`)
-- Valid stage transitions
-- Invalid stage transitions
-- Automatic stage updates
-- Workflow execution on stage change
-
-### 5. Job Management Tests (`job-management.test.ts`)
-- Job closing with confirmation
-- Job deletion
-- Filtering closed jobs
-- Metrics exclusion
-
-### 6. Activity Logging Tests (`activity-logging.test.ts`)
-- Job activity logging
-- Candidate activity logging
-- Offer activity logging
-- Activity feed display
-
-### 7. Race Condition Tests (`race-conditions.test.ts`)
-- Concurrent offer acceptance
-- Concurrent stage updates
-- Email sending race conditions
-- Database deadlock prevention
-- Optimistic locking
-
-### 8. Integration Tests (`integration.test.ts`)
-- Complete candidate journey
-- Offer acceptance flow
-- Job closing flow
-- Email workflow automation
-- Error handling
-
-## Test Coverage Goals
-
-- **Minimum Coverage**: 80%
-- **Critical Paths**: 100%
-- **Security Functions**: 100%
-
-## Writing New Tests
-
-### Test Structure
-```typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-describe('Feature Name', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  describe('Specific Functionality', () => {
-    it('should do something', () => {
-      // Arrange
-      const input = 'test';
-      
-      // Act
-      const result = processInput(input);
-      
-      // Assert
-      expect(result).toBe('expected');
-    });
-  });
-});
-```
-
-### Best Practices
-
-1. **Isolate Tests**: Each test should be independent
-2. **Clear Names**: Use descriptive test names
-3. **Arrange-Act-Assert**: Follow AAA pattern
-4. **Mock External Dependencies**: Mock Supabase, API calls, etc.
-5. **Test Edge Cases**: Include boundary conditions
-6. **Test Error Cases**: Verify error handling
-
-## Continuous Testing
-
-Tests should be run:
-- Before each commit
-- In CI/CD pipeline
-- Before deployment
-- After major changes
-
-## Troubleshooting
-
-### Tests Not Running
-- Ensure dependencies are installed: `npm install`
-- Check Node.js version (requires Node 18+)
-- Verify Vitest is installed: `npm list vitest`
-
-### Mock Issues
-- Check `tests/setup.ts` for mock configuration
-- Verify mock paths match actual import paths
-- Clear cache: `npm test -- --no-cache`
-
-### Coverage Issues
-- Ensure `@vitest/coverage-v8` is installed
-- Check `vitest.config.ts` coverage configuration
-- Run with `--coverage` flag
-
-## Next Steps
-
-1. Run all tests: `npm test`
-2. Review coverage: `npm run test:coverage`
-3. Fix any failing tests
-4. Add tests for new features
-5. Maintain 80%+ coverage
-
-
+- Mark items Pass / Fail / Blocked
+- Failures expand a notes field
+- Progress bar tracks completion across 6 sections, 73 items
+- "Export bug report" generates a plain-text summary of all failures
+- State persists in `localStorage` between sessions

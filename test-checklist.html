@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoreflowHR — Manual Test Checklist</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --c-bg:#f8f9fa;--c-card:#fff;--c-border:#e2e8f0;--c-text:#1a202c;--c-muted:#64748b;
+      --c-pass:#16a34a;--c-fail:#dc2626;--c-blocked:#d97706;--c-pending:#94a3b8;
+      --c-pass-bg:#f0fdf4;--c-fail-bg:#fef2f2;--c-blocked-bg:#fffbeb;
+      --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08);
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--c-bg);color:var(--c-text);min-height:100vh;padding:24px 16px}
+    .container{max-width:860px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px}
+    .logo{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+    .logo span{color:var(--c-muted);font-weight:400;font-size:.875rem;margin-left:8px}
+    .header-actions{display:flex;gap:8px;flex-wrap:wrap}
+    button{cursor:pointer;border:none;border-radius:6px;font-size:.8125rem;font-weight:500;padding:6px 14px;transition:opacity .15s}
+    .btn-primary{background:#0f172a;color:#fff}
+    .btn-primary:hover{opacity:.85}
+    .btn-danger{background:#fee2e2;color:#991b1b}
+    .btn-danger:hover{opacity:.8}
+    .btn-export{background:#eff6ff;color:#1d4ed8}
+    .btn-export:hover{opacity:.8}
+    .btn-print{background:#f1f5f9;color:#334155}
+    .progress-bar{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+    .progress-label{font-size:.875rem;color:var(--c-muted);white-space:nowrap}
+    .progress-track{flex:1;height:8px;background:#e2e8f0;border-radius:9999px;overflow:hidden}
+    .progress-fill{height:100%;background:#16a34a;border-radius:9999px;transition:width .3s}
+    .progress-count{font-size:.875rem;font-weight:600;white-space:nowrap}
+    .timestamp{font-size:.75rem;color:var(--c-muted);text-align:right;margin-bottom:16px}
+    section{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+    .section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;user-select:none;background:var(--c-card)}
+    .section-header:hover{background:#f8fafc}
+    .section-title{font-size:.9375rem;font-weight:600;display:flex;align-items:center;gap:10px}
+    .section-count{font-size:.75rem;color:var(--c-muted);background:#f1f5f9;padding:2px 8px;border-radius:9999px}
+    .section-toggle{color:var(--c-muted);font-size:1rem;transition:transform .2s}
+    .section-toggle.open{transform:rotate(180deg)}
+    .section-body{border-top:1px solid var(--c-border)}
+    .item{display:flex;flex-direction:column;gap:0;border-bottom:1px solid #f1f5f9}
+    .item:last-child{border-bottom:none}
+    .item-row{display:flex;align-items:center;gap:12px;padding:11px 20px}
+    .item-text{flex:1;font-size:.875rem;line-height:1.4}
+    .item-text small{display:block;font-size:.75rem;color:var(--c-muted);margin-top:1px}
+    .radio-group{display:flex;gap:4px}
+    .radio-group label{display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:5px;font-size:.75rem;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s}
+    .radio-group input[type=radio]{display:none}
+    .lbl-pass{color:var(--c-pass)}
+    .lbl-fail{color:var(--c-fail)}
+    .lbl-blocked{color:var(--c-blocked)}
+    .radio-group input:checked + .lbl-pass{background:var(--c-pass-bg);border-color:#bbf7d0}
+    .radio-group input:checked + .lbl-fail{background:var(--c-fail-bg);border-color:#fecaca}
+    .radio-group input:checked + .lbl-blocked{background:var(--c-blocked-bg);border-color:#fde68a}
+    .notes-row{padding:0 20px 12px 52px;display:none}
+    .notes-row.visible{display:block}
+    .notes-row textarea{width:100%;border:1px solid var(--c-border);border-radius:6px;padding:8px 10px;font-size:.8125rem;font-family:inherit;resize:vertical;min-height:60px;color:var(--c-text)}
+    .notes-row textarea::placeholder{color:var(--c-muted)}
+    .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--c-pending)}
+    .status-dot.pass{background:var(--c-pass)}
+    .status-dot.fail{background:var(--c-fail)}
+    .status-dot.blocked{background:var(--c-blocked)}
+    @media print{
+      .header-actions,.radio-group{display:none!important}
+      .notes-row{display:block!important}
+      section{break-inside:avoid}
+      body{background:#fff;padding:0}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo">CoreflowHR <span>Manual Test Checklist</span></div>
+    <div class="header-actions">
+      <button class="btn-export" onclick="exportReport()">Export bug report</button>
+      <button class="btn-print" onclick="window.print()">Print</button>
+      <button class="btn-danger" onclick="confirmReset()">Reset all</button>
+    </div>
+  </header>
+
+  <div class="progress-bar">
+    <span class="progress-label">Progress</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span class="progress-count" id="progressCount">0 / 0</span>
+  </div>
+
+  <div class="timestamp" id="timestamp"></div>
+
+  <div id="sections"></div>
+</div>
+
+<script>
+const DATA = [
+  {
+    id:'smoke', title:'1. Pre-launch Smoke Check', desc:'Run before every production deploy',
+    items:[
+      {id:'s1', text:'Homepage / marketing site loads without errors'},
+      {id:'s2', text:'Login with valid credentials → reaches dashboard'},
+      {id:'s3', text:'Public careers page loads with job listings', hint:'Check /careers/:slug'},
+      {id:'s4', text:'Job application form submits successfully'},
+      {id:'s5', text:'Offer approval page renders (visit /offers/approve/:token)'},
+      {id:'s6', text:'Scheduling page renders (visit /schedule/:token)'},
+      {id:'s7', text:'Dashboard loads without spinner hanging'},
+      {id:'s8', text:'Sidebar navigation links all resolve (no 404s)'},
+      {id:'s9', text:'Stripe billing page opens from Settings → Billing'},
+      {id:'s10', text:'No JS console errors on dashboard, jobs, and candidates pages'},
+    ]
+  },
+  {
+    id:'internal', title:'2. Visual Audit — Internal Pages', desc:'Every authenticated page at desktop (1280px) and mobile (375px)',
+    items:[
+      {id:'i1', text:'Dashboard — with onboarding checklist visible', hint:'Desktop + Mobile'},
+      {id:'i2', text:'Dashboard — checklist dismissed / completed state', hint:'Desktop + Mobile'},
+      {id:'i3', text:'Jobs page — with active jobs listed', hint:'Desktop + Mobile'},
+      {id:'i4', text:'Jobs page — empty state (no jobs created)', hint:'Desktop + Mobile'},
+      {id:'i5', text:'Candidates — Kanban view with candidates in multiple stages', hint:'Desktop + Mobile'},
+      {id:'i6', text:'Candidates — empty state (no candidates)', hint:'Desktop + Mobile'},
+      {id:'i7', text:'Candidate modal — Overview tab', hint:'Desktop'},
+      {id:'i8', text:'Candidate modal — Communication tab', hint:'Desktop'},
+      {id:'i9', text:'Candidate modal — Notes tab', hint:'Desktop'},
+      {id:'i10', text:'Candidate modal — Interview Feedback tab', hint:'Desktop'},
+      {id:'i11', text:'Candidate modal — Offers tab', hint:'Desktop'},
+      {id:'i12', text:'Clients page — with clients listed', hint:'Desktop + Mobile'},
+      {id:'i13', text:'Clients page — empty state', hint:'Desktop + Mobile'},
+      {id:'i14', text:'Calendar page', hint:'Desktop + Mobile'},
+      {id:'i15', text:'Offers page — with offers in list view', hint:'Desktop + Mobile'},
+      {id:'i16', text:'Offers page — empty state', hint:'Desktop + Mobile'},
+      {id:'i17', text:'Create offer modal — all fields visible', hint:'Desktop'},
+      {id:'i18', text:'Settings — Email notifications tab', hint:'Desktop + Mobile'},
+      {id:'i19', text:'Settings — Billing tab', hint:'Desktop + Mobile'},
+      {id:'i20', text:'Settings — Team tab', hint:'Desktop + Mobile'},
+      {id:'i21', text:'Onboarding wizard — each of 5 steps', hint:'Desktop'},
+      {id:'i22', text:'Onboarding wizard — completion screen', hint:'Desktop'},
+    ]
+  },
+  {
+    id:'external', title:'3. Visual Audit — External / Public Pages', desc:'Pages that require no login — test with real client branding',
+    items:[
+      {id:'e1', text:'Careers page — with active jobs and client logo + banner', hint:'Desktop + Mobile'},
+      {id:'e2', text:'Careers page — no active jobs (empty state)', hint:'Desktop + Mobile'},
+      {id:'e3', text:'Individual job page — all fields correct', hint:'Desktop + Mobile'},
+      {id:'e4', text:'Offer approval page — default state (not yet responded)', hint:'Desktop + Mobile'},
+      {id:'e5', text:'Offer approval page — approved state', hint:'Desktop + Mobile'},
+      {id:'e6', text:'Offer approval page — declined state', hint:'Desktop + Mobile'},
+      {id:'e7', text:'Offer approval page — already responded state', hint:'Desktop + Mobile'},
+      {id:'e8', text:'Offer response page — default state', hint:'Desktop + Mobile'},
+      {id:'e9', text:'Offer response page — accepted state', hint:'Desktop + Mobile'},
+      {id:'e10', text:'Offer response page — declined state', hint:'Desktop + Mobile'},
+      {id:'e11', text:'Offer response page — counter offer submitted state', hint:'Desktop + Mobile'},
+      {id:'e12', text:'Scheduling page — available slots visible', hint:'Desktop + Mobile'},
+      {id:'e13', text:'Scheduling page — slot confirmed (post-booking state)', hint:'Desktop + Mobile'},
+      {id:'e14', text:'Scheduling page — expired link message', hint:'Desktop + Mobile'},
+      {id:'e15', text:'Login page', hint:'Desktop + Mobile'},
+      {id:'e16', text:'Sign up page', hint:'Desktop + Mobile'},
+      {id:'e17', text:'Forgot password page', hint:'Desktop + Mobile'},
+      {id:'e18', text:'Verify email page', hint:'Desktop + Mobile'},
+    ]
+  },
+  {
+    id:'crossbrowser', title:'4. Cross-Browser Compatibility', desc:'Test core flows in each browser',
+    items:[
+      {id:'b1', text:'Chrome (Desktop) — Login → Dashboard → Kanban drag'},
+      {id:'b2', text:'Chrome (Android) — Apply to job, scheduling page'},
+      {id:'b3', text:'Safari (Desktop) — Login → Dashboard → Create offer'},
+      {id:'b4', text:'Safari (iOS) — Careers page, apply form, offer response'},
+      {id:'b5', text:'Firefox (Desktop) — Login → Bulk CV upload → pipeline'},
+      {id:'b6', text:'Edge (Desktop) — Full auth flow + dashboard'},
+      {id:'b7', text:'All browsers: no layout breakage on 375px viewport'},
+      {id:'b8', text:'All browsers: no JS errors in console during normal use'},
+    ]
+  },
+  {
+    id:'email', title:'5. Email Delivery Verification', desc:'Check real inbox for each email type — use a real test account',
+    items:[
+      {id:'m1', text:'Signup confirmation email arrives with verification link'},
+      {id:'m2', text:'Password reset email arrives with reset link', hint:'Link expires in 1 hour'},
+      {id:'m3', text:'Invite email arrives with accept link', hint:'Link expires in 48 hours'},
+      {id:'m4', text:'Offer email sent to candidate (no approval flow)'},
+      {id:'m5', text:'Offer email sent to approver (approval flow)', hint:'Candidate must NOT receive email yet'},
+      {id:'m6', text:'Offer email sent to candidate after approver approves'},
+      {id:'m7', text:'Stage-change notification sent when candidate moved'},
+      {id:'m8', text:'Interview confirmation email sent to candidate after booking'},
+      {id:'m9', text:'Recruiter notification email sent when candidate applies'},
+      {id:'m10', text:'All emails render correctly in Gmail, Apple Mail, Outlook'},
+    ]
+  },
+  {
+    id:'edge', title:'6. Edge Cases', desc:'Stress-test data and behaviour boundaries',
+    items:[
+      {id:'x1', text:'Candidate name with special characters: José O\'Brien 中文', hint:'Should save and display correctly'},
+      {id:'x2', text:'Job title at max length (255 chars) — saves without truncation'},
+      {id:'x3', text:'CV upload at exactly 5MB — accepted'},
+      {id:'x4', text:'CV upload at 5.1MB — rejected with clear error'},
+      {id:'x5', text:'Bulk upload 10 CVs simultaneously — all process without timeout'},
+      {id:'x6', text:'Scanned / image-only PDF upload — handles gracefully, not blank error'},
+      {id:'x7', text:'Apply to same job twice with same email — duplicate handled (update not duplicate row)'},
+      {id:'x8', text:'Offer expires mid-review — status updates to Expired automatically'},
+      {id:'x9', text:'Two recruiters edit same candidate simultaneously — no data corruption'},
+      {id:'x10', text:'Invite email that has expired (48hr) — clear "link expired" message on accept'},
+      {id:'x11', text:'Reset password with expired link — clear message + re-request option'},
+      {id:'x12', text:'Scheduling link visited after slot is already booked — correct message'},
+      {id:'x13', text:'Client logo URL is broken/404 — fallback initial letter shown, no broken img tag'},
+      {id:'x14', text:'Workspace subscription lapses — non-admin sees lapsed screen, admin sees billing'},
+      {id:'x15', text:'Slow connection (throttle to Slow 3G) — no blank screens, loading indicators visible'},
+    ]
+  }
+];
+
+const STATE_KEY = 'coreflow_checklist_v3';
+let state = {};
+
+function loadState(){
+  try{ state = JSON.parse(localStorage.getItem(STATE_KEY)||'{}'); }catch(e){ state={}; }
+}
+function saveState(){
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+  updateTimestamp();
+}
+function updateTimestamp(){
+  const el = document.getElementById('timestamp');
+  const last = state.__lastRun;
+  el.textContent = last ? 'Last updated: '+new Date(last).toLocaleString() : '';
+}
+
+function render(){
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+  DATA.forEach(section => {
+    const open = state[section.id+'__open'] !== false;
+    const el = document.createElement('section');
+    el.innerHTML = `
+      <div class="section-header" onclick="toggleSection('${section.id}')">
+        <div class="section-title">
+          ${section.title}
+          <span class="section-count">${section.items.length} items</span>
+        </div>
+        <span class="section-toggle${open?' open':''}">▾</span>
+      </div>
+      <div class="section-body" id="body-${section.id}" style="display:${open?'block':'none'}">
+        ${section.desc ? `<div style="padding:8px 20px;font-size:.8rem;color:var(--c-muted);border-bottom:1px solid #f1f5f9">${section.desc}</div>` : ''}
+        ${section.items.map(item => itemHTML(item)).join('')}
+      </div>`;
+    container.appendChild(el);
+  });
+  updateProgress();
+}
+
+function itemHTML(item){
+  const s = state[item.id] || {};
+  const status = s.status || '';
+  const notes = s.notes || '';
+  const showNotes = status === 'fail' || status === 'blocked';
+  return `
+    <div class="item" id="item-${item.id}">
+      <div class="item-row">
+        <span class="status-dot ${status}" id="dot-${item.id}"></span>
+        <div class="item-text">
+          ${item.text}
+          ${item.hint ? `<small>${item.hint}</small>` : ''}
+        </div>
+        <div class="radio-group">
+          <label><input type="radio" name="${item.id}" value="pass" onchange="setStatus('${item.id}','pass')" ${status==='pass'?'checked':''}><span class="lbl-pass">Pass</span></label>
+          <label><input type="radio" name="${item.id}" value="fail" onchange="setStatus('${item.id}','fail')" ${status==='fail'?'checked':''}><span class="lbl-fail">Fail</span></label>
+          <label><input type="radio" name="${item.id}" value="blocked" onchange="setStatus('${item.id}','blocked')" ${status==='blocked'?'checked':''}><span class="lbl-blocked">Blocked</span></label>
+        </div>
+      </div>
+      <div class="notes-row ${showNotes?'visible':''}" id="notes-${item.id}">
+        <textarea placeholder="Describe the issue, steps to reproduce, environment..." onchange="setNotes('${item.id}',this.value)">${notes}</textarea>
+      </div>
+    </div>`;
+}
+
+function setStatus(id, status){
+  if(!state[id]) state[id]={};
+  state[id].status = status;
+  state.__lastRun = Date.now();
+  saveState();
+  const dot = document.getElementById('dot-'+id);
+  dot.className = 'status-dot '+status;
+  const notesRow = document.getElementById('notes-'+id);
+  if(status==='fail'||status==='blocked'){
+    notesRow.classList.add('visible');
+  } else {
+    notesRow.classList.remove('visible');
+  }
+  updateProgress();
+}
+
+function setNotes(id, val){
+  if(!state[id]) state[id]={};
+  state[id].notes = val;
+  saveState();
+}
+
+function toggleSection(sectionId){
+  const body = document.getElementById('body-'+sectionId);
+  const toggle = body.previousElementSibling.querySelector('.section-toggle');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  toggle.classList.toggle('open', !isOpen);
+  state[sectionId+'__open'] = !isOpen;
+  saveState();
+}
+
+function updateProgress(){
+  let total=0, done=0, fail=0, blocked=0;
+  DATA.forEach(s => s.items.forEach(item => {
+    total++;
+    const st = (state[item.id]||{}).status;
+    if(st==='pass') done++;
+    if(st==='fail') fail++;
+    if(st==='blocked') blocked++;
+  }));
+  const pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressCount').textContent = `${done} passed · ${fail} failed · ${blocked} blocked · ${total-done-fail-blocked} pending`;
+}
+
+function confirmReset(){
+  if(confirm('Reset all checklist items? This cannot be undone.')){
+    state = {};
+    saveState();
+    render();
+  }
+}
+
+function exportReport(){
+  const lines = ['CoreflowHR Manual Test Report', '='.repeat(40), ''];
+  lines.push('Generated: '+new Date().toLocaleString());
+  const last = state.__lastRun;
+  if(last) lines.push('Last updated: '+new Date(last).toLocaleString());
+  lines.push('');
+
+  let hasFailed = false;
+  DATA.forEach(section => {
+    const failed = section.items.filter(i => {
+      const st = (state[i.id]||{}).status;
+      return st==='fail'||st==='blocked';
+    });
+    if(failed.length){
+      hasFailed = true;
+      lines.push(section.title.toUpperCase());
+      lines.push('-'.repeat(section.title.length));
+      failed.forEach(item => {
+        const s = state[item.id]||{};
+        lines.push(`[${(s.status||'').toUpperCase()}] ${item.text}`);
+        if(s.notes) lines.push(`  Notes: ${s.notes}`);
+        lines.push('');
+      });
+    }
+  });
+
+  if(!hasFailed){
+    lines.push('No failures or blockers recorded.');
+  }
+
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'coreflow-test-report-'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();
+}
+
+loadState();
+render();
+updateTimestamp();
+</script>
+</body>
+</html>
