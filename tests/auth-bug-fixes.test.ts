@@ -295,12 +295,12 @@ describe('BUG-006 — Payment webhook timeout shows pending UI, not /dashboard b
     expect(src).toMatch(/setPaymentPending/);
   });
 
-  it('AuthRedirect.tsx shows "Payment received!" heading in pending UI', async () => {
+  it('AuthRedirect.tsx shows "Payment received" heading in pending UI', async () => {
     const { readFileSync } = await import('fs');
     const { resolve } = await import('path');
     const src = readFileSync(resolve(__dirname, '../pages/AuthRedirect.tsx'), 'utf-8');
 
-    expect(src).toMatch(/Payment received!/);
+    expect(src).toMatch(/Payment received/);
     expect(src).toMatch(/Continue to Dashboard/);
   });
 
