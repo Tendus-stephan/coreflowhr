@@ -4,8 +4,8 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { loginAs, signUpNewUser, logout } from '../../helpers/auth.helper';
-import { TEST_USERS, ROUTES } from '../../fixtures/test-data';
+import { loginAs, signUpNewUser, logout } from '../helpers/auth.helper';
+import { TEST_USERS, ROUTES } from '../fixtures/test-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sign-up flow

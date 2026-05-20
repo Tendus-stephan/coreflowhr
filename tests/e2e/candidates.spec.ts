@@ -5,8 +5,8 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { loginAs } from '../../helpers/auth.helper';
-import { TEST_CANDIDATES, TEST_FILES, TEST_JOB, ROUTES, TIMEOUTS } from '../../fixtures/test-data';
+import { loginAs } from '../helpers/auth.helper';
+import { TEST_CANDIDATES, TEST_FILES, TEST_JOB, ROUTES, TIMEOUTS } from '../fixtures/test-data';
 import path from 'path';
 
 // ─────────────────────────────────────────────────────────────────────────────

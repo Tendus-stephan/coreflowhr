@@ -13,8 +13,8 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { loginAs } from '../../helpers/auth.helper';
-import { ROUTES } from '../../fixtures/test-data';
+import { loginAs } from '../helpers/auth.helper';
+import { ROUTES } from '../fixtures/test-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper — generic 500 mocker

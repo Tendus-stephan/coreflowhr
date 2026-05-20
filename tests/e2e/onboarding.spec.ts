@@ -12,8 +12,8 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { loginAs, signUpNewUser, completeOnboarding } from '../../helpers/auth.helper';
-import { ROUTES } from '../../fixtures/test-data';
+import { loginAs, signUpNewUser, completeOnboarding } from '../helpers/auth.helper';
+import { ROUTES } from '../fixtures/test-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

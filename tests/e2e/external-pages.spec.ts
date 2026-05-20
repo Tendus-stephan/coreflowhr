@@ -6,7 +6,7 @@
  */
 
 import { test, expect, Page, BrowserContext } from '@playwright/test';
-import { TEST_WORKSPACE, TEST_JOB } from '../../fixtures/test-data';
+import { TEST_WORKSPACE, TEST_JOB } from '../fixtures/test-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Viewport helpers
