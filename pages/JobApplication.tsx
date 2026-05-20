@@ -173,34 +173,17 @@ const JobApplication: React.FC = () => {
           if (!ws) throw new Error('Job not found or is no longer accepting applications');
           workspaceId = ws.id;
 
-          // Set branding from workspace
-          setCompanyName((ws as any).name || '');
+          // Branding resolved after job fetch (we need client_id from job)
           setBannerColor((ws as any).banner_color ?? null);
-
-          // Prefer client logo when there's exactly one client with a logo
-          try {
-            const { data: clientsWithLogo } = await supabase
-              .from('clients')
-              .select('logo_url')
-              .eq('workspace_id', ws.id)
-              .not('logo_url', 'is', null);
-            if (clientsWithLogo && clientsWithLogo.length === 1) {
-              setCompanyLogoUrl((clientsWithLogo[0] as any).logo_url ?? null);
-            } else {
-              setCompanyLogoUrl((ws as any).company_logo_url ?? null);
-            }
-          } catch {
-            setCompanyLogoUrl((ws as any).company_logo_url ?? null);
-          }
 
           jobQuery = supabase
             .from('jobs')
-            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills, workspace_id')
+            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills, workspace_id, client_id')
             .eq('workspace_id', ws.id).eq('slug', jobSlug).eq('status', 'Active').single();
         } else {
           jobQuery = supabase
             .from('jobs')
-            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills, workspace_id')
+            .select('id, title, department, location, type, status, applicants_count, posted_date, created_at, description, company, salary_range, remote, skills, workspace_id, client_id')
             .eq('id', jobId!).eq('status', 'Active').single();
         }
 
@@ -217,32 +200,39 @@ const JobApplication: React.FC = () => {
           remote: jobData.remote || false, skills: jobData.skills || [],
         });
 
-        // If we came via jobId-only route, fetch workspace branding now
-        if (!workspaceSlug && (jobData as any).workspace_id) {
-          workspaceId = (jobData as any).workspace_id;
+        // Resolve branding: prefer the job's linked client, fall back to workspace
+        const resolveWsId = workspaceId || (jobData as any).workspace_id;
+        if (resolveWsId) {
+          if (!workspaceId) workspaceId = resolveWsId;
           try {
-            const { data: ws } = await supabase
-              .from('workspaces')
-              .select('name, company_logo_url, banner_color')
-              .eq('id', workspaceId!)
-              .single();
-            if (ws) {
-              setCompanyName((ws as any).name || jobData.company || '');
-              setBannerColor((ws as any).banner_color ?? null);
-
-              // Prefer client logo
-              const { data: clientsWithLogo } = await supabase
+            const clientId = (jobData as any).client_id;
+            if (clientId) {
+              // Job is linked to a client — use client name + logo
+              const { data: client } = await supabase
                 .from('clients')
-                .select('logo_url')
-                .eq('workspace_id', workspaceId!)
-                .not('logo_url', 'is', null);
-              if (clientsWithLogo && clientsWithLogo.length === 1) {
-                setCompanyLogoUrl((clientsWithLogo[0] as any).logo_url ?? null);
+                .select('name, logo_url')
+                .eq('id', clientId)
+                .single();
+              if (client) {
+                setCompanyName((client as any).name || jobData.company || '');
+                setCompanyLogoUrl((client as any).logo_url ?? null);
               } else {
-                setCompanyLogoUrl((ws as any).company_logo_url ?? null);
+                setCompanyName(jobData.company || '');
               }
             } else {
-              setCompanyName(jobData.company || '');
+              // No client linked — fall back to workspace branding
+              const { data: ws } = await supabase
+                .from('workspaces')
+                .select('name, company_logo_url, banner_color')
+                .eq('id', resolveWsId)
+                .single();
+              if (ws) {
+                setCompanyName((ws as any).name || jobData.company || '');
+                if (!workspaceSlug) setBannerColor((ws as any).banner_color ?? null);
+                setCompanyLogoUrl((ws as any).company_logo_url ?? null);
+              } else {
+                setCompanyName(jobData.company || '');
+              }
             }
           } catch {
             setCompanyName(jobData.company || '');

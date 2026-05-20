@@ -160,10 +160,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
             ]);
             if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
-              mfaPendingRef.current = true;
-              setUser(session.user);
-              setSession(null);
-              return; // finally still runs → setLoading(false)
+              // Guard: only block if there is at least one *verified* TOTP factor.
+              // An unverified orphaned factor (setup started but never completed)
+              // can wrongly set nextLevel='aal2', locking out the user permanently.
+              const { data: factors } = await supabase.auth.mfa.listFactors().catch(() => ({ data: null }));
+              const hasVerified = factors?.totp?.some((f: any) => f.status === 'verified') ?? false;
+              if (!hasVerified) {
+                // Clean up orphaned unverified factors so this doesn't repeat.
+                const orphans = factors?.totp?.filter((f: any) => f.status !== 'verified') ?? [];
+                await Promise.all(orphans.map((f: any) => supabase.auth.mfa.unenroll({ factorId: f.id }).catch(() => {})));
+              } else {
+                mfaPendingRef.current = true;
+                setUser(session.user);
+                setSession(null);
+                return; // finally still runs → setLoading(false)
+              }
             }
           } catch {
             // AAL check failed or timed out — fail-open
@@ -261,7 +272,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
             ]);
-            mfaBlocked = aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel;
+            if (aal?.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+              const { data: factors } = await supabase.auth.mfa.listFactors().catch(() => ({ data: null }));
+              const hasVerified = factors?.totp?.some((f: any) => f.status === 'verified') ?? false;
+              if (!hasVerified) {
+                const orphans = factors?.totp?.filter((f: any) => f.status !== 'verified') ?? [];
+                await Promise.all(orphans.map((f: any) => supabase.auth.mfa.unenroll({ factorId: f.id }).catch(() => {})));
+                mfaBlocked = false;
+              } else {
+                mfaBlocked = true;
+              }
+            }
           } catch {
             // AAL check failed or timed out — fail-open
           }

@@ -747,7 +747,7 @@ const CandidateBoard: React.FC = () => {
         setCandidates(prev => prev.map(c =>
             c.id === updatedCandidate.id ? updatedCandidate : c
         ));
-        setSelectedCandidate(updatedCandidate);
+        setSelectedCandidate(prev => prev?.id === updatedCandidate.id ? updatedCandidate : prev);
 
         if (stageChanged && oldCandidate) {
             const { playNotificationSound } = await import('../utils/soundUtils');
