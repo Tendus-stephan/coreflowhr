@@ -223,7 +223,7 @@ const Clients: React.FC = () => {
             className="pl-8 pr-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-400 transition-colors w-56"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+            <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
               <X size={13} />
             </button>
           )}
@@ -270,13 +270,8 @@ const Clients: React.FC = () => {
                 {/* Name + logo */}
                 <div className="px-4 py-3 flex items-center gap-3 min-w-0">
                   <div
-                    className="flex-shrink-0 flex items-center justify-center overflow-hidden"
-                    style={{
-                      width: 32, height: 32,
-                      borderRadius: '8px',
-                      backgroundColor: client.logoUrl ? '#f3f4f6' : '#111827',
-                      border: client.logoUrl ? '0.5px solid #e5e7eb' : 'none',
-                    }}
+                    className={`flex-shrink-0 flex items-center justify-center overflow-hidden rounded-lg ${client.logoUrl ? 'bg-gray-100 border border-gray-200' : 'bg-gray-900'}`}
+                    style={{ width: 32, height: 32 }}
                   >
                     {client.logoUrl ? (
                       <img
@@ -338,6 +333,7 @@ const Clients: React.FC = () => {
                   {canManage && (
                     <button
                       onClick={(e) => openMenu(e, client.id)}
+                      aria-label={`Actions for ${client.name}`}
                       className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <MoreVertical size={15} />
@@ -352,7 +348,7 @@ const Clients: React.FC = () => {
 
       {/* Context menu portal */}
       {openMenuId && createPortal(
-        <div ref={menuRef} style={menuStyle} className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden w-36 py-1">
+        <div ref={menuRef} style={menuStyle} className="bg-white border border-gray-200 rounded-xl overflow-hidden w-36 py-1">
           <button
             onClick={() => handleEdit(clients.find(c => c.id === openMenuId)!)}
             className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
@@ -398,13 +394,10 @@ const Clients: React.FC = () => {
               <button
                 type="button"
                 onClick={() => editingClient && !isUploadingLogo && logoInputRef.current?.click()}
-                className="relative flex items-center justify-center overflow-hidden group transition-all"
+                className="relative flex items-center justify-center overflow-hidden group transition-all bg-gray-100 border border-gray-200 rounded-[10px]"
                 style={{
                   width: 64,
                   height: 64,
-                  borderRadius: '10px',
-                  backgroundColor: '#f3f4f6',
-                  border: '0.5px solid #e5e7eb',
                   cursor: editingClient ? 'pointer' : 'default',
                 }}
                 title={editingClient ? 'Click to upload logo' : undefined}

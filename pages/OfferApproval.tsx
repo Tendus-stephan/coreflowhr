@@ -59,7 +59,7 @@ const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; 
                 </div>
 
                 {/* Logo + company name — overlaps banner */}
-                <div className="mx-auto px-6 relative" style={{ maxWidth: '560px' }}>
+                <div className="mx-auto px-6 relative max-w-[560px]">
                     <div className="flex items-center gap-4 -mt-10 pb-6">
                         <div
                             className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
@@ -91,7 +91,7 @@ const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; 
                         </div>
                         {companyName && (
                             <div className="min-w-0">
-                                <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>
+                                <h1 className="font-bold text-gray-900 leading-tight text-lg">
                                     {companyName}
                                 </h1>
                             </div>
@@ -101,7 +101,7 @@ const Shell: React.FC<{ children: React.ReactNode; companyName?: string | null; 
             </div>
 
             {/* ── CONTENT ────────────────────────────────────────────────── */}
-            <div className="mx-auto px-6 pb-10" style={{ maxWidth: '560px' }}>
+            <div className="mx-auto px-6 pb-10 max-w-[560px]">
                 {children}
             </div>
 
@@ -206,7 +206,7 @@ const OfferApproval: React.FC = () => {
     if (error) {
         return (
             <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     <AlertCircle size={28} className="text-red-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Unable to load request</h2>
                     <p className="text-sm text-gray-500">{error}</p>
@@ -225,12 +225,10 @@ const OfferApproval: React.FC = () => {
     if (alreadyResponded) {
         return (
             <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     {request.status === 'approved' ? (
                         <>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
-                                <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CheckCircle size={28} className="text-green-600 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Already approved</h2>
                             <p className="text-sm text-gray-500">You have already approved this offer.</p>
                         </>
@@ -250,7 +248,7 @@ const OfferApproval: React.FC = () => {
     if (isExpired) {
         return (
             <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     <Clock size={28} className="text-amber-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Link expired</h2>
                     <p className="text-sm text-gray-500">This approval link has expired. Please contact the recruiter to request a new one.</p>
@@ -263,12 +261,10 @@ const OfferApproval: React.FC = () => {
     if (success) {
         return (
             <Shell companyName={brandName} companyLogoUrl={brandLogo} bannerColor={brandBannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     {success.decision === 'approved' ? (
                         <>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
-                                <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CheckCircle size={28} className="text-green-600 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Offer approved</h2>
                             {success.offerSent ? (
                                 <p className="text-sm text-gray-500">
@@ -367,6 +363,7 @@ const OfferApproval: React.FC = () => {
                             rows={4}
                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-400 resize-none"
                             autoFocus
+                            aria-required="true"
                         />
                         {error && (
                             <p className="text-xs text-red-600">{error}</p>

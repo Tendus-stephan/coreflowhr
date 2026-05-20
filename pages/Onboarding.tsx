@@ -604,6 +604,7 @@ const Onboarding: React.FC = () => {
                     setInviteErrors(prev => prev.filter((_, j) => j !== i));
                     setInviteSent(prev => prev.filter((_, j) => j !== i));
                   }}
+                  aria-label="Remove"
                   className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
                 >
                   <X size={15} />
@@ -695,7 +696,7 @@ const Onboarding: React.FC = () => {
   const renderComplete = () => (
     <div className="space-y-5">
       <div>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-green-600">
           <polyline points="20 6 9 17 4 12" />
         </svg>
         <h2 className="text-xl font-bold text-gray-900">You're all set</h2>
@@ -706,22 +707,22 @@ const Onboarding: React.FC = () => {
           {
             label: 'Post a job',
             desc: 'Create your first active role',
-            icon: <Briefcase size={18} style={{ color: '#3b82f6' }} />,
-            iconBg: '#eff6ff',
+            icon: <Briefcase size={18} className="text-blue-500" />,
+            iconBgClass: 'bg-blue-50',
             primary: true,
           },
           {
             label: 'Upload candidates',
             desc: 'Bulk-import CVs to get started fast',
-            icon: <Upload size={18} style={{ color: '#7c3aed' }} />,
-            iconBg: '#f5f3ff',
+            icon: <Upload size={18} className="text-violet-700" />,
+            iconBgClass: 'bg-violet-50',
             primary: false,
           },
           {
             label: 'View pipeline',
             desc: 'See your Kanban board',
-            icon: <Kanban size={18} style={{ color: '#16a34a' }} />,
-            iconBg: '#f0fdf4',
+            icon: <Kanban size={18} className="text-green-600" />,
+            iconBgClass: 'bg-green-50',
             primary: false,
           },
         ].map(tile => (
@@ -730,18 +731,18 @@ const Onboarding: React.FC = () => {
             onClick={handleFinish}
             className={`text-left w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all group
               ${tile.primary
-                ? 'border-gray-900/20 bg-gray-50 hover:bg-gray-100 hover:shadow-sm'
-                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50 hover:shadow-sm'
+                ? 'border-gray-900/20 bg-gray-50 hover:bg-gray-100'
+                : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
               }`}
           >
-            <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: tile.iconBg }}>
+            <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${tile.iconBgClass}`}>
               {tile.icon}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
                 {tile.label}
                 {tile.primary && (
-                  <span className="text-[11px] font-medium rounded-[4px] px-2 py-0.5 leading-none" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
+                  <span className="text-[11px] font-medium rounded-[4px] px-2 py-0.5 leading-none bg-blue-50 text-blue-500">
                     Start here
                   </span>
                 )}
@@ -764,7 +765,7 @@ const Onboarding: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-[520px] bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+      <div className="w-full max-w-[520px] bg-white rounded-2xl border border-gray-100 p-6">
         <div className="flex items-center gap-2 mb-6">
           <img
             src="/assets/images/coreflow-favicon-logo.png"

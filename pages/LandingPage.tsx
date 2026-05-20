@@ -138,6 +138,7 @@ const LandingPage: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(() => window.scrollY > 20);
   const [canTransition, setCanTransition] = useState(false);
   const [emailInput, setEmailInput] = useState('');
+  const [checkoutErrMsg, setCheckoutErrMsg] = useState<string | null>(null);
   const [founding, setFounding] = useState<{ spotsLeft: number; available: boolean; loaded: boolean }>({
     spotsLeft: 20, available: true, loaded: false,
   });
@@ -273,54 +274,38 @@ const LandingPage: React.FC = () => {
     try {
       const { createCheckoutSession } = await import('../services/stripe');
       
-      console.log('Creating checkout session for plan:', plan, 'billing:', billingCycle);
-      
       const { sessionId, url, error: checkoutError } = await createCheckoutSession(
         plan,
         billingCycle
       );
 
-      console.log('Checkout session response:', { sessionId, url, error: checkoutError });
 
       if (checkoutError || !sessionId) {
         console.error('Checkout error:', checkoutError);
-        alert(checkoutError || 'Failed to create checkout session');
+        setCheckoutErrMsg(checkoutError || 'Failed to create checkout session. Please try again.');
         return;
       }
 
       // Redirect directly to Stripe Checkout URL
       if (url) {
-        console.log('Redirecting to Stripe Checkout:', url);
-        // Try to redirect - if it fails, show the URL to the user
         try {
           window.location.replace(url);
         } catch (redirectError) {
           console.error('Redirect failed:', redirectError);
-          // Fallback: open in new window or show URL
-          const openCheckout = window.confirm(
-            `Redirect failed. Click OK to open checkout in a new window.\n\nURL: ${url}`
-          );
-          if (openCheckout) {
-            window.open(url, '_blank');
-          } else {
-            // Show the URL so user can copy it
-            alert(`Please visit this URL to complete checkout:\n\n${url}`);
-          }
+          window.open(url, '_blank');
         }
       } else {
         console.error('No checkout URL received. Session ID:', sessionId);
-        // If we have a sessionId, construct the URL manually
         if (sessionId) {
           const constructedUrl = `https://checkout.stripe.com/c/pay/${sessionId}`;
-          console.warn('Constructing checkout URL manually:', constructedUrl);
           window.location.replace(constructedUrl);
         } else {
-          alert('No checkout URL received. Please try again.');
+          setCheckoutErrMsg('No checkout URL received. Please try again.');
         }
       }
     } catch (error: any) {
       console.error('Subscription error:', error);
-      alert('Failed to process subscription. Please try again.');
+      setCheckoutErrMsg('Failed to process subscription. Please try again.');
     }
   };
 
@@ -330,7 +315,7 @@ const LandingPage: React.FC = () => {
       {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 ${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'py-3' : 'py-1'}`}>
         <div className="container mx-auto px-6">
-          <div className={`${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'grid grid-cols-3 items-center bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl rounded-2xl px-6 py-2' : 'flex items-center justify-between'}`}>
+          <div className={`${canTransition ? 'transition-all duration-500' : ''} ${isScrolled ? 'grid grid-cols-3 items-center bg-white border border-gray-200 shadow-md rounded-2xl px-6 py-2' : 'flex items-center justify-between'}`}>
 
             {/* Logo — cross-fade between full logo and favicon */}
             <Link to="/" className="relative flex-shrink-0 block">
@@ -348,7 +333,7 @@ const LandingPage: React.FC = () => {
               />
             </Link>
 
-            <div className="hidden md:flex items-center justify-center gap-10 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+            <div className="hidden md:flex items-center justify-center gap-10 text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">
               <button onClick={() => scrollToSection('features')} className="hover:text-gray-900 transition-colors">Features</button>
               <button onClick={() => scrollToSection('benefits')} className="hover:text-gray-900 transition-colors">Why Us</button>
               <button onClick={() => scrollToSection('pricing')} className="hover:text-gray-900 transition-colors">Pricing</button>
@@ -380,7 +365,7 @@ const LandingPage: React.FC = () => {
 
         <FadeIn>
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-6 shadow-sm cursor-default">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-6 cursor-default">
             <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
             Reliable Hiring Engineering
           </div>
@@ -433,7 +418,7 @@ const LandingPage: React.FC = () => {
                 <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-yellow-400" />
                 <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-400" />
               </div>
-              <div className="ml-2 sm:ml-4 flex-1 max-w-lg h-5 sm:h-6 bg-white border border-gray-200 rounded-md flex items-center px-2 sm:px-3 text-[8px] sm:text-[10px] text-gray-400 shadow-sm">
+              <div className="ml-2 sm:ml-4 flex-1 max-w-lg h-5 sm:h-6 bg-white border border-gray-200 rounded-md flex items-center px-2 sm:px-3 text-[8px] sm:text-[10px] text-gray-400">
                 <span className="text-gray-300 mr-1 sm:mr-2">🔒</span>
                 <span>coreflowhr.com/dashboard</span>
               </div>
@@ -714,7 +699,7 @@ const LandingPage: React.FC = () => {
                     }
                  ].map((item, i) => (
                      <FadeIn key={i} delay={i * 100}>
-                       <div className="bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300 border-t-[3px] border-gray-900 h-full">
+                       <div className="bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col hover:-translate-y-1 transition-transform duration-300 h-full">
                            <div className="p-6 flex-1">
                                <h3 className="text-lg font-extrabold text-gray-900 mb-3 tracking-tight">{item.title}</h3>
                                <p className="text-sm text-gray-500 leading-relaxed mb-6">{item.desc}</p>
@@ -757,7 +742,7 @@ const LandingPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* 1. AI Matching (Large) */}
-            <div className="md:col-span-2 bg-white border border-gray-200 rounded-[2rem] p-10 relative overflow-hidden group hover:border-gray-300 transition-colors shadow-sm">
+            <div className="md:col-span-2 bg-white border border-gray-200 rounded-[2rem] p-10 relative overflow-hidden group hover:border-gray-300 transition-colors">
                 <FadeIn delay={100}>
                   <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                       <BrainCircuit size={24} />
@@ -780,7 +765,7 @@ const LandingPage: React.FC = () => {
             </div>
 
             {/* 2. Resume Screening */}
-            <div className="bg-white border border-gray-200 rounded-[2rem] p-8 group hover:border-gray-300 transition-colors relative overflow-hidden flex flex-col justify-between shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-[2rem] p-8 group hover:border-gray-300 transition-colors relative overflow-hidden flex flex-col justify-between">
                  <FadeIn delay={200}>
                    <div>
                       <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
@@ -797,7 +782,7 @@ const LandingPage: React.FC = () => {
             </div>
 
             {/* 3. Scheduling */}
-            <div className="bg-white border border-gray-200 rounded-[2rem] p-8 group hover:border-gray-300 transition-colors relative overflow-hidden shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-[2rem] p-8 group hover:border-gray-300 transition-colors relative overflow-hidden">
                  <FadeIn delay={300}>
                    <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
                       <Calendar size={24} />
@@ -808,7 +793,7 @@ const LandingPage: React.FC = () => {
             </div>
 
              {/* 4. Pipeline (Large) */}
-             <div className="md:col-span-2 bg-white border border-gray-200 rounded-[2rem] p-10 overflow-hidden relative hover:border-gray-300 transition-colors shadow-sm">
+             <div className="md:col-span-2 bg-white border border-gray-200 rounded-[2rem] p-10 overflow-hidden relative hover:border-gray-300 transition-colors">
                 <FadeIn delay={400}>
                   <div className="relative z-10 max-w-md">
                        <div className="w-12 h-12 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center mb-6 text-gray-900">
@@ -822,7 +807,7 @@ const LandingPage: React.FC = () => {
                   {/* Mock Pipeline UI */}
                   <div className="absolute -right-10 top-12 w-[400px] opacity-70 group-hover:opacity-100 transition-opacity">
                       <div className="space-y-3">
-                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm transform rotate-3 hover:rotate-0 transition-transform duration-500">
+                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 transform rotate-3 hover:rotate-0 transition-transform duration-500">
                               <div className="flex gap-3 items-center mb-3">
                                   <div className="w-8 h-8 rounded-full bg-gray-200"></div>
                                   <div>
@@ -838,7 +823,7 @@ const LandingPage: React.FC = () => {
 
             {/* 6. Deep Analytics (With Chart) */}
             <div className="md:col-span-3 bg-gray-900 rounded-[2rem] p-10 flex flex-col lg:flex-row items-center gap-12 group shadow-2xl overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black z-0"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 z-0"></div>
                 
                 <div className="flex-1 relative z-10">
                      <FadeIn delay={500}>
@@ -865,7 +850,7 @@ const LandingPage: React.FC = () => {
                 {/* Chart Visual */}
                 <div className="flex-1 w-full relative z-10">
                     <FadeIn delay={600}>
-                      <div className="bg-gray-900/50 rounded-2xl border border-white/10 p-6 w-full backdrop-blur-md">
+                      <div className="bg-gray-800 rounded-2xl border border-white/10 p-6 w-full">
                           <div className="flex justify-between items-center mb-6">
                               <span className="text-sm font-medium text-gray-300">Hiring Velocity</span>
                           </div>
@@ -929,7 +914,7 @@ const LandingPage: React.FC = () => {
       <section id="pricing" className="py-16 sm:py-24 md:py-32 max-w-7xl mx-auto px-4 sm:px-6">
         <FadeIn>
           <div className="text-center mb-10 sm:mb-14">
-              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-0.5 sm:py-1 rounded-full border border-gray-200 bg-white shadow-sm text-xs font-medium text-gray-600 mb-4 sm:mb-6">
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-0.5 sm:py-1 rounded-full border border-gray-200 bg-white text-xs font-medium text-gray-600 mb-4 sm:mb-6">
                  <span className="text-gray-400">★</span> Simple, Transparent Pricing
               </div>
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 tracking-tight px-4">One plan.<br/>Everything included.</h2>
@@ -938,6 +923,19 @@ const LandingPage: React.FC = () => {
               </p>
           </div>
         </FadeIn>
+
+        {/* Checkout error banner */}
+        {checkoutErrMsg && (
+          <div className="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="text-red-500 mt-0.5 flex-shrink-0">✕</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">{checkoutErrMsg}</p>
+            </div>
+            <button onClick={() => setCheckoutErrMsg(null)} aria-label="Dismiss" className="text-red-400 hover:text-red-600 flex-shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Single Professional Plan Card */}
         <div className="max-w-2xl mx-auto">
@@ -1055,7 +1053,7 @@ const LandingPage: React.FC = () => {
                             {item.q}
                             {openFaq === i ? <Minus size={20} className="text-gray-900"/> : <Plus size={20} className="text-gray-900"/>}
                         </button>
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaq === i ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaq === i ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
                             <p className="text-gray-500 leading-relaxed pr-8">
                                 {item.a}
                             </p>

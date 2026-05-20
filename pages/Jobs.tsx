@@ -116,9 +116,9 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
                 <div className="p-6 space-y-8">
                     {saveMessage && (
                         <div className={`p-3 rounded-lg border ${
-                            saveMessage.type === 'success' 
-                                ? 'bg-gray-100 border-gray-200 text-gray-800' 
-                                : 'bg-gray-100 border-gray-200 text-gray-800'
+                            saveMessage.type === 'success'
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                : 'bg-red-50 border-red-200 text-red-700'
                         }`}>
                             <p className="text-sm font-medium">{saveMessage.text}</p>
                         </div>
@@ -202,6 +202,7 @@ const JobSettingsModal = ({ job, isOpen, onClose }: { job: Job | null, isOpen: b
 
 // --- Job Details / Manage Modal ---
 const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { job: Job | null, isOpen: boolean, onClose: () => void, navigate: (path: string) => void, currentUserRole: UserRole | '' }) => {
+    const toast = useToast();
     const [page, setPage] = useState(1);
     const [jobCandidates, setJobCandidates] = useState<Candidate[]>([]);
     const [loadingCandidates, setLoadingCandidates] = useState(false);
@@ -276,6 +277,8 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
             setAssignedUserIds(next);
         } catch (error) {
             console.error('Failed to update assignments:', error);
+            setAssignedUserIds(assignedUserIds);
+            toast.error('Failed to update team assignment.');
         } finally {
             setSavingAssignments(false);
         }
@@ -349,7 +352,6 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
     // Calculate pipeline stages from real candidate data
     const stages = [
         { name: 'Sourced', count: jobCandidates.filter(c => c.stage === CandidateStage.NEW).length },
-        { name: 'Contacted', count: jobCandidates.filter(c => c.stage === CandidateStage.SCREENING).length }, 
         { name: 'Screening', count: jobCandidates.filter(c => c.stage === CandidateStage.SCREENING).length },
         { name: 'Interview', count: jobCandidates.filter(c => c.stage === CandidateStage.INTERVIEW).length },
         { name: 'Hired', count: jobCandidates.filter(c => c.stage === CandidateStage.HIRED).length },
@@ -386,7 +388,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                             {job.postedDate && <><span>·</span><span>Posted {new Date(job.postedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
                         </div>
                     </div>
-                    <button onClick={onClose} className="shrink-0 self-start text-gray-400 hover:text-gray-700 transition-colors leading-none mt-1">
+                    <button onClick={onClose} aria-label="Close" className="shrink-0 self-start text-gray-400 hover:text-gray-700 transition-colors leading-none mt-1">
                         <X size={18} />
                     </button>
                 </div>
@@ -396,7 +398,7 @@ const JobManageModal = ({ job, isOpen, onClose, navigate, currentUserRole }: { j
                     <div className="px-8 pt-6 pb-8 space-y-7">
 
                         {/* Pipeline stats row */}
-                        <div className="grid grid-cols-5 gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                             {stages.map((stage) => (
                                 <div key={stage.name} className="bg-white border border-gray-200 rounded-xl px-4 py-5 text-center">
                                     <p className="text-2xl font-bold text-gray-900 tracking-tight">{stage.count}</p>
@@ -794,7 +796,7 @@ const Jobs: React.FC = () => {
       {/* Close Job Confirmation Modal */}
       {jobToClose && createPortal(
           <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md">
+              <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
                   <div className="p-6 border-b border-gray-200">
                       <h3 className="text-lg font-bold text-gray-900">Close Job</h3>
                   </div>
@@ -839,6 +841,7 @@ const Jobs: React.FC = () => {
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
+              aria-label="Notifications"
               className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
             >
               <Bell size={16} />
@@ -932,7 +935,7 @@ const Jobs: React.FC = () => {
           currentJobs.map((job) => (
             <div
               key={job.id}
-              className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] px-5 py-3.5 border-b border-gray-100 last:border-0 hover:bg-gray-50 hover:shadow-[inset_3px_0_0_theme(colors.gray.900)] transition-all duration-150 cursor-pointer group items-center"
+              className="grid grid-cols-[2fr_1fr_1fr_100px_90px_44px] px-5 py-3.5 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-all duration-150 cursor-pointer group items-center"
               onClick={() => setSelectedJob(job)}
             >
               {/* Role */}
@@ -996,6 +999,7 @@ const Jobs: React.FC = () => {
                         e.preventDefault();
                         toggleActionMenu(e, job.id);
                       }}
+                      aria-label={`Actions for ${job.title}`}
                       className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
                         openActionMenuId === job.id
                           ? 'bg-gray-100 text-gray-900'
@@ -1008,7 +1012,7 @@ const Jobs: React.FC = () => {
                     {openActionMenuId === job.id && (
                       <div
                         ref={actionMenuRef}
-                        className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                        className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
                         style={{ zIndex: 1000 }}
                         onClick={(e) => e.stopPropagation()}
                       >

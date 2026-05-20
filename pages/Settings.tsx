@@ -411,6 +411,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                             <button
                                 type="button"
                                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                aria-label={showCurrentPassword ? "Hide password" : "Show password"}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900"
                             >
                                 {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -432,6 +433,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                             <button
                                 type="button"
                                 onClick={() => setShowNewPassword(!showNewPassword)}
+                                aria-label={showNewPassword ? "Hide password" : "Show password"}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900"
                             >
                                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -453,6 +455,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onChangePassword, isLoading, err
                             <button
                                 type="button"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900"
                             >
                                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -537,7 +540,7 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
                 </div>
                 <div className="p-6 space-y-4">
                     {error && (
-                        <div className="p-3 rounded-lg border bg-gray-100 border-gray-200 text-gray-800">
+                        <div className="p-3 rounded-lg border bg-red-50 border-red-200 text-red-700">
                             <p className="text-sm font-medium">{error}</p>
                         </div>
                     )}
@@ -565,6 +568,7 @@ const TwoFactorSetupModal = ({ isOpen, onClose, onVerify, qrCode, secret, backup
                                     <button
                                         type="button"
                                         onClick={() => navigator.clipboard.writeText(secret)}
+                                        aria-label="Copy secret key to clipboard"
                                         className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"
                                     >
                                         <Copy size={16} />
@@ -2478,6 +2482,7 @@ const Settings: React.FC = () => {
                                         <div className="flex items-center gap-1">
                                             <button
                                                 type="button"
+                                                aria-label="Previous page"
                                                 onClick={() => setTeamPage((p) => Math.max(0, p - 1))}
                                                 disabled={page === 0}
                                                 className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2487,6 +2492,7 @@ const Settings: React.FC = () => {
                                             <span className="text-xs text-gray-600 px-2">Page {page + 1} of {totalPages}</span>
                                             <button
                                                 type="button"
+                                                aria-label="Next page"
                                                 onClick={() => setTeamPage((p) => Math.min(totalPages - 1, p + 1))}
                                                 disabled={page >= totalPages - 1}
                                                 className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2797,9 +2803,9 @@ const Settings: React.FC = () => {
                              
                              {saveMessage && (
                                  <div className={`p-4 rounded-xl border ${
-                                     saveMessage.type === 'success' 
-                                         ? 'bg-green-50 border-green-200 text-green-800' 
-                                         : 'bg-gray-100 border-gray-200 text-gray-800'
+                                     saveMessage.type === 'success'
+                                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                         : 'bg-red-50 border-red-200 text-red-700'
                                  }`}>
                                      <p className="text-sm font-medium">{saveMessage.text}</p>
                                  </div>

@@ -39,7 +39,7 @@ const Shell: React.FC<{
                 <div className="relative w-full overflow-hidden" style={{ height: '200px', background: gradient }}>
                     <div
                         className="absolute inset-x-0 bottom-0"
-                        style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)' }}
+                        style={{ height: '80px', background: 'linear-gradient(to bottom, transparent 0%, white 100%)' }}
                     />
                     <svg viewBox="0 0 1440 40" className="absolute bottom-0 left-0 w-full" preserveAspectRatio="none" style={{ height: '40px' }}>
                         <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
@@ -48,8 +48,8 @@ const Shell: React.FC<{
                 <div className="mx-auto px-6 relative" style={{ maxWidth: MAX_W }}>
                     <div className="flex items-center gap-4 -mt-10 pb-6">
                         <div
-                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
-                            style={{ width: 80, height: 80, borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', border: '0.5px solid #e5e7eb' }}
+                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden border border-gray-200 shadow-sm"
+                            style={{ width: 80, height: 80, borderRadius: '10px' }}
                         >
                             {companyLogoUrl && !logoErr ? (
                                 <img src={companyLogoUrl} alt={companyName || 'Company'} className="w-full h-full object-contain p-2" onError={() => setLogoErr(true)} />
@@ -79,7 +79,7 @@ const Shell: React.FC<{
                     href="https://www.coreflowhr.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all"
                 >
                     <img src="/assets/images/coreflow-favicon-logo.png" alt="" className="w-4 h-4 object-contain opacity-70" />
                     Powered by CoreflowHR
@@ -386,6 +386,7 @@ const SchedulingPage: React.FC = () => {
                                 <button
                                     onClick={() => { setWeekOffset((o) => Math.max(0, o - 1)); setSelectedDay(null); setSelectedSlot(null); }}
                                     disabled={weekOffset === 0}
+                                    aria-label="Previous week"
                                     className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                     <ChevronLeft size={16} />
@@ -393,6 +394,7 @@ const SchedulingPage: React.FC = () => {
                                 <button
                                     onClick={() => { setWeekOffset((o) => Math.min(maxWeekOffset, o + 1)); setSelectedDay(null); setSelectedSlot(null); }}
                                     disabled={weekOffset >= maxWeekOffset}
+                                    aria-label="Next week"
                                     className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                     <ChevronRight size={16} />

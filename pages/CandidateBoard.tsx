@@ -914,6 +914,7 @@ const CandidateBoard: React.FC = () => {
                     <div className="relative" ref={notificationRef}>
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
+                            aria-label="Notifications"
                             className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${showNotifications ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
                         >
                             <Bell size={16} />
@@ -938,7 +939,7 @@ const CandidateBoard: React.FC = () => {
                     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                         <button
                             onClick={() => setViewMode('kanban')}
-                            title="Kanban view"
+                            aria-label="Kanban view"
                             className={`w-8 h-8 flex items-center justify-center transition-colors border-r border-gray-200 ${
                                 viewMode === 'kanban' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-700'
                             }`}
@@ -947,7 +948,7 @@ const CandidateBoard: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            title="List view"
+                            aria-label="List view"
                             className={`w-8 h-8 flex items-center justify-center transition-colors ${
                                 viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-700'
                             }`}
@@ -971,7 +972,7 @@ const CandidateBoard: React.FC = () => {
                     {!isViewer && (
                         <div className="relative" ref={importHistoryRef}>
                             <button
-                                title="Import history"
+                                aria-label="Import history"
                                 onClick={() => setShowImportHistory(v => !v)}
                                 className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors bg-white ${
                                     importHistory.some(r => r.status === 'processing')
@@ -1093,7 +1094,7 @@ const CandidateBoard: React.FC = () => {
                                                                     : `${record.succeeded} imported${record.failed > 0 ? ` · ${record.failed} failed` : ''} · ${record.total} total`}
                                                             </p>
                                                             <div className="flex items-center justify-between mt-1">
-                                                                <p className="text-[10px] text-gray-300">
+                                                                <p className="text-[10px] text-gray-400">
                                                                     {new Date(record.startedAt).toLocaleString()}
                                                                 </p>
                                                                 {record.status === 'interrupted' && (
@@ -1122,7 +1123,7 @@ const CandidateBoard: React.FC = () => {
                     )}
                     {!isViewer && (
                         <button
-                            title="Trash"
+                            aria-label="Trash"
                             onClick={openTrash}
                             className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors bg-white"
                         >
@@ -1238,7 +1239,7 @@ const CandidateBoard: React.FC = () => {
             <div
                 ref={boardRef}
                 onDragOver={handleBoardDragOver}
-                className="flex-1 bg-gray-50/50 px-6 pt-5"
+                className="flex-1 bg-gray-50 px-6 pt-5"
                 style={{
                     overflowX: 'auto',
                     overflowY: 'hidden',
@@ -1412,7 +1413,7 @@ const CandidateBoard: React.FC = () => {
 
             {/* Reject / Delete confirmation dialog */}
             {pendingAction && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
                         <h3 className="text-sm font-semibold text-gray-900 mb-1">
                             {pendingAction.type === 'reject' ? 'Reject candidate?' : 'Delete candidate?'}
@@ -1484,7 +1485,7 @@ const CandidateBoard: React.FC = () => {
 
             {/* Trash panel */}
             {trashOpen && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
                             <div className="flex items-center gap-2">
@@ -1494,7 +1495,7 @@ const CandidateBoard: React.FC = () => {
                                     <span className="text-xs text-gray-400">({trashedCandidates.length})</span>
                                 )}
                             </div>
-                            <button onClick={() => setTrashOpen(false)} className="text-gray-400 hover:text-gray-700 transition-colors text-lg leading-none">&times;</button>
+                            <button onClick={() => setTrashOpen(false)} aria-label="Close trash" className="text-gray-400 hover:text-gray-700 transition-colors"><X size={18} /></button>
                         </div>
                         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 custom-scrollbar">
                             {trashLoading ? (

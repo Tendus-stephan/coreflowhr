@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Offer } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { X, AlertCircle, Mail, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { X, AlertCircle, Mail, Clock, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { darkenHex } from '../utils/colorUtils';
 
@@ -55,7 +55,7 @@ const Shell: React.FC<{
                         </div>
                         {companyName && (
                             <div className="min-w-0">
-                                <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{companyName}</h1>
+                                <h1 className="font-bold text-gray-900 leading-tight text-lg">{companyName}</h1>
                             </div>
                         )}
                     </div>
@@ -98,6 +98,7 @@ const OfferResponse: React.FC = () => {
     const [candidateName, setCandidateName] = useState<string>('');
     const [showCounterOffer, setShowCounterOffer] = useState(false);
     const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
+    const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
 
     // Counter offer form state
     const [counterSalary, setCounterSalary] = useState<string>('');
@@ -244,7 +245,7 @@ const OfferResponse: React.FC = () => {
     if (error && !offer) {
         return (
             <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     <AlertCircle size={28} className="text-red-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Link not found</h2>
                     <p className="text-sm text-gray-500">{error}</p>
@@ -259,12 +260,10 @@ const OfferResponse: React.FC = () => {
         const isCounter = success === 'counter_offered';
         return (
             <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     {isAccepted ? (
                         <>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
-                                <polyline points="4,12 9,17 20,6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CheckCircle size={28} className="text-green-600 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Offer accepted</h2>
                             <p className="text-sm text-gray-500 leading-relaxed">
                                 Your acceptance is recorded. Check your email for the signing link from Dropbox Sign to complete the process.
@@ -272,9 +271,7 @@ const OfferResponse: React.FC = () => {
                         </>
                     ) : isCounter ? (
                         <>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-4">
-                                <polyline points="4,12 9,17 20,6" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CheckCircle size={28} className="text-green-600 mx-auto mb-4" />
                             <h2 className="text-lg font-bold text-gray-900 mb-2">Counter offer submitted</h2>
                             <p className="text-sm text-gray-500 leading-relaxed">
                                 Your counter offer has been sent. The recruiter will review and get back to you.
@@ -313,7 +310,7 @@ const OfferResponse: React.FC = () => {
     if (signViaEmailOnly) {
         return (
             <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
                     <Mail size={28} className="text-gray-400 mx-auto mb-4" />
                     <h2 className="text-lg font-bold text-gray-900 mb-2">Check your email</h2>
                     <p className="text-sm text-gray-500 leading-relaxed">
@@ -335,10 +332,10 @@ const OfferResponse: React.FC = () => {
                     {/* Header */}
                     <div className="px-6 pt-5 pb-4 flex items-start justify-between">
                         <div>
-                            <h2 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>Counter offer</h2>
+                            <h2 className="font-bold text-gray-900 leading-tight text-lg">Counter offer</h2>
                             <p className="text-sm text-gray-400 mt-0.5">Propose your preferred terms below.</p>
                         </div>
-                        <button onClick={() => setShowCounterOffer(false)} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors -mt-0.5">
+                        <button onClick={() => setShowCounterOffer(false)} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors -mt-0.5" aria-label="Close counter offer form">
                             <X size={16} />
                         </button>
                     </div>
@@ -429,7 +426,7 @@ const OfferResponse: React.FC = () => {
                                     {counterBenefits.map((b, idx) => (
                                         <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
                                             {b}
-                                            <button onClick={() => removeBenefit(idx)} className="text-gray-400 hover:text-gray-700"><X size={11} /></button>
+                                            <button onClick={() => removeBenefit(idx)} className="text-gray-400 hover:text-gray-700" aria-label={`Remove ${b}`}><X size={11} /></button>
                                         </span>
                                     ))}
                                 </div>
@@ -485,11 +482,11 @@ const OfferResponse: React.FC = () => {
     // ── Main view ─────────────────────────────────────────────────────────────
     return (
         <Shell companyName={companyName || null} companyLogoUrl={companyLogoUrl} bannerColor={bannerColor}>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid #e5e7eb' }}>
+            <div className="bg-white rounded-2xl overflow-hidden border border-gray-200">
 
                 {/* ── 1. HEADER ── */}
                 <div className="px-6 pt-5 pb-4">
-                    <h2 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>{offer.positionTitle}</h2>
+                    <h2 className="font-bold text-gray-900 leading-tight text-lg">{offer.positionTitle}</h2>
                     {candidateName && (
                         <p className="text-sm text-gray-500 mt-1">{candidateName}</p>
                     )}
@@ -686,8 +683,18 @@ const OfferResponse: React.FC = () => {
 
                             {/* Decline — text-only link */}
                             <div className="text-center pt-1">
+                                {showDeclineConfirm && (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-gray-700 space-y-3">
+                                    <p className="font-medium text-gray-900">Decline this offer?</p>
+                                    <p className="text-gray-600">This action is permanent and will notify the recruiter.</p>
+                                    <div className="flex gap-2">
+                                      <button type="button" onClick={() => setShowDeclineConfirm(false)} className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
+                                      <button type="button" onClick={handleDecline} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">Yes, decline</button>
+                                    </div>
+                                  </div>
+                                )}
                                 <button
-                                    onClick={handleDecline}
+                                    onClick={() => setShowDeclineConfirm(true)}
                                     disabled={submitting}
                                     className="text-sm text-gray-400 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
