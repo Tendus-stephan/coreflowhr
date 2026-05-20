@@ -145,7 +145,7 @@ const VerifyEmail: React.FC = () => {
             </div>
           </div>
           <h2 className="text-center text-3xl font-bold text-gray-900">
-            Email Verified!
+            Email verified
           </h2>
           <p className="mt-4 text-center text-sm text-gray-600">
             Your email has been confirmed. Redirecting you...
@@ -173,7 +173,7 @@ const VerifyEmail: React.FC = () => {
           Check your email
         </h2>
         
-        <div className="mt-8 bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
+        <div className="mt-8 bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-200">
           <div className="text-center space-y-4">
             <p className="text-gray-600">
               We've sent a verification link to

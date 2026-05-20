@@ -207,12 +207,11 @@ const JobApplication: React.FC = () => {
           try {
             const clientId = (jobData as any).client_id;
             if (clientId) {
-              // Job is linked to a client — use client name + logo
-              const { data: client } = await supabase
-                .from('clients')
-                .select('name, logo_url')
-                .eq('id', clientId)
-                .single();
+              // Job is linked to a client — use client name + logo.
+              // Must use the RPC (SECURITY DEFINER) because the clients table is
+              // auth-gated by RLS and this page is publicly accessible (no session).
+              const { data: rows } = await supabase.rpc('get_client_branding', { p_client_id: clientId });
+              const client = rows?.[0] ?? null;
               if (client) {
                 setCompanyName((client as any).name || jobData.company || '');
                 setCompanyLogoUrl((client as any).logo_url ?? null);

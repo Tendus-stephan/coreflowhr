@@ -51,14 +51,10 @@ const ForgotPassword: React.FC = () => {
             <span className="text-sm font-medium">Back to Home</span>
         </Link>
         <div className="flex justify-center mb-2">
-            <img 
-              src="/assets/images/coreflow-favicon-logo.png" 
-              alt="CoreFlow" 
-              className="object-contain"
-              style={{ 
-                width: '120px',
-                height: '120px'
-              }}
+            <img
+              src="/assets/images/coreflow-favicon-logo.png"
+              alt="CoreFlow"
+              className="object-contain w-[48px] h-[48px]"
             />
         </div>
         <h2 className="mt-3 text-center text-3xl font-bold tracking-tight text-gray-900">
@@ -70,14 +66,14 @@ const ForgotPassword: React.FC = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
+        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-200">
           {error && (
-            <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {error}
             </div>
           )}
           {success && (
-            <div className="mb-4 p-3 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
+            <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
               Check your email for a password reset link.
             </div>
           )}

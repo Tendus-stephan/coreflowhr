@@ -16,7 +16,7 @@ const getPasswordStrength = (pwd: string): { score: number; label: string; barCo
   if (score <= 1) return { score, label: 'Very weak', barColor: 'bg-red-500', textColor: 'text-red-500' };
   if (score === 2) return { score, label: 'Weak', barColor: 'bg-orange-400', textColor: 'text-orange-500' };
   if (score === 3) return { score, label: 'Fair', barColor: 'bg-yellow-400', textColor: 'text-yellow-600' };
-  if (score === 4) return { score, label: 'Good', barColor: 'bg-blue-500', textColor: 'text-blue-600' };
+  if (score === 4) return { score, label: 'Good', barColor: 'bg-gray-400', textColor: 'text-gray-500' };
   return { score, label: 'Strong', barColor: 'bg-green-500', textColor: 'text-green-600' };
 };
 
@@ -138,26 +138,22 @@ const SignUp: React.FC = () => {
             <span className="text-sm font-medium">Back to Home</span>
         </Link>
         <div className="flex justify-center mb-2">
-            <img 
-              src="/assets/images/coreflow-favicon-logo.png" 
-              alt="CoreFlow" 
-              className="object-contain"
-              style={{ 
-                width: '120px',
-                height: '120px'
-              }}
+            <img
+              src="/assets/images/coreflow-favicon-logo.png"
+              alt="CoreFlow"
+              className="object-contain w-[48px] h-[48px]"
             />
         </div>
         <h2 className="mt-3 text-center text-3xl font-bold tracking-tight text-gray-900">
           {inviteEmailLocked ? 'Join your team' : 'Create your account'}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or <Link to={loginPath} className="font-semibold text-gray-900 hover:underline transition-all">Sign in</Link>
+          Already have an account? <Link to={loginPath} className="font-semibold text-gray-900 hover:underline transition-all">Sign in</Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-100">
+        <div className="bg-white py-8 px-4 sm:rounded-xl sm:px-10 border border-gray-200">
           {inviteInvalid && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
               This invite has expired or is invalid. Ask your admin to send a new invitation.
@@ -182,7 +178,7 @@ const SignUp: React.FC = () => {
                 type="button"
                 onClick={() => signInWithGoogle()}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none transition-colors transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -206,7 +202,7 @@ const SignUp: React.FC = () => {
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Your name</label>
               <div className="mt-1">
                 <input 
                   id="name" 
@@ -300,7 +296,7 @@ const SignUp: React.FC = () => {
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                 >
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -311,7 +307,7 @@ const SignUp: React.FC = () => {
             </div>
 
             <div className="flex items-center">
-                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-gray-900 focus:ring-0 focus:ring-offset-0 focus:outline-none bg-white" required />
+                <input id="terms" name="terms" type="checkbox" className="h-4 w-4 rounded border-gray-200 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 bg-white" required />
                 <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
                     I agree to the <Link to="/terms" className="text-gray-900 font-medium hover:underline">Terms</Link> and <Link to="/privacy" className="text-gray-900 font-medium hover:underline">Privacy Policy</Link>
                 </label>

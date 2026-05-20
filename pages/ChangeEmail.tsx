@@ -224,7 +224,7 @@ const ChangeEmail: React.FC = () => {
         backLabel = 'Back to dashboard',
         children,
     }) => (
-        <div className="min-h-screen bg-[#F7F7F5] flex flex-col py-16 px-4 font-sans">
+        <div className="min-h-screen bg-white flex flex-col py-16 px-4 font-sans">
             <div className="mx-auto w-full max-w-[440px]">
                 <Link
                     to={backTo}
@@ -242,7 +242,7 @@ const ChangeEmail: React.FC = () => {
     if (authLoading || (session && loading)) {
         return (
             <Shell>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center justify-center py-16">
+                <div className="bg-white rounded-xl border border-gray-200 flex items-center justify-center py-16">
                     <Loader2 size={20} className="animate-spin text-gray-300" />
                 </div>
             </Shell>
@@ -255,7 +255,7 @@ const ChangeEmail: React.FC = () => {
     if (session && sentToNewAddress) {
         return (
             <Shell>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-100">
                         <h1 className="text-base font-semibold text-gray-900">Check your new inbox</h1>
                         <p className="mt-0.5 text-sm text-gray-500">One more step to complete the change.</p>
@@ -272,7 +272,7 @@ const ChangeEmail: React.FC = () => {
     if (emailChangeJustConfirmed && session) {
         return (
             <Shell>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center py-14 px-6 text-center">
+                <div className="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-14 px-6 text-center">
                     <Loader2 size={24} className="animate-spin text-gray-300 mb-4" />
                     <p className="text-sm font-medium text-gray-800">Email updated successfully</p>
                     <p className="mt-1 text-xs text-gray-400">Signing you out and redirecting to login…</p>
@@ -285,7 +285,7 @@ const ChangeEmail: React.FC = () => {
     if (session && waitingForSecondConfirmation) {
         return (
             <Shell>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-100">
                         <h1 className="text-base font-semibold text-gray-900">Check your new inbox</h1>
                         <p className="mt-0.5 text-sm text-gray-500">A confirmation link is on its way.</p>
@@ -312,7 +312,7 @@ const ChangeEmail: React.FC = () => {
     if (!session) {
         return (
             <Shell backTo="/" backLabel="Back to home">
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-100">
                         <h1 className="text-base font-semibold text-gray-900">Change email address</h1>
                         <p className="mt-0.5 text-sm text-gray-500">Sign in to update the email you use to sign in.</p>
@@ -342,7 +342,7 @@ const ChangeEmail: React.FC = () => {
     // ── Main form ────────────────────────────────────────────────────────────
     return (
         <Shell>
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-gray-100">
                     <h1 className="text-base font-semibold text-gray-900">Change email address</h1>
@@ -367,7 +367,7 @@ const ChangeEmail: React.FC = () => {
                             value={newEmail}
                             onChange={(e) => { setNewEmail(e.target.value); setMessage(null); }}
                             placeholder="you@example.com"
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900/8 focus:border-gray-400 transition-colors"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-0 focus:border-gray-900 transition-colors"
                             disabled={isUpdating}
                             onKeyDown={(e) => { if (e.key === 'Enter' && newEmail.trim()) handleUpdateEmail(e as any); }}
                         />
