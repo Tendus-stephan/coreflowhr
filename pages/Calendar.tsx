@@ -121,7 +121,7 @@ const Calendar: React.FC = () => {
     const numWeeks = gridDays.length / 7;
 
     return (
-        <div className="flex flex-col bg-white" style={{ height: '100vh', minHeight: 0, overflow: 'hidden' }}>
+        <div className="flex flex-col bg-white h-screen min-h-0 overflow-hidden">
 
             {/* ── Header ── */}
             <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-100 flex items-center justify-between gap-4">
@@ -133,12 +133,14 @@ const Calendar: React.FC = () => {
                     {/* Month navigation */}
                     <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                         <button
+                            aria-label="Previous month"
                             onClick={() => setCurrentMonth(m => subMonths(m, 1))}
                             className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 border-r border-gray-200 transition-colors"
                         >
                             <ChevronLeft size={14} />
                         </button>
                         <button
+                            aria-label="Next month"
                             onClick={() => setCurrentMonth(m => addMonths(m, 1))}
                             className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
                         >
@@ -200,7 +202,7 @@ const Calendar: React.FC = () => {
                                     className={`border-b border-r border-gray-100 p-1.5 cursor-pointer flex flex-col overflow-hidden transition-colors ${
                                         isSelected
                                             ? 'bg-gray-50'
-                                            : 'hover:bg-gray-50/50'
+                                            : 'hover:bg-gray-50'
                                     } ${!inMonth ? 'opacity-35' : ''}`}
                                 >
                                     {/* Date number */}

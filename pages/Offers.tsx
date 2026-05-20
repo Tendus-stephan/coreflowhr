@@ -115,6 +115,7 @@ function RowMenu({ offer, expired, onView, onSend, onArchive, onUnarchive, onDow
         <div ref={ref} className="relative">
             <button
                 onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+                aria-label="More actions"
                 className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
             >
                 <MoreHorizontal size={15} />
@@ -365,7 +366,7 @@ const Offers: React.FC = () => {
     if (loading) return <OffersSkeleton />;
 
     return (
-        <div className="flex flex-col h-full bg-gray-50/40">
+        <div className="flex flex-col h-full bg-gray-50">
 
             {/* ── Page header ── */}
             <div className="px-8 pt-8 pb-5 border-b border-gray-100 bg-white flex items-center justify-between gap-4 flex-shrink-0">
@@ -385,7 +386,7 @@ const Offers: React.FC = () => {
                             className="pl-8 pr-7 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-400 transition-colors w-52"
                         />
                         {searchQuery && (
-                            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+                            <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
                                 <X size={13} />
                             </button>
                         )}
@@ -454,7 +455,7 @@ const Offers: React.FC = () => {
                         {/* List table */}
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             {/* Column headers */}
-                            <div className="grid grid-cols-[1fr_auto_140px_110px_36px] gap-x-4 items-center px-4 py-2 border-b border-gray-100 bg-gray-50/60">
+                            <div className="grid grid-cols-[1fr_auto_140px_110px_36px] gap-x-4 items-center px-4 py-2 border-b border-gray-100 bg-gray-50">
                                 <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Offer</span>
                                 <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Status</span>
                                 <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Salary</span>
@@ -475,7 +476,7 @@ const Offers: React.FC = () => {
                                 return (
                                     <div
                                         key={offer.id}
-                                        className={`grid grid-cols-[1fr_auto_140px_110px_36px] gap-x-4 items-center px-4 py-3 hover:bg-gray-50/70 transition-colors cursor-pointer ${idx < paginated.length - 1 ? 'border-b border-gray-100' : ''}`}
+                                        className={`grid grid-cols-[1fr_auto_140px_110px_36px] gap-x-4 items-center px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${idx < paginated.length - 1 ? 'border-b border-gray-100' : ''}`}
                                         onClick={() => handleEdit(offer)}
                                     >
                                         {/* Offer info */}
@@ -529,6 +530,7 @@ const Offers: React.FC = () => {
                                     <button
                                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                         disabled={currentPage === 1}
+                                        aria-label="Previous page"
                                         className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <ChevronLeft size={15} />
@@ -549,6 +551,7 @@ const Offers: React.FC = () => {
                                     <button
                                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                         disabled={currentPage === totalPages}
+                                        aria-label="Next page"
                                         className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <ChevronRight size={15} />

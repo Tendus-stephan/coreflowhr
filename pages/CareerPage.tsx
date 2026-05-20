@@ -30,8 +30,6 @@ const buildGradient = (color: string) =>
 // Strip null / "General" — only real departments shown
 const realDept = (d?: string | null) => (d && d.toLowerCase() !== 'general' ? d : null);
 
-const MAX_W = '780px';
-
 const CareerPage: React.FC = () => {
     const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
     const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
@@ -162,43 +160,34 @@ const CareerPage: React.FC = () => {
 
                 {/* Cover banner with curved + faded bottom edge */}
                 <div
-                    className="relative w-full overflow-hidden"
-                    style={{ height: '200px', background: gradient }}
+                    className="relative w-full h-[200px] overflow-hidden"
+                    style={{ background: gradient }}
                 >
                     {/* Soft curve + fade into page bg */}
                     <div
-                        className="absolute inset-x-0 bottom-0"
+                        className="absolute inset-x-0 bottom-0 h-20"
                         style={{
-                            height: '80px',
-                            background: 'linear-gradient(to bottom, transparent 0%, #ffffff 100%)',
-                            borderRadius: '0 0 0 0',
+                            background: 'linear-gradient(to bottom, transparent 0%, white 100%)',
                         }}
                     />
                     {/* Subtle SVG curve mask at very bottom */}
                     <svg
                         viewBox="0 0 1440 40"
-                        className="absolute bottom-0 left-0 w-full"
+                        className="absolute bottom-0 left-0 w-full h-[40px]"
                         preserveAspectRatio="none"
-                        style={{ height: '40px' }}
                     >
                         <path d="M0,40 C480,0 960,0 1440,40 L1440,40 L0,40 Z" fill="#ffffff" />
                     </svg>
                 </div>
 
                 {/* Logo + name — relative so it paints above the banner's fade overlay */}
-                <div className="mx-auto px-6 relative" style={{ maxWidth: MAX_W }}>
+                <div className="mx-auto px-6 relative max-w-[780px]">
                     <div className="flex items-center gap-4 -mt-10 pb-6">
 
                         {/* Logo: white rounded bg, shadow, overlaps banner */}
                         <div
-                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden"
-                            style={{
-                                width: 80,
-                                height: 80,
-                                borderRadius: '10px',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
-                                border: '0.5px solid #e5e7eb',
-                            }}
+                            className="flex-shrink-0 bg-white flex items-center justify-center overflow-hidden w-20 h-20 rounded-xl border border-gray-200"
+                            style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.14)' }}
                         >
                             {workspace.company_logo_url && !logoErr ? (
                                 <img
@@ -221,11 +210,11 @@ const CareerPage: React.FC = () => {
 
                         {/* Name + description — plain text, no card/box */}
                         <div className="min-w-0">
-                            <h1 className="font-bold text-gray-900 leading-tight" style={{ fontSize: '18px' }}>
+                            <h1 className="font-bold text-gray-900 leading-tight text-lg">
                                 {workspace.name}
                             </h1>
                             {workspace.company_description && (
-                                <p className="text-gray-500 mt-0.5 leading-snug line-clamp-2" style={{ fontSize: '13px' }}>
+                                <p className="text-[13px] text-gray-500 mt-0.5 leading-snug line-clamp-2">
                                     {workspace.company_description}
                                 </p>
                             )}
@@ -235,7 +224,7 @@ const CareerPage: React.FC = () => {
             </div>
 
             {/* ── 2. HEADING BLOCK ───────────────────────────────────────── */}
-            <div className="mx-auto px-6 pb-5" style={{ maxWidth: MAX_W }}>
+            <div className="mx-auto px-6 pb-5 max-w-[780px]">
                 <h2 className="text-2xl font-semibold text-gray-900">Open positions</h2>
                 <p className="text-sm text-gray-400 mt-0.5">
                     {jobs.length > 0
@@ -245,17 +234,16 @@ const CareerPage: React.FC = () => {
             </div>
 
             {/* ── 3. SEARCH + FILTERS (grouped, 8px gap) ─────────────────── */}
-            <div className="mx-auto px-6 pb-5" style={{ maxWidth: MAX_W }}>
+            <div className="mx-auto px-6 pb-5 max-w-[780px]">
                 {/* Search — 44px, visible border */}
-                <div className="relative" style={{ marginBottom: '8px' }}>
+                <div className="relative mb-2">
                     <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input
                         type="text"
                         placeholder="Search roles or locations…"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        style={{ height: '44px' }}
-                        className="w-full pl-10 pr-4 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-100 transition-all"
+                        className="w-full h-11 pl-10 pr-4 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-100 transition-all"
                     />
                 </div>
 
@@ -266,10 +254,9 @@ const CareerPage: React.FC = () => {
                             <button
                                 key={pill}
                                 onClick={() => setActiveFilter(pill)}
-                                style={{ height: '34px', paddingLeft: '14px', paddingRight: '14px' }}
-                                className={`rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+                                className={`h-[34px] px-[14px] rounded-full text-xs font-medium transition-all whitespace-nowrap ${
                                     activeFilter === pill
-                                        ? 'bg-gray-900 text-white shadow-sm'
+                                        ? 'bg-gray-900 text-white'
                                         : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-800'
                                 }`}
                             >
@@ -281,7 +268,7 @@ const CareerPage: React.FC = () => {
             </div>
 
             {/* ── 4. JOB LIST ────────────────────────────────────────────── */}
-            <div className="mx-auto px-6 pb-16" style={{ maxWidth: MAX_W }}>
+            <div className="mx-auto px-6 pb-16 max-w-[780px]">
                 {filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-gray-200">
                         <p className="text-sm font-medium text-gray-700 mb-1">
@@ -292,7 +279,7 @@ const CareerPage: React.FC = () => {
                         </p>
                     </div>
                 ) : (
-                    <div className="rounded-2xl bg-white overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
+                    <div className="rounded-2xl bg-white overflow-hidden border border-gray-200">
                         {filtered.map((job, i) => {
                             const applyHref  = job.slug ? `/jobs/apply/${workspaceSlug}/${job.slug}` : `/jobs/apply/${job.id}`;
                             const isLast     = i === filtered.length - 1;
@@ -301,18 +288,16 @@ const CareerPage: React.FC = () => {
                                 <Link
                                     key={job.id}
                                     to={applyHref}
-                                    className="flex items-center gap-4 px-5 group transition-colors"
+                                    className="flex items-center gap-4 px-5 py-4 group transition-colors"
                                     style={{
-                                        paddingTop: '16px',
-                                        paddingBottom: '16px',
-                                        borderBottom: isLast ? 'none' : '0.5px solid #f0f0f0',
+                                        borderBottom: isLast ? 'none' : '0.5px solid #f3f4f6',
                                     }}
                                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#fafafa')}
                                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                                 >
                                     {/* Title + meta */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-gray-900 leading-snug group-hover:text-gray-700 transition-colors" style={{ fontWeight: 500 }}>
+                                        <p className="text-sm font-medium text-gray-900 leading-snug group-hover:text-gray-700 transition-colors">
                                             {job.title}
                                         </p>
                                         <div className="flex items-center gap-1 mt-1.5">
@@ -348,7 +333,7 @@ const CareerPage: React.FC = () => {
                     href="https://www.coreflowhr.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shadow-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all"
                 >
                     <img
                         src="/assets/images/coreflow-favicon-logo.png"
