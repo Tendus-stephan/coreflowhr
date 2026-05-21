@@ -10,7 +10,7 @@ export async function loginAs(page: Page, role: Role): Promise<void> {
   const creds = TEST_USERS[role];
   await page.goto(ROUTES.login);
   await page.getByLabel(/email/i).fill(creds.email);
-  await page.getByLabel(/password/i).fill(creds.password);
+  await page.locator('#password').fill(creds.password);
   await page.getByRole('button', { name: /sign in/i }).click();
   await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 15_000 });
 }
