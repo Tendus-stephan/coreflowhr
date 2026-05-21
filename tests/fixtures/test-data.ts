@@ -10,12 +10,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const TEST_USERS = {
   admin: {
     email: process.env.TEST_ADMIN_EMAIL || 'test-admin@coreflow-qa.com',
-    password: process.env.TEST_ADMIN_PASSWORD || 'TestAdmin!2025',
+    password: process.env.TEST_ADMIN_PASSWORD || 'TestAdmin2025',
     name: 'QA Admin',
   },
   recruiter: {
     email: process.env.TEST_RECRUITER_EMAIL || 'test-recruiter@coreflow-qa.com',
-    password: process.env.TEST_RECRUITER_PASSWORD || 'TestRecruiter!2025',
+    password: process.env.TEST_RECRUITER_PASSWORD || 'TestRecruiter2025',
     name: 'QA Recruiter',
   },
 } as const;

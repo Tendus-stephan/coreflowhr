@@ -38,7 +38,7 @@ test.describe('Sign up', () => {
     await page.getByLabel(/your name/i).fill('Duplicate QA User');
     await page.getByLabel(/email/i).fill(TEST_USERS.admin.email);
     await page.getByLabel(/^password$/i).fill('DuplicatePass!2025');
-    await page.getByLabel(/confirm password/i).fill('DuplicatePass!2025');
+    await page.locator('#confirm-password').fill('DuplicatePass!2025');
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: /create account/i }).click();
 
@@ -62,7 +62,7 @@ test.describe('Sign up', () => {
     await emailInput.fill('not-an-email');
 
     await page.getByLabel(/^password$/i).fill('ValidPass!2025');
-    await page.getByLabel(/confirm password/i).fill('ValidPass!2025');
+    await page.locator('#confirm-password').fill('ValidPass!2025');
     await page.getByRole('checkbox').check();
 
     // Attempt to submit
@@ -104,7 +104,7 @@ test.describe('Login', () => {
 
   test('wrong password shows a clear error message', async ({ page }) => {
     await page.getByLabel(/email/i).fill(TEST_USERS.admin.email);
-    await page.getByLabel(/password/i).fill('totally-wrong-password!');
+    await page.locator('#password').fill('totally-wrong-password!');
     await page.getByRole('button', { name: /sign in/i }).click();
 
     // The normalizeLoginError helper maps Supabase errors to user-friendly text
@@ -140,14 +140,13 @@ test.describe('Forgot password', () => {
     await page.getByLabel(/email/i).fill('totally-unknown@example-qa.com');
     await page.getByRole('button', { name: /send reset link/i }).click();
 
-    // Success banner should appear
+    // Success banner should appear — use specific text to avoid strict-mode collision
     await expect(
-      page.getByText(/check your email|email sent|reset link/i),
+      page.getByText('Check your email for a password reset link.'),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The button becomes disabled / shows "Email sent!"
-    const btn = page.getByRole('button', { name: /email sent|sending/i });
-    await expect(btn).toBeVisible({ timeout: 5_000 });
+    // The button becomes disabled and shows "Email sent!"
+    await expect(page.getByRole('button', { name: 'Email sent!' })).toBeVisible({ timeout: 5_000 });
   });
 
   test('submitting a registered email also shows success message', async ({ page }) => {
@@ -155,7 +154,7 @@ test.describe('Forgot password', () => {
     await page.getByRole('button', { name: /send reset link/i }).click();
 
     await expect(
-      page.getByText(/check your email|email sent|reset link/i),
+      page.getByText('Check your email for a password reset link.'),
     ).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -171,13 +170,12 @@ test.describe('Reset password — expired link', () => {
 
     // The page should surface a clear error — not a spinner forever
     await expect(
-      page.getByText(
-        /expired|invalid|link.*no longer|try again|request.*new|access denied/i,
-      ),
+      page.getByText('This reset link has expired.'),
     ).toBeVisible({ timeout: 15_000 });
 
     // No raw Supabase stack trace or "undefined" should be visible
-    await expect(page.getByText(/stack|at Object\.|TypeError/i)).toHaveCount(0);
+    // Note: use specific patterns — "stack" alone matches the dev overlay's "Stack ×3" button
+    await expect(page.getByText(/at Object\.|TypeError:/i)).toHaveCount(0);
   });
 
   test('visiting with a hash error also shows expired-link message', async ({ page }) => {
@@ -185,7 +183,7 @@ test.describe('Reset password — expired link', () => {
     await page.goto('/reset-password#error=access_denied&error_code=otp_expired');
 
     await expect(
-      page.getByText(/expired|invalid|link.*no longer|try again|request.*new/i),
+      page.getByText('This reset link has expired.'),
     ).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -213,7 +211,7 @@ test.describe('MFA — two-factor authentication UI', () => {
     // attempt first, which should NOT trigger MFA but confirms the login form is
     // responsive.
     await page.getByLabel(/email/i).fill(TEST_USERS.admin.email);
-    await page.getByLabel(/password/i).fill(TEST_USERS.admin.password);
+    await page.locator('#password').fill(TEST_USERS.admin.password);
 
     // The heading "Two-Factor Authentication" should be absent before submit
     await expect(
@@ -246,12 +244,12 @@ test.describe('MFA — two-factor authentication UI', () => {
     await expect(page.locator('#email')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('#password')).toBeVisible();
 
-    // Confirm the "Verification Code" label text exists somewhere in the page
-    // HTML (rendered server-side or as a hidden element) — this ensures the
-    // component includes proper accessible labelling for the MFA code input.
-    const pageContent = await page.content();
-    expect(pageContent).toContain('mfa-code');
-    expect(pageContent).toContain('Verification Code');
+    // The MFA section is conditionally rendered (only when requiresMFA=true),
+    // so #mfa-code is not in the DOM on initial load — confirm that is the case.
+    await expect(page.locator('#mfa-code')).toHaveCount(0);
+
+    // The standard sign-in button should be visible and labelled correctly
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
   });
 });
 
